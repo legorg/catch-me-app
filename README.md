@@ -8,14 +8,67 @@ A minimal starting point for a hunter-versus-runner game: one Expo mobile app an
 app/                      Expo + React Native + TypeScript
   src/app/                Screens and layouts (Expo Router)
   src/api/                Backend requests and generated TypeScript client
-backend/                  Go standard library only
+backend/                  Go standard-library HTTP + Ent + SQLite
   api/openapi.json        Generated API document (do not edit)
   cmd/server/             Server entry point
   cmd/apigen/             API generation and freshness check
-  internal/api/           HTTP handlers and tests
+  cmd/dbgen/              Ent generation and freshness check
+  internal/api/           Route registration, CORS, integration tests
+  internal/controller/    HTTP parsing, response models, error mapping
+  internal/service/       Game use cases and persistence interface
+  internal/game/          Parsed domain values, playground geometry
+  internal/db/            Ent-backed SQLite store
+    ent/schema/           Handwritten Go table definitions
+    ent/                  Generated database client (do not edit)
 ```
 
-The starter includes a backend connection-check screen, `GET /health`, and a dummy `GET /api/demo` endpoint called through a generated TypeScript client. Game creation, joining, maps, GPS, authentication, and persistence are not implemented yet. There is no database or external Go dependency. SQLite would require a third-party driver, so it is deliberately excluded.
+The app lets you select a playground on a map in the Android/iOS app (Google Maps on Android, Apple Maps on iOS), preview a north-aligned **6 × 6 grid**, save it as a game session, and reload it by session ID. Cells default to approximately **2 km × 2 km** (12 km × 12 km total). Before saving, adjust **Cell side length (km)** between **0.1 and 5 km**, in 0.1 km steps; comma and dot decimals are accepted. The map fits the selected/resized grid, but panning or zooming never changes its physical size. The Go backend stores the center, boundary coordinates, chosen cell size, dimensions, and creation timestamp through Ent using the pure-Go `modernc.org/sqlite` driver. There is no separate database service; HTTP remains standard-library Go.
+
+Saved sessions keep their stored size, including older 100 m-cell playgrounds. The Ent schema maps to the original `games` table and `session_id` primary key, preserving existing coordinates and timestamp text. Saved playgrounds remain read-only; changing size is part of creating a new game.
+
+This is playground setup only. Team joining, player roles, game rules, GPS/background tracking, and authentication are not implemented. A session ID identifies saved configuration; it is **not** an authentication credential or team join code. Anyone with the ID can read the playground in this local-development version. Sessions currently remain until the database is explicitly removed; no automatic cleanup is implemented yet.
+
+The grid uses a local spherical approximation, not survey-grade geometry. Center latitudes are restricted to -80° through 80°, and playgrounds crossing the international date line are rejected. The frontend previews the geometry; the backend recomputes and stores the authoritative bounds. Individual cell boundaries are derived from those bounds rather than stored as 36 duplicate records. No map imagery or player location history is stored. Confirm the whole area is safe and permitted for outdoor play.
+
+## Backend layers and Ent
+
+Request flow is **API → controller → service → database**:
+
+- `internal/api` registers endpoints and applies CORS/security headers. It contains no game validation or queries.
+- `internal/controller` decodes bounded JSON requests, parses them into domain values (applying the default cell size when omitted), invokes the service, maps domain errors to HTTP statuses, and maps domain values to public response models.
+- `internal/service` owns game creation/loading, random session IDs, and creation timestamps. It accepts only parsed domain values and depends on a two-method `GameRepository` interface, not SQLite or Ent.
+- `internal/db` implements that interface using generated Ent setters and lookups. Loaded rows are parsed again, so invalid stored data becomes a server error. Ent-specific errors/entities stay inside this layer.
+- `internal/game` holds domain values and geometry with no HTTP/database dependencies. Values are parsed, not validated: `ParseSessionID`, `ParseCoordinates`, `ParseCellSize`, and `NewPlayground` are the only way to build them from raw input, and their fields are private. The Ent schema reuses these parsers as validators. `cmd/server` wires the layers together; no dependency-injection framework or generic repository hierarchy is used.
+
+The public API contract is separate from database entities. Changing an Ent model must not accidentally change frontend responses or expose future private fields.
+
+### Declare and query tables in Go
+
+Edit **`backend/internal/db/ent/schema/game.go`** for table/field definitions, then regenerate:
+
+```sh
+# From backend/:
+go run ./cmd/dbgen
+go run ./cmd/dbgen -check
+go test ./...
+```
+
+Or from the repository root:
+
+```sh
+docker compose run --rm --workdir /workspace/backend api-tools go run ./cmd/dbgen
+docker compose run --rm --workdir /workspace/backend api-tools go run ./cmd/dbgen -check
+```
+
+Ent **v0.14.6** is pinned in `go.mod`; the generator uses that same version. Keep generated files under `internal/db/ent/` in Git; never edit them manually (the `schema/` subdirectory is handwritten input). `-check` generates into a temporary directory and compares changed, missing, and extra files without updating committed output. Go tests and the backend Docker build include this freshness check, so CI catches stale Ent code automatically. API generation remains a separate command, needed only when the HTTP contract changes.
+
+Schema validators protect writes through Ent; they are not a substitute for domain parsing, authorization, or a complete set of SQLite CHECK constraints. No team/player tables have been added.
+
+### Schema initialization and existing databases
+
+Startup uses Ent's automatic schema migration with column/index dropping explicitly disabled. It creates the table on a fresh database and reconciles the mapped schema on an existing one. Tests seed the exact pre-Ent schema and verify that old sessions and new writes survive repeated startup without changed IDs, sizes, coordinates, or timestamp precision. The SQLite driver remains pure Go and the API still builds with `CGO_ENABLED=0`.
+
+This is a **local-development migration policy**, not a production migration workflow. Back up existing databases before schema changes. Before production, adopt reviewed, versioned migrations rather than automatically applying evolving schemas during server startup; some schema changes can rebuild SQLite tables even with dropping disabled. Ent includes migration dependencies, but no Atlas CLI or additional running service is required for this setup.
 
 ## Go-first API generation and frontend service
 
@@ -29,7 +82,7 @@ backend/api/openapi.json
 app/src/api/generated/
 ```
 
-Response fields come from `backend/internal/api/models.go` and its JSON tags. Routes, query parameters, and response codes come from `@Router`, `@Param`, and `@Success`/`@Failure` comments in `handler.go`. You still need to maintain those comments when changing handler behavior; Go's standard library cannot infer an HTTP contract from arbitrary code.
+Response fields come from `backend/internal/controller/models.go` and its JSON tags. Endpoint parameters and response codes come from the annotations on controller methods in `game.go` and `health.go`; actual routing is registered in `internal/api/handler.go`. Keep route registrations and `@Router`, `@Param`, and `@Success`/`@Failure` annotations synchronized; Go's standard library cannot infer an HTTP contract from arbitrary code.
 
 Both the API document and frontend client are autogenerated. **Do not edit either output by hand.** The stable Swaggo tool emits Swagger/OpenAPI **2.0** JSON (identified by `"swagger": "2.0"`), despite the `openapi.json` filename. The frontend generator supports this format. We deliberately avoid a prerelease OpenAPI 3 generator for this simple setup.
 
@@ -40,32 +93,37 @@ The Go annotation `@ID` becomes `operationId` and determines each generated serv
 | Endpoint | Generated function | Purpose |
 | --- | --- | --- |
 | `GET /health` | `getHealth()` | Backend health check |
-| `GET /api/demo?name=Alex` | `getDemoGreeting()` | Dummy greeting to demonstrate the connection |
+| `POST /api/games` | `createGame()` | Save a playground and return its session ID |
+| `GET /api/games/{sessionId}` | `getGame()` | Load a saved playground |
 
-For example, <http://localhost:8080/api/demo?name=Alex> returns:
+Create a game by posting a JSON center to `/api/games`:
 
 ```json
 {
-  "message": "Hello, Alex! Your Expo app is connected to Go.",
-  "playerName": "Alex",
-  "service": "catch-me-backend"
+  "latitude": 52.52,
+  "longitude": 13.405,
+  "cellSizeMeters": 2000
 }
 ```
 
-The app's **Check backend connection** button calls this dummy endpoint with `name=Runner` and displays the returned message. The handwritten `app/src/api/client.ts` wrapper supplies the API URL, a five-second timeout, readable errors, and basic runtime response validation. Its types and HTTP request functions come from generated code, not manually duplicated interfaces or URLs.
+The response is HTTP **201**, with `sessionId`, `createdAt`, and a `playground` containing `center`, `bounds` (`north`, `south`, `east`, `west`), `rows`, `columns`, and `cellSizeMeters`. Save the 32-character lowercase hexadecimal session ID to reload the same playground later. The app does not remember it across app restarts yet.
+
+`cellSizeMeters` is an optional integer: omitted/null defaults to 2000. Explicit values must be 100–5000 in steps of 100. The backend rejects invalid sizes and computes bounds from the requested center and size rather than trusting frontend geometry.
+
+The handwritten `app/src/api/client.ts` wrapper supplies the API URL, a five-second timeout, readable errors, and basic runtime response validation. Its types and HTTP request functions come from generated code, not manually duplicated interfaces or URLs. Creation is not automatically retried: if the network drops after a save, an unreferenced session may remain in the database.
 
 You can call the generated service directly too:
 
 ```ts
 import { API_URL } from '@/api/client';
-import { getDemoGreeting } from '@/api/generated';
+import { createGame } from '@/api/generated';
 
-const { data } = await getDemoGreeting({
+const { data } = await createGame({
   baseUrl: API_URL,
-  query: { name: 'Alex' },
+  body: { latitude: 52.52, longitude: 13.405, cellSizeMeters: 2000 },
   throwOnError: true,
 });
-console.log(data.message);
+console.log(data.sessionId);
 ```
 
 ### Change or add an endpoint
@@ -93,7 +151,7 @@ The `api-tools` service is an on-demand development container; it does not start
 
 From `backend/`, `go run ./cmd/apigen` updates just the API document; add `-check` to test freshness. The initial tool invocation downloads the pinned Swaggo tool and its development dependencies, so it needs network access. Later invocations use Go's cache.
 
-Frontend tests check that generated code matches the current document, verify the stale-file detector, and mock HTTP to check query encoding, successful responses, errors, runtime guards, and timeouts. Backend tests check that the document matches Go source and compare default responses against examples derived from Go field tags. Response checks are smoke tests, **not full OpenAPI schema validation**.
+Frontend tests check generated-file freshness, the stale-file detector, JSON requests, successful responses, errors, runtime guards, timeouts, and grid geometry/labels. Backend tests cover both generation pipelines, domain parsing, isolated service error handling, real SQLite persistence and legacy compatibility, HTTP save/load, invalid requests, storage errors, CORS, and grid geometry. Contract checks are smoke tests, **not full OpenAPI schema validation**.
 
 The backend Docker build runs the source/document freshness test. The app Docker build regenerates the client from that document. Update the generated files before rebuilding after an API change.
 
@@ -110,7 +168,11 @@ docker compose up --build
 - **API:** <http://localhost:8080/health>
 - **App browser preview:** <http://localhost:8081>
 
+The browser preview intentionally has no embedded map; use Android/iOS to select a playground. It can still load saved session metadata.
+
 The backend image compiles a static Go executable, runs tests and vet during the build, and runs the executable as a non-root user. Compose waits for its health check before starting Expo.
+
+SQLite is stored at `/data/catch-me.sqlite` in the `game_data` Docker volume. Container restarts/recreation and `docker compose down` preserve saved games. **Do not use `docker compose down -v` unless you intend to delete all volume data.** Back up the database with the backend stopped to avoid an inconsistent copy. Direct `docker run` users must also mount a persistent volume at `/data`.
 
 The app container is an **Expo development server**, not a production frontend or an Android/iOS emulator. It uses Node 24 and mounts source files for live reload without sharing Windows `node_modules` with Linux. The native app still runs in Expo Go or a development build on your device. Rebuild the app image after changing dependencies or other files not mounted in `compose.yaml`.
 
@@ -163,7 +225,7 @@ Backend source changes require `docker compose up --build` again. The Expo devel
 ## Requirements for running without Docker
 
 - **Node.js 24 LTS**, version 24.3 or newer, and npm. Node 25 is not supported by this Expo SDK.
-- **Go 1.26 or newer**, available on your PATH. Install a currently supported release from <https://go.dev/dl/>.
+- **Go 1.26 or newer**, available on your PATH. Install a currently supported release from <https://go.dev/dl/>. Initial builds download the pinned SQLite driver and its transitive dependencies.
 - Expo Go matching SDK 58 for testing on a phone, or a compatible development build.
 
 ## Run locally
@@ -190,6 +252,8 @@ go run ./cmd/server -addr :8080 -web-origin http://localhost:8081
 ```
 
 `-web-origin` allows the optional Expo browser preview to call the API. Native app requests do not need CORS. CORS is not authentication. This plain-HTTP starter is for trusted local development; use HTTPS and add authentication before deploying gameplay or location data.
+
+The local database defaults to `backend/catch-me.sqlite` when run from `backend/` and is Git-ignored. Use `-db PATH` to select a different file; its parent directory must already exist.
 
 ### 2. Configure the app's API address
 
@@ -222,7 +286,7 @@ npm ci
 npm start
 ```
 
-Scan the QR code with Expo Go, or press `a` for a configured Android emulator. Press **Check backend connection** in the app to verify the setup.
+On iPhone, Expo Go is enough: iOS uses Apple Maps, which needs no API key. Android Google Maps with our own key requires a native build configured as described below. Pan/zoom the map, tap to choose a center, and press **Create game**. Saved playgrounds are read-only; **Choose a new playground** starts a new selection without modifying the existing session. Paste a saved ID into **Load an existing playground** to reload it.
 
 For a browser preview:
 
@@ -230,7 +294,33 @@ For a browser preview:
 npm run web
 ```
 
-Browser preview uses port **8081** to match the backend's default allowed web origin. iOS simulator development requires macOS; an iPhone can be used with Expo Go from Windows.
+Browser preview uses port **8081** to match the backend's default allowed web origin. iOS simulator development requires macOS; a native iPhone build can be produced using macOS or EAS, then connect to the development server running on Windows.
+
+## Maps setup
+
+`react-native-maps` was installed using `npx expo install react-native-maps`, selecting the SDK 58-compatible version. Android uses `PROVIDER_GOOGLE`; iOS uses the default Apple Maps provider, which works in Expo Go and needs no API key. The grid is drawn with polygons and polylines. Manual selection requests no GPS permission and does not track the device.
+
+For Android Google Maps with our own key, use a native build:
+
+1. Create a Google Cloud project, configure billing, and enable **Maps SDK for Android**. Check current Google pricing and configure budget alerts.
+2. Create a key restricted to package `com.catchme.app` plus the build's signing SHA-1, and to **Maps SDK for Android**. This is an initial app identifier; choose your final unique identifier before publishing and update key restrictions accordingly.
+3. Set `GOOGLE_MAPS_ANDROID_API_KEY` in `app/.env.local` for local work, or in the root `.env` for Docker Expo. `app/app.config.js` passes it to the maps config plugin. Never commit real keys. Native SDK keys are embedded in binaries and must be protected with application/API restrictions, not treated as secret server credentials.
+4. Build locally with `npx expo run:android`. This generates the native project from Expo config; do not hand-edit generated native directories. Alternatively configure EAS and supply the key through its build environment (EAS credentials/project setup is not included in this milestone).
+5. Rebuild the native binary after changing keys or native configuration. Metro reloads and JavaScript exports do not update native configuration.
+
+Use the appropriate signing SHA-1 for each Android build (development and Play signing certificates can differ). Missing/restricted keys can produce a blank map; they cannot be validated by TypeScript tests or CI bundle exports. Use an HTTPS backend if the native build blocks local HTTP; certificate verification must remain enabled.
+
+See the [SDK 58 maps setup documentation](https://docs.expo.dev/versions/v58.0.0/sdk/map-view/) for provider and signing-key instructions.
+
+## GitHub Actions
+
+`.github/workflows/ci.yml` runs a single **Project checks** job on pull requests, pushes to `main`, and manual runs from GitHub's Actions tab.
+
+It checks Go formatting, backend tests and vet, generated API freshness, frontend TypeScript and lint, API client/generation tests, and Android/iOS/web JavaScript bundle exports. Checks do not regenerate committed files; stale generated output fails CI and must be updated with `api:update` before pushing.
+
+The workflow uses Node 24 and Go 1.26, caches npm downloads and Go modules/builds, and requires no custom secrets. Actions are pinned to commit hashes, the repository token is read-only, and superseded runs are canceled.
+
+This is validation only: it does not deploy containers, publish images, produce signed native app binaries, or submit to app stores. GitHub-hosted execution starts after the workflow is committed and pushed to GitHub. To block merges on failures, configure a branch protection/ruleset requiring **Project checks** after its first run.
 
 ## Checks
 
