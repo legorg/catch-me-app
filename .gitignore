@@ -1,0 +1,17 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Local tooling and build output
+.idea/
+.DS_Store
+backend/bin/
+backend/coverage.out
+*.test
+
+# Local OpenCode configuration and agent instructions
+AGENTS.md
+opencode.json
+opencode.jsonc
+.opencode/

@@ -1,0 +1,138 @@
+{
+  "basePath": "/",
+  "definitions": {
+    "ApiError": {
+      "properties": {
+        "error": {
+          "example": "name must be valid UTF-8 and at most 60 characters",
+          "type": "string"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "type": "object"
+    },
+    "DemoResponse": {
+      "properties": {
+        "message": {
+          "example": "Hello, Runner! Your Expo app is connected to Go.",
+          "type": "string"
+        },
+        "playerName": {
+          "example": "Runner",
+          "maxLength": 60,
+          "minLength": 1,
+          "type": "string"
+        },
+        "service": {
+          "enum": [
+            "catch-me-backend"
+          ],
+          "example": "catch-me-backend",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message",
+        "playerName",
+        "service"
+      ],
+      "type": "object"
+    },
+    "HealthResponse": {
+      "properties": {
+        "service": {
+          "enum": [
+            "catch-me-backend"
+          ],
+          "example": "catch-me-backend",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok"
+          ],
+          "example": "ok",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "API generated from Go handler annotations and response structs.",
+    "title": "Catch me! API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/demo": {
+      "get": {
+        "operationId": "getDemoGreeting",
+        "parameters": [
+          {
+            "default": "Runner",
+            "description": "Player name; whitespace is trimmed, blank defaults to Runner, trimmed names are limited to 60 Unicode characters",
+            "in": "query",
+            "name": "name",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Greeting demonstrating frontend/backend communication",
+            "schema": {
+              "$ref": "#/definitions/DemoResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid player name",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "403": {
+            "description": "Browser origin is not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        },
+        "summary": "Return a dummy greeting from Go"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Backend is running",
+            "schema": {
+              "$ref": "#/definitions/HealthResponse"
+            }
+          },
+          "403": {
+            "description": "Browser origin is not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        },
+        "summary": "Check backend health"
+      }
+    }
+  },
+  "swagger": "2.0",
+  "x-generated-by": "Swaggo v1.16.6; do not edit, run npm run api:update from app/"
+}

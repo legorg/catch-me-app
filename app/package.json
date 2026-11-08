@@ -1,0 +1,44 @@
+{
+  "name": "catch-me-app",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "expo": "~58.0.23",
+    "expo-constants": "~58.0.15",
+    "expo-linking": "~58.0.16",
+    "expo-router": "~58.0.30",
+    "expo-status-bar": "~58.0.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-screens": "~4.30.1",
+    "react-native-web": "^0.21.4"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.97.0",
+    "@types/node": "24.19.2",
+    "@types/react": "~19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~58.0.4",
+    "typescript": "~6.0.3",
+    "tsx": "4.23.15"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web --port 8081",
+    "lint": "eslint src scripts tests openapi-ts.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "api:generate": "openapi-ts",
+    "test:api": "tsx --test tests/api-client.test.ts tests/api-generation.test.mts",
+    "api:update": "tsx scripts/api.mts update",
+    "api:check": "tsx scripts/api.mts check",
+    "api:check-client": "tsx scripts/api.mts check-client"
+  },
+  "private": true,
+  "engines": {
+    "node": "^22.18.0 || ^24.3.0 || ^26.0.0 || >=27.0.0"
+  }
+}

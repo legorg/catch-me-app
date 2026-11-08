@@ -1,0 +1,18 @@
+.git
+.idea
+**/node_modules
+**/.expo
+**/dist
+**/web-build
+**/.env
+**/.env.*
+**/android
+**/ios
+**/bin
+**/*.log
+
+# Local coding-agent configuration is not application build input
+**/AGENTS.md
+**/opencode.json
+**/opencode.jsonc
+**/.opencode

@@ -1,0 +1,18 @@
+# Development tools only; Go dependencies used by Swaggo never enter the API image.
+FROM golang:1.26 AS go
+
+FROM node:24-bookworm-slim
+COPY --from=go /usr/local/go /usr/local/go
+COPY --from=go /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV CGO_ENABLED=0
+ENV GOPATH=/home/node/go
+WORKDIR /workspace/app
+RUN chown -R node:node /workspace
+USER node
+RUN mkdir -p /home/node/go /home/node/.cache/go-build
+COPY --chown=node:node app/package.json app/package-lock.json ./
+RUN npm ci
+COPY --chown=node:node app/ ./
+COPY --chown=node:node backend/ /workspace/backend/
+CMD ["npm", "run", "api:update"]
