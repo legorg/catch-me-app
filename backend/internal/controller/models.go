@@ -88,9 +88,11 @@ type UpdatePositionRequest struct {
 
 // GameStateResponse is the game as seen by the requesting player.
 type GameStateResponse struct {
-	SessionID  string `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff"`
-	Status     string `json:"status" enums:"lobby,countdown,running" example:"lobby"`
-	ServerTime string `json:"serverTime" format:"date-time" example:"2026-11-08T12:00:00Z"`
+	// Explicit server-side development override; absent during normal play.
+	StartPositionCheckDisabled bool   `json:"startPositionCheckDisabled,omitempty" example:"false"`
+	SessionID                  string `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff"`
+	Status                     string `json:"status" enums:"lobby,countdown,running" example:"lobby"`
+	ServerTime                 string `json:"serverTime" format:"date-time" example:"2026-11-08T12:00:00Z"`
 	// Scheduled start, present during the countdown and once running.
 	StartsAt string `json:"startsAt,omitempty" format:"date-time" example:"2026-11-08T12:00:10Z"`
 	// Next time hunters receive the runners' positions, present while running.

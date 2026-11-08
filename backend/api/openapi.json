@@ -176,6 +176,11 @@
           "minLength": 32,
           "type": "string"
         },
+        "startPositionCheckDisabled": {
+          "description": "Explicit server-side development override; absent during normal play.",
+          "example": false,
+          "type": "boolean"
+        },
         "startsAt": {
           "description": "Scheduled start, present during the countdown and once running.",
           "example": "2026-11-08T12:00:10Z",

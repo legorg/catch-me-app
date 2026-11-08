@@ -30,30 +30,34 @@ func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
 	webOrigin := flag.String("web-origin", "http://localhost:8081", "Allowed browser origin; empty disables browser access")
 	dbPath := flag.String("db", "catch-me.sqlite", "SQLite database file (parent directory must exist)")
+	skipStartPositionCheck := flag.Bool("test-skip-start-position-check", false, "Development only: bypass runner Ready position checks; keep real location updates")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, *addr, *webOrigin, *dbPath); err != nil {
+	if err := run(ctx, *addr, *webOrigin, *dbPath, *skipStartPositionCheck); err != nil {
 		log.Printf("server failed: %v", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, addr, webOrigin, dbPath string) error {
+func run(ctx context.Context, addr, webOrigin, dbPath string, skipStartPositionCheck bool) error {
 	store, err := db.Open(ctx, dbPath)
 	if err != nil {
 		return err
 	}
 	defer store.Close()
+	if skipStartPositionCheck {
+		log.Print("TEST MODE: runner start-position check disabled; real position updates remain enabled")
+	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 
 	server := &http.Server{
-		Handler:           api.NewHandler(webOrigin, controller.NewGameController(service.NewGameService(store))),
+		Handler:           api.NewHandler(webOrigin, controller.NewGameController(service.NewGameService(store, service.Options{SkipStartPositionCheck: skipStartPositionCheck}))),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

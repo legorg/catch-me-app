@@ -6,7 +6,7 @@ services:
       context: ./backend
     ports:
       - "8080:8080"
-    command: ["-addr", ":8080", "-web-origin", "${WEB_ORIGIN:-http://localhost:8081}", "-db", "/data/catch-me.sqlite"]
+    command: ["-addr", ":8080", "-web-origin", "${WEB_ORIGIN:-http://localhost:8081}", "-db", "/data/catch-me.sqlite", "-test-skip-start-position-check=${TEST_SKIP_START_POSITION_CHECK:-false}"]
     volumes:
       - game_data:/data
     stop_grace_period: 10s

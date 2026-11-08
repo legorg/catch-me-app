@@ -36,6 +36,8 @@ func (g Game) Status(now time.Time) Status {
 type Lobby struct {
 	Game    Game
 	Players []Player
+	// Transient server test setting; never persisted as a game rule.
+	SkipStartPositionCheck bool
 }
 
 func (l Lobby) Player(id PlayerID) (Player, bool) {
@@ -160,7 +162,7 @@ func (l *Lobby) AdvanceReveals(now time.Time) {
 // requireInStartCell checks that a runner recently reported a position inside
 // their start cell. Hunters and runners without a route always pass.
 func (l Lobby) requireInStartCell(p Player, now time.Time) error {
-	if p.Team != Runners || p.Route == nil {
+	if l.SkipStartPositionCheck || p.Team != Runners || p.Route == nil {
 		return nil
 	}
 	if p.Position == nil || now.Sub(p.Position.RecordedAt) > StartCellMaxAge {

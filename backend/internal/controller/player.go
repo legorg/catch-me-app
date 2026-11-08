@@ -232,12 +232,13 @@ func playerToken(r *http.Request) (game.PlayerToken, error) {
 func gameStateResponse(view service.PlayerView) GameStateResponse {
 	g := view.Lobby.Game
 	response := GameStateResponse{
-		SessionID:  g.SessionID.String(),
-		Status:     string(g.Status(view.Now)),
-		ServerTime: view.Now.Format(time.RFC3339Nano),
-		Playground: playgroundResponse(g.Playground),
-		PlayerID:   view.Me.ID.String(),
-		Team:       string(view.Me.Team),
+		StartPositionCheckDisabled: view.StartPositionCheckDisabled,
+		SessionID:                  g.SessionID.String(),
+		Status:                     string(g.Status(view.Now)),
+		ServerTime:                 view.Now.Format(time.RFC3339Nano),
+		Playground:                 playgroundResponse(g.Playground),
+		PlayerID:                   view.Me.ID.String(),
+		Team:                       string(view.Me.Team),
 		// Only the player's own team code, to invite teammates.
 		JoinCode: g.JoinCodes.For(view.Me.Team).String(),
 		Players:  make([]PlayerResponse, 0, len(view.Lobby.Players)),

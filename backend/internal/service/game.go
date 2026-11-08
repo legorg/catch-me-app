@@ -20,19 +20,27 @@ type GameRepository interface {
 }
 
 type GameService struct {
-	repository GameRepository
-	now        func() time.Time
+	repository             GameRepository
+	now                    func() time.Time
+	skipStartPositionCheck bool
 }
 
-func NewGameService(repository GameRepository) *GameService {
-	return &GameService{repository: repository, now: func() time.Time { return time.Now().UTC() }}
+type Options struct{ SkipStartPositionCheck bool }
+
+func NewGameService(repository GameRepository, options ...Options) *GameService {
+	s := &GameService{repository: repository, now: func() time.Time { return time.Now().UTC() }}
+	for _, option := range options {
+		s.skipStartPositionCheck = option.SkipStartPositionCheck
+	}
+	return s
 }
 
 // PlayerView is a lobby as seen by one of its players.
 type PlayerView struct {
-	Lobby game.Lobby
-	Me    game.Player
-	Now   time.Time
+	Lobby                      game.Lobby
+	Me                         game.Player
+	Now                        time.Time
+	StartPositionCheckDisabled bool
 }
 
 func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellSize game.CellSize) (game.Game, error) {
@@ -75,7 +83,7 @@ func (s *GameService) Join(ctx context.Context, code game.JoinCode, name game.Pl
 	if err != nil {
 		return PlayerView{}, game.PlayerToken{}, fmt.Errorf("join game: %w", err)
 	}
-	return PlayerView{Lobby: lobby, Me: me, Now: now}, token, nil
+	return PlayerView{Lobby: lobby, Me: me, Now: now, StartPositionCheckDisabled: s.skipStartPositionCheck}, token, nil
 }
 
 func (s *GameService) State(ctx context.Context, token game.PlayerToken) (PlayerView, error) {
@@ -115,6 +123,7 @@ func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 func (s *GameService) updateAsPlayer(ctx context.Context, token game.PlayerToken, change func(*game.Lobby, game.Player, time.Time) error) (PlayerView, error) {
 	now, hash := s.now(), token.Hash()
 	lobby, err := s.repository.UpdateLobbyByToken(ctx, hash, func(l *game.Lobby) error {
+		l.SkipStartPositionCheck = s.skipStartPositionCheck
 		// Every request advances due reveals, so no background job is needed.
 		l.AdvanceReveals(now)
 		if change == nil {
@@ -136,5 +145,5 @@ func (s *GameService) updateAsPlayer(ctx context.Context, token game.PlayerToken
 	if !ok && change == nil {
 		return PlayerView{}, game.ErrUnauthorized
 	}
-	return PlayerView{Lobby: lobby, Me: me, Now: now}, nil
+	return PlayerView{Lobby: lobby, Me: me, Now: now, StartPositionCheckDisabled: s.skipStartPositionCheck}, nil
 }

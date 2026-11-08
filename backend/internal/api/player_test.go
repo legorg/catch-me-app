@@ -106,6 +106,27 @@ func TestLobbyFlow(t *testing.T) {
 	}
 }
 
+func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), service.Options{SkipStartPositionCheck: true})))
+	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
+	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
+	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Hunter+`","name":"Bob"}`), 201)
+	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`), 200)
+	countdown := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
+	for _, body := range []string{`{"latitude":1,"longitude":2,"accuracyMeters":8}`, `{"latitude":3,"longitude":4,"accuracyMeters":8}`} {
+		state := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, body), 200)
+		if !state.StartPositionCheckDisabled || state.Status != "countdown" || state.StartsAt != countdown.StartsAt || !state.Players[0].Ready {
+			t.Fatal("test override failed to preserve readiness and countdown")
+		}
+		var reported struct{ Latitude, Longitude float64 }
+		_ = json.Unmarshal([]byte(body), &reported)
+		own := state.Players[0].Position
+		if own == nil || own.Latitude != reported.Latitude || own.Longitude != reported.Longitude {
+			t.Fatal("real reported position was replaced or not updated")
+		}
+	}
+}
+
 func TestLobbyErrors(t *testing.T) {
 	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t))))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
