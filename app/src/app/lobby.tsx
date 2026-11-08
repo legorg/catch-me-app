@@ -74,7 +74,8 @@ export default function LobbyScreen() {
   const skipStartPositionCheck = state?.startPositionCheckDisabled === true;
   // Runners need their position before the start (start cell check); everyone shares while running.
   const sharing = focused && !!token && !!state && (state.team === 'runner' || running);
-  const location = useLocationSharing(sharing, useCallback(async (fix: Fix) => {
+  // Background sharing only while the game runs; the lobby stays foreground-only.
+  const location = useLocationSharing(sharing, running, useCallback(async (fix: Fix) => {
     if (!token) return;
     try {
       show(await updatePosition(token, fix));
@@ -121,11 +122,11 @@ export default function LobbyScreen() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{running ? 'Game running' : countdown !== null ? `Starting in ${countdown}` : 'Lobby'}</Text>
-        <Text accessibilityLiveRegion="polite" style={styles.text}>
         {skipStartPositionCheck && <View style={styles.card}>
-          <Text style={[styles.heading, styles.error]}>TEST MODE ÔÇö start position check disabled</Text>
+          <Text style={[styles.heading, styles.error]}>TEST MODE — start position check disabled</Text>
           <Text style={styles.text}>Ready and the countdown do not depend on your position. Your real GPS location is still shared normally.</Text>
         </View>}
+        <Text accessibilityLiveRegion="polite" style={styles.text}>
           {running
             ? 'Catching and reaching the target arrive in the next milestone.'
             : countdown !== null
@@ -152,11 +153,26 @@ export default function LobbyScreen() {
           <Text style={styles.text}>
             {state.team === 'runner' && !running && !skipStartPositionCheck
               ? 'Runners must prove they stand in their start cell before getting ready.'
-              : 'Your teammates see your position while the game runs. It is only shared while this screen is open.'}
+              : location.background.available
+                ? 'Your teammates see your position while the game runs.'
+                : 'Your teammates see your position while the game runs. It is only shared while this screen is open.'}
           </Text>
           {permission.canAskAgain
             ? <Button label="Allow location" onPress={() => void location.requestPermission()} />
             : <Text style={[styles.text, styles.error]}>Location access is blocked. Allow it in the system settings.</Text>}
+        </View>}
+        {running && permission?.granted && <View style={styles.card}>
+          <Text style={styles.heading}>{location.background.active ? 'Sharing in the background' : 'Sharing while the screen is on'}</Text>
+          {location.background.active
+            ? <Text style={styles.text}>Your position keeps being shared when the screen is off or you switch apps, until you leave the game screen or close the app.</Text>
+            : !location.background.available
+              ? <Text style={styles.hint}>Keep this screen open. Background sharing needs an installed app build; Expo Go and browsers cannot share in the background.</Text>
+              : location.background.permission?.canAskAgain !== false
+                ? <>
+                  <Text style={styles.text}>Allow &quot;Always&quot; location access to keep sharing when the screen is off.</Text>
+                  <Button label="Share in the background" variant="secondary" onPress={() => void location.background.request()} />
+                </>
+                : <Text style={styles.hint}>Background location is blocked. Allow &quot;Always&quot; in the system settings, or keep this screen open.</Text>}
         </View>}
         {!!location.error && <Text style={[styles.text, styles.error]}>{location.error}</Text>}
         <View style={styles.card}>

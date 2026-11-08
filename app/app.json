@@ -30,7 +30,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Catch me! shares your position with your teammates during a game and checks that runners start in their start cell."
+          "locationWhenInUsePermission": "Catch me! shares your position with your teammates during a game and checks that runners start in their start cell.",
+          "locationAlwaysAndWhenInUsePermission": "Catch me! keeps sharing your position with your team while a game runs, even when the screen is off. Sharing stops when you leave the game.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ]
     ]
