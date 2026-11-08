@@ -119,6 +119,35 @@ func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
+// RegenerateRoute gives the authenticated runner a different random route.
+// @Summary Regenerate the authenticated runner's route
+// @ID regenerateRoute
+// @Produce json
+// @Security PlayerToken
+// @Success 200 {object} GameStateResponse "Updated game state with the new route"
+// @Failure 401 {object} APIError "Missing or unknown player token"
+// @Failure 403 {object} APIError "Browser origin is not allowed"
+// @Failure 405 {object} APIError "Method not allowed"
+// @Failure 409 {object} APIError "Not a runner, ready, no changes left, or game started"
+// @Failure 500 {object} APIError "Could not update game"
+// @Router /api/me/route [post]
+func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost) {
+		return
+	}
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	view, err := c.service.RegenerateRoute(r.Context(), token)
+	if err != nil {
+		writeGameError(w, err, "could not update game")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
 // Leave removes the authenticated player before the game starts.
 // @Summary Leave the game before it starts
 // @ID leaveGame
@@ -170,6 +199,9 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	}
 	if !g.StartsAt.IsZero() {
 		response.StartsAt = g.StartsAt.Format(time.RFC3339Nano)
+	}
+	if route := view.Me.Route; route != nil {
+		response.Route = &RouteResponse{Start: route.Start.String(), End: route.End.String(), RegenerationsLeft: route.RegenerationsLeft}
 	}
 	for _, p := range view.Lobby.Players {
 		response.Players = append(response.Players, PlayerResponse{

@@ -151,6 +151,14 @@
         "playground": {
           "$ref": "#/definitions/Playground"
         },
+        "route": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RouteResponse"
+            }
+          ],
+          "description": "The requesting runner's own route; absent for hunters."
+        },
         "serverTime": {
           "example": "2026-11-08T12:00:00Z",
           "format": "date-time",
@@ -351,6 +359,34 @@
         "center",
         "columns",
         "rows"
+      ],
+      "type": "object"
+    },
+    "RouteResponse": {
+      "properties": {
+        "end": {
+          "example": "E6",
+          "maxLength": 2,
+          "minLength": 2,
+          "type": "string"
+        },
+        "regenerationsLeft": {
+          "example": 2,
+          "maximum": 2,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "start": {
+          "example": "B1",
+          "maxLength": 2,
+          "minLength": 2,
+          "type": "string"
+        }
+      },
+      "required": [
+        "end",
+        "regenerationsLeft",
+        "start"
       ],
       "type": "object"
     },
@@ -662,6 +698,58 @@
           }
         ],
         "summary": "Set the authenticated player's ready state"
+      }
+    },
+    "/api/me/route": {
+      "post": {
+        "operationId": "regenerateRoute",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated game state with the new route",
+            "schema": {
+              "$ref": "#/definitions/GameStateResponse"
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "403": {
+            "description": "Browser origin is not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "409": {
+            "description": "Not a runner, ready, no changes left, or game started",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ],
+        "summary": "Regenerate the authenticated runner's route"
       }
     },
     "/api/players": {

@@ -88,6 +88,12 @@ func (s *GameService) SetReady(ctx context.Context, token game.PlayerToken, read
 	})
 }
 
+func (s *GameService) RegenerateRoute(ctx context.Context, token game.PlayerToken) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.RegenerateRoute(me.ID, now)
+	})
+}
+
 func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 	_, err := s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
 		return l.Leave(me.ID, now)

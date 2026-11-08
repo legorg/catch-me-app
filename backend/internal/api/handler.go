@@ -16,6 +16,7 @@ func NewHandler(webOrigin string, games *controller.GameController) http.Handler
 	mux.HandleFunc("/api/me", games.Leave)
 	mux.HandleFunc("/api/me/game", games.State)
 	mux.HandleFunc("/api/me/ready", games.SetReady)
+	mux.HandleFunc("/api/me/route", games.RegenerateRoute)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		controller.WriteError(w, http.StatusNotFound, "not found")
 	})

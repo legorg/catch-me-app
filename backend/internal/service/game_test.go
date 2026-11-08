@@ -144,6 +144,10 @@ func TestLobbyFlow(t *testing.T) {
 	if err != nil || runner.Me.Team != game.Runners || runner.Me.Name != ada || len(runner.Lobby.Players) != 1 {
 		t.Fatalf("join failed: %+v %v", runner, err)
 	}
+	regenerated, err := s.RegenerateRoute(ctx, runnerToken)
+	if err != nil || regenerated.Me.Route == nil || regenerated.Me.Route.RegenerationsLeft != game.MaxRouteRegenerations-1 {
+		t.Fatalf("route not regenerated: %+v %v", regenerated.Me.Route, err)
+	}
 	bob, _ := game.ParsePlayerName("Bob")
 	_, hunterToken, err := s.Join(ctx, created.JoinCodes.Hunter, bob)
 	if err != nil {
@@ -151,6 +155,12 @@ func TestLobbyFlow(t *testing.T) {
 	}
 	if _, err := s.SetReady(ctx, runnerToken, true); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := s.RegenerateRoute(ctx, runnerToken); err == nil {
+		t.Fatal("ready runner changed route")
+	}
+	if _, err := s.RegenerateRoute(ctx, hunterToken); err == nil {
+		t.Fatal("hunter changed route")
 	}
 	view, err := s.SetReady(ctx, hunterToken, true)
 	if err != nil || view.Lobby.Game.Status(now) != game.StatusCountdown || !view.Me.Ready || view.Me.Team != game.Hunters {

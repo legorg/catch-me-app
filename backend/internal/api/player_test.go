@@ -47,6 +47,17 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatalf("unexpected join response: %+v", runner)
 	}
 	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+codes.Hunter+`","name":"Bob"}`), 201)
+	if runner.State.Route == nil || runner.State.Route.RegenerationsLeft != 2 || hunter.State.Route != nil {
+		t.Fatalf("runner must get a route, hunter none: %+v %+v", runner.State.Route, hunter.State.Route)
+	}
+	regenerated := decode[controller.GameStateResponse](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 200)
+	if regenerated.Route == nil || regenerated.Route.RegenerationsLeft != 1 || *regenerated.Route == *runner.State.Route {
+		t.Fatalf("route not regenerated: %+v", regenerated.Route)
+	}
+	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"route"`) {
+		t.Fatal("hunter sees a runner route")
+	}
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/route", hunter.PlayerToken, ""), 409)
 
 	stateRecorder := send(t, handler, "GET", "/api/me/game", runner.PlayerToken, "")
 	state := decode[controller.GameStateResponse](t, stateRecorder, 200)
@@ -58,6 +69,7 @@ func TestLobbyFlow(t *testing.T) {
 	}
 
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`), 200)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 409)
 	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
 	if state.Status != "countdown" || state.StartsAt == "" || state.ServerTime == "" || state.Team != "hunter" {
 		t.Fatalf("countdown not started: %+v", state)
@@ -100,6 +112,8 @@ func TestLobbyErrors(t *testing.T) {
 		{"wrong ready method", "POST", "/api/me/ready", runner.PlayerToken, `{"ready":true}`, 405},
 		{"wrong leave method", "GET", "/api/me", runner.PlayerToken, "", 405},
 		{"leave without token", "DELETE", "/api/me", "", "", 401},
+		{"route without token", "POST", "/api/me/route", "", "", 401},
+		{"wrong route method", "GET", "/api/me/route", runner.PlayerToken, "", 405},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := send(t, handler, tc.method, tc.path, tc.token, tc.body)

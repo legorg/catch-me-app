@@ -77,7 +77,15 @@ type GameStateResponse struct {
 	Team       string           `json:"team" enums:"runner,hunter" example:"runner"`
 	JoinCode   string           `json:"joinCode" minLength:"6" maxLength:"6" example:"K7M2QX"`
 	Players    []PlayerResponse `json:"players"`
+	// The requesting runner's own route; absent for hunters.
+	Route *RouteResponse `json:"route,omitempty"`
 } // @name GameStateResponse
+
+type RouteResponse struct {
+	Start             string `json:"start" minLength:"2" maxLength:"2" example:"B1"`
+	End               string `json:"end" minLength:"2" maxLength:"2" example:"E6"`
+	RegenerationsLeft int    `json:"regenerationsLeft" minimum:"0" maximum:"2" example:"2"`
+} // @name RouteResponse
 
 type JoinGameResponse struct {
 	PlayerToken string            `json:"playerToken" minLength:"64" maxLength:"64" example:"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"`
