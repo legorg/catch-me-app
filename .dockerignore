@@ -10,6 +10,8 @@
 **/ios
 **/bin
 **/*.log
+**/*.sqlite
+**/*.sqlite-*
 
 # Local coding-agent configuration is not application build input
 **/AGENTS.md

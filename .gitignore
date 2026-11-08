@@ -9,6 +9,8 @@
 backend/bin/
 backend/coverage.out
 *.test
+*.sqlite
+*.sqlite-*
 
 # Local OpenCode configuration and agent instructions
 AGENTS.md

@@ -34,7 +34,7 @@ func generate(check bool) error {
 		goBinary = "go"
 	}
 	cmd := exec.Command(goBinary, "run", "github.com/swaggo/swag/cmd/swag@"+swagVersion,
-		"init", "-g", "main.go", "-d", "cmd/server,internal/api", "--parseInternal",
+		"init", "-g", "main.go", "-d", "cmd/server,internal/controller", "--parseInternal",
 		"--requiredByDefault", "--outputTypes", "json", "--output", dir)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -4,7 +4,7 @@
     "ApiError": {
       "properties": {
         "error": {
-          "example": "name must be valid UTF-8 and at most 60 characters",
+          "example": "cell size must be 100 to 5000 meters in steps of 100 meters",
           "type": "string"
         }
       },
@@ -13,30 +13,103 @@
       ],
       "type": "object"
     },
-    "DemoResponse": {
+    "Bounds": {
       "properties": {
-        "message": {
-          "example": "Hello, Runner! Your Expo app is connected to Go.",
+        "east": {
+          "example": 13.493678060701022,
+          "type": "number"
+        },
+        "north": {
+          "example": 52.57395922182347,
+          "type": "number"
+        },
+        "south": {
+          "example": 52.466040778176534,
+          "type": "number"
+        },
+        "west": {
+          "example": 13.316321939298977,
+          "type": "number"
+        }
+      },
+      "required": [
+        "east",
+        "north",
+        "south",
+        "west"
+      ],
+      "type": "object"
+    },
+    "Coordinates": {
+      "properties": {
+        "latitude": {
+          "example": 52.52,
+          "maximum": 80,
+          "minimum": -80,
+          "type": "number"
+        },
+        "longitude": {
+          "example": 13.405,
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "latitude",
+        "longitude"
+      ],
+      "type": "object"
+    },
+    "CreateGameRequest": {
+      "properties": {
+        "cellSizeMeters": {
+          "default": 2000,
+          "example": 2000,
+          "maximum": 5000,
+          "minimum": 100,
+          "type": "integer"
+        },
+        "latitude": {
+          "example": 52.52,
+          "maximum": 80,
+          "minimum": -80,
+          "type": "number"
+        },
+        "longitude": {
+          "example": 13.405,
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "latitude",
+        "longitude"
+      ],
+      "type": "object"
+    },
+    "GameResponse": {
+      "properties": {
+        "createdAt": {
+          "example": "2026-11-08T12:00:00Z",
+          "format": "date-time",
           "type": "string"
         },
-        "playerName": {
-          "example": "Runner",
-          "maxLength": 60,
-          "minLength": 1,
-          "type": "string"
+        "playground": {
+          "$ref": "#/definitions/Playground"
         },
-        "service": {
-          "enum": [
-            "catch-me-backend"
-          ],
-          "example": "catch-me-backend",
+        "sessionId": {
+          "example": "00112233445566778899aabbccddeeff",
+          "maxLength": 32,
+          "minLength": 32,
           "type": "string"
         }
       },
       "required": [
-        "message",
-        "playerName",
-        "service"
+        "createdAt",
+        "playground",
+        "sessionId"
       ],
       "type": "object"
     },
@@ -62,6 +135,44 @@
         "status"
       ],
       "type": "object"
+    },
+    "Playground": {
+      "properties": {
+        "bounds": {
+          "$ref": "#/definitions/Bounds"
+        },
+        "cellSizeMeters": {
+          "example": 2000,
+          "maximum": 5000,
+          "minimum": 100,
+          "type": "integer"
+        },
+        "center": {
+          "$ref": "#/definitions/Coordinates"
+        },
+        "columns": {
+          "enum": [
+            6
+          ],
+          "example": 6,
+          "type": "integer"
+        },
+        "rows": {
+          "enum": [
+            6
+          ],
+          "example": 6,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bounds",
+        "cellSizeMeters",
+        "center",
+        "columns",
+        "rows"
+      ],
+      "type": "object"
     }
   },
   "info": {
@@ -71,30 +182,35 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/api/demo": {
-      "get": {
-        "operationId": "getDemoGreeting",
+    "/api/games": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "operationId": "createGame",
         "parameters": [
           {
-            "default": "Runner",
-            "description": "Player name; whitespace is trimmed, blank defaults to Runner, trimmed names are limited to 60 Unicode characters",
-            "in": "query",
-            "name": "name",
-            "type": "string"
+            "description": "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateGameRequest"
+            }
           }
         ],
         "produces": [
           "application/json"
         ],
         "responses": {
-          "200": {
-            "description": "Greeting demonstrating frontend/backend communication",
+          "201": {
+            "description": "Game saved",
             "schema": {
-              "$ref": "#/definitions/DemoResponse"
+              "$ref": "#/definitions/GameResponse"
             }
           },
           "400": {
-            "description": "Invalid player name",
+            "description": "Invalid JSON, coordinates, or cell size",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
@@ -104,9 +220,83 @@
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Could not save game",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         },
-        "summary": "Return a dummy greeting from Go"
+        "summary": "Create a 6 by 6 playground with adjustable cell size (default 2000 meters)"
+      }
+    },
+    "/api/games/{sessionId}": {
+      "get": {
+        "operationId": "getGame",
+        "parameters": [
+          {
+            "description": "32 lowercase hexadecimal characters",
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved game",
+            "schema": {
+              "$ref": "#/definitions/GameResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid session ID",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "403": {
+            "description": "Browser origin is not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "404": {
+            "description": "Game not found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Could not load game",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        },
+        "summary": "Load a saved game playground"
       }
     },
     "/health": {

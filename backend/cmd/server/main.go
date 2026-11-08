@@ -13,6 +13,9 @@ import (
 	"time"
 
 	"catch-me/backend/internal/api"
+	"catch-me/backend/internal/controller"
+	"catch-me/backend/internal/db"
+	"catch-me/backend/internal/service"
 )
 
 // @title Catch me! API
@@ -22,25 +25,31 @@ import (
 func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
 	webOrigin := flag.String("web-origin", "http://localhost:8081", "Allowed browser origin; empty disables browser access")
+	dbPath := flag.String("db", "catch-me.sqlite", "SQLite database file (parent directory must exist)")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, *addr, *webOrigin); err != nil {
+	if err := run(ctx, *addr, *webOrigin, *dbPath); err != nil {
 		log.Printf("server failed: %v", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, addr, webOrigin string) error {
+func run(ctx context.Context, addr, webOrigin, dbPath string) error {
+	store, err := db.Open(ctx, dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 
 	server := &http.Server{
-		Handler:           api.NewHandler(webOrigin),
+		Handler:           api.NewHandler(webOrigin, controller.NewGameController(service.NewGameService(store))),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

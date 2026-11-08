@@ -6,7 +6,9 @@ services:
       context: ./backend
     ports:
       - "8080:8080"
-    command: ["-addr", ":8080", "-web-origin", "${WEB_ORIGIN:-http://localhost:8081}"]
+    command: ["-addr", ":8080", "-web-origin", "${WEB_ORIGIN:-http://localhost:8081}", "-db", "/data/catch-me.sqlite"]
+    volumes:
+      - game_data:/data
     stop_grace_period: 10s
 
   app:
@@ -54,6 +56,7 @@ services:
     init: true
 
 volumes:
+  game_data:
   expo_state:
   go_module_cache:
   go_build_cache:

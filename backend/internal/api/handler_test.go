@@ -9,7 +9,7 @@ import (
 
 func TestHealth(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	NewHandler("").ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
+	NewHandler("", nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -40,13 +40,10 @@ func TestRouting(t *testing.T) {
 		{"nested health route", http.MethodGet, "/health/missing", http.StatusNotFound},
 		{"unsupported method", http.MethodPost, "/health", http.StatusMethodNotAllowed},
 		{"head", http.MethodHead, "/health", http.StatusOK},
-		{"nested demo route", http.MethodGet, "/api/demo/missing", http.StatusNotFound},
-		{"unsupported demo method", http.MethodPost, "/api/demo", http.StatusMethodNotAllowed},
-		{"demo head", http.MethodHead, "/api/demo", http.StatusOK},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			NewHandler("").ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
+			NewHandler("", nil).ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
 			if recorder.Code != test.status {
 				t.Fatalf("status = %d, want %d", recorder.Code, test.status)
 			}
@@ -79,7 +76,7 @@ func TestCORS(t *testing.T) {
 				request.Header.Set("Origin", test.origin)
 			}
 			recorder := httptest.NewRecorder()
-			NewHandler(test.allowedOrigin).ServeHTTP(recorder, request)
+			NewHandler(test.allowedOrigin, nil).ServeHTTP(recorder, request)
 			if recorder.Code != test.status {
 				t.Fatalf("status = %d, want %d", recorder.Code, test.status)
 			}
