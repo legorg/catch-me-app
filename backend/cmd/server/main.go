@@ -22,6 +22,10 @@ import (
 // @version 0.1.0
 // @description API generated from Go handler annotations and response structs.
 // @BasePath /
+// @securityDefinitions.apikey PlayerToken
+// @in header
+// @name Authorization
+// @description "Bearer " followed by the playerToken returned when joining a game.
 func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
 	webOrigin := flag.String("web-origin", "http://localhost:8081", "Allowed browser origin; empty disables browser access")

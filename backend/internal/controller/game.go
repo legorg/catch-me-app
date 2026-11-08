@@ -20,13 +20,13 @@ func NewGameController(service *service.GameService) *GameController {
 	return &GameController{service: service}
 }
 
-// Create saves a playground and returns its session ID.
+// Create saves a playground and returns its session ID and join codes.
 // @Summary Create a 6 by 6 playground with adjustable cell size (default 2000 meters)
 // @ID createGame
 // @Accept json
 // @Produce json
 // @Param body body CreateGameRequest true "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings"
-// @Success 201 {object} GameResponse "Game saved"
+// @Success 201 {object} CreateGameResponse "Game saved, with one join code per team"
 // @Failure 400 {object} APIError "Invalid JSON, coordinates, or cell size"
 // @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
@@ -37,27 +37,8 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 1024)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
 	var body CreateGameRequest
-	decodeErr := decoder.Decode(&body)
-	if decodeErr == nil {
-		var extra any
-		if err := decoder.Decode(&extra); err != io.EOF {
-			decodeErr = err
-			if decodeErr == nil {
-				decodeErr = errors.New("expected one JSON object")
-			}
-		}
-	}
-	if decodeErr != nil {
-		status := http.StatusBadRequest
-		var sizeErr *http.MaxBytesError
-		if errors.As(decodeErr, &sizeErr) {
-			status = http.StatusRequestEntityTooLarge
-		}
-		WriteError(w, status, "expected a JSON object with latitude and longitude (maximum 1024 bytes)")
+	if !decodeJSON(w, r, &body, "expected a JSON object with latitude and longitude") {
 		return
 	}
 	center, cellSize, err := body.parse()
@@ -71,10 +52,13 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Location", "/api/games/"+saved.SessionID.String())
-	WriteJSON(w, http.StatusCreated, gameResponse(saved))
+	WriteJSON(w, http.StatusCreated, CreateGameResponse{
+		Game:      gameResponse(saved),
+		JoinCodes: JoinCodes{Runner: saved.JoinCodes.Runner.String(), Hunter: saved.JoinCodes.Hunter.String()},
+	})
 }
 
-// Get loads the saved playground, not an authenticated player session.
+// Get loads the saved playground, without join codes or players.
 // @Summary Load a saved game playground
 // @ID getGame
 // @Produce json
@@ -119,25 +103,58 @@ func (body CreateGameRequest) parse() (game.Coordinates, game.CellSize, error) {
 }
 
 func gameResponse(saved game.Game) GameResponse {
-	p := saved.Playground
-	center := p.Center()
 	return GameResponse{
 		SessionID: saved.SessionID.String(), CreatedAt: saved.CreatedAt.Format(time.RFC3339Nano),
-		Playground: Playground{
-			Center: Coordinates{Latitude: center.Latitude(), Longitude: center.Longitude()},
-			Bounds: Bounds(p.Bounds()),
-			Rows:   p.Rows(), Columns: p.Columns(), CellSizeMeters: p.CellSize().Meters(),
-		},
+		Playground: playgroundResponse(saved.Playground),
 	}
+}
+
+func playgroundResponse(p game.Playground) Playground {
+	center := p.Center()
+	return Playground{
+		Center: Coordinates{Latitude: center.Latitude(), Longitude: center.Longitude()},
+		Bounds: Bounds(p.Bounds()),
+		Rows:   p.Rows(), Columns: p.Columns(), CellSizeMeters: p.CellSize().Meters(),
+	}
+}
+
+// decodeJSON reads exactly one JSON object of at most 1024 bytes, rejecting
+// unknown fields. On failure it writes the error response and returns false.
+func decodeJSON(w http.ResponseWriter, r *http.Request, body any, message string) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(body)
+	if err == nil {
+		var extra any
+		if err = decoder.Decode(&extra); err == nil {
+			err = errors.New("expected one JSON object")
+		} else if err == io.EOF {
+			return true
+		}
+	}
+	status := http.StatusBadRequest
+	var sizeErr *http.MaxBytesError
+	if errors.As(err, &sizeErr) {
+		status = http.StatusRequestEntityTooLarge
+	}
+	WriteError(w, status, message+" (maximum 1024 bytes)")
+	return false
 }
 
 func writeGameError(w http.ResponseWriter, err error, message string) {
 	var validation *game.ValidationError
+	var rule *game.RuleError
 	switch {
 	case errors.As(err, &validation):
 		WriteError(w, http.StatusBadRequest, validation.Error())
+	case errors.Is(err, game.ErrUnauthorized):
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		WriteError(w, http.StatusUnauthorized, game.ErrUnauthorized.Error())
 	case errors.Is(err, game.ErrNotFound):
 		WriteError(w, http.StatusNotFound, game.ErrNotFound.Error())
+	case errors.As(err, &rule):
+		WriteError(w, http.StatusConflict, rule.Error())
 	default:
 		log.Printf("%s: %v", message, err)
 		WriteError(w, http.StatusInternalServerError, message)

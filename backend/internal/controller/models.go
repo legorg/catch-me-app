@@ -38,6 +38,52 @@ type GameResponse struct {
 	Playground Playground `json:"playground"`
 } // @name GameResponse
 
+type JoinCodes struct {
+	Runner string `json:"runner" minLength:"6" maxLength:"6" example:"K7M2QX"`
+	Hunter string `json:"hunter" minLength:"6" maxLength:"6" example:"P4R9TW"`
+} // @name JoinCodes
+
+type CreateGameResponse struct {
+	Game      GameResponse `json:"game"`
+	JoinCodes JoinCodes    `json:"joinCodes"`
+} // @name CreateGameResponse
+
+type JoinGameRequest struct {
+	Code string `json:"code" minLength:"6" maxLength:"6" example:"K7M2QX"`
+	Name string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
+} // @name JoinGameRequest
+
+// Pointer field distinguishes a missing value from false.
+type SetReadyRequest struct {
+	Ready *bool `json:"ready" example:"true"`
+} // @name SetReadyRequest
+
+type PlayerResponse struct {
+	PlayerID string `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Name     string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
+	Team     string `json:"team" enums:"runner,hunter" example:"runner"`
+	Ready    bool   `json:"ready" example:"false"`
+} // @name PlayerResponse
+
+// GameStateResponse is the game as seen by the requesting player.
+type GameStateResponse struct {
+	SessionID  string `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff"`
+	Status     string `json:"status" enums:"lobby,countdown,running" example:"lobby"`
+	ServerTime string `json:"serverTime" format:"date-time" example:"2026-11-08T12:00:00Z"`
+	// Scheduled start, present during the countdown and once running.
+	StartsAt   string           `json:"startsAt,omitempty" format:"date-time" example:"2026-11-08T12:00:10Z"`
+	Playground Playground       `json:"playground"`
+	PlayerID   string           `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Team       string           `json:"team" enums:"runner,hunter" example:"runner"`
+	JoinCode   string           `json:"joinCode" minLength:"6" maxLength:"6" example:"K7M2QX"`
+	Players    []PlayerResponse `json:"players"`
+} // @name GameStateResponse
+
+type JoinGameResponse struct {
+	PlayerToken string            `json:"playerToken" minLength:"64" maxLength:"64" example:"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"`
+	State       GameStateResponse `json:"state"`
+} // @name JoinGameResponse
+
 type APIError struct {
 	Error string `json:"error" example:"cell size must be 100 to 5000 meters in steps of 100 meters"`
 } // @name ApiError

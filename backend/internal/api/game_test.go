@@ -35,12 +35,18 @@ func TestCreateAndLoadGame(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", created.Code, created.Body)
 	}
-	var game controller.GameResponse
-	if err := json.Unmarshal(created.Body.Bytes(), &game); err != nil {
+	var createdGame controller.CreateGameResponse
+	if err := json.Unmarshal(created.Body.Bytes(), &createdGame); err != nil {
 		t.Fatal(err)
 	}
+	game := createdGame.Game
 	if _, err := domain.ParseSessionID(game.SessionID); err != nil || game.CreatedAt == "" {
 		t.Fatalf("invalid game metadata: %+v", game)
+	}
+	runnerCode, runnerErr := domain.ParseJoinCode(createdGame.JoinCodes.Runner)
+	hunterCode, hunterErr := domain.ParseJoinCode(createdGame.JoinCodes.Hunter)
+	if runnerErr != nil || hunterErr != nil || runnerCode == hunterCode {
+		t.Fatalf("invalid join codes: %+v", createdGame.JoinCodes)
 	}
 	center, _ := domain.ParseCoordinates(52.52, 13.405)
 	p, _ := domain.NewPlayground(center, domain.DefaultCellSize())
@@ -53,17 +59,21 @@ func TestCreateAndLoadGame(t *testing.T) {
 	}
 	loaded := httptest.NewRecorder()
 	handler.ServeHTTP(loaded, httptest.NewRequest(http.MethodGet, created.Header().Get("Location"), nil))
-	if loaded.Code != http.StatusOK || loaded.Body.String() != created.Body.String() {
+	var loadedGame controller.GameResponse
+	if err := json.Unmarshal(loaded.Body.Bytes(), &loadedGame); loaded.Code != http.StatusOK || err != nil || loadedGame != game {
 		t.Fatalf("load: %d %s", loaded.Code, loaded.Body)
 	}
-	preflight := httptest.NewRequest(http.MethodOptions, "/api/games", nil)
+	if strings.Contains(loaded.Body.String(), createdGame.JoinCodes.Runner) {
+		t.Fatal("public game load must not reveal join codes")
+	}
+	preflight := httptest.NewRequest(http.MethodOptions, "/api/me/ready", nil)
 	preflight.Header.Set("Origin", "http://localhost:8081")
-	preflight.Header.Set("Access-Control-Request-Headers", "content-type")
+	preflight.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, preflight)
-	if recorder.Code != 204 || !strings.Contains(recorder.Header().Get("Access-Control-Allow-Methods"), "POST") ||
-		recorder.Header().Get("Access-Control-Allow-Headers") != "Content-Type" {
-		t.Fatal("JSON POST preflight not supported")
+	if recorder.Code != 204 || !strings.Contains(recorder.Header().Get("Access-Control-Allow-Methods"), "PUT") ||
+		recorder.Header().Get("Access-Control-Allow-Headers") != "Authorization, Content-Type" {
+		t.Fatal("authenticated JSON preflight not supported")
 	}
 }
 
@@ -139,13 +149,14 @@ func TestCreateGameCellSizes(t *testing.T) {
 	} {
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest("POST", "/api/games", strings.NewReader(tc.body)))
-		var game controller.GameResponse
-		if err := json.Unmarshal(recorder.Body.Bytes(), &game); err != nil || recorder.Code != 201 || game.Playground.CellSizeMeters != tc.size {
+		var created controller.CreateGameResponse
+		if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil || recorder.Code != 201 || created.Game.Playground.CellSizeMeters != tc.size {
 			t.Fatalf("unexpected size: %d %s", recorder.Code, recorder.Body)
 		}
 		loaded := httptest.NewRecorder()
 		handler.ServeHTTP(loaded, httptest.NewRequest("GET", recorder.Header().Get("Location"), nil))
-		if loaded.Code != 200 || loaded.Body.String() != recorder.Body.String() {
+		var game controller.GameResponse
+		if err := json.Unmarshal(loaded.Body.Bytes(), &game); loaded.Code != 200 || err != nil || game != created.Game {
 			t.Fatal("saved size changed on load")
 		}
 	}
@@ -177,8 +188,11 @@ func TestOpenAPIRoutes(t *testing.T) {
 	}
 	for _, tc := range []struct{ path, method, id, status, schema string }{
 		{"/health", "get", "getHealth", "200", "HealthResponse"},
-		{"/api/games", "post", "createGame", "201", "GameResponse"},
+		{"/api/games", "post", "createGame", "201", "CreateGameResponse"},
 		{"/api/games/{sessionId}", "get", "getGame", "200", "GameResponse"},
+		{"/api/players", "post", "joinGame", "201", "JoinGameResponse"},
+		{"/api/me/game", "get", "getGameState", "200", "GameStateResponse"},
+		{"/api/me/ready", "put", "setReady", "200", "GameStateResponse"},
 	} {
 		operation := spec.Paths[tc.path][tc.method]
 		if operation.OperationID != tc.id || operation.Responses[tc.status].Schema.Ref != "#/definitions/"+tc.schema || len(spec.Definitions[tc.schema].Required) == 0 {

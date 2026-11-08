@@ -12,6 +12,10 @@ func NewHandler(webOrigin string, games *controller.GameController) http.Handler
 	mux.HandleFunc("/health", controller.Health)
 	mux.HandleFunc("/api/games", games.Create)
 	mux.HandleFunc("/api/games/{sessionId}", games.Get)
+	mux.HandleFunc("/api/players", games.Join)
+	mux.HandleFunc("/api/me", games.Leave)
+	mux.HandleFunc("/api/me/game", games.State)
+	mux.HandleFunc("/api/me/ready", games.SetReady)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		controller.WriteError(w, http.StatusNotFound, "not found")
 	})
@@ -26,8 +30,8 @@ func NewHandler(webOrigin string, games *controller.GameController) http.Handler
 				return
 			}
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
