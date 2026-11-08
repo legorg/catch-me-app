@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Project checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: app
+    env:
+      CI: "true"
+      EXPO_NO_TELEMETRY: "1"
+      CGO_ENABLED: "0"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: |
+            backend/go.mod
+            backend/go.sum
+            backend/cmd/apigen/main.go
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Check Go formatting
+        working-directory: backend
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf 'Run gofmt on these files:\n%s\n' "$unformatted"
+            exit 1
+          fi
+
+      - name: Test backend
+        working-directory: backend
+        run: go test ./...
+
+      - name: Analyze Go code
+        working-directory: backend
+        run: go vet ./...
+
+      - name: Check generated API freshness
+        run: npm run api:check
+
+      - name: Typecheck app
+        run: npm run typecheck
+
+      - name: Lint app
+        run: npm run lint
+
+      - name: Test frontend API client and generation
+        run: npm run test:api
+
+      - name: Bundle Android, iOS, and web
+        run: npx expo export --platform all --max-workers 2
+
+      - name: Verify tracked files were not modified
+        working-directory: .
+        run: git diff --exit-code
