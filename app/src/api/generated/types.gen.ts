@@ -39,6 +39,10 @@ export type GameResponse = {
 
 export type GameStateResponse = {
     joinCode: string;
+    /**
+     * Next time hunters receive the runners' positions, present while running.
+     */
+    nextRevealAt?: string;
     playerId: string;
     players: Array<PlayerResponse>;
     playground: Playground;
@@ -79,7 +83,16 @@ export type JoinGameResponse = {
 export type PlayerResponse = {
     name: string;
     playerId: string;
+    /**
+     * Own position always; teammates' positions while running; runners'
+     * revealed positions for hunters while running.
+     */
+    position?: PositionResponse;
     ready: boolean;
+    /**
+     * Present only for runners when the requester is a runner.
+     */
+    route?: RouteResponse;
     team: 'runner' | 'hunter';
 };
 
@@ -91,6 +104,17 @@ export type Playground = {
     rows: 6;
 };
 
+export type PositionResponse = {
+    accuracyMeters: number;
+    latitude: number;
+    longitude: number;
+    recordedAt: string;
+    /**
+     * Set when this is a runner position revealed to hunters.
+     */
+    revealedAt?: string;
+};
+
 export type RouteResponse = {
     end: string;
     regenerationsLeft: number;
@@ -99,6 +123,12 @@ export type RouteResponse = {
 
 export type SetReadyRequest = {
     ready: boolean;
+};
+
+export type UpdatePositionRequest = {
+    accuracyMeters: number;
+    latitude: number;
+    longitude: number;
 };
 
 export type CreateGameData = {
@@ -267,6 +297,54 @@ export type GetGameStateResponses = {
 
 export type GetGameStateResponse = GetGameStateResponses[keyof GetGameStateResponses];
 
+export type UpdatePositionData = {
+    /**
+     * Current coordinates and accuracy radius; the server records its own time
+     */
+    body: UpdatePositionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/me/position';
+};
+
+export type UpdatePositionErrors = {
+    /**
+     * Invalid JSON, coordinates, or accuracy
+     */
+    400: ApiError;
+    /**
+     * Missing or unknown player token
+     */
+    401: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Request body exceeds 1024 bytes
+     */
+    413: ApiError;
+    /**
+     * Could not update game
+     */
+    500: ApiError;
+};
+
+export type UpdatePositionError = UpdatePositionErrors[keyof UpdatePositionErrors];
+
+export type UpdatePositionResponses = {
+    /**
+     * Updated game state
+     */
+    200: GameStateResponse;
+};
+
+export type UpdatePositionResponse = UpdatePositionResponses[keyof UpdatePositionResponses];
+
 export type SetReadyData = {
     /**
      * Ready state; the game starts 10 seconds after all players are ready and both teams have players
@@ -295,7 +373,7 @@ export type SetReadyErrors = {
      */
     405: ApiError;
     /**
-     * Game has already started
+     * Game has already started, or the runner is not in their start cell
      */
     409: ApiError;
     /**

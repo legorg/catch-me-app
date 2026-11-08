@@ -6,12 +6,14 @@ import {
   leaveGame as deletePlayer,
   regenerateRoute as postRoute,
   setReady as putReady,
+  updatePosition as putPosition,
 } from './generated/sdk.gen';
 import type { CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, Playground } from './generated/types.gen';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type {
-  Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, PlayerResponse, Playground, RouteResponse,
+  Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, PlayerResponse, Playground,
+  PositionResponse, RouteResponse,
 } from './generated/types.gen';
 
 export const API_URL = (
@@ -99,6 +101,14 @@ export async function regenerateRoute(token: string): Promise<GameStateResponse>
   return data;
 }
 
+export async function updatePosition(
+  token: string, position: { latitude: number; longitude: number; accuracyMeters: number },
+): Promise<GameStateResponse> {
+  const data = await request((signal) => putPosition({ baseUrl: API_URL, auth: bearer(token), body: position, signal }));
+  assertGameState(data);
+  return data;
+}
+
 // The API declares an apiKey scheme, so the generated client sends this value unchanged.
 function bearer(token: string) {
   return `Bearer ${token}`;
@@ -134,6 +144,19 @@ function isRoute(value: unknown): boolean {
     Number.isInteger(value.regenerationsLeft) && (value.regenerationsLeft as number) >= 0 && (value.regenerationsLeft as number) <= 2;
 }
 
+function isPosition(value: unknown): boolean {
+  return isRecord(value) && finite(value.latitude) && Math.abs(value.latitude) <= 90 &&
+    finite(value.longitude) && Math.abs(value.longitude) <= 180 &&
+    finite(value.accuracyMeters) && value.accuracyMeters >= 0 && isDate(value.recordedAt) &&
+    (value.revealedAt === undefined || isDate(value.revealedAt));
+}
+
+function isPlayer(p: unknown): boolean {
+  return isRecord(p) && isHex(p.playerId, 32) && typeof p.name === 'string' && isTeam(p.team) &&
+    typeof p.ready === 'boolean' && (p.route === undefined || isRoute(p.route)) &&
+    (p.position === undefined || isPosition(p.position));
+}
+
 function isPlayground(p: unknown): p is Playground {
   const c = isRecord(p) ? p.center : undefined;
   const b = isRecord(p) ? p.bounds : undefined;
@@ -149,10 +172,10 @@ function isPlayground(p: unknown): p is Playground {
 function assertGameState(body: unknown): asserts body is GameStateResponse {
   if (!isRecord(body) || !isHex(body.sessionId, 32) || !['lobby', 'countdown', 'running'].includes(body.status as string) ||
       !isDate(body.serverTime) || (body.startsAt !== undefined && !isDate(body.startsAt)) ||
+      (body.nextRevealAt !== undefined && !isDate(body.nextRevealAt)) ||
       !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCode(body.joinCode) ||
       (body.route !== undefined && (body.team !== 'runner' || !isRoute(body.route))) ||
-      !Array.isArray(body.players) || !body.players.every((p) => isRecord(p) && isHex(p.playerId, 32) &&
-        typeof p.name === 'string' && isTeam(p.team) && typeof p.ready === 'boolean')) {
+      !Array.isArray(body.players) || !body.players.every(isPlayer)) {
     throw new Error('Unexpected game state. Check the API URL.');
   }
 }

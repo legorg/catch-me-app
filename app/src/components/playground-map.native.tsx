@@ -5,7 +5,7 @@ import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from 'react-nativ
 import { boundaryCoordinates, cellBounds, cellLabels, gridLines } from '../playground';
 import type { PlaygroundMapProps } from './playground-map';
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [] }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [] }: PlaygroundMapProps) {
   const map = useRef<MapView>(null);
   const [ready, setReady] = useState(false);
   const center = playground?.center ?? { latitude: 50.9375, longitude: 6.9603 }; //Cologne
@@ -54,6 +54,9 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
           </Marker>
         ))}
       </>}
+      {markers.map(({ id, coordinate, title, description, color }) => (
+        <Marker key={id} coordinate={coordinate} title={title} description={description} pinColor={color} />
+      ))}
     </MapView>
   );
 }

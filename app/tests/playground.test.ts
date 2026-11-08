@@ -2,8 +2,17 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  boundaryCoordinates, cellBounds, cellLabels, edgeName, gridLines, parseCellSizeKm, previewPlayground,
+  boundaryCoordinates, cellAt, cellBounds, cellLabels, edgeName, gridLines, parseCellSizeKm, previewPlayground,
 } from '../src/playground';
+
+test('cellAt finds the labeled cell and rejects outside positions', () => {
+  const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 500);
+  for (const { label, coordinate } of cellLabels(p)) {
+    assert.equal(cellAt(p, coordinate), label);
+  }
+  assert.equal(cellAt(p, { latitude: p.bounds.south, longitude: p.bounds.east }), 'F6');
+  assert.equal(cellAt(p, { latitude: p.bounds.north + 0.001, longitude: p.center.longitude }), null);
+});
 
 test('cell bounds match the labeled grid cells', () => {
   const p = previewPlayground({ latitude: 52.52, longitude: 13.405 });

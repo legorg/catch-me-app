@@ -91,3 +91,14 @@ export function cellBounds(p: Playground, label: string): Bounds {
 export function edgeName(label: string): string {
   return label.endsWith('1') ? 'north edge' : label.endsWith('6') ? 'south edge' : 'inside';
 }
+
+/** Label of the cell containing the coordinates, or null outside the playground. Mirrors the backend. */
+export function cellAt(p: Playground, c: Coordinates): string | null {
+  const b = p.bounds;
+  if (!(c.latitude <= b.north && c.latitude >= b.south && c.longitude >= b.west && c.longitude <= b.east)) {
+    return null;
+  }
+  const row = Math.min(Math.floor((b.north - c.latitude) / (b.north - b.south) * p.rows), p.rows - 1);
+  const column = Math.min(Math.floor((c.longitude - b.west) / (b.east - b.west) * p.columns), p.columns - 1);
+  return `${String.fromCharCode(65 + column)}${row + 1}`;
+}

@@ -26,7 +26,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Catch me! shares your position with your teammates during a game and checks that runners start in their start cell."
+        }
+      ]
     ]
   }
 }

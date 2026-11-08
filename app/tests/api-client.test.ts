@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setReady,
+  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setReady, updatePosition,
 } from '../src/api/client';
 import { previewPlayground } from '../src/playground';
 
@@ -77,8 +77,11 @@ test('player requests send the bearer token', async (t) => {
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
     seen.push(`${request.method} ${new URL(request.url).pathname}`);
-    if (request.method === 'PUT') {
+    if (request.method === 'PUT' && new URL(request.url).pathname === '/api/me/ready') {
       assert.deepEqual(await request.json(), { ready: true });
+    }
+    if (request.method === 'PUT' && new URL(request.url).pathname === '/api/me/position') {
+      assert.deepEqual(await request.json(), { latitude: 52.5, longitude: 13.4, accuracyMeters: 8 });
     }
     if (request.method === 'DELETE') {
       return new Response(null, { status: 204 });
@@ -88,8 +91,9 @@ test('player requests send the bearer token', async (t) => {
   assert.deepEqual(await getGameState(token), state);
   assert.deepEqual(await setReady(token, true), state);
   assert.deepEqual(await regenerateRoute(token), state);
+  assert.deepEqual(await updatePosition(token, { latitude: 52.5, longitude: 13.4, accuracyMeters: 8 }), state);
   await leaveGame(token);
-  assert.deepEqual(seen, ['GET /api/me/game', 'PUT /api/me/ready', 'POST /api/me/route', 'DELETE /api/me']);
+  assert.deepEqual(seen, ['GET /api/me/game', 'PUT /api/me/ready', 'POST /api/me/route', 'PUT /api/me/position', 'DELETE /api/me']);
 });
 
 test('health check also uses the generated client', async (t) => {
@@ -120,7 +124,11 @@ test('malformed successful responses are rejected at runtime', async (t) => {
   for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCode: 'bad' },
     { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null },
     { ...state, route: { start: 'G1', end: 'E6', regenerationsLeft: 2 } }, { ...state, route: { ...state.route, regenerationsLeft: 3 } },
-    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter', joinCode: 'P4R9TW' }]) {
+    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter', joinCode: 'P4R9TW' },
+    { ...state, nextRevealAt: 'bad' },
+    { ...state, players: [{ ...state.players[0], position: { latitude: 95, longitude: 0, accuracyMeters: 5, recordedAt: state.serverTime } }] },
+    { ...state, players: [{ ...state.players[0], position: { latitude: 0, longitude: 0, accuracyMeters: -1, recordedAt: state.serverTime } }] },
+    { ...state, players: [{ ...state.players[0], route: { start: 'Z9', end: 'A6', regenerationsLeft: 0 } }] }]) {
     t.mock.method(globalThis, 'fetch', async () => Response.json(body));
     await assert.rejects(getGameState(token), /Unexpected game state/);
   }
