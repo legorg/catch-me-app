@@ -37,7 +37,7 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 - Each player toggles **Ready**.
 - **Start condition:** every player is ready, and each team has at least one player.
 - When the start condition becomes true, the server schedules the start **10 seconds** later (countdown).
-- Whenever the start condition stops holding during the countdown (someone joins, leaves, or un-readies), the countdown is cancelled. It restarts from 10 seconds once the condition holds again.
+- Whenever the start condition stops holding during the countdown (someone joins, leaves, un-readies, or a ready runner leaves their start cell), the countdown is cancelled. It restarts from 10 seconds once the condition holds again.
 - Once the countdown has passed, the game is **running**. Joining, leaving, and changing ready state are then rejected.
 - Players can leave during the lobby and the countdown.
 
@@ -48,18 +48,26 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 - When a runner joins, they get a random **start cell in one edge row** (row 1 or row 6) and an **end cell in the opposite edge row**. Which edge is the start is random per runner; columns are random.
 - Each runner can **regenerate** their route **2 times**, only before the start and while not ready. A regenerated route always differs from the previous one.
 - Hunters have no assigned start point.
-- A runner's route is visible to that runner only. Teammate visibility is decided in milestone 3.
-- Runners who joined before routes existed have no route.
-- Whether runners must stand in their start cell when the game starts is decided in milestone 3, once positions exist.
+- **Runners see all runners' routes** (their own and their teammates'). Hunters never see routes.
+- Runners who joined before routes existed have no route and skip the start cell check.
 
-## Positions and visibility [next: milestone 3]
+## Start cell [done: milestone 3]
 
-- Foreground location only (app open). Players send their position regularly while the game is running.
-- Only the **latest position** per player is stored. All positions are deleted when the game ends or the player leaves.
-- **Teammates** always see each other's latest position.
-- **Hunters** receive each active runner's position once every **5 minutes** (periodic reveal). The reveal shows the position at reveal time, not live updates.
+- A runner can only get **ready** when their latest position lies **inside their start cell** and is at most **30 seconds** old.
+- Before the start, a ready runner who reports a position outside their start cell becomes **not ready** automatically (which cancels a running countdown).
+- Once running, runners move freely.
+
+## Positions and visibility [done: milestone 3]
+
+- Foreground location only, while the lobby/game screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start.
+- The app sends the latest fix every **5 seconds**, even when standing still. The server stamps each report with its own time and never trusts the phone's clock.
+- Only the **latest position** per player is stored, never a history. A player's position is deleted when they leave; deleting all positions at the end of a game follows in milestone 4.
+- Everyone always sees **their own** position.
+- **Teammates** see each other's latest position **only while running**.
+- **Hunters** receive each runner's position once every **5 minutes** after the start (first reveal 5 minutes after the start). A reveal shows where the runner was at the reveal time (their last report before it), not live updates. The state includes `nextRevealAt` for both teams.
 - **Runners** never see hunters.
 - Players outside the playground get a warning only; there is no penalty.
+- Reveals are recorded lazily: the first request touching the game after a reveal time snapshots the runners' positions, and position reports always snapshot before storing the new position.
 
 ## Catch, finish, and end [next: milestone 4]
 
@@ -76,7 +84,7 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 - Background location tracking.
 - Production readiness: HTTPS, rate limiting, versioned migrations, cleanup of old games, privacy policy, store builds.
 
-## API (milestones 1 and 2)
+## API (milestones 1 to 3)
 
 | Method and path | Auth | Purpose |
 |---|---|---|
@@ -86,11 +94,12 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 | `GET /api/me/game` | Bearer | Game state as seen by the requesting player. |
 | `PUT /api/me/ready` | Bearer | Set `{ready: true/false}`. Returns the game state. |
 | `POST /api/me/route` | Bearer | Regenerate the runner's route. Returns the game state. |
+| `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the playground, the requesting player's ID and team, their team's join code, the list of players, and, for runners, their own route. Clients compute the countdown from `startsAt - serverTime` to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, their team's join code, their own route (runners), and the list of players. Each player entry carries only what the requester may see: routes (for runners) and a position (own, teammates while running, or a revealed runner position with `revealedAt` for hunters). Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
-Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route change not allowed).
+Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route change not allowed, runner not in start cell).
 
 ## Tuning values
 
@@ -102,4 +111,6 @@ Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game 
 | Route regenerations | 2 |
 | Catch radius / position age | 50 m / 30 s |
 | Reveal interval | 5 min |
+| Start cell position max age | 30 s |
+| Position send interval (app) | 5 s |
 | Time limit | 90 min |
