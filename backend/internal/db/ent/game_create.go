@@ -4,9 +4,11 @@ package ent
 
 import (
 	"catch-me/backend/internal/db/ent/game"
+	"catch-me/backend/internal/db/ent/player"
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -79,10 +81,67 @@ func (_c *GameCreate) SetCellSizeMeters(v int) *GameCreate {
 	return _c
 }
 
+// SetRunnerCode sets the "runner_code" field.
+func (_c *GameCreate) SetRunnerCode(v string) *GameCreate {
+	_c.mutation.SetRunnerCode(v)
+	return _c
+}
+
+// SetNillableRunnerCode sets the "runner_code" field if the given value is not nil.
+func (_c *GameCreate) SetNillableRunnerCode(v *string) *GameCreate {
+	if v != nil {
+		_c.SetRunnerCode(*v)
+	}
+	return _c
+}
+
+// SetHunterCode sets the "hunter_code" field.
+func (_c *GameCreate) SetHunterCode(v string) *GameCreate {
+	_c.mutation.SetHunterCode(v)
+	return _c
+}
+
+// SetNillableHunterCode sets the "hunter_code" field if the given value is not nil.
+func (_c *GameCreate) SetNillableHunterCode(v *string) *GameCreate {
+	if v != nil {
+		_c.SetHunterCode(*v)
+	}
+	return _c
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (_c *GameCreate) SetStartsAt(v time.Time) *GameCreate {
+	_c.mutation.SetStartsAt(v)
+	return _c
+}
+
+// SetNillableStartsAt sets the "starts_at" field if the given value is not nil.
+func (_c *GameCreate) SetNillableStartsAt(v *time.Time) *GameCreate {
+	if v != nil {
+		_c.SetStartsAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *GameCreate) SetID(v string) *GameCreate {
 	_c.mutation.SetID(v)
 	return _c
+}
+
+// AddPlayerIDs adds the "players" edge to the Player entity by IDs.
+func (_c *GameCreate) AddPlayerIDs(ids ...string) *GameCreate {
+	_c.mutation.AddPlayerIDs(ids...)
+	return _c
+}
+
+// AddPlayers adds the "players" edges to the Player entity.
+func (_c *GameCreate) AddPlayers(v ...*Player) *GameCreate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPlayerIDs(ids...)
 }
 
 // Mutation returns the GameMutation object of the builder.
@@ -179,6 +238,16 @@ func (_c *GameCreate) check() error {
 			return &ValidationError{Name: "cell_size_meters", err: fmt.Errorf(`ent: validator failed for field "Game.cell_size_meters": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.RunnerCode(); ok {
+		if err := game.RunnerCodeValidator(v); err != nil {
+			return &ValidationError{Name: "runner_code", err: fmt.Errorf(`ent: validator failed for field "Game.runner_code": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.HunterCode(); ok {
+		if err := game.HunterCodeValidator(v); err != nil {
+			return &ValidationError{Name: "hunter_code", err: fmt.Errorf(`ent: validator failed for field "Game.hunter_code": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := game.IDValidator(v); err != nil {
 			return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "Game.id": %w`, err)}
@@ -258,6 +327,34 @@ func (_c *GameCreate) createSpec() (*Game, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CellSizeMeters(); ok {
 		_spec.SetField(game.FieldCellSizeMeters, field.TypeInt, value)
 		_node.CellSizeMeters = value
+	}
+	if value, ok := _c.mutation.RunnerCode(); ok {
+		_spec.SetField(game.FieldRunnerCode, field.TypeString, value)
+		_node.RunnerCode = &value
+	}
+	if value, ok := _c.mutation.HunterCode(); ok {
+		_spec.SetField(game.FieldHunterCode, field.TypeString, value)
+		_node.HunterCode = &value
+	}
+	if value, ok := _c.mutation.StartsAt(); ok {
+		_spec.SetField(game.FieldStartsAt, field.TypeTime, value)
+		_node.StartsAt = &value
+	}
+	if nodes := _c.mutation.PlayersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   game.PlayersTable,
+			Columns: []string{game.PlayersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(player.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

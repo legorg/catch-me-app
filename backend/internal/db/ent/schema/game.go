@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
 
@@ -28,7 +29,15 @@ func (Game) Fields() []ent.Field {
 		field.Int("row_count").StorageKey("rows").Range(game.GridSize, game.GridSize),
 		field.Int("column_count").StorageKey("columns").Range(game.GridSize, game.GridSize),
 		field.Int("cell_size_meters").Validate(parsedBy(game.ParseCellSize)),
+		// Optional: games created before joining existed have no codes.
+		field.String("runner_code").Optional().Nillable().Unique().Validate(parsedBy(game.ParseJoinCode)),
+		field.String("hunter_code").Optional().Nillable().Unique().Validate(parsedBy(game.ParseJoinCode)),
+		field.Time("starts_at").Optional().Nillable(),
 	}
+}
+
+func (Game) Edges() []ent.Edge {
+	return []ent.Edge{edge.To("players", Player.Type)}
 }
 
 // parsedBy reuses a domain parser as an Ent validator, so the rules exist once.

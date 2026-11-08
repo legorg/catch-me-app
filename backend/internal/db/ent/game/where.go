@@ -4,8 +4,10 @@ package game
 
 import (
 	"catch-me/backend/internal/db/ent/predicate"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 // ID filters vertices based on their ID field.
@@ -111,6 +113,21 @@ func ColumnCount(v int) predicate.Game {
 // CellSizeMeters applies equality check predicate on the "cell_size_meters" field. It's identical to CellSizeMetersEQ.
 func CellSizeMeters(v int) predicate.Game {
 	return predicate.Game(sql.FieldEQ(FieldCellSizeMeters, v))
+}
+
+// RunnerCode applies equality check predicate on the "runner_code" field. It's identical to RunnerCodeEQ.
+func RunnerCode(v string) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldRunnerCode, v))
+}
+
+// HunterCode applies equality check predicate on the "hunter_code" field. It's identical to HunterCodeEQ.
+func HunterCode(v string) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldHunterCode, v))
+}
+
+// StartsAt applies equality check predicate on the "starts_at" field. It's identical to StartsAtEQ.
+func StartsAt(v time.Time) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldStartsAt, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -536,6 +553,229 @@ func CellSizeMetersLT(v int) predicate.Game {
 // CellSizeMetersLTE applies the LTE predicate on the "cell_size_meters" field.
 func CellSizeMetersLTE(v int) predicate.Game {
 	return predicate.Game(sql.FieldLTE(FieldCellSizeMeters, v))
+}
+
+// RunnerCodeEQ applies the EQ predicate on the "runner_code" field.
+func RunnerCodeEQ(v string) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldRunnerCode, v))
+}
+
+// RunnerCodeNEQ applies the NEQ predicate on the "runner_code" field.
+func RunnerCodeNEQ(v string) predicate.Game {
+	return predicate.Game(sql.FieldNEQ(FieldRunnerCode, v))
+}
+
+// RunnerCodeIn applies the In predicate on the "runner_code" field.
+func RunnerCodeIn(vs ...string) predicate.Game {
+	return predicate.Game(sql.FieldIn(FieldRunnerCode, vs...))
+}
+
+// RunnerCodeNotIn applies the NotIn predicate on the "runner_code" field.
+func RunnerCodeNotIn(vs ...string) predicate.Game {
+	return predicate.Game(sql.FieldNotIn(FieldRunnerCode, vs...))
+}
+
+// RunnerCodeGT applies the GT predicate on the "runner_code" field.
+func RunnerCodeGT(v string) predicate.Game {
+	return predicate.Game(sql.FieldGT(FieldRunnerCode, v))
+}
+
+// RunnerCodeGTE applies the GTE predicate on the "runner_code" field.
+func RunnerCodeGTE(v string) predicate.Game {
+	return predicate.Game(sql.FieldGTE(FieldRunnerCode, v))
+}
+
+// RunnerCodeLT applies the LT predicate on the "runner_code" field.
+func RunnerCodeLT(v string) predicate.Game {
+	return predicate.Game(sql.FieldLT(FieldRunnerCode, v))
+}
+
+// RunnerCodeLTE applies the LTE predicate on the "runner_code" field.
+func RunnerCodeLTE(v string) predicate.Game {
+	return predicate.Game(sql.FieldLTE(FieldRunnerCode, v))
+}
+
+// RunnerCodeContains applies the Contains predicate on the "runner_code" field.
+func RunnerCodeContains(v string) predicate.Game {
+	return predicate.Game(sql.FieldContains(FieldRunnerCode, v))
+}
+
+// RunnerCodeHasPrefix applies the HasPrefix predicate on the "runner_code" field.
+func RunnerCodeHasPrefix(v string) predicate.Game {
+	return predicate.Game(sql.FieldHasPrefix(FieldRunnerCode, v))
+}
+
+// RunnerCodeHasSuffix applies the HasSuffix predicate on the "runner_code" field.
+func RunnerCodeHasSuffix(v string) predicate.Game {
+	return predicate.Game(sql.FieldHasSuffix(FieldRunnerCode, v))
+}
+
+// RunnerCodeIsNil applies the IsNil predicate on the "runner_code" field.
+func RunnerCodeIsNil() predicate.Game {
+	return predicate.Game(sql.FieldIsNull(FieldRunnerCode))
+}
+
+// RunnerCodeNotNil applies the NotNil predicate on the "runner_code" field.
+func RunnerCodeNotNil() predicate.Game {
+	return predicate.Game(sql.FieldNotNull(FieldRunnerCode))
+}
+
+// RunnerCodeEqualFold applies the EqualFold predicate on the "runner_code" field.
+func RunnerCodeEqualFold(v string) predicate.Game {
+	return predicate.Game(sql.FieldEqualFold(FieldRunnerCode, v))
+}
+
+// RunnerCodeContainsFold applies the ContainsFold predicate on the "runner_code" field.
+func RunnerCodeContainsFold(v string) predicate.Game {
+	return predicate.Game(sql.FieldContainsFold(FieldRunnerCode, v))
+}
+
+// HunterCodeEQ applies the EQ predicate on the "hunter_code" field.
+func HunterCodeEQ(v string) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldHunterCode, v))
+}
+
+// HunterCodeNEQ applies the NEQ predicate on the "hunter_code" field.
+func HunterCodeNEQ(v string) predicate.Game {
+	return predicate.Game(sql.FieldNEQ(FieldHunterCode, v))
+}
+
+// HunterCodeIn applies the In predicate on the "hunter_code" field.
+func HunterCodeIn(vs ...string) predicate.Game {
+	return predicate.Game(sql.FieldIn(FieldHunterCode, vs...))
+}
+
+// HunterCodeNotIn applies the NotIn predicate on the "hunter_code" field.
+func HunterCodeNotIn(vs ...string) predicate.Game {
+	return predicate.Game(sql.FieldNotIn(FieldHunterCode, vs...))
+}
+
+// HunterCodeGT applies the GT predicate on the "hunter_code" field.
+func HunterCodeGT(v string) predicate.Game {
+	return predicate.Game(sql.FieldGT(FieldHunterCode, v))
+}
+
+// HunterCodeGTE applies the GTE predicate on the "hunter_code" field.
+func HunterCodeGTE(v string) predicate.Game {
+	return predicate.Game(sql.FieldGTE(FieldHunterCode, v))
+}
+
+// HunterCodeLT applies the LT predicate on the "hunter_code" field.
+func HunterCodeLT(v string) predicate.Game {
+	return predicate.Game(sql.FieldLT(FieldHunterCode, v))
+}
+
+// HunterCodeLTE applies the LTE predicate on the "hunter_code" field.
+func HunterCodeLTE(v string) predicate.Game {
+	return predicate.Game(sql.FieldLTE(FieldHunterCode, v))
+}
+
+// HunterCodeContains applies the Contains predicate on the "hunter_code" field.
+func HunterCodeContains(v string) predicate.Game {
+	return predicate.Game(sql.FieldContains(FieldHunterCode, v))
+}
+
+// HunterCodeHasPrefix applies the HasPrefix predicate on the "hunter_code" field.
+func HunterCodeHasPrefix(v string) predicate.Game {
+	return predicate.Game(sql.FieldHasPrefix(FieldHunterCode, v))
+}
+
+// HunterCodeHasSuffix applies the HasSuffix predicate on the "hunter_code" field.
+func HunterCodeHasSuffix(v string) predicate.Game {
+	return predicate.Game(sql.FieldHasSuffix(FieldHunterCode, v))
+}
+
+// HunterCodeIsNil applies the IsNil predicate on the "hunter_code" field.
+func HunterCodeIsNil() predicate.Game {
+	return predicate.Game(sql.FieldIsNull(FieldHunterCode))
+}
+
+// HunterCodeNotNil applies the NotNil predicate on the "hunter_code" field.
+func HunterCodeNotNil() predicate.Game {
+	return predicate.Game(sql.FieldNotNull(FieldHunterCode))
+}
+
+// HunterCodeEqualFold applies the EqualFold predicate on the "hunter_code" field.
+func HunterCodeEqualFold(v string) predicate.Game {
+	return predicate.Game(sql.FieldEqualFold(FieldHunterCode, v))
+}
+
+// HunterCodeContainsFold applies the ContainsFold predicate on the "hunter_code" field.
+func HunterCodeContainsFold(v string) predicate.Game {
+	return predicate.Game(sql.FieldContainsFold(FieldHunterCode, v))
+}
+
+// StartsAtEQ applies the EQ predicate on the "starts_at" field.
+func StartsAtEQ(v time.Time) predicate.Game {
+	return predicate.Game(sql.FieldEQ(FieldStartsAt, v))
+}
+
+// StartsAtNEQ applies the NEQ predicate on the "starts_at" field.
+func StartsAtNEQ(v time.Time) predicate.Game {
+	return predicate.Game(sql.FieldNEQ(FieldStartsAt, v))
+}
+
+// StartsAtIn applies the In predicate on the "starts_at" field.
+func StartsAtIn(vs ...time.Time) predicate.Game {
+	return predicate.Game(sql.FieldIn(FieldStartsAt, vs...))
+}
+
+// StartsAtNotIn applies the NotIn predicate on the "starts_at" field.
+func StartsAtNotIn(vs ...time.Time) predicate.Game {
+	return predicate.Game(sql.FieldNotIn(FieldStartsAt, vs...))
+}
+
+// StartsAtGT applies the GT predicate on the "starts_at" field.
+func StartsAtGT(v time.Time) predicate.Game {
+	return predicate.Game(sql.FieldGT(FieldStartsAt, v))
+}
+
+// StartsAtGTE applies the GTE predicate on the "starts_at" field.
+func StartsAtGTE(v time.Time) predicate.Game {
+	return predicate.Game(sql.FieldGTE(FieldStartsAt, v))
+}
+
+// StartsAtLT applies the LT predicate on the "starts_at" field.
+func StartsAtLT(v time.Time) predicate.Game {
+	return predicate.Game(sql.FieldLT(FieldStartsAt, v))
+}
+
+// StartsAtLTE applies the LTE predicate on the "starts_at" field.
+func StartsAtLTE(v time.Time) predicate.Game {
+	return predicate.Game(sql.FieldLTE(FieldStartsAt, v))
+}
+
+// StartsAtIsNil applies the IsNil predicate on the "starts_at" field.
+func StartsAtIsNil() predicate.Game {
+	return predicate.Game(sql.FieldIsNull(FieldStartsAt))
+}
+
+// StartsAtNotNil applies the NotNil predicate on the "starts_at" field.
+func StartsAtNotNil() predicate.Game {
+	return predicate.Game(sql.FieldNotNull(FieldStartsAt))
+}
+
+// HasPlayers applies the HasEdge predicate on the "players" edge.
+func HasPlayers() predicate.Game {
+	return predicate.Game(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PlayersTable, PlayersColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPlayersWith applies the HasEdge predicate on the "players" edge with a given conditions (other predicates).
+func HasPlayersWith(preds ...predicate.Player) predicate.Game {
+	return predicate.Game(func(s *sql.Selector) {
+		step := newPlayersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

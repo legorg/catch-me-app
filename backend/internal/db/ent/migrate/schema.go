@@ -22,6 +22,9 @@ var (
 		{Name: "rows", Type: field.TypeInt},
 		{Name: "columns", Type: field.TypeInt},
 		{Name: "cell_size_meters", Type: field.TypeInt},
+		{Name: "runner_code", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "hunter_code", Type: field.TypeString, Unique: true, Nullable: true},
+		{Name: "starts_at", Type: field.TypeTime, Nullable: true},
 	}
 	// GamesTable holds the schema information for the "games" table.
 	GamesTable = &schema.Table{
@@ -29,14 +32,50 @@ var (
 		Columns:    GamesColumns,
 		PrimaryKey: []*schema.Column{GamesColumns[0]},
 	}
+	// PlayersColumns holds the columns for the "players" table.
+	PlayersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"sqlite3": "TEXT"}},
+		{Name: "team", Type: field.TypeEnum, Enums: []string{"runner", "hunter"}},
+		{Name: "name", Type: field.TypeString},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "ready", Type: field.TypeBool, Default: false},
+		{Name: "joined_at", Type: field.TypeTime},
+		{Name: "game_id", Type: field.TypeString, SchemaType: map[string]string{"sqlite3": "TEXT"}},
+	}
+	// PlayersTable holds the schema information for the "players" table.
+	PlayersTable = &schema.Table{
+		Name:       "players",
+		Columns:    PlayersColumns,
+		PrimaryKey: []*schema.Column{PlayersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "players_games_players",
+				Columns:    []*schema.Column{PlayersColumns[6]},
+				RefColumns: []*schema.Column{GamesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "player_game_id",
+				Unique:  false,
+				Columns: []*schema.Column{PlayersColumns[6]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		GamesTable,
+		PlayersTable,
 	}
 )
 
 func init() {
 	GamesTable.Annotation = &entsql.Annotation{
 		Table: "games",
+	}
+	PlayersTable.ForeignKeys[0].RefTable = GamesTable
+	PlayersTable.Annotation = &entsql.Annotation{
+		Table: "players",
 	}
 }

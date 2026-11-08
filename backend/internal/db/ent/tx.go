@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// Game is the client for interacting with the Game builders.
 	Game *GameClient
+	// Player is the client for interacting with the Player builders.
+	Player *PlayerClient
 
 	// lazily loaded.
 	client     *Client
@@ -146,6 +148,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Game = NewGameClient(tx.config)
+	tx.Player = NewPlayerClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

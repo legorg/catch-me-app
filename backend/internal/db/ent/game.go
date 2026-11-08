@@ -6,6 +6,7 @@ import (
 	"catch-me/backend/internal/db/ent/game"
 	"fmt"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
@@ -36,7 +37,34 @@ type Game struct {
 	ColumnCount int `json:"column_count,omitempty"`
 	// CellSizeMeters holds the value of the "cell_size_meters" field.
 	CellSizeMeters int `json:"cell_size_meters,omitempty"`
-	selectValues   sql.SelectValues
+	// RunnerCode holds the value of the "runner_code" field.
+	RunnerCode *string `json:"runner_code,omitempty"`
+	// HunterCode holds the value of the "hunter_code" field.
+	HunterCode *string `json:"hunter_code,omitempty"`
+	// StartsAt holds the value of the "starts_at" field.
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the GameQuery when eager-loading is set.
+	Edges        GameEdges `json:"edges"`
+	selectValues sql.SelectValues
+}
+
+// GameEdges holds the relations/edges for other nodes in the graph.
+type GameEdges struct {
+	// Players holds the value of the players edge.
+	Players []*Player `json:"players,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// PlayersOrErr returns the Players value or an error if the edge
+// was not loaded in eager-loading.
+func (e GameEdges) PlayersOrErr() ([]*Player, error) {
+	if e.loadedTypes[0] {
+		return e.Players, nil
+	}
+	return nil, &NotLoadedError{edge: "players"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -48,8 +76,10 @@ func (*Game) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case game.FieldRowCount, game.FieldColumnCount, game.FieldCellSizeMeters:
 			values[i] = new(sql.NullInt64)
-		case game.FieldID, game.FieldCreatedAt:
+		case game.FieldID, game.FieldCreatedAt, game.FieldRunnerCode, game.FieldHunterCode:
 			values[i] = new(sql.NullString)
+		case game.FieldStartsAt:
+			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -131,6 +161,27 @@ func (_m *Game) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CellSizeMeters = int(value.Int64)
 			}
+		case game.FieldRunnerCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field runner_code", values[i])
+			} else if value.Valid {
+				_m.RunnerCode = new(string)
+				*_m.RunnerCode = value.String
+			}
+		case game.FieldHunterCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field hunter_code", values[i])
+			} else if value.Valid {
+				_m.HunterCode = new(string)
+				*_m.HunterCode = value.String
+			}
+		case game.FieldStartsAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field starts_at", values[i])
+			} else if value.Valid {
+				_m.StartsAt = new(time.Time)
+				*_m.StartsAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -142,6 +193,11 @@ func (_m *Game) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Game) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryPlayers queries the "players" edge of the Game entity.
+func (_m *Game) QueryPlayers() *PlayerQuery {
+	return NewGameClient(_m.config).QueryPlayers(_m)
 }
 
 // Update returns a builder for updating this Game.
@@ -196,6 +252,21 @@ func (_m *Game) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("cell_size_meters=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CellSizeMeters))
+	builder.WriteString(", ")
+	if v := _m.RunnerCode; v != nil {
+		builder.WriteString("runner_code=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.HunterCode; v != nil {
+		builder.WriteString("hunter_code=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.StartsAt; v != nil {
+		builder.WriteString("starts_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

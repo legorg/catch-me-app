@@ -4,6 +4,7 @@ package ent
 
 import (
 	"catch-me/backend/internal/db/ent/game"
+	"catch-me/backend/internal/db/ent/player"
 	"catch-me/backend/internal/db/ent/schema"
 )
 
@@ -37,8 +38,34 @@ func init() {
 	gameDescCellSizeMeters := gameFields[10].Descriptor()
 	// game.CellSizeMetersValidator is a validator for the "cell_size_meters" field. It is called by the builders before save.
 	game.CellSizeMetersValidator = gameDescCellSizeMeters.Validators[0].(func(int) error)
+	// gameDescRunnerCode is the schema descriptor for runner_code field.
+	gameDescRunnerCode := gameFields[11].Descriptor()
+	// game.RunnerCodeValidator is a validator for the "runner_code" field. It is called by the builders before save.
+	game.RunnerCodeValidator = gameDescRunnerCode.Validators[0].(func(string) error)
+	// gameDescHunterCode is the schema descriptor for hunter_code field.
+	gameDescHunterCode := gameFields[12].Descriptor()
+	// game.HunterCodeValidator is a validator for the "hunter_code" field. It is called by the builders before save.
+	game.HunterCodeValidator = gameDescHunterCode.Validators[0].(func(string) error)
 	// gameDescID is the schema descriptor for id field.
 	gameDescID := gameFields[0].Descriptor()
 	// game.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	game.IDValidator = gameDescID.Validators[0].(func(string) error)
+	playerFields := schema.Player{}.Fields()
+	_ = playerFields
+	// playerDescName is the schema descriptor for name field.
+	playerDescName := playerFields[3].Descriptor()
+	// player.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	player.NameValidator = playerDescName.Validators[0].(func(string) error)
+	// playerDescTokenHash is the schema descriptor for token_hash field.
+	playerDescTokenHash := playerFields[4].Descriptor()
+	// player.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	player.TokenHashValidator = playerDescTokenHash.Validators[0].(func(string) error)
+	// playerDescReady is the schema descriptor for ready field.
+	playerDescReady := playerFields[5].Descriptor()
+	// player.DefaultReady holds the default value on creation for the ready field.
+	player.DefaultReady = playerDescReady.Default.(bool)
+	// playerDescID is the schema descriptor for id field.
+	playerDescID := playerFields[0].Descriptor()
+	// player.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	player.IDValidator = playerDescID.Validators[0].(func(string) error)
 }

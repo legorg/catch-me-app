@@ -4,6 +4,7 @@ package ent
 
 import (
 	"catch-me/backend/internal/db/ent/game"
+	"catch-me/backend/internal/db/ent/player"
 	"context"
 	"errors"
 	"fmt"
@@ -73,7 +74,8 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			game.Table: game.ValidColumn,
+			game.Table:   game.ValidColumn,
+			player.Table: player.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -4,6 +4,7 @@ package game
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -31,8 +32,25 @@ const (
 	FieldColumnCount = "columns"
 	// FieldCellSizeMeters holds the string denoting the cell_size_meters field in the database.
 	FieldCellSizeMeters = "cell_size_meters"
+	// FieldRunnerCode holds the string denoting the runner_code field in the database.
+	FieldRunnerCode = "runner_code"
+	// FieldHunterCode holds the string denoting the hunter_code field in the database.
+	FieldHunterCode = "hunter_code"
+	// FieldStartsAt holds the string denoting the starts_at field in the database.
+	FieldStartsAt = "starts_at"
+	// EdgePlayers holds the string denoting the players edge name in mutations.
+	EdgePlayers = "players"
+	// PlayerFieldID holds the string denoting the ID field of the Player.
+	PlayerFieldID = "id"
 	// Table holds the table name of the game in the database.
 	Table = "games"
+	// PlayersTable is the table that holds the players relation/edge.
+	PlayersTable = "players"
+	// PlayersInverseTable is the table name for the Player entity.
+	// It exists in this package in order to avoid circular dependency with the "player" package.
+	PlayersInverseTable = "players"
+	// PlayersColumn is the table column denoting the players relation/edge.
+	PlayersColumn = "game_id"
 )
 
 // Columns holds all SQL columns for game fields.
@@ -48,6 +66,9 @@ var Columns = []string{
 	FieldRowCount,
 	FieldColumnCount,
 	FieldCellSizeMeters,
+	FieldRunnerCode,
+	FieldHunterCode,
+	FieldStartsAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -73,6 +94,10 @@ var (
 	ColumnCountValidator func(int) error
 	// CellSizeMetersValidator is a validator for the "cell_size_meters" field. It is called by the builders before save.
 	CellSizeMetersValidator func(int) error
+	// RunnerCodeValidator is a validator for the "runner_code" field. It is called by the builders before save.
+	RunnerCodeValidator func(string) error
+	// HunterCodeValidator is a validator for the "hunter_code" field. It is called by the builders before save.
+	HunterCodeValidator func(string) error
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
 	IDValidator func(string) error
 )
@@ -133,4 +158,40 @@ func ByColumnCount(opts ...sql.OrderTermOption) OrderOption {
 // ByCellSizeMeters orders the results by the cell_size_meters field.
 func ByCellSizeMeters(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCellSizeMeters, opts...).ToFunc()
+}
+
+// ByRunnerCode orders the results by the runner_code field.
+func ByRunnerCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRunnerCode, opts...).ToFunc()
+}
+
+// ByHunterCode orders the results by the hunter_code field.
+func ByHunterCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHunterCode, opts...).ToFunc()
+}
+
+// ByStartsAt orders the results by the starts_at field.
+func ByStartsAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStartsAt, opts...).ToFunc()
+}
+
+// ByPlayersCount orders the results by players count.
+func ByPlayersCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPlayersStep(), opts...)
+	}
+}
+
+// ByPlayers orders the results by players terms.
+func ByPlayers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPlayersStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newPlayersStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PlayersInverseTable, PlayerFieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PlayersTable, PlayersColumn),
+	)
 }

@@ -4,10 +4,12 @@ package ent
 
 import (
 	"catch-me/backend/internal/db/ent/game"
+	"catch-me/backend/internal/db/ent/player"
 	"catch-me/backend/internal/db/ent/predicate"
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -216,9 +218,105 @@ func (_u *GameUpdate) AddCellSizeMeters(v int) *GameUpdate {
 	return _u
 }
 
+// SetRunnerCode sets the "runner_code" field.
+func (_u *GameUpdate) SetRunnerCode(v string) *GameUpdate {
+	_u.mutation.SetRunnerCode(v)
+	return _u
+}
+
+// SetNillableRunnerCode sets the "runner_code" field if the given value is not nil.
+func (_u *GameUpdate) SetNillableRunnerCode(v *string) *GameUpdate {
+	if v != nil {
+		_u.SetRunnerCode(*v)
+	}
+	return _u
+}
+
+// ClearRunnerCode clears the value of the "runner_code" field.
+func (_u *GameUpdate) ClearRunnerCode() *GameUpdate {
+	_u.mutation.ClearRunnerCode()
+	return _u
+}
+
+// SetHunterCode sets the "hunter_code" field.
+func (_u *GameUpdate) SetHunterCode(v string) *GameUpdate {
+	_u.mutation.SetHunterCode(v)
+	return _u
+}
+
+// SetNillableHunterCode sets the "hunter_code" field if the given value is not nil.
+func (_u *GameUpdate) SetNillableHunterCode(v *string) *GameUpdate {
+	if v != nil {
+		_u.SetHunterCode(*v)
+	}
+	return _u
+}
+
+// ClearHunterCode clears the value of the "hunter_code" field.
+func (_u *GameUpdate) ClearHunterCode() *GameUpdate {
+	_u.mutation.ClearHunterCode()
+	return _u
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (_u *GameUpdate) SetStartsAt(v time.Time) *GameUpdate {
+	_u.mutation.SetStartsAt(v)
+	return _u
+}
+
+// SetNillableStartsAt sets the "starts_at" field if the given value is not nil.
+func (_u *GameUpdate) SetNillableStartsAt(v *time.Time) *GameUpdate {
+	if v != nil {
+		_u.SetStartsAt(*v)
+	}
+	return _u
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (_u *GameUpdate) ClearStartsAt() *GameUpdate {
+	_u.mutation.ClearStartsAt()
+	return _u
+}
+
+// AddPlayerIDs adds the "players" edge to the Player entity by IDs.
+func (_u *GameUpdate) AddPlayerIDs(ids ...string) *GameUpdate {
+	_u.mutation.AddPlayerIDs(ids...)
+	return _u
+}
+
+// AddPlayers adds the "players" edges to the Player entity.
+func (_u *GameUpdate) AddPlayers(v ...*Player) *GameUpdate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPlayerIDs(ids...)
+}
+
 // Mutation returns the GameMutation object of the builder.
 func (_u *GameUpdate) Mutation() *GameMutation {
 	return _u.mutation
+}
+
+// ClearPlayers clears all "players" edges to the Player entity.
+func (_u *GameUpdate) ClearPlayers() *GameUpdate {
+	_u.mutation.ClearPlayers()
+	return _u
+}
+
+// RemovePlayerIDs removes the "players" edge to Player entities by IDs.
+func (_u *GameUpdate) RemovePlayerIDs(ids ...string) *GameUpdate {
+	_u.mutation.RemovePlayerIDs(ids...)
+	return _u
+}
+
+// RemovePlayers removes "players" edges to Player entities.
+func (_u *GameUpdate) RemovePlayers(v ...*Player) *GameUpdate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePlayerIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -273,6 +371,16 @@ func (_u *GameUpdate) check() error {
 	if v, ok := _u.mutation.CellSizeMeters(); ok {
 		if err := game.CellSizeMetersValidator(v); err != nil {
 			return &ValidationError{Name: "cell_size_meters", err: fmt.Errorf(`ent: validator failed for field "Game.cell_size_meters": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RunnerCode(); ok {
+		if err := game.RunnerCodeValidator(v); err != nil {
+			return &ValidationError{Name: "runner_code", err: fmt.Errorf(`ent: validator failed for field "Game.runner_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.HunterCode(); ok {
+		if err := game.HunterCodeValidator(v); err != nil {
+			return &ValidationError{Name: "hunter_code", err: fmt.Errorf(`ent: validator failed for field "Game.hunter_code": %w`, err)}
 		}
 	}
 	return nil
@@ -343,6 +451,69 @@ func (_u *GameUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedCellSizeMeters(); ok {
 		_spec.AddField(game.FieldCellSizeMeters, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RunnerCode(); ok {
+		_spec.SetField(game.FieldRunnerCode, field.TypeString, value)
+	}
+	if _u.mutation.RunnerCodeCleared() {
+		_spec.ClearField(game.FieldRunnerCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.HunterCode(); ok {
+		_spec.SetField(game.FieldHunterCode, field.TypeString, value)
+	}
+	if _u.mutation.HunterCodeCleared() {
+		_spec.ClearField(game.FieldHunterCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.StartsAt(); ok {
+		_spec.SetField(game.FieldStartsAt, field.TypeTime, value)
+	}
+	if _u.mutation.StartsAtCleared() {
+		_spec.ClearField(game.FieldStartsAt, field.TypeTime)
+	}
+	if _u.mutation.PlayersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   game.PlayersTable,
+			Columns: []string{game.PlayersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(player.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPlayersIDs(); len(nodes) > 0 && !_u.mutation.PlayersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   game.PlayersTable,
+			Columns: []string{game.PlayersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(player.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PlayersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   game.PlayersTable,
+			Columns: []string{game.PlayersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(player.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -553,9 +724,105 @@ func (_u *GameUpdateOne) AddCellSizeMeters(v int) *GameUpdateOne {
 	return _u
 }
 
+// SetRunnerCode sets the "runner_code" field.
+func (_u *GameUpdateOne) SetRunnerCode(v string) *GameUpdateOne {
+	_u.mutation.SetRunnerCode(v)
+	return _u
+}
+
+// SetNillableRunnerCode sets the "runner_code" field if the given value is not nil.
+func (_u *GameUpdateOne) SetNillableRunnerCode(v *string) *GameUpdateOne {
+	if v != nil {
+		_u.SetRunnerCode(*v)
+	}
+	return _u
+}
+
+// ClearRunnerCode clears the value of the "runner_code" field.
+func (_u *GameUpdateOne) ClearRunnerCode() *GameUpdateOne {
+	_u.mutation.ClearRunnerCode()
+	return _u
+}
+
+// SetHunterCode sets the "hunter_code" field.
+func (_u *GameUpdateOne) SetHunterCode(v string) *GameUpdateOne {
+	_u.mutation.SetHunterCode(v)
+	return _u
+}
+
+// SetNillableHunterCode sets the "hunter_code" field if the given value is not nil.
+func (_u *GameUpdateOne) SetNillableHunterCode(v *string) *GameUpdateOne {
+	if v != nil {
+		_u.SetHunterCode(*v)
+	}
+	return _u
+}
+
+// ClearHunterCode clears the value of the "hunter_code" field.
+func (_u *GameUpdateOne) ClearHunterCode() *GameUpdateOne {
+	_u.mutation.ClearHunterCode()
+	return _u
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (_u *GameUpdateOne) SetStartsAt(v time.Time) *GameUpdateOne {
+	_u.mutation.SetStartsAt(v)
+	return _u
+}
+
+// SetNillableStartsAt sets the "starts_at" field if the given value is not nil.
+func (_u *GameUpdateOne) SetNillableStartsAt(v *time.Time) *GameUpdateOne {
+	if v != nil {
+		_u.SetStartsAt(*v)
+	}
+	return _u
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (_u *GameUpdateOne) ClearStartsAt() *GameUpdateOne {
+	_u.mutation.ClearStartsAt()
+	return _u
+}
+
+// AddPlayerIDs adds the "players" edge to the Player entity by IDs.
+func (_u *GameUpdateOne) AddPlayerIDs(ids ...string) *GameUpdateOne {
+	_u.mutation.AddPlayerIDs(ids...)
+	return _u
+}
+
+// AddPlayers adds the "players" edges to the Player entity.
+func (_u *GameUpdateOne) AddPlayers(v ...*Player) *GameUpdateOne {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPlayerIDs(ids...)
+}
+
 // Mutation returns the GameMutation object of the builder.
 func (_u *GameUpdateOne) Mutation() *GameMutation {
 	return _u.mutation
+}
+
+// ClearPlayers clears all "players" edges to the Player entity.
+func (_u *GameUpdateOne) ClearPlayers() *GameUpdateOne {
+	_u.mutation.ClearPlayers()
+	return _u
+}
+
+// RemovePlayerIDs removes the "players" edge to Player entities by IDs.
+func (_u *GameUpdateOne) RemovePlayerIDs(ids ...string) *GameUpdateOne {
+	_u.mutation.RemovePlayerIDs(ids...)
+	return _u
+}
+
+// RemovePlayers removes "players" edges to Player entities.
+func (_u *GameUpdateOne) RemovePlayers(v ...*Player) *GameUpdateOne {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePlayerIDs(ids...)
 }
 
 // Where appends a list predicates to the GameUpdate builder.
@@ -623,6 +890,16 @@ func (_u *GameUpdateOne) check() error {
 	if v, ok := _u.mutation.CellSizeMeters(); ok {
 		if err := game.CellSizeMetersValidator(v); err != nil {
 			return &ValidationError{Name: "cell_size_meters", err: fmt.Errorf(`ent: validator failed for field "Game.cell_size_meters": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RunnerCode(); ok {
+		if err := game.RunnerCodeValidator(v); err != nil {
+			return &ValidationError{Name: "runner_code", err: fmt.Errorf(`ent: validator failed for field "Game.runner_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.HunterCode(); ok {
+		if err := game.HunterCodeValidator(v); err != nil {
+			return &ValidationError{Name: "hunter_code", err: fmt.Errorf(`ent: validator failed for field "Game.hunter_code": %w`, err)}
 		}
 	}
 	return nil
@@ -710,6 +987,69 @@ func (_u *GameUpdateOne) sqlSave(ctx context.Context) (_node *Game, err error) {
 	}
 	if value, ok := _u.mutation.AddedCellSizeMeters(); ok {
 		_spec.AddField(game.FieldCellSizeMeters, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RunnerCode(); ok {
+		_spec.SetField(game.FieldRunnerCode, field.TypeString, value)
+	}
+	if _u.mutation.RunnerCodeCleared() {
+		_spec.ClearField(game.FieldRunnerCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.HunterCode(); ok {
+		_spec.SetField(game.FieldHunterCode, field.TypeString, value)
+	}
+	if _u.mutation.HunterCodeCleared() {
+		_spec.ClearField(game.FieldHunterCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.StartsAt(); ok {
+		_spec.SetField(game.FieldStartsAt, field.TypeTime, value)
+	}
+	if _u.mutation.StartsAtCleared() {
+		_spec.ClearField(game.FieldStartsAt, field.TypeTime)
+	}
+	if _u.mutation.PlayersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   game.PlayersTable,
+			Columns: []string{game.PlayersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(player.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPlayersIDs(); len(nodes) > 0 && !_u.mutation.PlayersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   game.PlayersTable,
+			Columns: []string{game.PlayersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(player.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PlayersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   game.PlayersTable,
+			Columns: []string{game.PlayersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(player.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Game{config: _u.config}
 	_spec.Assign = _node.assignValues

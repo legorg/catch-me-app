@@ -4,8 +4,10 @@ package ent
 
 import (
 	"catch-me/backend/internal/db/ent/game"
+	"catch-me/backend/internal/db/ent/player"
 	"catch-me/backend/internal/db/ent/predicate"
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -18,10 +20,11 @@ import (
 // GameQuery is the builder for querying Game entities.
 type GameQuery struct {
 	config
-	ctx        *QueryContext
-	order      []game.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Game
+	ctx         *QueryContext
+	order       []game.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.Game
+	withPlayers *PlayerQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -56,6 +59,28 @@ func (_q *GameQuery) Unique(unique bool) *GameQuery {
 func (_q *GameQuery) Order(o ...game.OrderOption) *GameQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryPlayers chains the current query on the "players" edge.
+func (_q *GameQuery) QueryPlayers() *PlayerQuery {
+	query := (&PlayerClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(game.Table, game.FieldID, selector),
+			sqlgraph.To(player.Table, player.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, game.PlayersTable, game.PlayersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Game entity from the query.
@@ -245,15 +270,27 @@ func (_q *GameQuery) Clone() *GameQuery {
 		return nil
 	}
 	return &GameQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]game.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.Game{}, _q.predicates...),
+		config:      _q.config,
+		ctx:         _q.ctx.Clone(),
+		order:       append([]game.OrderOption{}, _q.order...),
+		inters:      append([]Interceptor{}, _q.inters...),
+		predicates:  append([]predicate.Game{}, _q.predicates...),
+		withPlayers: _q.withPlayers.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithPlayers tells the query-builder to eager-load the nodes that are connected to
+// the "players" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *GameQuery) WithPlayers(opts ...func(*PlayerQuery)) *GameQuery {
+	query := (&PlayerClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPlayers = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -332,8 +369,11 @@ func (_q *GameQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *GameQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Game, error) {
 	var (
-		nodes = []*Game{}
-		_spec = _q.querySpec()
+		nodes       = []*Game{}
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withPlayers != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Game).scanValues(nil, columns)
@@ -341,6 +381,7 @@ func (_q *GameQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Game, e
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Game{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -352,7 +393,45 @@ func (_q *GameQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Game, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withPlayers; query != nil {
+		if err := _q.loadPlayers(ctx, query, nodes,
+			func(n *Game) { n.Edges.Players = []*Player{} },
+			func(n *Game, e *Player) { n.Edges.Players = append(n.Edges.Players, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *GameQuery) loadPlayers(ctx context.Context, query *PlayerQuery, nodes []*Game, init func(*Game), assign func(*Game, *Player)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[string]*Game)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(player.FieldGameID)
+	}
+	query.Where(predicate.Player(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(game.PlayersColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.GameID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "game_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (_q *GameQuery) sqlCount(ctx context.Context) (int, error) {

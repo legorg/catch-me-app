@@ -8,3 +8,6 @@ import (
 
 // Game is the predicate function for game builders.
 type Game func(*sql.Selector)
+
+// Player is the predicate function for player builders.
+type Player func(*sql.Selector)

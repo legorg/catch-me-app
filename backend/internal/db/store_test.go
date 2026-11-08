@@ -170,3 +170,81 @@ func TestOpenRejectsMissingParent(t *testing.T) {
 		t.Fatal("database opened in missing directory")
 	}
 }
+
+func TestJoinCodesAndLobbyPersist(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "lobby.sqlite")
+	store, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := fixture(t, 52.52, 2000, strings.Repeat("a", 32))
+	saved.JoinCodes = game.NewJoinCodes()
+	if err := store.Create(ctx, saved); err != nil {
+		t.Fatal(err)
+	}
+	clash := fixture(t, 52.52, 2000, strings.Repeat("b", 32))
+	clash.JoinCodes = game.JoinCodes{Runner: saved.JoinCodes.Hunter, Hunter: game.NewJoinCode()}
+	if err := store.Create(ctx, clash); !errors.Is(err, game.ErrJoinCodeTaken) {
+		t.Fatalf("code collision across columns not detected: %v", err)
+	}
+
+	now := time.Date(2026, 11, 8, 12, 0, 0, 123456789, time.UTC)
+	names := map[game.Team]string{game.Runners: "Ada", game.Hunters: "Bob"}
+	tokens := map[game.Team]game.PlayerToken{}
+	for i, team := range []game.Team{game.Runners, game.Hunters} {
+		name, _ := game.ParsePlayerName(names[team])
+		tokens[team] = game.NewPlayerToken()
+		joinedAt := now.Add(time.Duration(i) * time.Second)
+		_, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.For(team), func(l *game.Lobby) error {
+			player, err := l.Join(saved.JoinCodes.For(team), name, tokens[team], joinedAt)
+			if err != nil {
+				return err
+			}
+			return l.SetReady(player.ID, true, joinedAt)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err = Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	lobby, err := store.UpdateLobbyByToken(ctx, tokens[game.Hunters].Hash(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lobby.Game.JoinCodes != saved.JoinCodes || !lobby.Game.StartsAt.Equal(now.Add(time.Second+game.CountdownDuration)) || len(lobby.Players) != 2 {
+		t.Fatalf("lobby not persisted: %+v", lobby)
+	}
+	if lobby.Players[0].Name.String() != "Ada" || !lobby.Players[0].Ready || !lobby.Players[0].JoinedAt.Equal(now) {
+		t.Fatalf("player not persisted: %+v", lobby.Players[0])
+	}
+	me, _ := lobby.PlayerByToken(tokens[game.Hunters].Hash())
+	if _, err := store.UpdateLobbyByToken(ctx, me.TokenHash, func(l *game.Lobby) error { return l.Leave(me.ID, now) }); err != nil {
+		t.Fatal(err)
+	}
+	lobby, err = store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, nil)
+	if err != nil || len(lobby.Players) != 1 || !lobby.Game.StartsAt.IsZero() {
+		t.Fatalf("leave not persisted: %+v %v", lobby, err)
+	}
+	if _, err := store.UpdateLobbyByToken(ctx, me.TokenHash, nil); !errors.Is(err, game.ErrNotFound) {
+		t.Fatal("removed player's token still works")
+	}
+	failed := errors.New("rule failed")
+	if _, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, func(l *game.Lobby) error {
+		l.Players = nil
+		return failed
+	}); !errors.Is(err, failed) {
+		t.Fatal("change error lost")
+	}
+	if lobby, _ := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, nil); len(lobby.Players) != 1 {
+		t.Fatal("failed change was saved")
+	}
+}

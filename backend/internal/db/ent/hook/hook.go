@@ -20,6 +20,18 @@ func (f GameFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GameMutation", m)
 }
 
+// The PlayerFunc type is an adapter to allow the use of ordinary
+// function as Player mutator.
+type PlayerFunc func(context.Context, *ent.PlayerMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PlayerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PlayerMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PlayerMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 
