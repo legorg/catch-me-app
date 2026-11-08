@@ -36,6 +36,24 @@ type Player struct {
 	RouteEnd *string `json:"route_end,omitempty"`
 	// RouteRegenerationsLeft holds the value of the "route_regenerations_left" field.
 	RouteRegenerationsLeft *int `json:"route_regenerations_left,omitempty"`
+	// Latitude holds the value of the "latitude" field.
+	Latitude *float64 `json:"latitude,omitempty"`
+	// Longitude holds the value of the "longitude" field.
+	Longitude *float64 `json:"longitude,omitempty"`
+	// AccuracyMeters holds the value of the "accuracy_meters" field.
+	AccuracyMeters *float64 `json:"accuracy_meters,omitempty"`
+	// PositionRecordedAt holds the value of the "position_recorded_at" field.
+	PositionRecordedAt *time.Time `json:"position_recorded_at,omitempty"`
+	// RevealedLatitude holds the value of the "revealed_latitude" field.
+	RevealedLatitude *float64 `json:"revealed_latitude,omitempty"`
+	// RevealedLongitude holds the value of the "revealed_longitude" field.
+	RevealedLongitude *float64 `json:"revealed_longitude,omitempty"`
+	// RevealedAccuracyMeters holds the value of the "revealed_accuracy_meters" field.
+	RevealedAccuracyMeters *float64 `json:"revealed_accuracy_meters,omitempty"`
+	// RevealedRecordedAt holds the value of the "revealed_recorded_at" field.
+	RevealedRecordedAt *time.Time `json:"revealed_recorded_at,omitempty"`
+	// RevealedAt holds the value of the "revealed_at" field.
+	RevealedAt *time.Time `json:"revealed_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PlayerQuery when eager-loading is set.
 	Edges        PlayerEdges `json:"edges"`
@@ -69,11 +87,13 @@ func (*Player) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case player.FieldReady:
 			values[i] = new(sql.NullBool)
+		case player.FieldLatitude, player.FieldLongitude, player.FieldAccuracyMeters, player.FieldRevealedLatitude, player.FieldRevealedLongitude, player.FieldRevealedAccuracyMeters:
+			values[i] = new(sql.NullFloat64)
 		case player.FieldRouteRegenerationsLeft:
 			values[i] = new(sql.NullInt64)
 		case player.FieldID, player.FieldGameID, player.FieldTeam, player.FieldName, player.FieldTokenHash, player.FieldRouteStart, player.FieldRouteEnd:
 			values[i] = new(sql.NullString)
-		case player.FieldJoinedAt:
+		case player.FieldJoinedAt, player.FieldPositionRecordedAt, player.FieldRevealedRecordedAt, player.FieldRevealedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -153,6 +173,69 @@ func (_m *Player) assignValues(columns []string, values []any) error {
 				_m.RouteRegenerationsLeft = new(int)
 				*_m.RouteRegenerationsLeft = int(value.Int64)
 			}
+		case player.FieldLatitude:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field latitude", values[i])
+			} else if value.Valid {
+				_m.Latitude = new(float64)
+				*_m.Latitude = value.Float64
+			}
+		case player.FieldLongitude:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field longitude", values[i])
+			} else if value.Valid {
+				_m.Longitude = new(float64)
+				*_m.Longitude = value.Float64
+			}
+		case player.FieldAccuracyMeters:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field accuracy_meters", values[i])
+			} else if value.Valid {
+				_m.AccuracyMeters = new(float64)
+				*_m.AccuracyMeters = value.Float64
+			}
+		case player.FieldPositionRecordedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field position_recorded_at", values[i])
+			} else if value.Valid {
+				_m.PositionRecordedAt = new(time.Time)
+				*_m.PositionRecordedAt = value.Time
+			}
+		case player.FieldRevealedLatitude:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field revealed_latitude", values[i])
+			} else if value.Valid {
+				_m.RevealedLatitude = new(float64)
+				*_m.RevealedLatitude = value.Float64
+			}
+		case player.FieldRevealedLongitude:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field revealed_longitude", values[i])
+			} else if value.Valid {
+				_m.RevealedLongitude = new(float64)
+				*_m.RevealedLongitude = value.Float64
+			}
+		case player.FieldRevealedAccuracyMeters:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field revealed_accuracy_meters", values[i])
+			} else if value.Valid {
+				_m.RevealedAccuracyMeters = new(float64)
+				*_m.RevealedAccuracyMeters = value.Float64
+			}
+		case player.FieldRevealedRecordedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field revealed_recorded_at", values[i])
+			} else if value.Valid {
+				_m.RevealedRecordedAt = new(time.Time)
+				*_m.RevealedRecordedAt = value.Time
+			}
+		case player.FieldRevealedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field revealed_at", values[i])
+			} else if value.Valid {
+				_m.RevealedAt = new(time.Time)
+				*_m.RevealedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -224,6 +307,51 @@ func (_m *Player) String() string {
 	if v := _m.RouteRegenerationsLeft; v != nil {
 		builder.WriteString("route_regenerations_left=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.Latitude; v != nil {
+		builder.WriteString("latitude=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.Longitude; v != nil {
+		builder.WriteString("longitude=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AccuracyMeters; v != nil {
+		builder.WriteString("accuracy_meters=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.PositionRecordedAt; v != nil {
+		builder.WriteString("position_recorded_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.RevealedLatitude; v != nil {
+		builder.WriteString("revealed_latitude=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.RevealedLongitude; v != nil {
+		builder.WriteString("revealed_longitude=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.RevealedAccuracyMeters; v != nil {
+		builder.WriteString("revealed_accuracy_meters=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.RevealedRecordedAt; v != nil {
+		builder.WriteString("revealed_recorded_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.RevealedAt; v != nil {
+		builder.WriteString("revealed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteByte(')')
 	return builder.String()

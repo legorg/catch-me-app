@@ -201,6 +201,12 @@ func TestJoinCodesAndLobbyPersist(t *testing.T) {
 			if err != nil {
 				return err
 			}
+			if player.Route != nil {
+				position, _ := game.NewPosition(l.Game.Playground.CellCenter(player.Route.Start), 5, joinedAt)
+				if err := l.UpdatePosition(player.ID, position, joinedAt); err != nil {
+					return err
+				}
+			}
 			return l.SetReady(player.ID, true, joinedAt)
 		})
 		if err != nil {
@@ -301,5 +307,62 @@ func TestRoutesPersist(t *testing.T) {
 	}
 	if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil); err == nil {
 		t.Fatal("incomplete stored route accepted")
+	}
+}
+
+func TestPositionsAndRevealsPersist(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "positions.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	saved := fixture(t, 52.52, 2000, strings.Repeat("a", 32))
+	saved.JoinCodes = game.NewJoinCodes()
+	saved.StartsAt = time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	if err := store.Create(ctx, saved); err != nil {
+		t.Fatal(err)
+	}
+	token := game.NewPlayerToken()
+	name, _ := game.ParsePlayerName("Ada")
+	var joined game.Player
+	// Joining is not possible once running, so insert directly through the lobby.
+	if _, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, func(l *game.Lobby) error {
+		l.Game.StartsAt = time.Time{}
+		joined, err = l.Join(saved.JoinCodes.Runner, name, token, saved.StartsAt.Add(-time.Minute))
+		l.Game.StartsAt = saved.StartsAt
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	center := saved.Playground.CellCenter(joined.Route.Start)
+	first, _ := game.NewPosition(center, 12.5, saved.StartsAt.Add(game.RevealInterval-time.Second))
+	update := func(position game.Position) game.Player {
+		t.Helper()
+		lobby, err := store.UpdateLobbyByToken(ctx, token.Hash(), func(l *game.Lobby) error {
+			return l.UpdatePosition(joined.ID, position, position.RecordedAt)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return lobby.Players[0]
+	}
+	update(first)
+	second, _ := game.NewPosition(saved.Playground.Center(), 3, saved.StartsAt.Add(game.RevealInterval+time.Second))
+	want := update(second)
+	loaded, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := loaded.Players[0]
+	if !got.SameState(want) || *got.Position != second || got.Reveal == nil || got.Reveal.Position != first ||
+		!got.Reveal.At.Equal(saved.StartsAt.Add(game.RevealInterval)) {
+		t.Fatalf("position or reveal not persisted: %+v %+v", got.Position, got.Reveal)
+	}
+	if err := store.client.Player.UpdateOneID(joined.ID.String()).ClearRevealedAt().Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil); err == nil {
+		t.Fatal("incomplete stored reveal accepted")
 	}
 }

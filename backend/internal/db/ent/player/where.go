@@ -105,6 +105,51 @@ func RouteRegenerationsLeft(v int) predicate.Player {
 	return predicate.Player(sql.FieldEQ(FieldRouteRegenerationsLeft, v))
 }
 
+// Latitude applies equality check predicate on the "latitude" field. It's identical to LatitudeEQ.
+func Latitude(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldLatitude, v))
+}
+
+// Longitude applies equality check predicate on the "longitude" field. It's identical to LongitudeEQ.
+func Longitude(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldLongitude, v))
+}
+
+// AccuracyMeters applies equality check predicate on the "accuracy_meters" field. It's identical to AccuracyMetersEQ.
+func AccuracyMeters(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldAccuracyMeters, v))
+}
+
+// PositionRecordedAt applies equality check predicate on the "position_recorded_at" field. It's identical to PositionRecordedAtEQ.
+func PositionRecordedAt(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldPositionRecordedAt, v))
+}
+
+// RevealedLatitude applies equality check predicate on the "revealed_latitude" field. It's identical to RevealedLatitudeEQ.
+func RevealedLatitude(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedLatitude, v))
+}
+
+// RevealedLongitude applies equality check predicate on the "revealed_longitude" field. It's identical to RevealedLongitudeEQ.
+func RevealedLongitude(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedLongitude, v))
+}
+
+// RevealedAccuracyMeters applies equality check predicate on the "revealed_accuracy_meters" field. It's identical to RevealedAccuracyMetersEQ.
+func RevealedAccuracyMeters(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedAccuracyMeters, v))
+}
+
+// RevealedRecordedAt applies equality check predicate on the "revealed_recorded_at" field. It's identical to RevealedRecordedAtEQ.
+func RevealedRecordedAt(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedRecordedAt, v))
+}
+
+// RevealedAt applies equality check predicate on the "revealed_at" field. It's identical to RevealedAtEQ.
+func RevealedAt(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedAt, v))
+}
+
 // GameIDEQ applies the EQ predicate on the "game_id" field.
 func GameIDEQ(v string) predicate.Player {
 	return predicate.Player(sql.FieldEQ(FieldGameID, v))
@@ -568,6 +613,456 @@ func RouteRegenerationsLeftIsNil() predicate.Player {
 // RouteRegenerationsLeftNotNil applies the NotNil predicate on the "route_regenerations_left" field.
 func RouteRegenerationsLeftNotNil() predicate.Player {
 	return predicate.Player(sql.FieldNotNull(FieldRouteRegenerationsLeft))
+}
+
+// LatitudeEQ applies the EQ predicate on the "latitude" field.
+func LatitudeEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldLatitude, v))
+}
+
+// LatitudeNEQ applies the NEQ predicate on the "latitude" field.
+func LatitudeNEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldLatitude, v))
+}
+
+// LatitudeIn applies the In predicate on the "latitude" field.
+func LatitudeIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldLatitude, vs...))
+}
+
+// LatitudeNotIn applies the NotIn predicate on the "latitude" field.
+func LatitudeNotIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldLatitude, vs...))
+}
+
+// LatitudeGT applies the GT predicate on the "latitude" field.
+func LatitudeGT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldLatitude, v))
+}
+
+// LatitudeGTE applies the GTE predicate on the "latitude" field.
+func LatitudeGTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldLatitude, v))
+}
+
+// LatitudeLT applies the LT predicate on the "latitude" field.
+func LatitudeLT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldLatitude, v))
+}
+
+// LatitudeLTE applies the LTE predicate on the "latitude" field.
+func LatitudeLTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldLatitude, v))
+}
+
+// LatitudeIsNil applies the IsNil predicate on the "latitude" field.
+func LatitudeIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldLatitude))
+}
+
+// LatitudeNotNil applies the NotNil predicate on the "latitude" field.
+func LatitudeNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldLatitude))
+}
+
+// LongitudeEQ applies the EQ predicate on the "longitude" field.
+func LongitudeEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldLongitude, v))
+}
+
+// LongitudeNEQ applies the NEQ predicate on the "longitude" field.
+func LongitudeNEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldLongitude, v))
+}
+
+// LongitudeIn applies the In predicate on the "longitude" field.
+func LongitudeIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldLongitude, vs...))
+}
+
+// LongitudeNotIn applies the NotIn predicate on the "longitude" field.
+func LongitudeNotIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldLongitude, vs...))
+}
+
+// LongitudeGT applies the GT predicate on the "longitude" field.
+func LongitudeGT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldLongitude, v))
+}
+
+// LongitudeGTE applies the GTE predicate on the "longitude" field.
+func LongitudeGTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldLongitude, v))
+}
+
+// LongitudeLT applies the LT predicate on the "longitude" field.
+func LongitudeLT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldLongitude, v))
+}
+
+// LongitudeLTE applies the LTE predicate on the "longitude" field.
+func LongitudeLTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldLongitude, v))
+}
+
+// LongitudeIsNil applies the IsNil predicate on the "longitude" field.
+func LongitudeIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldLongitude))
+}
+
+// LongitudeNotNil applies the NotNil predicate on the "longitude" field.
+func LongitudeNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldLongitude))
+}
+
+// AccuracyMetersEQ applies the EQ predicate on the "accuracy_meters" field.
+func AccuracyMetersEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldAccuracyMeters, v))
+}
+
+// AccuracyMetersNEQ applies the NEQ predicate on the "accuracy_meters" field.
+func AccuracyMetersNEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldAccuracyMeters, v))
+}
+
+// AccuracyMetersIn applies the In predicate on the "accuracy_meters" field.
+func AccuracyMetersIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldAccuracyMeters, vs...))
+}
+
+// AccuracyMetersNotIn applies the NotIn predicate on the "accuracy_meters" field.
+func AccuracyMetersNotIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldAccuracyMeters, vs...))
+}
+
+// AccuracyMetersGT applies the GT predicate on the "accuracy_meters" field.
+func AccuracyMetersGT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldAccuracyMeters, v))
+}
+
+// AccuracyMetersGTE applies the GTE predicate on the "accuracy_meters" field.
+func AccuracyMetersGTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldAccuracyMeters, v))
+}
+
+// AccuracyMetersLT applies the LT predicate on the "accuracy_meters" field.
+func AccuracyMetersLT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldAccuracyMeters, v))
+}
+
+// AccuracyMetersLTE applies the LTE predicate on the "accuracy_meters" field.
+func AccuracyMetersLTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldAccuracyMeters, v))
+}
+
+// AccuracyMetersIsNil applies the IsNil predicate on the "accuracy_meters" field.
+func AccuracyMetersIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldAccuracyMeters))
+}
+
+// AccuracyMetersNotNil applies the NotNil predicate on the "accuracy_meters" field.
+func AccuracyMetersNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldAccuracyMeters))
+}
+
+// PositionRecordedAtEQ applies the EQ predicate on the "position_recorded_at" field.
+func PositionRecordedAtEQ(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldPositionRecordedAt, v))
+}
+
+// PositionRecordedAtNEQ applies the NEQ predicate on the "position_recorded_at" field.
+func PositionRecordedAtNEQ(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldPositionRecordedAt, v))
+}
+
+// PositionRecordedAtIn applies the In predicate on the "position_recorded_at" field.
+func PositionRecordedAtIn(vs ...time.Time) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldPositionRecordedAt, vs...))
+}
+
+// PositionRecordedAtNotIn applies the NotIn predicate on the "position_recorded_at" field.
+func PositionRecordedAtNotIn(vs ...time.Time) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldPositionRecordedAt, vs...))
+}
+
+// PositionRecordedAtGT applies the GT predicate on the "position_recorded_at" field.
+func PositionRecordedAtGT(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldPositionRecordedAt, v))
+}
+
+// PositionRecordedAtGTE applies the GTE predicate on the "position_recorded_at" field.
+func PositionRecordedAtGTE(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldPositionRecordedAt, v))
+}
+
+// PositionRecordedAtLT applies the LT predicate on the "position_recorded_at" field.
+func PositionRecordedAtLT(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldPositionRecordedAt, v))
+}
+
+// PositionRecordedAtLTE applies the LTE predicate on the "position_recorded_at" field.
+func PositionRecordedAtLTE(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldPositionRecordedAt, v))
+}
+
+// PositionRecordedAtIsNil applies the IsNil predicate on the "position_recorded_at" field.
+func PositionRecordedAtIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldPositionRecordedAt))
+}
+
+// PositionRecordedAtNotNil applies the NotNil predicate on the "position_recorded_at" field.
+func PositionRecordedAtNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldPositionRecordedAt))
+}
+
+// RevealedLatitudeEQ applies the EQ predicate on the "revealed_latitude" field.
+func RevealedLatitudeEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedLatitude, v))
+}
+
+// RevealedLatitudeNEQ applies the NEQ predicate on the "revealed_latitude" field.
+func RevealedLatitudeNEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRevealedLatitude, v))
+}
+
+// RevealedLatitudeIn applies the In predicate on the "revealed_latitude" field.
+func RevealedLatitudeIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRevealedLatitude, vs...))
+}
+
+// RevealedLatitudeNotIn applies the NotIn predicate on the "revealed_latitude" field.
+func RevealedLatitudeNotIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRevealedLatitude, vs...))
+}
+
+// RevealedLatitudeGT applies the GT predicate on the "revealed_latitude" field.
+func RevealedLatitudeGT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRevealedLatitude, v))
+}
+
+// RevealedLatitudeGTE applies the GTE predicate on the "revealed_latitude" field.
+func RevealedLatitudeGTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRevealedLatitude, v))
+}
+
+// RevealedLatitudeLT applies the LT predicate on the "revealed_latitude" field.
+func RevealedLatitudeLT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRevealedLatitude, v))
+}
+
+// RevealedLatitudeLTE applies the LTE predicate on the "revealed_latitude" field.
+func RevealedLatitudeLTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRevealedLatitude, v))
+}
+
+// RevealedLatitudeIsNil applies the IsNil predicate on the "revealed_latitude" field.
+func RevealedLatitudeIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRevealedLatitude))
+}
+
+// RevealedLatitudeNotNil applies the NotNil predicate on the "revealed_latitude" field.
+func RevealedLatitudeNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRevealedLatitude))
+}
+
+// RevealedLongitudeEQ applies the EQ predicate on the "revealed_longitude" field.
+func RevealedLongitudeEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedLongitude, v))
+}
+
+// RevealedLongitudeNEQ applies the NEQ predicate on the "revealed_longitude" field.
+func RevealedLongitudeNEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRevealedLongitude, v))
+}
+
+// RevealedLongitudeIn applies the In predicate on the "revealed_longitude" field.
+func RevealedLongitudeIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRevealedLongitude, vs...))
+}
+
+// RevealedLongitudeNotIn applies the NotIn predicate on the "revealed_longitude" field.
+func RevealedLongitudeNotIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRevealedLongitude, vs...))
+}
+
+// RevealedLongitudeGT applies the GT predicate on the "revealed_longitude" field.
+func RevealedLongitudeGT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRevealedLongitude, v))
+}
+
+// RevealedLongitudeGTE applies the GTE predicate on the "revealed_longitude" field.
+func RevealedLongitudeGTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRevealedLongitude, v))
+}
+
+// RevealedLongitudeLT applies the LT predicate on the "revealed_longitude" field.
+func RevealedLongitudeLT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRevealedLongitude, v))
+}
+
+// RevealedLongitudeLTE applies the LTE predicate on the "revealed_longitude" field.
+func RevealedLongitudeLTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRevealedLongitude, v))
+}
+
+// RevealedLongitudeIsNil applies the IsNil predicate on the "revealed_longitude" field.
+func RevealedLongitudeIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRevealedLongitude))
+}
+
+// RevealedLongitudeNotNil applies the NotNil predicate on the "revealed_longitude" field.
+func RevealedLongitudeNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRevealedLongitude))
+}
+
+// RevealedAccuracyMetersEQ applies the EQ predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedAccuracyMeters, v))
+}
+
+// RevealedAccuracyMetersNEQ applies the NEQ predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersNEQ(v float64) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRevealedAccuracyMeters, v))
+}
+
+// RevealedAccuracyMetersIn applies the In predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRevealedAccuracyMeters, vs...))
+}
+
+// RevealedAccuracyMetersNotIn applies the NotIn predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersNotIn(vs ...float64) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRevealedAccuracyMeters, vs...))
+}
+
+// RevealedAccuracyMetersGT applies the GT predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersGT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRevealedAccuracyMeters, v))
+}
+
+// RevealedAccuracyMetersGTE applies the GTE predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersGTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRevealedAccuracyMeters, v))
+}
+
+// RevealedAccuracyMetersLT applies the LT predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersLT(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRevealedAccuracyMeters, v))
+}
+
+// RevealedAccuracyMetersLTE applies the LTE predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersLTE(v float64) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRevealedAccuracyMeters, v))
+}
+
+// RevealedAccuracyMetersIsNil applies the IsNil predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRevealedAccuracyMeters))
+}
+
+// RevealedAccuracyMetersNotNil applies the NotNil predicate on the "revealed_accuracy_meters" field.
+func RevealedAccuracyMetersNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRevealedAccuracyMeters))
+}
+
+// RevealedRecordedAtEQ applies the EQ predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtEQ(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedRecordedAt, v))
+}
+
+// RevealedRecordedAtNEQ applies the NEQ predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtNEQ(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRevealedRecordedAt, v))
+}
+
+// RevealedRecordedAtIn applies the In predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtIn(vs ...time.Time) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRevealedRecordedAt, vs...))
+}
+
+// RevealedRecordedAtNotIn applies the NotIn predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtNotIn(vs ...time.Time) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRevealedRecordedAt, vs...))
+}
+
+// RevealedRecordedAtGT applies the GT predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtGT(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRevealedRecordedAt, v))
+}
+
+// RevealedRecordedAtGTE applies the GTE predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtGTE(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRevealedRecordedAt, v))
+}
+
+// RevealedRecordedAtLT applies the LT predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtLT(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRevealedRecordedAt, v))
+}
+
+// RevealedRecordedAtLTE applies the LTE predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtLTE(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRevealedRecordedAt, v))
+}
+
+// RevealedRecordedAtIsNil applies the IsNil predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRevealedRecordedAt))
+}
+
+// RevealedRecordedAtNotNil applies the NotNil predicate on the "revealed_recorded_at" field.
+func RevealedRecordedAtNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRevealedRecordedAt))
+}
+
+// RevealedAtEQ applies the EQ predicate on the "revealed_at" field.
+func RevealedAtEQ(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRevealedAt, v))
+}
+
+// RevealedAtNEQ applies the NEQ predicate on the "revealed_at" field.
+func RevealedAtNEQ(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRevealedAt, v))
+}
+
+// RevealedAtIn applies the In predicate on the "revealed_at" field.
+func RevealedAtIn(vs ...time.Time) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRevealedAt, vs...))
+}
+
+// RevealedAtNotIn applies the NotIn predicate on the "revealed_at" field.
+func RevealedAtNotIn(vs ...time.Time) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRevealedAt, vs...))
+}
+
+// RevealedAtGT applies the GT predicate on the "revealed_at" field.
+func RevealedAtGT(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRevealedAt, v))
+}
+
+// RevealedAtGTE applies the GTE predicate on the "revealed_at" field.
+func RevealedAtGTE(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRevealedAt, v))
+}
+
+// RevealedAtLT applies the LT predicate on the "revealed_at" field.
+func RevealedAtLT(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRevealedAt, v))
+}
+
+// RevealedAtLTE applies the LTE predicate on the "revealed_at" field.
+func RevealedAtLTE(v time.Time) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRevealedAt, v))
+}
+
+// RevealedAtIsNil applies the IsNil predicate on the "revealed_at" field.
+func RevealedAtIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRevealedAt))
+}
+
+// RevealedAtNotNil applies the NotNil predicate on the "revealed_at" field.
+func RevealedAtNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRevealedAt))
 }
 
 // HasGame applies the HasEdge predicate on the "game" edge.

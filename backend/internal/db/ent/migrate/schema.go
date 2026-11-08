@@ -43,6 +43,15 @@ var (
 		{Name: "route_start", Type: field.TypeString, Nullable: true},
 		{Name: "route_end", Type: field.TypeString, Nullable: true},
 		{Name: "route_regenerations_left", Type: field.TypeInt, Nullable: true},
+		{Name: "latitude", Type: field.TypeFloat64, Nullable: true},
+		{Name: "longitude", Type: field.TypeFloat64, Nullable: true},
+		{Name: "accuracy_meters", Type: field.TypeFloat64, Nullable: true},
+		{Name: "position_recorded_at", Type: field.TypeTime, Nullable: true},
+		{Name: "revealed_latitude", Type: field.TypeFloat64, Nullable: true},
+		{Name: "revealed_longitude", Type: field.TypeFloat64, Nullable: true},
+		{Name: "revealed_accuracy_meters", Type: field.TypeFloat64, Nullable: true},
+		{Name: "revealed_recorded_at", Type: field.TypeTime, Nullable: true},
+		{Name: "revealed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "game_id", Type: field.TypeString, SchemaType: map[string]string{"sqlite3": "TEXT"}},
 	}
 	// PlayersTable holds the schema information for the "players" table.
@@ -53,7 +62,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "players_games_players",
-				Columns:    []*schema.Column{PlayersColumns[9]},
+				Columns:    []*schema.Column{PlayersColumns[18]},
 				RefColumns: []*schema.Column{GamesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -62,7 +71,7 @@ var (
 			{
 				Name:    "player_game_id",
 				Unique:  false,
-				Columns: []*schema.Column{PlayersColumns[9]},
+				Columns: []*schema.Column{PlayersColumns[18]},
 			},
 		},
 	}

@@ -32,6 +32,24 @@ const (
 	FieldRouteEnd = "route_end"
 	// FieldRouteRegenerationsLeft holds the string denoting the route_regenerations_left field in the database.
 	FieldRouteRegenerationsLeft = "route_regenerations_left"
+	// FieldLatitude holds the string denoting the latitude field in the database.
+	FieldLatitude = "latitude"
+	// FieldLongitude holds the string denoting the longitude field in the database.
+	FieldLongitude = "longitude"
+	// FieldAccuracyMeters holds the string denoting the accuracy_meters field in the database.
+	FieldAccuracyMeters = "accuracy_meters"
+	// FieldPositionRecordedAt holds the string denoting the position_recorded_at field in the database.
+	FieldPositionRecordedAt = "position_recorded_at"
+	// FieldRevealedLatitude holds the string denoting the revealed_latitude field in the database.
+	FieldRevealedLatitude = "revealed_latitude"
+	// FieldRevealedLongitude holds the string denoting the revealed_longitude field in the database.
+	FieldRevealedLongitude = "revealed_longitude"
+	// FieldRevealedAccuracyMeters holds the string denoting the revealed_accuracy_meters field in the database.
+	FieldRevealedAccuracyMeters = "revealed_accuracy_meters"
+	// FieldRevealedRecordedAt holds the string denoting the revealed_recorded_at field in the database.
+	FieldRevealedRecordedAt = "revealed_recorded_at"
+	// FieldRevealedAt holds the string denoting the revealed_at field in the database.
+	FieldRevealedAt = "revealed_at"
 	// EdgeGame holds the string denoting the game edge name in mutations.
 	EdgeGame = "game"
 	// GameFieldID holds the string denoting the ID field of the Game.
@@ -59,6 +77,15 @@ var Columns = []string{
 	FieldRouteStart,
 	FieldRouteEnd,
 	FieldRouteRegenerationsLeft,
+	FieldLatitude,
+	FieldLongitude,
+	FieldAccuracyMeters,
+	FieldPositionRecordedAt,
+	FieldRevealedLatitude,
+	FieldRevealedLongitude,
+	FieldRevealedAccuracyMeters,
+	FieldRevealedRecordedAt,
+	FieldRevealedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -162,6 +189,51 @@ func ByRouteEnd(opts ...sql.OrderTermOption) OrderOption {
 // ByRouteRegenerationsLeft orders the results by the route_regenerations_left field.
 func ByRouteRegenerationsLeft(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRouteRegenerationsLeft, opts...).ToFunc()
+}
+
+// ByLatitude orders the results by the latitude field.
+func ByLatitude(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatitude, opts...).ToFunc()
+}
+
+// ByLongitude orders the results by the longitude field.
+func ByLongitude(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLongitude, opts...).ToFunc()
+}
+
+// ByAccuracyMeters orders the results by the accuracy_meters field.
+func ByAccuracyMeters(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccuracyMeters, opts...).ToFunc()
+}
+
+// ByPositionRecordedAt orders the results by the position_recorded_at field.
+func ByPositionRecordedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPositionRecordedAt, opts...).ToFunc()
+}
+
+// ByRevealedLatitude orders the results by the revealed_latitude field.
+func ByRevealedLatitude(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevealedLatitude, opts...).ToFunc()
+}
+
+// ByRevealedLongitude orders the results by the revealed_longitude field.
+func ByRevealedLongitude(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevealedLongitude, opts...).ToFunc()
+}
+
+// ByRevealedAccuracyMeters orders the results by the revealed_accuracy_meters field.
+func ByRevealedAccuracyMeters(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevealedAccuracyMeters, opts...).ToFunc()
+}
+
+// ByRevealedRecordedAt orders the results by the revealed_recorded_at field.
+func ByRevealedRecordedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevealedRecordedAt, opts...).ToFunc()
+}
+
+// ByRevealedAt orders the results by the revealed_at field.
+func ByRevealedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevealedAt, opts...).ToFunc()
 }
 
 // ByGameField orders the results by game field.

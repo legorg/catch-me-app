@@ -107,6 +107,132 @@ func (_c *PlayerCreate) SetNillableRouteRegenerationsLeft(v *int) *PlayerCreate 
 	return _c
 }
 
+// SetLatitude sets the "latitude" field.
+func (_c *PlayerCreate) SetLatitude(v float64) *PlayerCreate {
+	_c.mutation.SetLatitude(v)
+	return _c
+}
+
+// SetNillableLatitude sets the "latitude" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableLatitude(v *float64) *PlayerCreate {
+	if v != nil {
+		_c.SetLatitude(*v)
+	}
+	return _c
+}
+
+// SetLongitude sets the "longitude" field.
+func (_c *PlayerCreate) SetLongitude(v float64) *PlayerCreate {
+	_c.mutation.SetLongitude(v)
+	return _c
+}
+
+// SetNillableLongitude sets the "longitude" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableLongitude(v *float64) *PlayerCreate {
+	if v != nil {
+		_c.SetLongitude(*v)
+	}
+	return _c
+}
+
+// SetAccuracyMeters sets the "accuracy_meters" field.
+func (_c *PlayerCreate) SetAccuracyMeters(v float64) *PlayerCreate {
+	_c.mutation.SetAccuracyMeters(v)
+	return _c
+}
+
+// SetNillableAccuracyMeters sets the "accuracy_meters" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableAccuracyMeters(v *float64) *PlayerCreate {
+	if v != nil {
+		_c.SetAccuracyMeters(*v)
+	}
+	return _c
+}
+
+// SetPositionRecordedAt sets the "position_recorded_at" field.
+func (_c *PlayerCreate) SetPositionRecordedAt(v time.Time) *PlayerCreate {
+	_c.mutation.SetPositionRecordedAt(v)
+	return _c
+}
+
+// SetNillablePositionRecordedAt sets the "position_recorded_at" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillablePositionRecordedAt(v *time.Time) *PlayerCreate {
+	if v != nil {
+		_c.SetPositionRecordedAt(*v)
+	}
+	return _c
+}
+
+// SetRevealedLatitude sets the "revealed_latitude" field.
+func (_c *PlayerCreate) SetRevealedLatitude(v float64) *PlayerCreate {
+	_c.mutation.SetRevealedLatitude(v)
+	return _c
+}
+
+// SetNillableRevealedLatitude sets the "revealed_latitude" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRevealedLatitude(v *float64) *PlayerCreate {
+	if v != nil {
+		_c.SetRevealedLatitude(*v)
+	}
+	return _c
+}
+
+// SetRevealedLongitude sets the "revealed_longitude" field.
+func (_c *PlayerCreate) SetRevealedLongitude(v float64) *PlayerCreate {
+	_c.mutation.SetRevealedLongitude(v)
+	return _c
+}
+
+// SetNillableRevealedLongitude sets the "revealed_longitude" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRevealedLongitude(v *float64) *PlayerCreate {
+	if v != nil {
+		_c.SetRevealedLongitude(*v)
+	}
+	return _c
+}
+
+// SetRevealedAccuracyMeters sets the "revealed_accuracy_meters" field.
+func (_c *PlayerCreate) SetRevealedAccuracyMeters(v float64) *PlayerCreate {
+	_c.mutation.SetRevealedAccuracyMeters(v)
+	return _c
+}
+
+// SetNillableRevealedAccuracyMeters sets the "revealed_accuracy_meters" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRevealedAccuracyMeters(v *float64) *PlayerCreate {
+	if v != nil {
+		_c.SetRevealedAccuracyMeters(*v)
+	}
+	return _c
+}
+
+// SetRevealedRecordedAt sets the "revealed_recorded_at" field.
+func (_c *PlayerCreate) SetRevealedRecordedAt(v time.Time) *PlayerCreate {
+	_c.mutation.SetRevealedRecordedAt(v)
+	return _c
+}
+
+// SetNillableRevealedRecordedAt sets the "revealed_recorded_at" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRevealedRecordedAt(v *time.Time) *PlayerCreate {
+	if v != nil {
+		_c.SetRevealedRecordedAt(*v)
+	}
+	return _c
+}
+
+// SetRevealedAt sets the "revealed_at" field.
+func (_c *PlayerCreate) SetRevealedAt(v time.Time) *PlayerCreate {
+	_c.mutation.SetRevealedAt(v)
+	return _c
+}
+
+// SetNillableRevealedAt sets the "revealed_at" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRevealedAt(v *time.Time) *PlayerCreate {
+	if v != nil {
+		_c.SetRevealedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *PlayerCreate) SetID(v string) *PlayerCreate {
 	_c.mutation.SetID(v)
@@ -283,6 +409,42 @@ func (_c *PlayerCreate) createSpec() (*Player, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RouteRegenerationsLeft(); ok {
 		_spec.SetField(player.FieldRouteRegenerationsLeft, field.TypeInt, value)
 		_node.RouteRegenerationsLeft = &value
+	}
+	if value, ok := _c.mutation.Latitude(); ok {
+		_spec.SetField(player.FieldLatitude, field.TypeFloat64, value)
+		_node.Latitude = &value
+	}
+	if value, ok := _c.mutation.Longitude(); ok {
+		_spec.SetField(player.FieldLongitude, field.TypeFloat64, value)
+		_node.Longitude = &value
+	}
+	if value, ok := _c.mutation.AccuracyMeters(); ok {
+		_spec.SetField(player.FieldAccuracyMeters, field.TypeFloat64, value)
+		_node.AccuracyMeters = &value
+	}
+	if value, ok := _c.mutation.PositionRecordedAt(); ok {
+		_spec.SetField(player.FieldPositionRecordedAt, field.TypeTime, value)
+		_node.PositionRecordedAt = &value
+	}
+	if value, ok := _c.mutation.RevealedLatitude(); ok {
+		_spec.SetField(player.FieldRevealedLatitude, field.TypeFloat64, value)
+		_node.RevealedLatitude = &value
+	}
+	if value, ok := _c.mutation.RevealedLongitude(); ok {
+		_spec.SetField(player.FieldRevealedLongitude, field.TypeFloat64, value)
+		_node.RevealedLongitude = &value
+	}
+	if value, ok := _c.mutation.RevealedAccuracyMeters(); ok {
+		_spec.SetField(player.FieldRevealedAccuracyMeters, field.TypeFloat64, value)
+		_node.RevealedAccuracyMeters = &value
+	}
+	if value, ok := _c.mutation.RevealedRecordedAt(); ok {
+		_spec.SetField(player.FieldRevealedRecordedAt, field.TypeTime, value)
+		_node.RevealedRecordedAt = &value
+	}
+	if value, ok := _c.mutation.RevealedAt(); ok {
+		_spec.SetField(player.FieldRevealedAt, field.TypeTime, value)
+		_node.RevealedAt = &value
 	}
 	if nodes := _c.mutation.GameIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

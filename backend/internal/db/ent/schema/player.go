@@ -32,6 +32,17 @@ func (Player) Fields() []ent.Field {
 		field.String("route_start").Optional().Nillable().Validate(parsedBy(game.ParseCell)),
 		field.String("route_end").Optional().Nillable().Validate(parsedBy(game.ParseCell)),
 		field.Int("route_regenerations_left").Optional().Nillable().Range(0, game.MaxRouteRegenerations),
+		// Latest position only, never a history. Removed with the player.
+		field.Float("latitude").Optional().Nillable(),
+		field.Float("longitude").Optional().Nillable(),
+		field.Float("accuracy_meters").Optional().Nillable(),
+		field.Time("position_recorded_at").Optional().Nillable(),
+		// A runner's position as last revealed to hunters.
+		field.Float("revealed_latitude").Optional().Nillable(),
+		field.Float("revealed_longitude").Optional().Nillable(),
+		field.Float("revealed_accuracy_meters").Optional().Nillable(),
+		field.Time("revealed_recorded_at").Optional().Nillable(),
+		field.Time("revealed_at").Optional().Nillable(),
 	}
 }
 

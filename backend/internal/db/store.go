@@ -153,17 +153,17 @@ func saveLobby(ctx context.Context, tx *ent.Tx, before, after game.Lobby) error 
 		previous, existed := removed[p.ID]
 		delete(removed, p.ID)
 		var err error
-		start, end, left := routeColumns(p.Route)
 		switch {
 		case !existed:
-			err = tx.Player.Create().SetID(p.ID.String()).SetGameID(after.Game.SessionID.String()).
+			create := tx.Player.Create().SetID(p.ID.String()).SetGameID(after.Game.SessionID.String()).
 				SetTeam(entplayer.Team(p.Team)).SetName(p.Name.String()).SetTokenHash(p.TokenHash.String()).
-				SetReady(p.Ready).SetJoinedAt(p.JoinedAt).
-				SetNillableRouteStart(start).SetNillableRouteEnd(end).SetNillableRouteRegenerationsLeft(left).Exec(ctx)
+				SetJoinedAt(p.JoinedAt)
+			writePlayerState(create.Mutation(), p, false)
+			err = create.Exec(ctx)
 		case !previous.SameState(p):
-			// Only ready state and routes change after joining; routes are replaced, never removed.
-			err = tx.Player.UpdateOneID(p.ID.String()).SetReady(p.Ready).
-				SetNillableRouteStart(start).SetNillableRouteEnd(end).SetNillableRouteRegenerationsLeft(left).Exec(ctx)
+			update := tx.Player.UpdateOneID(p.ID.String())
+			writePlayerState(update.Mutation(), p, true)
+			err = update.Exec(ctx)
 		}
 		if err != nil {
 			return fmt.Errorf("save player: %w", err)
@@ -207,12 +207,43 @@ func optionalTime(t time.Time) *time.Time {
 	return &t
 }
 
-func routeColumns(route *game.RunnerRoute) (start, end *string, regenerationsLeft *int) {
-	if route == nil {
-		return nil, nil, nil
+// writePlayerState sets the columns that change after joining. With clear,
+// absent values are written as NULL (for updates).
+func writePlayerState(m *ent.PlayerMutation, p game.Player, clear bool) {
+	m.SetReady(p.Ready)
+	if r := p.Route; r != nil {
+		m.SetRouteStart(r.Start.String())
+		m.SetRouteEnd(r.End.String())
+		m.SetRouteRegenerationsLeft(r.RegenerationsLeft)
+	} else if clear {
+		m.ClearRouteStart()
+		m.ClearRouteEnd()
+		m.ClearRouteRegenerationsLeft()
 	}
-	from, to, left := route.Start.String(), route.End.String(), route.RegenerationsLeft
-	return &from, &to, &left
+	if pos := p.Position; pos != nil {
+		m.SetLatitude(pos.Coordinates.Latitude())
+		m.SetLongitude(pos.Coordinates.Longitude())
+		m.SetAccuracyMeters(pos.AccuracyMeters)
+		m.SetPositionRecordedAt(pos.RecordedAt)
+	} else if clear {
+		m.ClearLatitude()
+		m.ClearLongitude()
+		m.ClearAccuracyMeters()
+		m.ClearPositionRecordedAt()
+	}
+	if r := p.Reveal; r != nil {
+		m.SetRevealedLatitude(r.Position.Coordinates.Latitude())
+		m.SetRevealedLongitude(r.Position.Coordinates.Longitude())
+		m.SetRevealedAccuracyMeters(r.Position.AccuracyMeters)
+		m.SetRevealedRecordedAt(r.Position.RecordedAt)
+		m.SetRevealedAt(r.At)
+	} else if clear {
+		m.ClearRevealedLatitude()
+		m.ClearRevealedLongitude()
+		m.ClearRevealedAccuracyMeters()
+		m.ClearRevealedRecordedAt()
+		m.ClearRevealedAt()
+	}
 }
 
 func parseLobby(row *ent.Game) (game.Lobby, error) {
@@ -299,5 +330,37 @@ func parsePlayer(row *ent.Player) (game.Player, error) {
 	case row.RouteStart != nil || row.RouteEnd != nil || row.RouteRegenerationsLeft != nil:
 		return game.Player{}, fmt.Errorf("player %s has an incomplete route or is not a runner", row.ID)
 	}
+	if player.Position, err = parsePosition(row.Latitude, row.Longitude, row.AccuracyMeters, row.PositionRecordedAt); err != nil {
+		return game.Player{}, err
+	}
+	revealed, err := parsePosition(row.RevealedLatitude, row.RevealedLongitude, row.RevealedAccuracyMeters, row.RevealedRecordedAt)
+	switch {
+	case err != nil:
+		return game.Player{}, err
+	case revealed != nil && row.RevealedAt != nil:
+		player.Reveal = &game.Reveal{Position: *revealed, At: row.RevealedAt.UTC()}
+	case revealed != nil || row.RevealedAt != nil:
+		return game.Player{}, fmt.Errorf("player %s has an incomplete reveal", row.ID)
+	}
 	return player, nil
+}
+
+// parsePosition returns nil when no position is stored and an error when only
+// some of its columns are set.
+func parsePosition(latitude, longitude, accuracy *float64, recordedAt *time.Time) (*game.Position, error) {
+	if latitude == nil && longitude == nil && accuracy == nil && recordedAt == nil {
+		return nil, nil
+	}
+	if latitude == nil || longitude == nil || accuracy == nil || recordedAt == nil {
+		return nil, fmt.Errorf("incomplete stored position")
+	}
+	coordinates, err := game.ParseCoordinates(*latitude, *longitude)
+	if err != nil {
+		return nil, err
+	}
+	position, err := game.NewPosition(coordinates, *accuracy, recordedAt.UTC())
+	if err != nil {
+		return nil, err
+	}
+	return &position, nil
 }

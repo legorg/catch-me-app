@@ -1477,6 +1477,21 @@ type PlayerMutation struct {
 	route_end                   *string
 	route_regenerations_left    *int
 	addroute_regenerations_left *int
+	latitude                    *float64
+	addlatitude                 *float64
+	longitude                   *float64
+	addlongitude                *float64
+	accuracy_meters             *float64
+	addaccuracy_meters          *float64
+	position_recorded_at        *time.Time
+	revealed_latitude           *float64
+	addrevealed_latitude        *float64
+	revealed_longitude          *float64
+	addrevealed_longitude       *float64
+	revealed_accuracy_meters    *float64
+	addrevealed_accuracy_meters *float64
+	revealed_recorded_at        *time.Time
+	revealed_at                 *time.Time
 	clearedFields               map[string]struct{}
 	game                        *string
 	clearedgame                 bool
@@ -1973,6 +1988,573 @@ func (m *PlayerMutation) ResetRouteRegenerationsLeft() {
 	delete(m.clearedFields, player.FieldRouteRegenerationsLeft)
 }
 
+// SetLatitude sets the "latitude" field.
+func (m *PlayerMutation) SetLatitude(f float64) {
+	m.latitude = &f
+	m.addlatitude = nil
+}
+
+// Latitude returns the value of the "latitude" field in the mutation.
+func (m *PlayerMutation) Latitude() (r float64, exists bool) {
+	v := m.latitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatitude returns the old "latitude" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldLatitude(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatitude is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatitude requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatitude: %w", err)
+	}
+	return oldValue.Latitude, nil
+}
+
+// AddLatitude adds f to the "latitude" field.
+func (m *PlayerMutation) AddLatitude(f float64) {
+	if m.addlatitude != nil {
+		*m.addlatitude += f
+	} else {
+		m.addlatitude = &f
+	}
+}
+
+// AddedLatitude returns the value that was added to the "latitude" field in this mutation.
+func (m *PlayerMutation) AddedLatitude() (r float64, exists bool) {
+	v := m.addlatitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLatitude clears the value of the "latitude" field.
+func (m *PlayerMutation) ClearLatitude() {
+	m.latitude = nil
+	m.addlatitude = nil
+	m.clearedFields[player.FieldLatitude] = struct{}{}
+}
+
+// LatitudeCleared returns if the "latitude" field was cleared in this mutation.
+func (m *PlayerMutation) LatitudeCleared() bool {
+	_, ok := m.clearedFields[player.FieldLatitude]
+	return ok
+}
+
+// ResetLatitude resets all changes to the "latitude" field.
+func (m *PlayerMutation) ResetLatitude() {
+	m.latitude = nil
+	m.addlatitude = nil
+	delete(m.clearedFields, player.FieldLatitude)
+}
+
+// SetLongitude sets the "longitude" field.
+func (m *PlayerMutation) SetLongitude(f float64) {
+	m.longitude = &f
+	m.addlongitude = nil
+}
+
+// Longitude returns the value of the "longitude" field in the mutation.
+func (m *PlayerMutation) Longitude() (r float64, exists bool) {
+	v := m.longitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLongitude returns the old "longitude" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldLongitude(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLongitude is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLongitude requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLongitude: %w", err)
+	}
+	return oldValue.Longitude, nil
+}
+
+// AddLongitude adds f to the "longitude" field.
+func (m *PlayerMutation) AddLongitude(f float64) {
+	if m.addlongitude != nil {
+		*m.addlongitude += f
+	} else {
+		m.addlongitude = &f
+	}
+}
+
+// AddedLongitude returns the value that was added to the "longitude" field in this mutation.
+func (m *PlayerMutation) AddedLongitude() (r float64, exists bool) {
+	v := m.addlongitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLongitude clears the value of the "longitude" field.
+func (m *PlayerMutation) ClearLongitude() {
+	m.longitude = nil
+	m.addlongitude = nil
+	m.clearedFields[player.FieldLongitude] = struct{}{}
+}
+
+// LongitudeCleared returns if the "longitude" field was cleared in this mutation.
+func (m *PlayerMutation) LongitudeCleared() bool {
+	_, ok := m.clearedFields[player.FieldLongitude]
+	return ok
+}
+
+// ResetLongitude resets all changes to the "longitude" field.
+func (m *PlayerMutation) ResetLongitude() {
+	m.longitude = nil
+	m.addlongitude = nil
+	delete(m.clearedFields, player.FieldLongitude)
+}
+
+// SetAccuracyMeters sets the "accuracy_meters" field.
+func (m *PlayerMutation) SetAccuracyMeters(f float64) {
+	m.accuracy_meters = &f
+	m.addaccuracy_meters = nil
+}
+
+// AccuracyMeters returns the value of the "accuracy_meters" field in the mutation.
+func (m *PlayerMutation) AccuracyMeters() (r float64, exists bool) {
+	v := m.accuracy_meters
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccuracyMeters returns the old "accuracy_meters" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldAccuracyMeters(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccuracyMeters is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccuracyMeters requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccuracyMeters: %w", err)
+	}
+	return oldValue.AccuracyMeters, nil
+}
+
+// AddAccuracyMeters adds f to the "accuracy_meters" field.
+func (m *PlayerMutation) AddAccuracyMeters(f float64) {
+	if m.addaccuracy_meters != nil {
+		*m.addaccuracy_meters += f
+	} else {
+		m.addaccuracy_meters = &f
+	}
+}
+
+// AddedAccuracyMeters returns the value that was added to the "accuracy_meters" field in this mutation.
+func (m *PlayerMutation) AddedAccuracyMeters() (r float64, exists bool) {
+	v := m.addaccuracy_meters
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAccuracyMeters clears the value of the "accuracy_meters" field.
+func (m *PlayerMutation) ClearAccuracyMeters() {
+	m.accuracy_meters = nil
+	m.addaccuracy_meters = nil
+	m.clearedFields[player.FieldAccuracyMeters] = struct{}{}
+}
+
+// AccuracyMetersCleared returns if the "accuracy_meters" field was cleared in this mutation.
+func (m *PlayerMutation) AccuracyMetersCleared() bool {
+	_, ok := m.clearedFields[player.FieldAccuracyMeters]
+	return ok
+}
+
+// ResetAccuracyMeters resets all changes to the "accuracy_meters" field.
+func (m *PlayerMutation) ResetAccuracyMeters() {
+	m.accuracy_meters = nil
+	m.addaccuracy_meters = nil
+	delete(m.clearedFields, player.FieldAccuracyMeters)
+}
+
+// SetPositionRecordedAt sets the "position_recorded_at" field.
+func (m *PlayerMutation) SetPositionRecordedAt(t time.Time) {
+	m.position_recorded_at = &t
+}
+
+// PositionRecordedAt returns the value of the "position_recorded_at" field in the mutation.
+func (m *PlayerMutation) PositionRecordedAt() (r time.Time, exists bool) {
+	v := m.position_recorded_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPositionRecordedAt returns the old "position_recorded_at" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldPositionRecordedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPositionRecordedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPositionRecordedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPositionRecordedAt: %w", err)
+	}
+	return oldValue.PositionRecordedAt, nil
+}
+
+// ClearPositionRecordedAt clears the value of the "position_recorded_at" field.
+func (m *PlayerMutation) ClearPositionRecordedAt() {
+	m.position_recorded_at = nil
+	m.clearedFields[player.FieldPositionRecordedAt] = struct{}{}
+}
+
+// PositionRecordedAtCleared returns if the "position_recorded_at" field was cleared in this mutation.
+func (m *PlayerMutation) PositionRecordedAtCleared() bool {
+	_, ok := m.clearedFields[player.FieldPositionRecordedAt]
+	return ok
+}
+
+// ResetPositionRecordedAt resets all changes to the "position_recorded_at" field.
+func (m *PlayerMutation) ResetPositionRecordedAt() {
+	m.position_recorded_at = nil
+	delete(m.clearedFields, player.FieldPositionRecordedAt)
+}
+
+// SetRevealedLatitude sets the "revealed_latitude" field.
+func (m *PlayerMutation) SetRevealedLatitude(f float64) {
+	m.revealed_latitude = &f
+	m.addrevealed_latitude = nil
+}
+
+// RevealedLatitude returns the value of the "revealed_latitude" field in the mutation.
+func (m *PlayerMutation) RevealedLatitude() (r float64, exists bool) {
+	v := m.revealed_latitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevealedLatitude returns the old "revealed_latitude" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRevealedLatitude(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevealedLatitude is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevealedLatitude requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevealedLatitude: %w", err)
+	}
+	return oldValue.RevealedLatitude, nil
+}
+
+// AddRevealedLatitude adds f to the "revealed_latitude" field.
+func (m *PlayerMutation) AddRevealedLatitude(f float64) {
+	if m.addrevealed_latitude != nil {
+		*m.addrevealed_latitude += f
+	} else {
+		m.addrevealed_latitude = &f
+	}
+}
+
+// AddedRevealedLatitude returns the value that was added to the "revealed_latitude" field in this mutation.
+func (m *PlayerMutation) AddedRevealedLatitude() (r float64, exists bool) {
+	v := m.addrevealed_latitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRevealedLatitude clears the value of the "revealed_latitude" field.
+func (m *PlayerMutation) ClearRevealedLatitude() {
+	m.revealed_latitude = nil
+	m.addrevealed_latitude = nil
+	m.clearedFields[player.FieldRevealedLatitude] = struct{}{}
+}
+
+// RevealedLatitudeCleared returns if the "revealed_latitude" field was cleared in this mutation.
+func (m *PlayerMutation) RevealedLatitudeCleared() bool {
+	_, ok := m.clearedFields[player.FieldRevealedLatitude]
+	return ok
+}
+
+// ResetRevealedLatitude resets all changes to the "revealed_latitude" field.
+func (m *PlayerMutation) ResetRevealedLatitude() {
+	m.revealed_latitude = nil
+	m.addrevealed_latitude = nil
+	delete(m.clearedFields, player.FieldRevealedLatitude)
+}
+
+// SetRevealedLongitude sets the "revealed_longitude" field.
+func (m *PlayerMutation) SetRevealedLongitude(f float64) {
+	m.revealed_longitude = &f
+	m.addrevealed_longitude = nil
+}
+
+// RevealedLongitude returns the value of the "revealed_longitude" field in the mutation.
+func (m *PlayerMutation) RevealedLongitude() (r float64, exists bool) {
+	v := m.revealed_longitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevealedLongitude returns the old "revealed_longitude" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRevealedLongitude(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevealedLongitude is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevealedLongitude requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevealedLongitude: %w", err)
+	}
+	return oldValue.RevealedLongitude, nil
+}
+
+// AddRevealedLongitude adds f to the "revealed_longitude" field.
+func (m *PlayerMutation) AddRevealedLongitude(f float64) {
+	if m.addrevealed_longitude != nil {
+		*m.addrevealed_longitude += f
+	} else {
+		m.addrevealed_longitude = &f
+	}
+}
+
+// AddedRevealedLongitude returns the value that was added to the "revealed_longitude" field in this mutation.
+func (m *PlayerMutation) AddedRevealedLongitude() (r float64, exists bool) {
+	v := m.addrevealed_longitude
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRevealedLongitude clears the value of the "revealed_longitude" field.
+func (m *PlayerMutation) ClearRevealedLongitude() {
+	m.revealed_longitude = nil
+	m.addrevealed_longitude = nil
+	m.clearedFields[player.FieldRevealedLongitude] = struct{}{}
+}
+
+// RevealedLongitudeCleared returns if the "revealed_longitude" field was cleared in this mutation.
+func (m *PlayerMutation) RevealedLongitudeCleared() bool {
+	_, ok := m.clearedFields[player.FieldRevealedLongitude]
+	return ok
+}
+
+// ResetRevealedLongitude resets all changes to the "revealed_longitude" field.
+func (m *PlayerMutation) ResetRevealedLongitude() {
+	m.revealed_longitude = nil
+	m.addrevealed_longitude = nil
+	delete(m.clearedFields, player.FieldRevealedLongitude)
+}
+
+// SetRevealedAccuracyMeters sets the "revealed_accuracy_meters" field.
+func (m *PlayerMutation) SetRevealedAccuracyMeters(f float64) {
+	m.revealed_accuracy_meters = &f
+	m.addrevealed_accuracy_meters = nil
+}
+
+// RevealedAccuracyMeters returns the value of the "revealed_accuracy_meters" field in the mutation.
+func (m *PlayerMutation) RevealedAccuracyMeters() (r float64, exists bool) {
+	v := m.revealed_accuracy_meters
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevealedAccuracyMeters returns the old "revealed_accuracy_meters" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRevealedAccuracyMeters(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevealedAccuracyMeters is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevealedAccuracyMeters requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevealedAccuracyMeters: %w", err)
+	}
+	return oldValue.RevealedAccuracyMeters, nil
+}
+
+// AddRevealedAccuracyMeters adds f to the "revealed_accuracy_meters" field.
+func (m *PlayerMutation) AddRevealedAccuracyMeters(f float64) {
+	if m.addrevealed_accuracy_meters != nil {
+		*m.addrevealed_accuracy_meters += f
+	} else {
+		m.addrevealed_accuracy_meters = &f
+	}
+}
+
+// AddedRevealedAccuracyMeters returns the value that was added to the "revealed_accuracy_meters" field in this mutation.
+func (m *PlayerMutation) AddedRevealedAccuracyMeters() (r float64, exists bool) {
+	v := m.addrevealed_accuracy_meters
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRevealedAccuracyMeters clears the value of the "revealed_accuracy_meters" field.
+func (m *PlayerMutation) ClearRevealedAccuracyMeters() {
+	m.revealed_accuracy_meters = nil
+	m.addrevealed_accuracy_meters = nil
+	m.clearedFields[player.FieldRevealedAccuracyMeters] = struct{}{}
+}
+
+// RevealedAccuracyMetersCleared returns if the "revealed_accuracy_meters" field was cleared in this mutation.
+func (m *PlayerMutation) RevealedAccuracyMetersCleared() bool {
+	_, ok := m.clearedFields[player.FieldRevealedAccuracyMeters]
+	return ok
+}
+
+// ResetRevealedAccuracyMeters resets all changes to the "revealed_accuracy_meters" field.
+func (m *PlayerMutation) ResetRevealedAccuracyMeters() {
+	m.revealed_accuracy_meters = nil
+	m.addrevealed_accuracy_meters = nil
+	delete(m.clearedFields, player.FieldRevealedAccuracyMeters)
+}
+
+// SetRevealedRecordedAt sets the "revealed_recorded_at" field.
+func (m *PlayerMutation) SetRevealedRecordedAt(t time.Time) {
+	m.revealed_recorded_at = &t
+}
+
+// RevealedRecordedAt returns the value of the "revealed_recorded_at" field in the mutation.
+func (m *PlayerMutation) RevealedRecordedAt() (r time.Time, exists bool) {
+	v := m.revealed_recorded_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevealedRecordedAt returns the old "revealed_recorded_at" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRevealedRecordedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevealedRecordedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevealedRecordedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevealedRecordedAt: %w", err)
+	}
+	return oldValue.RevealedRecordedAt, nil
+}
+
+// ClearRevealedRecordedAt clears the value of the "revealed_recorded_at" field.
+func (m *PlayerMutation) ClearRevealedRecordedAt() {
+	m.revealed_recorded_at = nil
+	m.clearedFields[player.FieldRevealedRecordedAt] = struct{}{}
+}
+
+// RevealedRecordedAtCleared returns if the "revealed_recorded_at" field was cleared in this mutation.
+func (m *PlayerMutation) RevealedRecordedAtCleared() bool {
+	_, ok := m.clearedFields[player.FieldRevealedRecordedAt]
+	return ok
+}
+
+// ResetRevealedRecordedAt resets all changes to the "revealed_recorded_at" field.
+func (m *PlayerMutation) ResetRevealedRecordedAt() {
+	m.revealed_recorded_at = nil
+	delete(m.clearedFields, player.FieldRevealedRecordedAt)
+}
+
+// SetRevealedAt sets the "revealed_at" field.
+func (m *PlayerMutation) SetRevealedAt(t time.Time) {
+	m.revealed_at = &t
+}
+
+// RevealedAt returns the value of the "revealed_at" field in the mutation.
+func (m *PlayerMutation) RevealedAt() (r time.Time, exists bool) {
+	v := m.revealed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevealedAt returns the old "revealed_at" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRevealedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevealedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevealedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevealedAt: %w", err)
+	}
+	return oldValue.RevealedAt, nil
+}
+
+// ClearRevealedAt clears the value of the "revealed_at" field.
+func (m *PlayerMutation) ClearRevealedAt() {
+	m.revealed_at = nil
+	m.clearedFields[player.FieldRevealedAt] = struct{}{}
+}
+
+// RevealedAtCleared returns if the "revealed_at" field was cleared in this mutation.
+func (m *PlayerMutation) RevealedAtCleared() bool {
+	_, ok := m.clearedFields[player.FieldRevealedAt]
+	return ok
+}
+
+// ResetRevealedAt resets all changes to the "revealed_at" field.
+func (m *PlayerMutation) ResetRevealedAt() {
+	m.revealed_at = nil
+	delete(m.clearedFields, player.FieldRevealedAt)
+}
+
 // ClearGame clears the "game" edge to the Game entity.
 func (m *PlayerMutation) ClearGame() {
 	m.clearedgame = true
@@ -2034,7 +2616,7 @@ func (m *PlayerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlayerMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 18)
 	if m.game != nil {
 		fields = append(fields, player.FieldGameID)
 	}
@@ -2062,6 +2644,33 @@ func (m *PlayerMutation) Fields() []string {
 	if m.route_regenerations_left != nil {
 		fields = append(fields, player.FieldRouteRegenerationsLeft)
 	}
+	if m.latitude != nil {
+		fields = append(fields, player.FieldLatitude)
+	}
+	if m.longitude != nil {
+		fields = append(fields, player.FieldLongitude)
+	}
+	if m.accuracy_meters != nil {
+		fields = append(fields, player.FieldAccuracyMeters)
+	}
+	if m.position_recorded_at != nil {
+		fields = append(fields, player.FieldPositionRecordedAt)
+	}
+	if m.revealed_latitude != nil {
+		fields = append(fields, player.FieldRevealedLatitude)
+	}
+	if m.revealed_longitude != nil {
+		fields = append(fields, player.FieldRevealedLongitude)
+	}
+	if m.revealed_accuracy_meters != nil {
+		fields = append(fields, player.FieldRevealedAccuracyMeters)
+	}
+	if m.revealed_recorded_at != nil {
+		fields = append(fields, player.FieldRevealedRecordedAt)
+	}
+	if m.revealed_at != nil {
+		fields = append(fields, player.FieldRevealedAt)
+	}
 	return fields
 }
 
@@ -2088,6 +2697,24 @@ func (m *PlayerMutation) Field(name string) (ent.Value, bool) {
 		return m.RouteEnd()
 	case player.FieldRouteRegenerationsLeft:
 		return m.RouteRegenerationsLeft()
+	case player.FieldLatitude:
+		return m.Latitude()
+	case player.FieldLongitude:
+		return m.Longitude()
+	case player.FieldAccuracyMeters:
+		return m.AccuracyMeters()
+	case player.FieldPositionRecordedAt:
+		return m.PositionRecordedAt()
+	case player.FieldRevealedLatitude:
+		return m.RevealedLatitude()
+	case player.FieldRevealedLongitude:
+		return m.RevealedLongitude()
+	case player.FieldRevealedAccuracyMeters:
+		return m.RevealedAccuracyMeters()
+	case player.FieldRevealedRecordedAt:
+		return m.RevealedRecordedAt()
+	case player.FieldRevealedAt:
+		return m.RevealedAt()
 	}
 	return nil, false
 }
@@ -2115,6 +2742,24 @@ func (m *PlayerMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldRouteEnd(ctx)
 	case player.FieldRouteRegenerationsLeft:
 		return m.OldRouteRegenerationsLeft(ctx)
+	case player.FieldLatitude:
+		return m.OldLatitude(ctx)
+	case player.FieldLongitude:
+		return m.OldLongitude(ctx)
+	case player.FieldAccuracyMeters:
+		return m.OldAccuracyMeters(ctx)
+	case player.FieldPositionRecordedAt:
+		return m.OldPositionRecordedAt(ctx)
+	case player.FieldRevealedLatitude:
+		return m.OldRevealedLatitude(ctx)
+	case player.FieldRevealedLongitude:
+		return m.OldRevealedLongitude(ctx)
+	case player.FieldRevealedAccuracyMeters:
+		return m.OldRevealedAccuracyMeters(ctx)
+	case player.FieldRevealedRecordedAt:
+		return m.OldRevealedRecordedAt(ctx)
+	case player.FieldRevealedAt:
+		return m.OldRevealedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Player field %s", name)
 }
@@ -2187,6 +2832,69 @@ func (m *PlayerMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRouteRegenerationsLeft(v)
 		return nil
+	case player.FieldLatitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatitude(v)
+		return nil
+	case player.FieldLongitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLongitude(v)
+		return nil
+	case player.FieldAccuracyMeters:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccuracyMeters(v)
+		return nil
+	case player.FieldPositionRecordedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPositionRecordedAt(v)
+		return nil
+	case player.FieldRevealedLatitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevealedLatitude(v)
+		return nil
+	case player.FieldRevealedLongitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevealedLongitude(v)
+		return nil
+	case player.FieldRevealedAccuracyMeters:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevealedAccuracyMeters(v)
+		return nil
+	case player.FieldRevealedRecordedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevealedRecordedAt(v)
+		return nil
+	case player.FieldRevealedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevealedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Player field %s", name)
 }
@@ -2198,6 +2906,24 @@ func (m *PlayerMutation) AddedFields() []string {
 	if m.addroute_regenerations_left != nil {
 		fields = append(fields, player.FieldRouteRegenerationsLeft)
 	}
+	if m.addlatitude != nil {
+		fields = append(fields, player.FieldLatitude)
+	}
+	if m.addlongitude != nil {
+		fields = append(fields, player.FieldLongitude)
+	}
+	if m.addaccuracy_meters != nil {
+		fields = append(fields, player.FieldAccuracyMeters)
+	}
+	if m.addrevealed_latitude != nil {
+		fields = append(fields, player.FieldRevealedLatitude)
+	}
+	if m.addrevealed_longitude != nil {
+		fields = append(fields, player.FieldRevealedLongitude)
+	}
+	if m.addrevealed_accuracy_meters != nil {
+		fields = append(fields, player.FieldRevealedAccuracyMeters)
+	}
 	return fields
 }
 
@@ -2208,6 +2934,18 @@ func (m *PlayerMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case player.FieldRouteRegenerationsLeft:
 		return m.AddedRouteRegenerationsLeft()
+	case player.FieldLatitude:
+		return m.AddedLatitude()
+	case player.FieldLongitude:
+		return m.AddedLongitude()
+	case player.FieldAccuracyMeters:
+		return m.AddedAccuracyMeters()
+	case player.FieldRevealedLatitude:
+		return m.AddedRevealedLatitude()
+	case player.FieldRevealedLongitude:
+		return m.AddedRevealedLongitude()
+	case player.FieldRevealedAccuracyMeters:
+		return m.AddedRevealedAccuracyMeters()
 	}
 	return nil, false
 }
@@ -2223,6 +2961,48 @@ func (m *PlayerMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRouteRegenerationsLeft(v)
+		return nil
+	case player.FieldLatitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatitude(v)
+		return nil
+	case player.FieldLongitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLongitude(v)
+		return nil
+	case player.FieldAccuracyMeters:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccuracyMeters(v)
+		return nil
+	case player.FieldRevealedLatitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevealedLatitude(v)
+		return nil
+	case player.FieldRevealedLongitude:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevealedLongitude(v)
+		return nil
+	case player.FieldRevealedAccuracyMeters:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevealedAccuracyMeters(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Player numeric field %s", name)
@@ -2240,6 +3020,33 @@ func (m *PlayerMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(player.FieldRouteRegenerationsLeft) {
 		fields = append(fields, player.FieldRouteRegenerationsLeft)
+	}
+	if m.FieldCleared(player.FieldLatitude) {
+		fields = append(fields, player.FieldLatitude)
+	}
+	if m.FieldCleared(player.FieldLongitude) {
+		fields = append(fields, player.FieldLongitude)
+	}
+	if m.FieldCleared(player.FieldAccuracyMeters) {
+		fields = append(fields, player.FieldAccuracyMeters)
+	}
+	if m.FieldCleared(player.FieldPositionRecordedAt) {
+		fields = append(fields, player.FieldPositionRecordedAt)
+	}
+	if m.FieldCleared(player.FieldRevealedLatitude) {
+		fields = append(fields, player.FieldRevealedLatitude)
+	}
+	if m.FieldCleared(player.FieldRevealedLongitude) {
+		fields = append(fields, player.FieldRevealedLongitude)
+	}
+	if m.FieldCleared(player.FieldRevealedAccuracyMeters) {
+		fields = append(fields, player.FieldRevealedAccuracyMeters)
+	}
+	if m.FieldCleared(player.FieldRevealedRecordedAt) {
+		fields = append(fields, player.FieldRevealedRecordedAt)
+	}
+	if m.FieldCleared(player.FieldRevealedAt) {
+		fields = append(fields, player.FieldRevealedAt)
 	}
 	return fields
 }
@@ -2263,6 +3070,33 @@ func (m *PlayerMutation) ClearField(name string) error {
 		return nil
 	case player.FieldRouteRegenerationsLeft:
 		m.ClearRouteRegenerationsLeft()
+		return nil
+	case player.FieldLatitude:
+		m.ClearLatitude()
+		return nil
+	case player.FieldLongitude:
+		m.ClearLongitude()
+		return nil
+	case player.FieldAccuracyMeters:
+		m.ClearAccuracyMeters()
+		return nil
+	case player.FieldPositionRecordedAt:
+		m.ClearPositionRecordedAt()
+		return nil
+	case player.FieldRevealedLatitude:
+		m.ClearRevealedLatitude()
+		return nil
+	case player.FieldRevealedLongitude:
+		m.ClearRevealedLongitude()
+		return nil
+	case player.FieldRevealedAccuracyMeters:
+		m.ClearRevealedAccuracyMeters()
+		return nil
+	case player.FieldRevealedRecordedAt:
+		m.ClearRevealedRecordedAt()
+		return nil
+	case player.FieldRevealedAt:
+		m.ClearRevealedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Player nullable field %s", name)
@@ -2298,6 +3132,33 @@ func (m *PlayerMutation) ResetField(name string) error {
 		return nil
 	case player.FieldRouteRegenerationsLeft:
 		m.ResetRouteRegenerationsLeft()
+		return nil
+	case player.FieldLatitude:
+		m.ResetLatitude()
+		return nil
+	case player.FieldLongitude:
+		m.ResetLongitude()
+		return nil
+	case player.FieldAccuracyMeters:
+		m.ResetAccuracyMeters()
+		return nil
+	case player.FieldPositionRecordedAt:
+		m.ResetPositionRecordedAt()
+		return nil
+	case player.FieldRevealedLatitude:
+		m.ResetRevealedLatitude()
+		return nil
+	case player.FieldRevealedLongitude:
+		m.ResetRevealedLongitude()
+		return nil
+	case player.FieldRevealedAccuracyMeters:
+		m.ResetRevealedAccuracyMeters()
+		return nil
+	case player.FieldRevealedRecordedAt:
+		m.ResetRevealedRecordedAt()
+		return nil
+	case player.FieldRevealedAt:
+		m.ResetRevealedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Player field %s", name)

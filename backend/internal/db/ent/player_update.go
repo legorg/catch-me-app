@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -108,6 +109,228 @@ func (_u *PlayerUpdate) ClearRouteRegenerationsLeft() *PlayerUpdate {
 	return _u
 }
 
+// SetLatitude sets the "latitude" field.
+func (_u *PlayerUpdate) SetLatitude(v float64) *PlayerUpdate {
+	_u.mutation.ResetLatitude()
+	_u.mutation.SetLatitude(v)
+	return _u
+}
+
+// SetNillableLatitude sets the "latitude" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableLatitude(v *float64) *PlayerUpdate {
+	if v != nil {
+		_u.SetLatitude(*v)
+	}
+	return _u
+}
+
+// AddLatitude adds value to the "latitude" field.
+func (_u *PlayerUpdate) AddLatitude(v float64) *PlayerUpdate {
+	_u.mutation.AddLatitude(v)
+	return _u
+}
+
+// ClearLatitude clears the value of the "latitude" field.
+func (_u *PlayerUpdate) ClearLatitude() *PlayerUpdate {
+	_u.mutation.ClearLatitude()
+	return _u
+}
+
+// SetLongitude sets the "longitude" field.
+func (_u *PlayerUpdate) SetLongitude(v float64) *PlayerUpdate {
+	_u.mutation.ResetLongitude()
+	_u.mutation.SetLongitude(v)
+	return _u
+}
+
+// SetNillableLongitude sets the "longitude" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableLongitude(v *float64) *PlayerUpdate {
+	if v != nil {
+		_u.SetLongitude(*v)
+	}
+	return _u
+}
+
+// AddLongitude adds value to the "longitude" field.
+func (_u *PlayerUpdate) AddLongitude(v float64) *PlayerUpdate {
+	_u.mutation.AddLongitude(v)
+	return _u
+}
+
+// ClearLongitude clears the value of the "longitude" field.
+func (_u *PlayerUpdate) ClearLongitude() *PlayerUpdate {
+	_u.mutation.ClearLongitude()
+	return _u
+}
+
+// SetAccuracyMeters sets the "accuracy_meters" field.
+func (_u *PlayerUpdate) SetAccuracyMeters(v float64) *PlayerUpdate {
+	_u.mutation.ResetAccuracyMeters()
+	_u.mutation.SetAccuracyMeters(v)
+	return _u
+}
+
+// SetNillableAccuracyMeters sets the "accuracy_meters" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableAccuracyMeters(v *float64) *PlayerUpdate {
+	if v != nil {
+		_u.SetAccuracyMeters(*v)
+	}
+	return _u
+}
+
+// AddAccuracyMeters adds value to the "accuracy_meters" field.
+func (_u *PlayerUpdate) AddAccuracyMeters(v float64) *PlayerUpdate {
+	_u.mutation.AddAccuracyMeters(v)
+	return _u
+}
+
+// ClearAccuracyMeters clears the value of the "accuracy_meters" field.
+func (_u *PlayerUpdate) ClearAccuracyMeters() *PlayerUpdate {
+	_u.mutation.ClearAccuracyMeters()
+	return _u
+}
+
+// SetPositionRecordedAt sets the "position_recorded_at" field.
+func (_u *PlayerUpdate) SetPositionRecordedAt(v time.Time) *PlayerUpdate {
+	_u.mutation.SetPositionRecordedAt(v)
+	return _u
+}
+
+// SetNillablePositionRecordedAt sets the "position_recorded_at" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillablePositionRecordedAt(v *time.Time) *PlayerUpdate {
+	if v != nil {
+		_u.SetPositionRecordedAt(*v)
+	}
+	return _u
+}
+
+// ClearPositionRecordedAt clears the value of the "position_recorded_at" field.
+func (_u *PlayerUpdate) ClearPositionRecordedAt() *PlayerUpdate {
+	_u.mutation.ClearPositionRecordedAt()
+	return _u
+}
+
+// SetRevealedLatitude sets the "revealed_latitude" field.
+func (_u *PlayerUpdate) SetRevealedLatitude(v float64) *PlayerUpdate {
+	_u.mutation.ResetRevealedLatitude()
+	_u.mutation.SetRevealedLatitude(v)
+	return _u
+}
+
+// SetNillableRevealedLatitude sets the "revealed_latitude" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRevealedLatitude(v *float64) *PlayerUpdate {
+	if v != nil {
+		_u.SetRevealedLatitude(*v)
+	}
+	return _u
+}
+
+// AddRevealedLatitude adds value to the "revealed_latitude" field.
+func (_u *PlayerUpdate) AddRevealedLatitude(v float64) *PlayerUpdate {
+	_u.mutation.AddRevealedLatitude(v)
+	return _u
+}
+
+// ClearRevealedLatitude clears the value of the "revealed_latitude" field.
+func (_u *PlayerUpdate) ClearRevealedLatitude() *PlayerUpdate {
+	_u.mutation.ClearRevealedLatitude()
+	return _u
+}
+
+// SetRevealedLongitude sets the "revealed_longitude" field.
+func (_u *PlayerUpdate) SetRevealedLongitude(v float64) *PlayerUpdate {
+	_u.mutation.ResetRevealedLongitude()
+	_u.mutation.SetRevealedLongitude(v)
+	return _u
+}
+
+// SetNillableRevealedLongitude sets the "revealed_longitude" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRevealedLongitude(v *float64) *PlayerUpdate {
+	if v != nil {
+		_u.SetRevealedLongitude(*v)
+	}
+	return _u
+}
+
+// AddRevealedLongitude adds value to the "revealed_longitude" field.
+func (_u *PlayerUpdate) AddRevealedLongitude(v float64) *PlayerUpdate {
+	_u.mutation.AddRevealedLongitude(v)
+	return _u
+}
+
+// ClearRevealedLongitude clears the value of the "revealed_longitude" field.
+func (_u *PlayerUpdate) ClearRevealedLongitude() *PlayerUpdate {
+	_u.mutation.ClearRevealedLongitude()
+	return _u
+}
+
+// SetRevealedAccuracyMeters sets the "revealed_accuracy_meters" field.
+func (_u *PlayerUpdate) SetRevealedAccuracyMeters(v float64) *PlayerUpdate {
+	_u.mutation.ResetRevealedAccuracyMeters()
+	_u.mutation.SetRevealedAccuracyMeters(v)
+	return _u
+}
+
+// SetNillableRevealedAccuracyMeters sets the "revealed_accuracy_meters" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRevealedAccuracyMeters(v *float64) *PlayerUpdate {
+	if v != nil {
+		_u.SetRevealedAccuracyMeters(*v)
+	}
+	return _u
+}
+
+// AddRevealedAccuracyMeters adds value to the "revealed_accuracy_meters" field.
+func (_u *PlayerUpdate) AddRevealedAccuracyMeters(v float64) *PlayerUpdate {
+	_u.mutation.AddRevealedAccuracyMeters(v)
+	return _u
+}
+
+// ClearRevealedAccuracyMeters clears the value of the "revealed_accuracy_meters" field.
+func (_u *PlayerUpdate) ClearRevealedAccuracyMeters() *PlayerUpdate {
+	_u.mutation.ClearRevealedAccuracyMeters()
+	return _u
+}
+
+// SetRevealedRecordedAt sets the "revealed_recorded_at" field.
+func (_u *PlayerUpdate) SetRevealedRecordedAt(v time.Time) *PlayerUpdate {
+	_u.mutation.SetRevealedRecordedAt(v)
+	return _u
+}
+
+// SetNillableRevealedRecordedAt sets the "revealed_recorded_at" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRevealedRecordedAt(v *time.Time) *PlayerUpdate {
+	if v != nil {
+		_u.SetRevealedRecordedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevealedRecordedAt clears the value of the "revealed_recorded_at" field.
+func (_u *PlayerUpdate) ClearRevealedRecordedAt() *PlayerUpdate {
+	_u.mutation.ClearRevealedRecordedAt()
+	return _u
+}
+
+// SetRevealedAt sets the "revealed_at" field.
+func (_u *PlayerUpdate) SetRevealedAt(v time.Time) *PlayerUpdate {
+	_u.mutation.SetRevealedAt(v)
+	return _u
+}
+
+// SetNillableRevealedAt sets the "revealed_at" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRevealedAt(v *time.Time) *PlayerUpdate {
+	if v != nil {
+		_u.SetRevealedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevealedAt clears the value of the "revealed_at" field.
+func (_u *PlayerUpdate) ClearRevealedAt() *PlayerUpdate {
+	_u.mutation.ClearRevealedAt()
+	return _u
+}
+
 // Mutation returns the PlayerMutation object of the builder.
 func (_u *PlayerUpdate) Mutation() *PlayerMutation {
 	return _u.mutation
@@ -198,6 +421,78 @@ func (_u *PlayerUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.RouteRegenerationsLeftCleared() {
 		_spec.ClearField(player.FieldRouteRegenerationsLeft, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Latitude(); ok {
+		_spec.SetField(player.FieldLatitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLatitude(); ok {
+		_spec.AddField(player.FieldLatitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.LatitudeCleared() {
+		_spec.ClearField(player.FieldLatitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Longitude(); ok {
+		_spec.SetField(player.FieldLongitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLongitude(); ok {
+		_spec.AddField(player.FieldLongitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.LongitudeCleared() {
+		_spec.ClearField(player.FieldLongitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.AccuracyMeters(); ok {
+		_spec.SetField(player.FieldAccuracyMeters, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAccuracyMeters(); ok {
+		_spec.AddField(player.FieldAccuracyMeters, field.TypeFloat64, value)
+	}
+	if _u.mutation.AccuracyMetersCleared() {
+		_spec.ClearField(player.FieldAccuracyMeters, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.PositionRecordedAt(); ok {
+		_spec.SetField(player.FieldPositionRecordedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PositionRecordedAtCleared() {
+		_spec.ClearField(player.FieldPositionRecordedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevealedLatitude(); ok {
+		_spec.SetField(player.FieldRevealedLatitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRevealedLatitude(); ok {
+		_spec.AddField(player.FieldRevealedLatitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.RevealedLatitudeCleared() {
+		_spec.ClearField(player.FieldRevealedLatitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.RevealedLongitude(); ok {
+		_spec.SetField(player.FieldRevealedLongitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRevealedLongitude(); ok {
+		_spec.AddField(player.FieldRevealedLongitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.RevealedLongitudeCleared() {
+		_spec.ClearField(player.FieldRevealedLongitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.RevealedAccuracyMeters(); ok {
+		_spec.SetField(player.FieldRevealedAccuracyMeters, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRevealedAccuracyMeters(); ok {
+		_spec.AddField(player.FieldRevealedAccuracyMeters, field.TypeFloat64, value)
+	}
+	if _u.mutation.RevealedAccuracyMetersCleared() {
+		_spec.ClearField(player.FieldRevealedAccuracyMeters, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.RevealedRecordedAt(); ok {
+		_spec.SetField(player.FieldRevealedRecordedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevealedRecordedAtCleared() {
+		_spec.ClearField(player.FieldRevealedRecordedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevealedAt(); ok {
+		_spec.SetField(player.FieldRevealedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevealedAtCleared() {
+		_spec.ClearField(player.FieldRevealedAt, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -297,6 +592,228 @@ func (_u *PlayerUpdateOne) AddRouteRegenerationsLeft(v int) *PlayerUpdateOne {
 // ClearRouteRegenerationsLeft clears the value of the "route_regenerations_left" field.
 func (_u *PlayerUpdateOne) ClearRouteRegenerationsLeft() *PlayerUpdateOne {
 	_u.mutation.ClearRouteRegenerationsLeft()
+	return _u
+}
+
+// SetLatitude sets the "latitude" field.
+func (_u *PlayerUpdateOne) SetLatitude(v float64) *PlayerUpdateOne {
+	_u.mutation.ResetLatitude()
+	_u.mutation.SetLatitude(v)
+	return _u
+}
+
+// SetNillableLatitude sets the "latitude" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableLatitude(v *float64) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetLatitude(*v)
+	}
+	return _u
+}
+
+// AddLatitude adds value to the "latitude" field.
+func (_u *PlayerUpdateOne) AddLatitude(v float64) *PlayerUpdateOne {
+	_u.mutation.AddLatitude(v)
+	return _u
+}
+
+// ClearLatitude clears the value of the "latitude" field.
+func (_u *PlayerUpdateOne) ClearLatitude() *PlayerUpdateOne {
+	_u.mutation.ClearLatitude()
+	return _u
+}
+
+// SetLongitude sets the "longitude" field.
+func (_u *PlayerUpdateOne) SetLongitude(v float64) *PlayerUpdateOne {
+	_u.mutation.ResetLongitude()
+	_u.mutation.SetLongitude(v)
+	return _u
+}
+
+// SetNillableLongitude sets the "longitude" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableLongitude(v *float64) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetLongitude(*v)
+	}
+	return _u
+}
+
+// AddLongitude adds value to the "longitude" field.
+func (_u *PlayerUpdateOne) AddLongitude(v float64) *PlayerUpdateOne {
+	_u.mutation.AddLongitude(v)
+	return _u
+}
+
+// ClearLongitude clears the value of the "longitude" field.
+func (_u *PlayerUpdateOne) ClearLongitude() *PlayerUpdateOne {
+	_u.mutation.ClearLongitude()
+	return _u
+}
+
+// SetAccuracyMeters sets the "accuracy_meters" field.
+func (_u *PlayerUpdateOne) SetAccuracyMeters(v float64) *PlayerUpdateOne {
+	_u.mutation.ResetAccuracyMeters()
+	_u.mutation.SetAccuracyMeters(v)
+	return _u
+}
+
+// SetNillableAccuracyMeters sets the "accuracy_meters" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableAccuracyMeters(v *float64) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetAccuracyMeters(*v)
+	}
+	return _u
+}
+
+// AddAccuracyMeters adds value to the "accuracy_meters" field.
+func (_u *PlayerUpdateOne) AddAccuracyMeters(v float64) *PlayerUpdateOne {
+	_u.mutation.AddAccuracyMeters(v)
+	return _u
+}
+
+// ClearAccuracyMeters clears the value of the "accuracy_meters" field.
+func (_u *PlayerUpdateOne) ClearAccuracyMeters() *PlayerUpdateOne {
+	_u.mutation.ClearAccuracyMeters()
+	return _u
+}
+
+// SetPositionRecordedAt sets the "position_recorded_at" field.
+func (_u *PlayerUpdateOne) SetPositionRecordedAt(v time.Time) *PlayerUpdateOne {
+	_u.mutation.SetPositionRecordedAt(v)
+	return _u
+}
+
+// SetNillablePositionRecordedAt sets the "position_recorded_at" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillablePositionRecordedAt(v *time.Time) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetPositionRecordedAt(*v)
+	}
+	return _u
+}
+
+// ClearPositionRecordedAt clears the value of the "position_recorded_at" field.
+func (_u *PlayerUpdateOne) ClearPositionRecordedAt() *PlayerUpdateOne {
+	_u.mutation.ClearPositionRecordedAt()
+	return _u
+}
+
+// SetRevealedLatitude sets the "revealed_latitude" field.
+func (_u *PlayerUpdateOne) SetRevealedLatitude(v float64) *PlayerUpdateOne {
+	_u.mutation.ResetRevealedLatitude()
+	_u.mutation.SetRevealedLatitude(v)
+	return _u
+}
+
+// SetNillableRevealedLatitude sets the "revealed_latitude" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRevealedLatitude(v *float64) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRevealedLatitude(*v)
+	}
+	return _u
+}
+
+// AddRevealedLatitude adds value to the "revealed_latitude" field.
+func (_u *PlayerUpdateOne) AddRevealedLatitude(v float64) *PlayerUpdateOne {
+	_u.mutation.AddRevealedLatitude(v)
+	return _u
+}
+
+// ClearRevealedLatitude clears the value of the "revealed_latitude" field.
+func (_u *PlayerUpdateOne) ClearRevealedLatitude() *PlayerUpdateOne {
+	_u.mutation.ClearRevealedLatitude()
+	return _u
+}
+
+// SetRevealedLongitude sets the "revealed_longitude" field.
+func (_u *PlayerUpdateOne) SetRevealedLongitude(v float64) *PlayerUpdateOne {
+	_u.mutation.ResetRevealedLongitude()
+	_u.mutation.SetRevealedLongitude(v)
+	return _u
+}
+
+// SetNillableRevealedLongitude sets the "revealed_longitude" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRevealedLongitude(v *float64) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRevealedLongitude(*v)
+	}
+	return _u
+}
+
+// AddRevealedLongitude adds value to the "revealed_longitude" field.
+func (_u *PlayerUpdateOne) AddRevealedLongitude(v float64) *PlayerUpdateOne {
+	_u.mutation.AddRevealedLongitude(v)
+	return _u
+}
+
+// ClearRevealedLongitude clears the value of the "revealed_longitude" field.
+func (_u *PlayerUpdateOne) ClearRevealedLongitude() *PlayerUpdateOne {
+	_u.mutation.ClearRevealedLongitude()
+	return _u
+}
+
+// SetRevealedAccuracyMeters sets the "revealed_accuracy_meters" field.
+func (_u *PlayerUpdateOne) SetRevealedAccuracyMeters(v float64) *PlayerUpdateOne {
+	_u.mutation.ResetRevealedAccuracyMeters()
+	_u.mutation.SetRevealedAccuracyMeters(v)
+	return _u
+}
+
+// SetNillableRevealedAccuracyMeters sets the "revealed_accuracy_meters" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRevealedAccuracyMeters(v *float64) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRevealedAccuracyMeters(*v)
+	}
+	return _u
+}
+
+// AddRevealedAccuracyMeters adds value to the "revealed_accuracy_meters" field.
+func (_u *PlayerUpdateOne) AddRevealedAccuracyMeters(v float64) *PlayerUpdateOne {
+	_u.mutation.AddRevealedAccuracyMeters(v)
+	return _u
+}
+
+// ClearRevealedAccuracyMeters clears the value of the "revealed_accuracy_meters" field.
+func (_u *PlayerUpdateOne) ClearRevealedAccuracyMeters() *PlayerUpdateOne {
+	_u.mutation.ClearRevealedAccuracyMeters()
+	return _u
+}
+
+// SetRevealedRecordedAt sets the "revealed_recorded_at" field.
+func (_u *PlayerUpdateOne) SetRevealedRecordedAt(v time.Time) *PlayerUpdateOne {
+	_u.mutation.SetRevealedRecordedAt(v)
+	return _u
+}
+
+// SetNillableRevealedRecordedAt sets the "revealed_recorded_at" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRevealedRecordedAt(v *time.Time) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRevealedRecordedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevealedRecordedAt clears the value of the "revealed_recorded_at" field.
+func (_u *PlayerUpdateOne) ClearRevealedRecordedAt() *PlayerUpdateOne {
+	_u.mutation.ClearRevealedRecordedAt()
+	return _u
+}
+
+// SetRevealedAt sets the "revealed_at" field.
+func (_u *PlayerUpdateOne) SetRevealedAt(v time.Time) *PlayerUpdateOne {
+	_u.mutation.SetRevealedAt(v)
+	return _u
+}
+
+// SetNillableRevealedAt sets the "revealed_at" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRevealedAt(v *time.Time) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRevealedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevealedAt clears the value of the "revealed_at" field.
+func (_u *PlayerUpdateOne) ClearRevealedAt() *PlayerUpdateOne {
+	_u.mutation.ClearRevealedAt()
 	return _u
 }
 
@@ -420,6 +937,78 @@ func (_u *PlayerUpdateOne) sqlSave(ctx context.Context) (_node *Player, err erro
 	}
 	if _u.mutation.RouteRegenerationsLeftCleared() {
 		_spec.ClearField(player.FieldRouteRegenerationsLeft, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Latitude(); ok {
+		_spec.SetField(player.FieldLatitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLatitude(); ok {
+		_spec.AddField(player.FieldLatitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.LatitudeCleared() {
+		_spec.ClearField(player.FieldLatitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Longitude(); ok {
+		_spec.SetField(player.FieldLongitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedLongitude(); ok {
+		_spec.AddField(player.FieldLongitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.LongitudeCleared() {
+		_spec.ClearField(player.FieldLongitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.AccuracyMeters(); ok {
+		_spec.SetField(player.FieldAccuracyMeters, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAccuracyMeters(); ok {
+		_spec.AddField(player.FieldAccuracyMeters, field.TypeFloat64, value)
+	}
+	if _u.mutation.AccuracyMetersCleared() {
+		_spec.ClearField(player.FieldAccuracyMeters, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.PositionRecordedAt(); ok {
+		_spec.SetField(player.FieldPositionRecordedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PositionRecordedAtCleared() {
+		_spec.ClearField(player.FieldPositionRecordedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevealedLatitude(); ok {
+		_spec.SetField(player.FieldRevealedLatitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRevealedLatitude(); ok {
+		_spec.AddField(player.FieldRevealedLatitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.RevealedLatitudeCleared() {
+		_spec.ClearField(player.FieldRevealedLatitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.RevealedLongitude(); ok {
+		_spec.SetField(player.FieldRevealedLongitude, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRevealedLongitude(); ok {
+		_spec.AddField(player.FieldRevealedLongitude, field.TypeFloat64, value)
+	}
+	if _u.mutation.RevealedLongitudeCleared() {
+		_spec.ClearField(player.FieldRevealedLongitude, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.RevealedAccuracyMeters(); ok {
+		_spec.SetField(player.FieldRevealedAccuracyMeters, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRevealedAccuracyMeters(); ok {
+		_spec.AddField(player.FieldRevealedAccuracyMeters, field.TypeFloat64, value)
+	}
+	if _u.mutation.RevealedAccuracyMetersCleared() {
+		_spec.ClearField(player.FieldRevealedAccuracyMeters, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.RevealedRecordedAt(); ok {
+		_spec.SetField(player.FieldRevealedRecordedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevealedRecordedAtCleared() {
+		_spec.ClearField(player.FieldRevealedRecordedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevealedAt(); ok {
+		_spec.SetField(player.FieldRevealedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevealedAtCleared() {
+		_spec.ClearField(player.FieldRevealedAt, field.TypeTime)
 	}
 	_node = &Player{config: _u.config}
 	_spec.Assign = _node.assignValues
