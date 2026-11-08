@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameData, GetGameErrors, GetGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthErrors, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, SetReadyData, SetReadyErrors, SetReadyResponses } from './types.gen';
+import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameData, GetGameErrors, GetGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthErrors, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetReadyData, SetReadyErrors, SetReadyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -64,6 +64,15 @@ export const setReady = <ThrowOnError extends boolean = false>(options: Options<
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Regenerate the authenticated runner's route
+ */
+export const regenerateRoute = <ThrowOnError extends boolean = false>(options?: Options<RegenerateRouteData, ThrowOnError>) => (options?.client ?? client).post<RegenerateRouteResponses, RegenerateRouteErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/route',
+    ...options
 });
 
 /**

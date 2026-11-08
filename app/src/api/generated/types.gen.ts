@@ -42,6 +42,10 @@ export type GameStateResponse = {
     playerId: string;
     players: Array<PlayerResponse>;
     playground: Playground;
+    /**
+     * The requesting runner's own route; absent for hunters.
+     */
+    route?: RouteResponse;
     serverTime: string;
     sessionId: string;
     /**
@@ -85,6 +89,12 @@ export type Playground = {
     center: Coordinates;
     columns: 6;
     rows: 6;
+};
+
+export type RouteResponse = {
+    end: string;
+    regenerationsLeft: number;
+    start: string;
 };
 
 export type SetReadyRequest = {
@@ -308,6 +318,47 @@ export type SetReadyResponses = {
 };
 
 export type SetReadyResponse = SetReadyResponses[keyof SetReadyResponses];
+
+export type RegenerateRouteData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/route';
+};
+
+export type RegenerateRouteErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Not a runner, ready, no changes left, or game started
+     */
+    409: ApiError;
+    /**
+     * Could not update game
+     */
+    500: ApiError;
+};
+
+export type RegenerateRouteError = RegenerateRouteErrors[keyof RegenerateRouteErrors];
+
+export type RegenerateRouteResponses = {
+    /**
+     * Updated game state with the new route
+     */
+    200: GameStateResponse;
+};
+
+export type RegenerateRouteResponse = RegenerateRouteResponses[keyof RegenerateRouteResponses];
 
 export type JoinGameData = {
     /**

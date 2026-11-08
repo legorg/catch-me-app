@@ -72,3 +72,22 @@ export function cellLabels(p: Playground) {
     };
   });
 }
+
+/** Bounds of a cell such as "C4" (columns A–F west to east, rows 1–6 north to south). */
+export function cellBounds(p: Playground, label: string): Bounds {
+  const column = label.charCodeAt(0) - 65;
+  const row = Number(label.slice(1)) - 1;
+  if (!/^[A-F][1-6]$/.test(label) || column >= p.columns || row >= p.rows) {
+    throw new Error(`Unknown cell ${label}.`);
+  }
+  const height = (p.bounds.north - p.bounds.south) / p.rows;
+  const width = (p.bounds.east - p.bounds.west) / p.columns;
+  const north = p.bounds.north - height * row;
+  const west = p.bounds.west + width * column;
+  return { north, south: north - height, west, east: west + width };
+}
+
+/** Which playground edge a cell in row 1 or 6 lies on. */
+export function edgeName(label: string): string {
+  return label.endsWith('1') ? 'north edge' : label.endsWith('6') ? 'south edge' : 'inside';
+}

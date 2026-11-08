@@ -4,13 +4,14 @@ import {
   getHealth,
   joinGame as postPlayer,
   leaveGame as deletePlayer,
+  regenerateRoute as postRoute,
   setReady as putReady,
 } from './generated/sdk.gen';
 import type { CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, Playground } from './generated/types.gen';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type {
-  Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, PlayerResponse, Playground,
+  Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, PlayerResponse, Playground, RouteResponse,
 } from './generated/types.gen';
 
 export const API_URL = (
@@ -18,6 +19,7 @@ export const API_URL = (
 ).trim().replace(/\/+$/, '');
 
 export const JOIN_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/;
+const CELL_PATTERN = /^[A-F][1-6]$/;
 export const MAX_NAME_LENGTH = 20;
 
 /** An error response from the backend, with its HTTP status (e.g. 401 for an unknown player token). */
@@ -91,6 +93,12 @@ export async function leaveGame(token: string): Promise<void> {
   await request((signal) => deletePlayer({ baseUrl: API_URL, auth: bearer(token), signal }));
 }
 
+export async function regenerateRoute(token: string): Promise<GameStateResponse> {
+  const data = await request((signal) => postRoute({ baseUrl: API_URL, auth: bearer(token), signal }));
+  assertGameState(data);
+  return data;
+}
+
 // The API declares an apiKey scheme, so the generated client sends this value unchanged.
 function bearer(token: string) {
   return `Bearer ${token}`;
@@ -120,6 +128,12 @@ function isTeam(value: unknown): value is 'runner' | 'hunter' {
   return value === 'runner' || value === 'hunter';
 }
 
+function isRoute(value: unknown): boolean {
+  return isRecord(value) && typeof value.start === 'string' && CELL_PATTERN.test(value.start) &&
+    typeof value.end === 'string' && CELL_PATTERN.test(value.end) &&
+    Number.isInteger(value.regenerationsLeft) && (value.regenerationsLeft as number) >= 0 && (value.regenerationsLeft as number) <= 2;
+}
+
 function isPlayground(p: unknown): p is Playground {
   const c = isRecord(p) ? p.center : undefined;
   const b = isRecord(p) ? p.bounds : undefined;
@@ -136,6 +150,7 @@ function assertGameState(body: unknown): asserts body is GameStateResponse {
   if (!isRecord(body) || !isHex(body.sessionId, 32) || !['lobby', 'countdown', 'running'].includes(body.status as string) ||
       !isDate(body.serverTime) || (body.startsAt !== undefined && !isDate(body.startsAt)) ||
       !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCode(body.joinCode) ||
+      (body.route !== undefined && (body.team !== 'runner' || !isRoute(body.route))) ||
       !Array.isArray(body.players) || !body.players.every((p) => isRecord(p) && isHex(p.playerId, 32) &&
         typeof p.name === 'string' && isTeam(p.team) && typeof p.ready === 'boolean')) {
     throw new Error('Unexpected game state. Check the API URL.');

@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text } from 'react-native';
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
-import { boundaryCoordinates, cellLabels, gridLines } from '../playground';
+import { boundaryCoordinates, cellBounds, cellLabels, gridLines } from '../playground';
 import type { PlaygroundMapProps } from './playground-map';
 
-export default function PlaygroundMap({ playground, editable, onSelect }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [] }: PlaygroundMapProps) {
   const map = useRef<MapView>(null);
   const [ready, setReady] = useState(false);
-  const center = playground?.center ?? { latitude: 52.52, longitude: 13.405 };
+  const center = playground?.center ?? { latitude: 50.9375, longitude: 6.9603 }; //Cologne
   const bounds = playground?.bounds;
   const north = bounds?.north;
   const south = bounds?.south;
@@ -42,6 +42,9 @@ export default function PlaygroundMap({ playground, editable, onSelect }: Playgr
     >
       {playground && <>
         <Polygon coordinates={boundaryCoordinates(playground.bounds)} strokeColor="#10251c" strokeWidth={3} fillColor="rgba(167,233,189,0.15)" />
+        {highlights.map(({ cell, color }) => (
+          <Polygon key={cell + color} coordinates={boundaryCoordinates(cellBounds(playground, cell))} strokeColor={color} strokeWidth={3} fillColor={`${color}55`} tappable={false} />
+        ))}
         {gridLines(playground).map((coordinates, index) => (
           <Polyline key={index} coordinates={coordinates} strokeColor="#10251c" strokeWidth={1} />
         ))}

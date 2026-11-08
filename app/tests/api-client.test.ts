@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, setReady,
+  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setReady,
 } from '../src/api/client';
 import { previewPlayground } from '../src/playground';
 
@@ -21,6 +21,7 @@ const state = {
   team: 'runner',
   joinCode: 'K7M2QX',
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
+  route: { start: 'B1', end: 'E6', regenerationsLeft: 2 },
 };
 
 test('create posts the center and cell size as JSON', async (t) => {
@@ -86,8 +87,9 @@ test('player requests send the bearer token', async (t) => {
   });
   assert.deepEqual(await getGameState(token), state);
   assert.deepEqual(await setReady(token, true), state);
+  assert.deepEqual(await regenerateRoute(token), state);
   await leaveGame(token);
-  assert.deepEqual(seen, ['GET /api/me/game', 'PUT /api/me/ready', 'DELETE /api/me']);
+  assert.deepEqual(seen, ['GET /api/me/game', 'PUT /api/me/ready', 'POST /api/me/route', 'DELETE /api/me']);
 });
 
 test('health check also uses the generated client', async (t) => {
@@ -116,7 +118,9 @@ test('malformed successful responses are rejected at runtime', async (t) => {
     await assert.rejects(createGame(center), /Unexpected game response/);
   }
   for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCode: 'bad' },
-    { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null }]) {
+    { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null },
+    { ...state, route: { start: 'G1', end: 'E6', regenerationsLeft: 2 } }, { ...state, route: { ...state.route, regenerationsLeft: 3 } },
+    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter', joinCode: 'P4R9TW' }]) {
     t.mock.method(globalThis, 'fetch', async () => Response.json(body));
     await assert.rejects(getGameState(token), /Unexpected game state/);
   }

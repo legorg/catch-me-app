@@ -4,14 +4,17 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError, getGameState, leaveGame, setReady, type GameStateResponse } from '@/api/client';
+import { ApiError, getGameState, leaveGame, regenerateRoute, setReady, type GameStateResponse } from '@/api/client';
 import Button from '@/components/button';
-import PlaygroundMap from '@/components/playground-map';
+import PlaygroundMap, { type CellHighlight } from '@/components/playground-map';
 import { TEAM_LABELS, playersByTeam, secondsUntilStart } from '@/lobby';
 import { playerSession } from '@/player-session';
+import { edgeName } from '@/playground';
 import { colors, styles } from '@/styles';
 
 const POLL_INTERVAL_MS = 2000;
+const START_COLOR = '#2f80ed';
+const TARGET_COLOR = '#eb5757';
 
 function goHome() {
   playerSession.clear();
@@ -86,6 +89,10 @@ export default function LobbyScreen() {
   const countdown = secondsUntilStart(state, receivedAt, now);
   const running = state.status === 'running' || countdown === 0;
   const teams = playersByTeam(state.players);
+  const route = state.route;
+  const highlights: CellHighlight[] = route
+    ? [{ cell: route.start, title: 'Start', color: START_COLOR }, { cell: route.end, title: 'Target', color: TARGET_COLOR }]
+    : [];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -106,6 +113,22 @@ export default function LobbyScreen() {
             <Text selectable style={styles.code}>{state.joinCode}</Text>
           </>}
         </View>
+        {route && <View style={styles.card}>
+          <Text style={styles.heading}>Your route</Text>
+          <Text style={styles.text}>
+            Start in <Text style={[styles.heading, { color: START_COLOR }]}>{route.start}</Text> ({edgeName(route.start)}) and reach{' '}
+            <Text style={[styles.heading, { color: TARGET_COLOR }]}>{route.end}</Text> ({edgeName(route.end)}) without being caught.
+          </Text>
+          <Text style={styles.hint}>Only you can see your route. Hunters start anywhere.</Text>
+          {!running && <Button
+            label={`New route (${route.regenerationsLeft} left)`}
+            variant="secondary"
+            disabled={busy || me?.ready || route.regenerationsLeft === 0}
+            onPress={() => void act(async () => show(await regenerateRoute(token)))}
+          />}
+          {!running && me?.ready && route.regenerationsLeft > 0 && <Text style={styles.hint}>Set yourself not ready to change your route.</Text>}
+        </View>}
+        {state.team === 'hunter' && !running && <Text style={styles.hint}>Hunters start anywhere on the playground.</Text>}
         {(['runner', 'hunter'] as const).map((team) => (
           <View key={team} style={styles.card}>
             <Text style={styles.heading}>{TEAM_LABELS[team]} ({teams[team].length})</Text>
@@ -132,7 +155,7 @@ export default function LobbyScreen() {
         </View>}
         {running && <Button label="Exit to home" variant="secondary" onPress={goHome} />}
         <View style={styles.mapContainer}>
-          <PlaygroundMap playground={state.playground} editable={false} onSelect={() => {}} />
+          <PlaygroundMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} />
         </View>
       </ScrollView>
     </SafeAreaView>
