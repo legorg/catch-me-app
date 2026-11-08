@@ -16,17 +16,20 @@ backend/                  Go standard-library HTTP + Ent + SQLite
   internal/api/           Route registration, CORS, integration tests
   internal/controller/    HTTP parsing, response models, error mapping
   internal/service/       Game use cases and persistence interface
-  internal/game/          Parsed domain values, playground geometry
+  internal/game/          Parsed domain values, lobby rules, playground geometry
   internal/db/            Ent-backed SQLite store
     ent/schema/           Handwritten Go table definitions
     ent/                  Generated database client (do not edit)
+docs/game-spec.md         Game rules, milestones, and API overview
 ```
 
-The app lets you select a playground on a map in the Android/iOS app (Google Maps on Android, Apple Maps on iOS), preview a north-aligned **6 × 6 grid**, save it as a game session, and reload it by session ID. Cells default to approximately **2 km × 2 km** (12 km × 12 km total). Before saving, adjust **Cell side length (km)** between **0.1 and 5 km**, in 0.1 km steps; comma and dot decimals are accepted. The map fits the selected/resized grid, but panning or zooming never changes its physical size. The Go backend stores the center, boundary coordinates, chosen cell size, dimensions, and creation timestamp through Ent using the pure-Go `modernc.org/sqlite` driver. There is no separate database service; HTTP remains standard-library Go.
+The app lets you select a playground on a map in the Android/iOS app (Google Maps on Android, Apple Maps on iOS), preview a north-aligned **6 × 6 grid**, and create a game. Cells default to approximately **2 km × 2 km** (12 km × 12 km total). Before saving, adjust **Cell side length (km)** between **0.1 and 5 km**, in 0.1 km steps; comma and dot decimals are accepted. The map fits the selected/resized grid, but panning or zooming never changes its physical size. The Go backend stores the center, boundary coordinates, chosen cell size, dimensions, and creation timestamp through Ent using the pure-Go `modernc.org/sqlite` driver. There is no separate database service; HTTP remains standard-library Go.
 
-Saved sessions keep their stored size, including older 100 m-cell playgrounds. The Ent schema maps to the original `games` table and `session_id` primary key, preserving existing coordinates and timestamp text. Saved playgrounds remain read-only; changing size is part of creating a new game.
+Creating a game returns one **join code per team** (runners and hunters). Anyone joins with a code and a display name, then waits in the **lobby**. There is no human gamemaster: the backend is the referee. When every player is ready and both teams have at least one player, a 10-second countdown starts and the game switches to running. The full rule set and the remaining milestones are in [docs/game-spec.md](docs/game-spec.md).
 
-This is playground setup only. Team joining, player roles, game rules, GPS/background tracking, and authentication are not implemented. A session ID identifies saved configuration; it is **not** an authentication credential or team join code. Anyone with the ID can read the playground in this local-development version. Sessions currently remain until the database is explicitly removed; no automatic cleanup is implemented yet.
+Saved sessions keep their stored size, including older 100 m-cell playgrounds. The Ent schema maps to the original `games` table and `session_id` primary key, preserving existing coordinates and timestamp text. Games created before join codes existed cannot be joined.
+
+Implemented so far: playground setup, join codes, players, lobby, ready-up, countdown, and start. Runner routes, GPS location sharing, catching, and finishing are **not implemented yet**. Joining returns a secret player token that authenticates later requests; the app keeps it in memory only, so restarting the app loses the session. A session ID identifies saved configuration; it is **not** a credential or a join code. Anyone with the ID can read the playground (not the codes or players) in this local-development version. Games currently remain until the database is explicitly removed; no automatic cleanup is implemented yet.
 
 The grid uses a local spherical approximation, not survey-grade geometry. Center latitudes are restricted to -80° through 80°, and playgrounds crossing the international date line are rejected. The frontend previews the geometry; the backend recomputes and stores the authoritative bounds. Individual cell boundaries are derived from those bounds rather than stored as 36 duplicate records. No map imagery or player location history is stored. Confirm the whole area is safe and permitted for outdoor play.
 
@@ -36,7 +39,7 @@ Request flow is **API → controller → service → database**:
 
 - `internal/api` registers endpoints and applies CORS/security headers. It contains no game validation or queries.
 - `internal/controller` decodes bounded JSON requests, parses them into domain values (applying the default cell size when omitted), invokes the service, maps domain errors to HTTP statuses, and maps domain values to public response models.
-- `internal/service` owns game creation/loading, random session IDs, and creation timestamps. It accepts only parsed domain values and depends on a two-method `GameRepository` interface, not SQLite or Ent.
+- `internal/service` owns game creation/loading, joining, ready-up, leaving, random IDs and tokens, and timestamps. It accepts only parsed domain values and depends on a `GameRepository` interface, not SQLite or Ent. Lobby changes go through `UpdateLobbyBy*`, which load a game with its players, apply a domain change, and save it in one transaction.
 - `internal/db` implements that interface using generated Ent setters and lookups. Loaded rows are parsed again, so invalid stored data becomes a server error. Ent-specific errors/entities stay inside this layer.
 - `internal/game` holds domain values and geometry with no HTTP/database dependencies. Values are parsed, not validated: `ParseSessionID`, `ParseCoordinates`, `ParseCellSize`, and `NewPlayground` are the only way to build them from raw input, and their fields are private. The Ent schema reuses these parsers as validators. `cmd/server` wires the layers together; no dependency-injection framework or generic repository hierarchy is used.
 
@@ -62,7 +65,7 @@ docker compose run --rm --workdir /workspace/backend api-tools go run ./cmd/dbge
 
 Ent **v0.14.6** is pinned in `go.mod`; the generator uses that same version. Keep generated files under `internal/db/ent/` in Git; never edit them manually (the `schema/` subdirectory is handwritten input). `-check` generates into a temporary directory and compares changed, missing, and extra files without updating committed output. Go tests and the backend Docker build include this freshness check, so CI catches stale Ent code automatically. API generation remains a separate command, needed only when the HTTP contract changes.
 
-Schema validators protect writes through Ent; they are not a substitute for domain parsing, authorization, or a complete set of SQLite CHECK constraints. No team/player tables have been added.
+Schema validators protect writes through Ent; they are not a substitute for domain parsing, authorization, or a complete set of SQLite CHECK constraints. The `players` table stores only a SHA-256 hash of each player token.
 
 ### Schema initialization and existing databases
 
@@ -93,8 +96,14 @@ The Go annotation `@ID` becomes `operationId` and determines each generated serv
 | Endpoint | Generated function | Purpose |
 | --- | --- | --- |
 | `GET /health` | `getHealth()` | Backend health check |
-| `POST /api/games` | `createGame()` | Save a playground and return its session ID |
-| `GET /api/games/{sessionId}` | `getGame()` | Load a saved playground |
+| `POST /api/games` | `createGame()` | Save a playground; return the game and both join codes |
+| `GET /api/games/{sessionId}` | `getGame()` | Load a saved playground (no codes or players) |
+| `POST /api/players` | `joinGame()` | Join with `{code, name}`; return a player token and the game state |
+| `GET /api/me/game` | `getGameState()` | Game state as seen by the authenticated player |
+| `PUT /api/me/ready` | `setReady()` | Set `{ready}`; return the game state |
+| `DELETE /api/me` | `leaveGame()` | Leave before the game starts |
+
+The `/api/me` endpoints require `Authorization: Bearer <playerToken>`. The game state contains only what the requesting player may see, for example only their own team's join code. Errors: 400 invalid input, 401 missing/unknown token, 404 unknown game or code, 409 rule violation (already started, full, name taken).
 
 Create a game by posting a JSON center to `/api/games`:
 
@@ -106,7 +115,7 @@ Create a game by posting a JSON center to `/api/games`:
 }
 ```
 
-The response is HTTP **201**, with `sessionId`, `createdAt`, and a `playground` containing `center`, `bounds` (`north`, `south`, `east`, `west`), `rows`, `columns`, and `cellSizeMeters`. Save the 32-character lowercase hexadecimal session ID to reload the same playground later. The app does not remember it across app restarts yet.
+The response is HTTP **201**, with `game` (`sessionId`, `createdAt`, and a `playground` containing `center`, `bounds` (`north`, `south`, `east`, `west`), `rows`, `columns`, and `cellSizeMeters`) and `joinCodes` (`runner`, `hunter`).
 
 `cellSizeMeters` is an optional integer: omitted/null defaults to 2000. Explicit values must be 100–5000 in steps of 100. The backend rejects invalid sizes and computes bounds from the requested center and size rather than trusting frontend geometry.
 
@@ -151,7 +160,7 @@ The `api-tools` service is an on-demand development container; it does not start
 
 From `backend/`, `go run ./cmd/apigen` updates just the API document; add `-check` to test freshness. The initial tool invocation downloads the pinned Swaggo tool and its development dependencies, so it needs network access. Later invocations use Go's cache.
 
-Frontend tests check generated-file freshness, the stale-file detector, JSON requests, successful responses, errors, runtime guards, timeouts, and grid geometry/labels. Backend tests cover both generation pipelines, domain parsing, isolated service error handling, real SQLite persistence and legacy compatibility, HTTP save/load, invalid requests, storage errors, CORS, and grid geometry. Contract checks are smoke tests, **not full OpenAPI schema validation**.
+Frontend tests check generated-file freshness, the stale-file detector, JSON requests, bearer tokens, successful responses, errors with HTTP status, runtime guards, timeouts, the server-clock countdown, and grid geometry/labels. Backend tests cover both generation pipelines, domain parsing, lobby rules (countdown start/cancel, joining limits, actions after start), isolated service behavior, real SQLite persistence and legacy compatibility, HTTP save/load and lobby flows, authentication, invalid requests, storage errors, CORS, and grid geometry. Contract checks are smoke tests, **not full OpenAPI schema validation**.
 
 The backend Docker build runs the source/document freshness test. The app Docker build regenerates the client from that document. Update the generated files before rebuilding after an API change.
 
@@ -168,7 +177,7 @@ docker compose up --build
 - **API:** <http://localhost:8080/health>
 - **App browser preview:** <http://localhost:8081>
 
-The browser preview intentionally has no embedded map; use Android/iOS to select a playground. It can still load saved session metadata.
+The browser preview intentionally has no embedded map; use Android/iOS to create a game. Joining and the lobby work in the browser too.
 
 The backend image compiles a static Go executable, runs tests and vet during the build, and runs the executable as a non-root user. Compose waits for its health check before starting Expo.
 
@@ -286,7 +295,7 @@ npm ci
 npm start
 ```
 
-On iPhone, Expo Go is enough: iOS uses Apple Maps, which needs no API key. Android Google Maps with our own key requires a native build configured as described below. Pan/zoom the map, tap to choose a center, and press **Create game**. Saved playgrounds are read-only; **Choose a new playground** starts a new selection without modifying the existing session. Paste a saved ID into **Load an existing playground** to reload it.
+On iPhone, Expo Go is enough: iOS uses Apple Maps, which needs no API key. Android Google Maps with our own key requires a native build configured as described below. Pan/zoom the map, tap to choose a center, and press **Create game**. The app shows the runner and hunter join codes; enter your name and join a team yourself. Other players enter a code and their name on the home screen. In the lobby, everyone taps **Ready**; the game starts 10 seconds after the last player is ready if both teams have players.
 
 For a browser preview:
 
