@@ -68,9 +68,41 @@ func (l *Lobby) Join(code JoinCode, name PlayerName, token PlayerToken, now time
 		return Player{}, &RuleError{Message: "name is already taken in this game"}
 	}
 	player := Player{ID: NewPlayerID(), Name: name, Team: team, TokenHash: token.Hash(), JoinedAt: now}
+	if team == Runners {
+		route := randomRoute(MaxRouteRegenerations)
+		player.Route = &route
+	}
 	l.Players = append(l.Players, player)
 	l.reschedule(now)
 	return player, nil
+}
+
+// RegenerateRoute replaces a runner's route with a different random one.
+// Only possible before the start and while not ready, at most
+// MaxRouteRegenerations times.
+func (l *Lobby) RegenerateRoute(id PlayerID, now time.Time) error {
+	if err := l.requireNotStarted(now); err != nil {
+		return err
+	}
+	i := slices.IndexFunc(l.Players, func(p Player) bool { return p.ID == id })
+	if i < 0 {
+		return ErrUnauthorized
+	}
+	player := &l.Players[i]
+	switch {
+	case player.Team != Runners || player.Route == nil:
+		return &RuleError{Message: "only runners have a route"}
+	case player.Ready:
+		return &RuleError{Message: "set yourself not ready before changing your route"}
+	case player.Route.RegenerationsLeft == 0:
+		return &RuleError{Message: "no route changes left"}
+	}
+	next := randomRoute(player.Route.RegenerationsLeft - 1)
+	for next.Start == player.Route.Start && next.End == player.Route.End {
+		next = randomRoute(next.RegenerationsLeft)
+	}
+	player.Route = &next
+	return nil
 }
 
 func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time) error {

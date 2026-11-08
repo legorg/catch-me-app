@@ -140,4 +140,14 @@ type Player struct {
 	Ready     bool
 	TokenHash TokenHash
 	JoinedAt  time.Time
+	// Route is set for runners. It is nil for hunters and for runners who
+	// joined before routes existed.
+	Route *RunnerRoute
+}
+
+// SameState reports whether two snapshots of a player are identical.
+func (p Player) SameState(other Player) bool {
+	routeA, routeB := p.Route, other.Route
+	p.Route, other.Route = nil, nil
+	return p == other && sameRoute(routeA, routeB)
 }
