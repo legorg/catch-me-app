@@ -53,6 +53,10 @@ export type GameStateResponse = {
     serverTime: string;
     sessionId: string;
     /**
+     * Explicit server-side development override; absent during normal play.
+     */
+    startPositionCheckDisabled?: boolean;
+    /**
      * Scheduled start, present during the countdown and once running.
      */
     startsAt?: string;

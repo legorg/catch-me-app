@@ -71,6 +71,7 @@ export default function LobbyScreen() {
   const state = snapshot?.state;
   const countdown = state && snapshot ? secondsUntilStart(state, snapshot.receivedAt, now) : null;
   const running = state?.status === 'running' || countdown === 0;
+  const skipStartPositionCheck = state?.startPositionCheckDisabled === true;
   // Runners need their position before the start (start cell check); everyone shares while running.
   const sharing = focused && !!token && !!state && (state.team === 'runner' || running);
   const location = useLocationSharing(sharing, useCallback(async (fix: Fix) => {
@@ -121,11 +122,15 @@ export default function LobbyScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{running ? 'Game running' : countdown !== null ? `Starting in ${countdown}` : 'Lobby'}</Text>
         <Text accessibilityLiveRegion="polite" style={styles.text}>
+        {skipStartPositionCheck && <View style={styles.card}>
+          <Text style={[styles.heading, styles.error]}>TEST MODE ÔÇö start position check disabled</Text>
+          <Text style={styles.text}>Ready and the countdown do not depend on your position. Your real GPS location is still shared normally.</Text>
+        </View>}
           {running
             ? 'Catching and reaching the target arrive in the next milestone.'
             : countdown !== null
-              ? 'Everyone is ready. Joining, leaving, un-readying, or a runner leaving their start cell cancels the countdown.'
-              : 'The game starts 10 seconds after all players are ready and both teams have at least one player. Runners must stand in their start cell.'}
+              ? skipStartPositionCheck ? 'Everyone is ready. Joining, leaving, or un-readying cancels the countdown.' : 'Everyone is ready. Joining, leaving, un-readying, or a runner leaving their start cell cancels the countdown.'
+              : skipStartPositionCheck ? 'The game starts 10 seconds after all players are ready and both teams have at least one player.' : 'The game starts 10 seconds after all players are ready and both teams have at least one player. Runners must stand in their start cell.'}
         </Text>
         {running && nextReveal !== null && <View style={styles.card}>
           <Text style={styles.heading}>Next reveal in {formatDuration(nextReveal)}</Text>
@@ -145,7 +150,7 @@ export default function LobbyScreen() {
         {sharing && permission && !permission.granted && <View style={styles.card}>
           <Text style={styles.heading}>Share your location</Text>
           <Text style={styles.text}>
-            {state.team === 'runner' && !running
+            {state.team === 'runner' && !running && !skipStartPositionCheck
               ? 'Runners must prove they stand in their start cell before getting ready.'
               : 'Your teammates see your position while the game runs. It is only shared while this screen is open.'}
           </Text>
@@ -167,8 +172,10 @@ export default function LobbyScreen() {
             Start in <Text style={[styles.heading, { color: START_COLOR }]}>{route.start}</Text> ({edgeName(route.start)}) and reach{' '}
             <Text style={[styles.heading, { color: TARGET_COLOR }]}>{route.end}</Text> ({edgeName(route.end)}) without being caught.
           </Text>
-          {!running && <Text style={[styles.text, !inStartCell && styles.error]}>
-            {inStartCell
+          {!running && <Text style={[styles.text, !inStartCell && !skipStartPositionCheck && styles.error]}>
+            {skipStartPositionCheck
+              ? myCell ? `You are in ${myCell}. The start-position check is disabled for testing.` : 'The start-position check is disabled for testing.'
+              : inStartCell
               ? '✓ You are in your start cell.'
               : myCell
                 ? `You are in ${myCell}. Go to ${route.start} to get ready.`
@@ -201,7 +208,7 @@ export default function LobbyScreen() {
           <Button
             label={me.ready ? 'Not ready' : 'Ready'}
             variant={me.ready ? 'secondary' : 'primary'}
-            disabled={busy || (!me.ready && !!route && !inStartCell)}
+            disabled={busy || (!skipStartPositionCheck && !me.ready && !!route && !inStartCell)}
             onPress={() => void act(async () => show(await setReady(token, !me.ready)))}
           />
           <Button label="Leave" variant="secondary" disabled={busy} onPress={() => void act(async () => {

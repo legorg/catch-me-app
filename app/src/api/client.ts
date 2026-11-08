@@ -172,6 +172,7 @@ function isPlayground(p: unknown): p is Playground {
 function assertGameState(body: unknown): asserts body is GameStateResponse {
   if (!isRecord(body) || !isHex(body.sessionId, 32) || !['lobby', 'countdown', 'running'].includes(body.status as string) ||
       !isDate(body.serverTime) || (body.startsAt !== undefined && !isDate(body.startsAt)) ||
+      (body.startPositionCheckDisabled !== undefined && typeof body.startPositionCheckDisabled !== 'boolean') ||
       (body.nextRevealAt !== undefined && !isDate(body.nextRevealAt)) ||
       !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCode(body.joinCode) ||
       (body.route !== undefined && (body.team !== 'runner' || !isRoute(body.route))) ||

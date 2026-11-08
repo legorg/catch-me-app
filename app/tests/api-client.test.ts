@@ -125,7 +125,7 @@ test('malformed successful responses are rejected at runtime', async (t) => {
     { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null },
     { ...state, route: { start: 'G1', end: 'E6', regenerationsLeft: 2 } }, { ...state, route: { ...state.route, regenerationsLeft: 3 } },
     { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter', joinCode: 'P4R9TW' },
-    { ...state, nextRevealAt: 'bad' },
+    { ...state, nextRevealAt: 'bad' }, { ...state, startPositionCheckDisabled: 'true' },
     { ...state, players: [{ ...state.players[0], position: { latitude: 95, longitude: 0, accuracyMeters: 5, recordedAt: state.serverTime } }] },
     { ...state, players: [{ ...state.players[0], position: { latitude: 0, longitude: 0, accuracyMeters: -1, recordedAt: state.serverTime } }] },
     { ...state, players: [{ ...state.players[0], route: { start: 'Z9', end: 'A6', regenerationsLeft: 0 } }] }]) {
