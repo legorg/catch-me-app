@@ -153,13 +153,17 @@ func saveLobby(ctx context.Context, tx *ent.Tx, before, after game.Lobby) error 
 		previous, existed := removed[p.ID]
 		delete(removed, p.ID)
 		var err error
+		start, end, left := routeColumns(p.Route)
 		switch {
 		case !existed:
 			err = tx.Player.Create().SetID(p.ID.String()).SetGameID(after.Game.SessionID.String()).
 				SetTeam(entplayer.Team(p.Team)).SetName(p.Name.String()).SetTokenHash(p.TokenHash.String()).
-				SetReady(p.Ready).SetJoinedAt(p.JoinedAt).Exec(ctx)
-		case previous.Ready != p.Ready:
-			err = tx.Player.UpdateOneID(p.ID.String()).SetReady(p.Ready).Exec(ctx)
+				SetReady(p.Ready).SetJoinedAt(p.JoinedAt).
+				SetNillableRouteStart(start).SetNillableRouteEnd(end).SetNillableRouteRegenerationsLeft(left).Exec(ctx)
+		case !previous.SameState(p):
+			// Only ready state and routes change after joining; routes are replaced, never removed.
+			err = tx.Player.UpdateOneID(p.ID.String()).SetReady(p.Ready).
+				SetNillableRouteStart(start).SetNillableRouteEnd(end).SetNillableRouteRegenerationsLeft(left).Exec(ctx)
 		}
 		if err != nil {
 			return fmt.Errorf("save player: %w", err)
@@ -201,6 +205,14 @@ func optionalTime(t time.Time) *time.Time {
 		return nil
 	}
 	return &t
+}
+
+func routeColumns(route *game.RunnerRoute) (start, end *string, regenerationsLeft *int) {
+	if route == nil {
+		return nil, nil, nil
+	}
+	from, to, left := route.Start.String(), route.End.String(), route.RegenerationsLeft
+	return &from, &to, &left
 }
 
 func parseLobby(row *ent.Game) (game.Lobby, error) {
@@ -276,5 +288,16 @@ func parsePlayer(row *ent.Player) (game.Player, error) {
 	if err != nil {
 		return game.Player{}, err
 	}
-	return game.Player{ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC()}, nil
+	player := game.Player{ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC()}
+	switch {
+	case row.RouteStart != nil && row.RouteEnd != nil && row.RouteRegenerationsLeft != nil && team == game.Runners:
+		route, err := game.ParseRunnerRoute(*row.RouteStart, *row.RouteEnd, *row.RouteRegenerationsLeft)
+		if err != nil {
+			return game.Player{}, err
+		}
+		player.Route = &route
+	case row.RouteStart != nil || row.RouteEnd != nil || row.RouteRegenerationsLeft != nil:
+		return game.Player{}, fmt.Errorf("player %s has an incomplete route or is not a runner", row.ID)
+	}
+	return player, nil
 }

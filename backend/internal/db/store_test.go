@@ -248,3 +248,58 @@ func TestJoinCodesAndLobbyPersist(t *testing.T) {
 		t.Fatal("failed change was saved")
 	}
 }
+
+func TestRoutesPersist(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "routes.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	saved := fixture(t, 52.52, 2000, strings.Repeat("a", 32))
+	saved.JoinCodes = game.NewJoinCodes()
+	if err := store.Create(ctx, saved); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	token := game.NewPlayerToken()
+	name, _ := game.ParsePlayerName("Ada")
+	var joined game.Player
+	if _, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, func(l *game.Lobby) error {
+		joined, err = l.Join(saved.JoinCodes.Runner, name, token, now)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	load := func() game.Player {
+		t.Helper()
+		lobby, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return lobby.Players[0]
+	}
+	if loaded := load(); !loaded.SameState(joined) || loaded.Route == nil {
+		t.Fatalf("route not persisted: %+v", loaded.Route)
+	}
+	if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), func(l *game.Lobby) error { return l.RegenerateRoute(joined.ID, now) }); err != nil {
+		t.Fatal(err)
+	}
+	if loaded := load(); loaded.Route.RegenerationsLeft != game.MaxRouteRegenerations-1 || *loaded.Route == *joined.Route {
+		t.Fatalf("regenerated route not persisted: %+v", loaded.Route)
+	}
+
+	// Runners who joined before routes existed load without a route.
+	if err := store.client.Player.UpdateOneID(joined.ID.String()).ClearRouteStart().ClearRouteEnd().ClearRouteRegenerationsLeft().Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if loaded := load(); loaded.Route != nil {
+		t.Fatal("missing route not loaded as nil")
+	}
+	if err := store.client.Player.UpdateOneID(joined.ID.String()).SetRouteStart("A1").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil); err == nil {
+		t.Fatal("incomplete stored route accepted")
+	}
+}

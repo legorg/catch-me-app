@@ -64,6 +64,18 @@ func init() {
 	playerDescReady := playerFields[5].Descriptor()
 	// player.DefaultReady holds the default value on creation for the ready field.
 	player.DefaultReady = playerDescReady.Default.(bool)
+	// playerDescRouteStart is the schema descriptor for route_start field.
+	playerDescRouteStart := playerFields[7].Descriptor()
+	// player.RouteStartValidator is a validator for the "route_start" field. It is called by the builders before save.
+	player.RouteStartValidator = playerDescRouteStart.Validators[0].(func(string) error)
+	// playerDescRouteEnd is the schema descriptor for route_end field.
+	playerDescRouteEnd := playerFields[8].Descriptor()
+	// player.RouteEndValidator is a validator for the "route_end" field. It is called by the builders before save.
+	player.RouteEndValidator = playerDescRouteEnd.Validators[0].(func(string) error)
+	// playerDescRouteRegenerationsLeft is the schema descriptor for route_regenerations_left field.
+	playerDescRouteRegenerationsLeft := playerFields[9].Descriptor()
+	// player.RouteRegenerationsLeftValidator is a validator for the "route_regenerations_left" field. It is called by the builders before save.
+	player.RouteRegenerationsLeftValidator = playerDescRouteRegenerationsLeft.Validators[0].(func(int) error)
 	// playerDescID is the schema descriptor for id field.
 	playerDescID := playerFields[0].Descriptor()
 	// player.IDValidator is a validator for the "id" field. It is called by the builders before save.

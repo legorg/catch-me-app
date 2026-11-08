@@ -30,6 +30,12 @@ type Player struct {
 	Ready bool `json:"ready,omitempty"`
 	// JoinedAt holds the value of the "joined_at" field.
 	JoinedAt time.Time `json:"joined_at,omitempty"`
+	// RouteStart holds the value of the "route_start" field.
+	RouteStart *string `json:"route_start,omitempty"`
+	// RouteEnd holds the value of the "route_end" field.
+	RouteEnd *string `json:"route_end,omitempty"`
+	// RouteRegenerationsLeft holds the value of the "route_regenerations_left" field.
+	RouteRegenerationsLeft *int `json:"route_regenerations_left,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PlayerQuery when eager-loading is set.
 	Edges        PlayerEdges `json:"edges"`
@@ -63,7 +69,9 @@ func (*Player) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case player.FieldReady:
 			values[i] = new(sql.NullBool)
-		case player.FieldID, player.FieldGameID, player.FieldTeam, player.FieldName, player.FieldTokenHash:
+		case player.FieldRouteRegenerationsLeft:
+			values[i] = new(sql.NullInt64)
+		case player.FieldID, player.FieldGameID, player.FieldTeam, player.FieldName, player.FieldTokenHash, player.FieldRouteStart, player.FieldRouteEnd:
 			values[i] = new(sql.NullString)
 		case player.FieldJoinedAt:
 			values[i] = new(sql.NullTime)
@@ -124,6 +132,27 @@ func (_m *Player) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.JoinedAt = value.Time
 			}
+		case player.FieldRouteStart:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field route_start", values[i])
+			} else if value.Valid {
+				_m.RouteStart = new(string)
+				*_m.RouteStart = value.String
+			}
+		case player.FieldRouteEnd:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field route_end", values[i])
+			} else if value.Valid {
+				_m.RouteEnd = new(string)
+				*_m.RouteEnd = value.String
+			}
+		case player.FieldRouteRegenerationsLeft:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field route_regenerations_left", values[i])
+			} else if value.Valid {
+				_m.RouteRegenerationsLeft = new(int)
+				*_m.RouteRegenerationsLeft = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -181,6 +210,21 @@ func (_m *Player) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("joined_at=")
 	builder.WriteString(_m.JoinedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.RouteStart; v != nil {
+		builder.WriteString("route_start=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.RouteEnd; v != nil {
+		builder.WriteString("route_end=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.RouteRegenerationsLeft; v != nil {
+		builder.WriteString("route_regenerations_left=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

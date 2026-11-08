@@ -90,6 +90,21 @@ func JoinedAt(v time.Time) predicate.Player {
 	return predicate.Player(sql.FieldEQ(FieldJoinedAt, v))
 }
 
+// RouteStart applies equality check predicate on the "route_start" field. It's identical to RouteStartEQ.
+func RouteStart(v string) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRouteStart, v))
+}
+
+// RouteEnd applies equality check predicate on the "route_end" field. It's identical to RouteEndEQ.
+func RouteEnd(v string) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRouteEnd, v))
+}
+
+// RouteRegenerationsLeft applies equality check predicate on the "route_regenerations_left" field. It's identical to RouteRegenerationsLeftEQ.
+func RouteRegenerationsLeft(v int) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRouteRegenerationsLeft, v))
+}
+
 // GameIDEQ applies the EQ predicate on the "game_id" field.
 func GameIDEQ(v string) predicate.Player {
 	return predicate.Player(sql.FieldEQ(FieldGameID, v))
@@ -353,6 +368,206 @@ func JoinedAtLT(v time.Time) predicate.Player {
 // JoinedAtLTE applies the LTE predicate on the "joined_at" field.
 func JoinedAtLTE(v time.Time) predicate.Player {
 	return predicate.Player(sql.FieldLTE(FieldJoinedAt, v))
+}
+
+// RouteStartEQ applies the EQ predicate on the "route_start" field.
+func RouteStartEQ(v string) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRouteStart, v))
+}
+
+// RouteStartNEQ applies the NEQ predicate on the "route_start" field.
+func RouteStartNEQ(v string) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRouteStart, v))
+}
+
+// RouteStartIn applies the In predicate on the "route_start" field.
+func RouteStartIn(vs ...string) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRouteStart, vs...))
+}
+
+// RouteStartNotIn applies the NotIn predicate on the "route_start" field.
+func RouteStartNotIn(vs ...string) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRouteStart, vs...))
+}
+
+// RouteStartGT applies the GT predicate on the "route_start" field.
+func RouteStartGT(v string) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRouteStart, v))
+}
+
+// RouteStartGTE applies the GTE predicate on the "route_start" field.
+func RouteStartGTE(v string) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRouteStart, v))
+}
+
+// RouteStartLT applies the LT predicate on the "route_start" field.
+func RouteStartLT(v string) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRouteStart, v))
+}
+
+// RouteStartLTE applies the LTE predicate on the "route_start" field.
+func RouteStartLTE(v string) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRouteStart, v))
+}
+
+// RouteStartContains applies the Contains predicate on the "route_start" field.
+func RouteStartContains(v string) predicate.Player {
+	return predicate.Player(sql.FieldContains(FieldRouteStart, v))
+}
+
+// RouteStartHasPrefix applies the HasPrefix predicate on the "route_start" field.
+func RouteStartHasPrefix(v string) predicate.Player {
+	return predicate.Player(sql.FieldHasPrefix(FieldRouteStart, v))
+}
+
+// RouteStartHasSuffix applies the HasSuffix predicate on the "route_start" field.
+func RouteStartHasSuffix(v string) predicate.Player {
+	return predicate.Player(sql.FieldHasSuffix(FieldRouteStart, v))
+}
+
+// RouteStartIsNil applies the IsNil predicate on the "route_start" field.
+func RouteStartIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRouteStart))
+}
+
+// RouteStartNotNil applies the NotNil predicate on the "route_start" field.
+func RouteStartNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRouteStart))
+}
+
+// RouteStartEqualFold applies the EqualFold predicate on the "route_start" field.
+func RouteStartEqualFold(v string) predicate.Player {
+	return predicate.Player(sql.FieldEqualFold(FieldRouteStart, v))
+}
+
+// RouteStartContainsFold applies the ContainsFold predicate on the "route_start" field.
+func RouteStartContainsFold(v string) predicate.Player {
+	return predicate.Player(sql.FieldContainsFold(FieldRouteStart, v))
+}
+
+// RouteEndEQ applies the EQ predicate on the "route_end" field.
+func RouteEndEQ(v string) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRouteEnd, v))
+}
+
+// RouteEndNEQ applies the NEQ predicate on the "route_end" field.
+func RouteEndNEQ(v string) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRouteEnd, v))
+}
+
+// RouteEndIn applies the In predicate on the "route_end" field.
+func RouteEndIn(vs ...string) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRouteEnd, vs...))
+}
+
+// RouteEndNotIn applies the NotIn predicate on the "route_end" field.
+func RouteEndNotIn(vs ...string) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRouteEnd, vs...))
+}
+
+// RouteEndGT applies the GT predicate on the "route_end" field.
+func RouteEndGT(v string) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRouteEnd, v))
+}
+
+// RouteEndGTE applies the GTE predicate on the "route_end" field.
+func RouteEndGTE(v string) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRouteEnd, v))
+}
+
+// RouteEndLT applies the LT predicate on the "route_end" field.
+func RouteEndLT(v string) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRouteEnd, v))
+}
+
+// RouteEndLTE applies the LTE predicate on the "route_end" field.
+func RouteEndLTE(v string) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRouteEnd, v))
+}
+
+// RouteEndContains applies the Contains predicate on the "route_end" field.
+func RouteEndContains(v string) predicate.Player {
+	return predicate.Player(sql.FieldContains(FieldRouteEnd, v))
+}
+
+// RouteEndHasPrefix applies the HasPrefix predicate on the "route_end" field.
+func RouteEndHasPrefix(v string) predicate.Player {
+	return predicate.Player(sql.FieldHasPrefix(FieldRouteEnd, v))
+}
+
+// RouteEndHasSuffix applies the HasSuffix predicate on the "route_end" field.
+func RouteEndHasSuffix(v string) predicate.Player {
+	return predicate.Player(sql.FieldHasSuffix(FieldRouteEnd, v))
+}
+
+// RouteEndIsNil applies the IsNil predicate on the "route_end" field.
+func RouteEndIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRouteEnd))
+}
+
+// RouteEndNotNil applies the NotNil predicate on the "route_end" field.
+func RouteEndNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRouteEnd))
+}
+
+// RouteEndEqualFold applies the EqualFold predicate on the "route_end" field.
+func RouteEndEqualFold(v string) predicate.Player {
+	return predicate.Player(sql.FieldEqualFold(FieldRouteEnd, v))
+}
+
+// RouteEndContainsFold applies the ContainsFold predicate on the "route_end" field.
+func RouteEndContainsFold(v string) predicate.Player {
+	return predicate.Player(sql.FieldContainsFold(FieldRouteEnd, v))
+}
+
+// RouteRegenerationsLeftEQ applies the EQ predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftEQ(v int) predicate.Player {
+	return predicate.Player(sql.FieldEQ(FieldRouteRegenerationsLeft, v))
+}
+
+// RouteRegenerationsLeftNEQ applies the NEQ predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftNEQ(v int) predicate.Player {
+	return predicate.Player(sql.FieldNEQ(FieldRouteRegenerationsLeft, v))
+}
+
+// RouteRegenerationsLeftIn applies the In predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftIn(vs ...int) predicate.Player {
+	return predicate.Player(sql.FieldIn(FieldRouteRegenerationsLeft, vs...))
+}
+
+// RouteRegenerationsLeftNotIn applies the NotIn predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftNotIn(vs ...int) predicate.Player {
+	return predicate.Player(sql.FieldNotIn(FieldRouteRegenerationsLeft, vs...))
+}
+
+// RouteRegenerationsLeftGT applies the GT predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftGT(v int) predicate.Player {
+	return predicate.Player(sql.FieldGT(FieldRouteRegenerationsLeft, v))
+}
+
+// RouteRegenerationsLeftGTE applies the GTE predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftGTE(v int) predicate.Player {
+	return predicate.Player(sql.FieldGTE(FieldRouteRegenerationsLeft, v))
+}
+
+// RouteRegenerationsLeftLT applies the LT predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftLT(v int) predicate.Player {
+	return predicate.Player(sql.FieldLT(FieldRouteRegenerationsLeft, v))
+}
+
+// RouteRegenerationsLeftLTE applies the LTE predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftLTE(v int) predicate.Player {
+	return predicate.Player(sql.FieldLTE(FieldRouteRegenerationsLeft, v))
+}
+
+// RouteRegenerationsLeftIsNil applies the IsNil predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftIsNil() predicate.Player {
+	return predicate.Player(sql.FieldIsNull(FieldRouteRegenerationsLeft))
+}
+
+// RouteRegenerationsLeftNotNil applies the NotNil predicate on the "route_regenerations_left" field.
+func RouteRegenerationsLeftNotNil() predicate.Player {
+	return predicate.Player(sql.FieldNotNull(FieldRouteRegenerationsLeft))
 }
 
 // HasGame applies the HasEdge predicate on the "game" edge.

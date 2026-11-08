@@ -41,6 +41,73 @@ func (_u *PlayerUpdate) SetNillableReady(v *bool) *PlayerUpdate {
 	return _u
 }
 
+// SetRouteStart sets the "route_start" field.
+func (_u *PlayerUpdate) SetRouteStart(v string) *PlayerUpdate {
+	_u.mutation.SetRouteStart(v)
+	return _u
+}
+
+// SetNillableRouteStart sets the "route_start" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRouteStart(v *string) *PlayerUpdate {
+	if v != nil {
+		_u.SetRouteStart(*v)
+	}
+	return _u
+}
+
+// ClearRouteStart clears the value of the "route_start" field.
+func (_u *PlayerUpdate) ClearRouteStart() *PlayerUpdate {
+	_u.mutation.ClearRouteStart()
+	return _u
+}
+
+// SetRouteEnd sets the "route_end" field.
+func (_u *PlayerUpdate) SetRouteEnd(v string) *PlayerUpdate {
+	_u.mutation.SetRouteEnd(v)
+	return _u
+}
+
+// SetNillableRouteEnd sets the "route_end" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRouteEnd(v *string) *PlayerUpdate {
+	if v != nil {
+		_u.SetRouteEnd(*v)
+	}
+	return _u
+}
+
+// ClearRouteEnd clears the value of the "route_end" field.
+func (_u *PlayerUpdate) ClearRouteEnd() *PlayerUpdate {
+	_u.mutation.ClearRouteEnd()
+	return _u
+}
+
+// SetRouteRegenerationsLeft sets the "route_regenerations_left" field.
+func (_u *PlayerUpdate) SetRouteRegenerationsLeft(v int) *PlayerUpdate {
+	_u.mutation.ResetRouteRegenerationsLeft()
+	_u.mutation.SetRouteRegenerationsLeft(v)
+	return _u
+}
+
+// SetNillableRouteRegenerationsLeft sets the "route_regenerations_left" field if the given value is not nil.
+func (_u *PlayerUpdate) SetNillableRouteRegenerationsLeft(v *int) *PlayerUpdate {
+	if v != nil {
+		_u.SetRouteRegenerationsLeft(*v)
+	}
+	return _u
+}
+
+// AddRouteRegenerationsLeft adds value to the "route_regenerations_left" field.
+func (_u *PlayerUpdate) AddRouteRegenerationsLeft(v int) *PlayerUpdate {
+	_u.mutation.AddRouteRegenerationsLeft(v)
+	return _u
+}
+
+// ClearRouteRegenerationsLeft clears the value of the "route_regenerations_left" field.
+func (_u *PlayerUpdate) ClearRouteRegenerationsLeft() *PlayerUpdate {
+	_u.mutation.ClearRouteRegenerationsLeft()
+	return _u
+}
+
 // Mutation returns the PlayerMutation object of the builder.
 func (_u *PlayerUpdate) Mutation() *PlayerMutation {
 	return _u.mutation
@@ -75,6 +142,21 @@ func (_u *PlayerUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *PlayerUpdate) check() error {
+	if v, ok := _u.mutation.RouteStart(); ok {
+		if err := player.RouteStartValidator(v); err != nil {
+			return &ValidationError{Name: "route_start", err: fmt.Errorf(`ent: validator failed for field "Player.route_start": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RouteEnd(); ok {
+		if err := player.RouteEndValidator(v); err != nil {
+			return &ValidationError{Name: "route_end", err: fmt.Errorf(`ent: validator failed for field "Player.route_end": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RouteRegenerationsLeft(); ok {
+		if err := player.RouteRegenerationsLeftValidator(v); err != nil {
+			return &ValidationError{Name: "route_regenerations_left", err: fmt.Errorf(`ent: validator failed for field "Player.route_regenerations_left": %w`, err)}
+		}
+	}
 	if _u.mutation.GameCleared() && len(_u.mutation.GameIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Player.game"`)
 	}
@@ -95,6 +177,27 @@ func (_u *PlayerUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Ready(); ok {
 		_spec.SetField(player.FieldReady, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RouteStart(); ok {
+		_spec.SetField(player.FieldRouteStart, field.TypeString, value)
+	}
+	if _u.mutation.RouteStartCleared() {
+		_spec.ClearField(player.FieldRouteStart, field.TypeString)
+	}
+	if value, ok := _u.mutation.RouteEnd(); ok {
+		_spec.SetField(player.FieldRouteEnd, field.TypeString, value)
+	}
+	if _u.mutation.RouteEndCleared() {
+		_spec.ClearField(player.FieldRouteEnd, field.TypeString)
+	}
+	if value, ok := _u.mutation.RouteRegenerationsLeft(); ok {
+		_spec.SetField(player.FieldRouteRegenerationsLeft, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRouteRegenerationsLeft(); ok {
+		_spec.AddField(player.FieldRouteRegenerationsLeft, field.TypeInt, value)
+	}
+	if _u.mutation.RouteRegenerationsLeftCleared() {
+		_spec.ClearField(player.FieldRouteRegenerationsLeft, field.TypeInt)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -127,6 +230,73 @@ func (_u *PlayerUpdateOne) SetNillableReady(v *bool) *PlayerUpdateOne {
 	if v != nil {
 		_u.SetReady(*v)
 	}
+	return _u
+}
+
+// SetRouteStart sets the "route_start" field.
+func (_u *PlayerUpdateOne) SetRouteStart(v string) *PlayerUpdateOne {
+	_u.mutation.SetRouteStart(v)
+	return _u
+}
+
+// SetNillableRouteStart sets the "route_start" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRouteStart(v *string) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRouteStart(*v)
+	}
+	return _u
+}
+
+// ClearRouteStart clears the value of the "route_start" field.
+func (_u *PlayerUpdateOne) ClearRouteStart() *PlayerUpdateOne {
+	_u.mutation.ClearRouteStart()
+	return _u
+}
+
+// SetRouteEnd sets the "route_end" field.
+func (_u *PlayerUpdateOne) SetRouteEnd(v string) *PlayerUpdateOne {
+	_u.mutation.SetRouteEnd(v)
+	return _u
+}
+
+// SetNillableRouteEnd sets the "route_end" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRouteEnd(v *string) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRouteEnd(*v)
+	}
+	return _u
+}
+
+// ClearRouteEnd clears the value of the "route_end" field.
+func (_u *PlayerUpdateOne) ClearRouteEnd() *PlayerUpdateOne {
+	_u.mutation.ClearRouteEnd()
+	return _u
+}
+
+// SetRouteRegenerationsLeft sets the "route_regenerations_left" field.
+func (_u *PlayerUpdateOne) SetRouteRegenerationsLeft(v int) *PlayerUpdateOne {
+	_u.mutation.ResetRouteRegenerationsLeft()
+	_u.mutation.SetRouteRegenerationsLeft(v)
+	return _u
+}
+
+// SetNillableRouteRegenerationsLeft sets the "route_regenerations_left" field if the given value is not nil.
+func (_u *PlayerUpdateOne) SetNillableRouteRegenerationsLeft(v *int) *PlayerUpdateOne {
+	if v != nil {
+		_u.SetRouteRegenerationsLeft(*v)
+	}
+	return _u
+}
+
+// AddRouteRegenerationsLeft adds value to the "route_regenerations_left" field.
+func (_u *PlayerUpdateOne) AddRouteRegenerationsLeft(v int) *PlayerUpdateOne {
+	_u.mutation.AddRouteRegenerationsLeft(v)
+	return _u
+}
+
+// ClearRouteRegenerationsLeft clears the value of the "route_regenerations_left" field.
+func (_u *PlayerUpdateOne) ClearRouteRegenerationsLeft() *PlayerUpdateOne {
+	_u.mutation.ClearRouteRegenerationsLeft()
 	return _u
 }
 
@@ -177,6 +347,21 @@ func (_u *PlayerUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *PlayerUpdateOne) check() error {
+	if v, ok := _u.mutation.RouteStart(); ok {
+		if err := player.RouteStartValidator(v); err != nil {
+			return &ValidationError{Name: "route_start", err: fmt.Errorf(`ent: validator failed for field "Player.route_start": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RouteEnd(); ok {
+		if err := player.RouteEndValidator(v); err != nil {
+			return &ValidationError{Name: "route_end", err: fmt.Errorf(`ent: validator failed for field "Player.route_end": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RouteRegenerationsLeft(); ok {
+		if err := player.RouteRegenerationsLeftValidator(v); err != nil {
+			return &ValidationError{Name: "route_regenerations_left", err: fmt.Errorf(`ent: validator failed for field "Player.route_regenerations_left": %w`, err)}
+		}
+	}
 	if _u.mutation.GameCleared() && len(_u.mutation.GameIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Player.game"`)
 	}
@@ -214,6 +399,27 @@ func (_u *PlayerUpdateOne) sqlSave(ctx context.Context) (_node *Player, err erro
 	}
 	if value, ok := _u.mutation.Ready(); ok {
 		_spec.SetField(player.FieldReady, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RouteStart(); ok {
+		_spec.SetField(player.FieldRouteStart, field.TypeString, value)
+	}
+	if _u.mutation.RouteStartCleared() {
+		_spec.ClearField(player.FieldRouteStart, field.TypeString)
+	}
+	if value, ok := _u.mutation.RouteEnd(); ok {
+		_spec.SetField(player.FieldRouteEnd, field.TypeString, value)
+	}
+	if _u.mutation.RouteEndCleared() {
+		_spec.ClearField(player.FieldRouteEnd, field.TypeString)
+	}
+	if value, ok := _u.mutation.RouteRegenerationsLeft(); ok {
+		_spec.SetField(player.FieldRouteRegenerationsLeft, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRouteRegenerationsLeft(); ok {
+		_spec.AddField(player.FieldRouteRegenerationsLeft, field.TypeInt, value)
+	}
+	if _u.mutation.RouteRegenerationsLeftCleared() {
+		_spec.ClearField(player.FieldRouteRegenerationsLeft, field.TypeInt)
 	}
 	_node = &Player{config: _u.config}
 	_spec.Assign = _node.assignValues

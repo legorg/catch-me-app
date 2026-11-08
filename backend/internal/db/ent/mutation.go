@@ -1465,20 +1465,24 @@ func (m *GameMutation) ResetEdge(name string) error {
 // PlayerMutation represents an operation that mutates the Player nodes in the graph.
 type PlayerMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *string
-	team          *player.Team
-	name          *string
-	token_hash    *string
-	ready         *bool
-	joined_at     *time.Time
-	clearedFields map[string]struct{}
-	game          *string
-	clearedgame   bool
-	done          bool
-	oldValue      func(context.Context) (*Player, error)
-	predicates    []predicate.Player
+	op                          Op
+	typ                         string
+	id                          *string
+	team                        *player.Team
+	name                        *string
+	token_hash                  *string
+	ready                       *bool
+	joined_at                   *time.Time
+	route_start                 *string
+	route_end                   *string
+	route_regenerations_left    *int
+	addroute_regenerations_left *int
+	clearedFields               map[string]struct{}
+	game                        *string
+	clearedgame                 bool
+	done                        bool
+	oldValue                    func(context.Context) (*Player, error)
+	predicates                  []predicate.Player
 }
 
 var _ ent.Mutation = (*PlayerMutation)(nil)
@@ -1801,6 +1805,174 @@ func (m *PlayerMutation) ResetJoinedAt() {
 	m.joined_at = nil
 }
 
+// SetRouteStart sets the "route_start" field.
+func (m *PlayerMutation) SetRouteStart(s string) {
+	m.route_start = &s
+}
+
+// RouteStart returns the value of the "route_start" field in the mutation.
+func (m *PlayerMutation) RouteStart() (r string, exists bool) {
+	v := m.route_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRouteStart returns the old "route_start" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRouteStart(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRouteStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRouteStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRouteStart: %w", err)
+	}
+	return oldValue.RouteStart, nil
+}
+
+// ClearRouteStart clears the value of the "route_start" field.
+func (m *PlayerMutation) ClearRouteStart() {
+	m.route_start = nil
+	m.clearedFields[player.FieldRouteStart] = struct{}{}
+}
+
+// RouteStartCleared returns if the "route_start" field was cleared in this mutation.
+func (m *PlayerMutation) RouteStartCleared() bool {
+	_, ok := m.clearedFields[player.FieldRouteStart]
+	return ok
+}
+
+// ResetRouteStart resets all changes to the "route_start" field.
+func (m *PlayerMutation) ResetRouteStart() {
+	m.route_start = nil
+	delete(m.clearedFields, player.FieldRouteStart)
+}
+
+// SetRouteEnd sets the "route_end" field.
+func (m *PlayerMutation) SetRouteEnd(s string) {
+	m.route_end = &s
+}
+
+// RouteEnd returns the value of the "route_end" field in the mutation.
+func (m *PlayerMutation) RouteEnd() (r string, exists bool) {
+	v := m.route_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRouteEnd returns the old "route_end" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRouteEnd(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRouteEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRouteEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRouteEnd: %w", err)
+	}
+	return oldValue.RouteEnd, nil
+}
+
+// ClearRouteEnd clears the value of the "route_end" field.
+func (m *PlayerMutation) ClearRouteEnd() {
+	m.route_end = nil
+	m.clearedFields[player.FieldRouteEnd] = struct{}{}
+}
+
+// RouteEndCleared returns if the "route_end" field was cleared in this mutation.
+func (m *PlayerMutation) RouteEndCleared() bool {
+	_, ok := m.clearedFields[player.FieldRouteEnd]
+	return ok
+}
+
+// ResetRouteEnd resets all changes to the "route_end" field.
+func (m *PlayerMutation) ResetRouteEnd() {
+	m.route_end = nil
+	delete(m.clearedFields, player.FieldRouteEnd)
+}
+
+// SetRouteRegenerationsLeft sets the "route_regenerations_left" field.
+func (m *PlayerMutation) SetRouteRegenerationsLeft(i int) {
+	m.route_regenerations_left = &i
+	m.addroute_regenerations_left = nil
+}
+
+// RouteRegenerationsLeft returns the value of the "route_regenerations_left" field in the mutation.
+func (m *PlayerMutation) RouteRegenerationsLeft() (r int, exists bool) {
+	v := m.route_regenerations_left
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRouteRegenerationsLeft returns the old "route_regenerations_left" field's value of the Player entity.
+// If the Player object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayerMutation) OldRouteRegenerationsLeft(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRouteRegenerationsLeft is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRouteRegenerationsLeft requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRouteRegenerationsLeft: %w", err)
+	}
+	return oldValue.RouteRegenerationsLeft, nil
+}
+
+// AddRouteRegenerationsLeft adds i to the "route_regenerations_left" field.
+func (m *PlayerMutation) AddRouteRegenerationsLeft(i int) {
+	if m.addroute_regenerations_left != nil {
+		*m.addroute_regenerations_left += i
+	} else {
+		m.addroute_regenerations_left = &i
+	}
+}
+
+// AddedRouteRegenerationsLeft returns the value that was added to the "route_regenerations_left" field in this mutation.
+func (m *PlayerMutation) AddedRouteRegenerationsLeft() (r int, exists bool) {
+	v := m.addroute_regenerations_left
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRouteRegenerationsLeft clears the value of the "route_regenerations_left" field.
+func (m *PlayerMutation) ClearRouteRegenerationsLeft() {
+	m.route_regenerations_left = nil
+	m.addroute_regenerations_left = nil
+	m.clearedFields[player.FieldRouteRegenerationsLeft] = struct{}{}
+}
+
+// RouteRegenerationsLeftCleared returns if the "route_regenerations_left" field was cleared in this mutation.
+func (m *PlayerMutation) RouteRegenerationsLeftCleared() bool {
+	_, ok := m.clearedFields[player.FieldRouteRegenerationsLeft]
+	return ok
+}
+
+// ResetRouteRegenerationsLeft resets all changes to the "route_regenerations_left" field.
+func (m *PlayerMutation) ResetRouteRegenerationsLeft() {
+	m.route_regenerations_left = nil
+	m.addroute_regenerations_left = nil
+	delete(m.clearedFields, player.FieldRouteRegenerationsLeft)
+}
+
 // ClearGame clears the "game" edge to the Game entity.
 func (m *PlayerMutation) ClearGame() {
 	m.clearedgame = true
@@ -1862,7 +2034,7 @@ func (m *PlayerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlayerMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 9)
 	if m.game != nil {
 		fields = append(fields, player.FieldGameID)
 	}
@@ -1880,6 +2052,15 @@ func (m *PlayerMutation) Fields() []string {
 	}
 	if m.joined_at != nil {
 		fields = append(fields, player.FieldJoinedAt)
+	}
+	if m.route_start != nil {
+		fields = append(fields, player.FieldRouteStart)
+	}
+	if m.route_end != nil {
+		fields = append(fields, player.FieldRouteEnd)
+	}
+	if m.route_regenerations_left != nil {
+		fields = append(fields, player.FieldRouteRegenerationsLeft)
 	}
 	return fields
 }
@@ -1901,6 +2082,12 @@ func (m *PlayerMutation) Field(name string) (ent.Value, bool) {
 		return m.Ready()
 	case player.FieldJoinedAt:
 		return m.JoinedAt()
+	case player.FieldRouteStart:
+		return m.RouteStart()
+	case player.FieldRouteEnd:
+		return m.RouteEnd()
+	case player.FieldRouteRegenerationsLeft:
+		return m.RouteRegenerationsLeft()
 	}
 	return nil, false
 }
@@ -1922,6 +2109,12 @@ func (m *PlayerMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldReady(ctx)
 	case player.FieldJoinedAt:
 		return m.OldJoinedAt(ctx)
+	case player.FieldRouteStart:
+		return m.OldRouteStart(ctx)
+	case player.FieldRouteEnd:
+		return m.OldRouteEnd(ctx)
+	case player.FieldRouteRegenerationsLeft:
+		return m.OldRouteRegenerationsLeft(ctx)
 	}
 	return nil, fmt.Errorf("unknown Player field %s", name)
 }
@@ -1973,6 +2166,27 @@ func (m *PlayerMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetJoinedAt(v)
 		return nil
+	case player.FieldRouteStart:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRouteStart(v)
+		return nil
+	case player.FieldRouteEnd:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRouteEnd(v)
+		return nil
+	case player.FieldRouteRegenerationsLeft:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRouteRegenerationsLeft(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Player field %s", name)
 }
@@ -1980,13 +2194,21 @@ func (m *PlayerMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *PlayerMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addroute_regenerations_left != nil {
+		fields = append(fields, player.FieldRouteRegenerationsLeft)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *PlayerMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case player.FieldRouteRegenerationsLeft:
+		return m.AddedRouteRegenerationsLeft()
+	}
 	return nil, false
 }
 
@@ -1995,6 +2217,13 @@ func (m *PlayerMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *PlayerMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case player.FieldRouteRegenerationsLeft:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRouteRegenerationsLeft(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Player numeric field %s", name)
 }
@@ -2002,7 +2231,17 @@ func (m *PlayerMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *PlayerMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(player.FieldRouteStart) {
+		fields = append(fields, player.FieldRouteStart)
+	}
+	if m.FieldCleared(player.FieldRouteEnd) {
+		fields = append(fields, player.FieldRouteEnd)
+	}
+	if m.FieldCleared(player.FieldRouteRegenerationsLeft) {
+		fields = append(fields, player.FieldRouteRegenerationsLeft)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -2015,6 +2254,17 @@ func (m *PlayerMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *PlayerMutation) ClearField(name string) error {
+	switch name {
+	case player.FieldRouteStart:
+		m.ClearRouteStart()
+		return nil
+	case player.FieldRouteEnd:
+		m.ClearRouteEnd()
+		return nil
+	case player.FieldRouteRegenerationsLeft:
+		m.ClearRouteRegenerationsLeft()
+		return nil
+	}
 	return fmt.Errorf("unknown Player nullable field %s", name)
 }
 
@@ -2039,6 +2289,15 @@ func (m *PlayerMutation) ResetField(name string) error {
 		return nil
 	case player.FieldJoinedAt:
 		m.ResetJoinedAt()
+		return nil
+	case player.FieldRouteStart:
+		m.ResetRouteStart()
+		return nil
+	case player.FieldRouteEnd:
+		m.ResetRouteEnd()
+		return nil
+	case player.FieldRouteRegenerationsLeft:
+		m.ResetRouteRegenerationsLeft()
 		return nil
 	}
 	return fmt.Errorf("unknown Player field %s", name)

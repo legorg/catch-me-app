@@ -40,6 +40,9 @@ var (
 		{Name: "token_hash", Type: field.TypeString, Unique: true},
 		{Name: "ready", Type: field.TypeBool, Default: false},
 		{Name: "joined_at", Type: field.TypeTime},
+		{Name: "route_start", Type: field.TypeString, Nullable: true},
+		{Name: "route_end", Type: field.TypeString, Nullable: true},
+		{Name: "route_regenerations_left", Type: field.TypeInt, Nullable: true},
 		{Name: "game_id", Type: field.TypeString, SchemaType: map[string]string{"sqlite3": "TEXT"}},
 	}
 	// PlayersTable holds the schema information for the "players" table.
@@ -50,7 +53,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "players_games_players",
-				Columns:    []*schema.Column{PlayersColumns[6]},
+				Columns:    []*schema.Column{PlayersColumns[9]},
 				RefColumns: []*schema.Column{GamesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -59,7 +62,7 @@ var (
 			{
 				Name:    "player_game_id",
 				Unique:  false,
-				Columns: []*schema.Column{PlayersColumns[6]},
+				Columns: []*schema.Column{PlayersColumns[9]},
 			},
 		},
 	}

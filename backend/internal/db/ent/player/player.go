@@ -26,6 +26,12 @@ const (
 	FieldReady = "ready"
 	// FieldJoinedAt holds the string denoting the joined_at field in the database.
 	FieldJoinedAt = "joined_at"
+	// FieldRouteStart holds the string denoting the route_start field in the database.
+	FieldRouteStart = "route_start"
+	// FieldRouteEnd holds the string denoting the route_end field in the database.
+	FieldRouteEnd = "route_end"
+	// FieldRouteRegenerationsLeft holds the string denoting the route_regenerations_left field in the database.
+	FieldRouteRegenerationsLeft = "route_regenerations_left"
 	// EdgeGame holds the string denoting the game edge name in mutations.
 	EdgeGame = "game"
 	// GameFieldID holds the string denoting the ID field of the Game.
@@ -50,6 +56,9 @@ var Columns = []string{
 	FieldTokenHash,
 	FieldReady,
 	FieldJoinedAt,
+	FieldRouteStart,
+	FieldRouteEnd,
+	FieldRouteRegenerationsLeft,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -69,6 +78,12 @@ var (
 	TokenHashValidator func(string) error
 	// DefaultReady holds the default value on creation for the "ready" field.
 	DefaultReady bool
+	// RouteStartValidator is a validator for the "route_start" field. It is called by the builders before save.
+	RouteStartValidator func(string) error
+	// RouteEndValidator is a validator for the "route_end" field. It is called by the builders before save.
+	RouteEndValidator func(string) error
+	// RouteRegenerationsLeftValidator is a validator for the "route_regenerations_left" field. It is called by the builders before save.
+	RouteRegenerationsLeftValidator func(int) error
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
 	IDValidator func(string) error
 )
@@ -132,6 +147,21 @@ func ByReady(opts ...sql.OrderTermOption) OrderOption {
 // ByJoinedAt orders the results by the joined_at field.
 func ByJoinedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldJoinedAt, opts...).ToFunc()
+}
+
+// ByRouteStart orders the results by the route_start field.
+func ByRouteStart(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRouteStart, opts...).ToFunc()
+}
+
+// ByRouteEnd orders the results by the route_end field.
+func ByRouteEnd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRouteEnd, opts...).ToFunc()
+}
+
+// ByRouteRegenerationsLeft orders the results by the route_regenerations_left field.
+func ByRouteRegenerationsLeft(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRouteRegenerationsLeft, opts...).ToFunc()
 }
 
 // ByGameField orders the results by game field.

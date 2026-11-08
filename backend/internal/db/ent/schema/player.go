@@ -28,6 +28,10 @@ func (Player) Fields() []ent.Field {
 		field.String("token_hash").Unique().Sensitive().Validate(parsedBy(game.ParseTokenHash)).Immutable(),
 		field.Bool("ready").Default(false),
 		field.Time("joined_at").Immutable(),
+		// Runner route; empty for hunters and for runners who joined before routes existed.
+		field.String("route_start").Optional().Nillable().Validate(parsedBy(game.ParseCell)),
+		field.String("route_end").Optional().Nillable().Validate(parsedBy(game.ParseCell)),
+		field.Int("route_regenerations_left").Optional().Nillable().Range(0, game.MaxRouteRegenerations),
 	}
 }
 

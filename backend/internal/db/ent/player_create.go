@@ -65,6 +65,48 @@ func (_c *PlayerCreate) SetJoinedAt(v time.Time) *PlayerCreate {
 	return _c
 }
 
+// SetRouteStart sets the "route_start" field.
+func (_c *PlayerCreate) SetRouteStart(v string) *PlayerCreate {
+	_c.mutation.SetRouteStart(v)
+	return _c
+}
+
+// SetNillableRouteStart sets the "route_start" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRouteStart(v *string) *PlayerCreate {
+	if v != nil {
+		_c.SetRouteStart(*v)
+	}
+	return _c
+}
+
+// SetRouteEnd sets the "route_end" field.
+func (_c *PlayerCreate) SetRouteEnd(v string) *PlayerCreate {
+	_c.mutation.SetRouteEnd(v)
+	return _c
+}
+
+// SetNillableRouteEnd sets the "route_end" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRouteEnd(v *string) *PlayerCreate {
+	if v != nil {
+		_c.SetRouteEnd(*v)
+	}
+	return _c
+}
+
+// SetRouteRegenerationsLeft sets the "route_regenerations_left" field.
+func (_c *PlayerCreate) SetRouteRegenerationsLeft(v int) *PlayerCreate {
+	_c.mutation.SetRouteRegenerationsLeft(v)
+	return _c
+}
+
+// SetNillableRouteRegenerationsLeft sets the "route_regenerations_left" field if the given value is not nil.
+func (_c *PlayerCreate) SetNillableRouteRegenerationsLeft(v *int) *PlayerCreate {
+	if v != nil {
+		_c.SetRouteRegenerationsLeft(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *PlayerCreate) SetID(v string) *PlayerCreate {
 	_c.mutation.SetID(v)
@@ -152,6 +194,21 @@ func (_c *PlayerCreate) check() error {
 	if _, ok := _c.mutation.JoinedAt(); !ok {
 		return &ValidationError{Name: "joined_at", err: errors.New(`ent: missing required field "Player.joined_at"`)}
 	}
+	if v, ok := _c.mutation.RouteStart(); ok {
+		if err := player.RouteStartValidator(v); err != nil {
+			return &ValidationError{Name: "route_start", err: fmt.Errorf(`ent: validator failed for field "Player.route_start": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.RouteEnd(); ok {
+		if err := player.RouteEndValidator(v); err != nil {
+			return &ValidationError{Name: "route_end", err: fmt.Errorf(`ent: validator failed for field "Player.route_end": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.RouteRegenerationsLeft(); ok {
+		if err := player.RouteRegenerationsLeftValidator(v); err != nil {
+			return &ValidationError{Name: "route_regenerations_left", err: fmt.Errorf(`ent: validator failed for field "Player.route_regenerations_left": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := player.IDValidator(v); err != nil {
 			return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "Player.id": %w`, err)}
@@ -214,6 +271,18 @@ func (_c *PlayerCreate) createSpec() (*Player, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.JoinedAt(); ok {
 		_spec.SetField(player.FieldJoinedAt, field.TypeTime, value)
 		_node.JoinedAt = value
+	}
+	if value, ok := _c.mutation.RouteStart(); ok {
+		_spec.SetField(player.FieldRouteStart, field.TypeString, value)
+		_node.RouteStart = &value
+	}
+	if value, ok := _c.mutation.RouteEnd(); ok {
+		_spec.SetField(player.FieldRouteEnd, field.TypeString, value)
+		_node.RouteEnd = &value
+	}
+	if value, ok := _c.mutation.RouteRegenerationsLeft(); ok {
+		_spec.SetField(player.FieldRouteRegenerationsLeft, field.TypeInt, value)
+		_node.RouteRegenerationsLeft = &value
 	}
 	if nodes := _c.mutation.GameIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
