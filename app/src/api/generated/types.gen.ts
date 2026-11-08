@@ -8,10 +8,28 @@ export type ApiError = {
     error: string;
 };
 
-export type DemoResponse = {
-    message: string;
-    playerName: string;
-    service: 'catch-me-backend';
+export type Bounds = {
+    east: number;
+    north: number;
+    south: number;
+    west: number;
+};
+
+export type Coordinates = {
+    latitude: number;
+    longitude: number;
+};
+
+export type CreateGameRequest = {
+    cellSizeMeters?: number;
+    latitude: number;
+    longitude: number;
+};
+
+export type GameResponse = {
+    createdAt: string;
+    playground: Playground;
+    sessionId: string;
 };
 
 export type HealthResponse = {
@@ -19,39 +37,103 @@ export type HealthResponse = {
     status: 'ok';
 };
 
-export type GetDemoGreetingData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Player name; whitespace is trimmed, blank defaults to Runner, trimmed names are limited to 60 Unicode characters
-         */
-        name?: string;
-    };
-    url: '/api/demo';
+export type Playground = {
+    bounds: Bounds;
+    cellSizeMeters: number;
+    center: Coordinates;
+    columns: 6;
+    rows: 6;
 };
 
-export type GetDemoGreetingErrors = {
+export type CreateGameData = {
     /**
-     * Invalid player name
+     * Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings
+     */
+    body: CreateGameRequest;
+    path?: never;
+    query?: never;
+    url: '/api/games';
+};
+
+export type CreateGameErrors = {
+    /**
+     * Invalid JSON, coordinates, or cell size
      */
     400: ApiError;
     /**
      * Browser origin is not allowed
      */
     403: ApiError;
-};
-
-export type GetDemoGreetingError = GetDemoGreetingErrors[keyof GetDemoGreetingErrors];
-
-export type GetDemoGreetingResponses = {
     /**
-     * Greeting demonstrating frontend/backend communication
+     * Method not allowed
      */
-    200: DemoResponse;
+    405: ApiError;
+    /**
+     * Request body exceeds 1024 bytes
+     */
+    413: ApiError;
+    /**
+     * Could not save game
+     */
+    500: ApiError;
 };
 
-export type GetDemoGreetingResponse = GetDemoGreetingResponses[keyof GetDemoGreetingResponses];
+export type CreateGameError = CreateGameErrors[keyof CreateGameErrors];
+
+export type CreateGameResponses = {
+    /**
+     * Game saved
+     */
+    201: GameResponse;
+};
+
+export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
+
+export type GetGameData = {
+    body?: never;
+    path: {
+        /**
+         * 32 lowercase hexadecimal characters
+         */
+        sessionId: string;
+    };
+    query?: never;
+    url: '/api/games/{sessionId}';
+};
+
+export type GetGameErrors = {
+    /**
+     * Invalid session ID
+     */
+    400: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * Game not found
+     */
+    404: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Could not load game
+     */
+    500: ApiError;
+};
+
+export type GetGameError = GetGameErrors[keyof GetGameErrors];
+
+export type GetGameResponses = {
+    /**
+     * Saved game
+     */
+    200: GameResponse;
+};
+
+export type GetGameResponse = GetGameResponses[keyof GetGameResponses];
 
 export type GetHealthData = {
     body?: never;

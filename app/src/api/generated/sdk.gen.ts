@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetDemoGreetingData, GetDemoGreetingErrors, GetDemoGreetingResponses, GetHealthData, GetHealthErrors, GetHealthResponses } from './types.gen';
+import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameData, GetGameErrors, GetGameResponses, GetHealthData, GetHealthErrors, GetHealthResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -19,9 +19,21 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Return a dummy greeting from Go
+ * Create a 6 by 6 playground with adjustable cell size (default 2000 meters)
  */
-export const getDemoGreeting = <ThrowOnError extends boolean = false>(options?: Options<GetDemoGreetingData, ThrowOnError>) => (options?.client ?? client).get<GetDemoGreetingResponses, GetDemoGreetingErrors, ThrowOnError>({ url: '/api/demo', ...options });
+export const createGame = <ThrowOnError extends boolean = false>(options: Options<CreateGameData, ThrowOnError>) => (options.client ?? client).post<CreateGameResponses, CreateGameErrors, ThrowOnError>({
+    url: '/api/games',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Load a saved game playground
+ */
+export const getGame = <ThrowOnError extends boolean = false>(options: Options<GetGameData, ThrowOnError>) => (options.client ?? client).get<GetGameResponses, GetGameErrors, ThrowOnError>({ url: '/api/games/{sessionId}', ...options });
 
 /**
  * Check backend health
