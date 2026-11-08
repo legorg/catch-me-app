@@ -307,6 +307,14 @@ npm run web
 
 Browser preview uses port **8081** to match the backend's default allowed web origin. iOS simulator development requires macOS; a native iPhone build can be produced using macOS or EAS, then connect to the development server running on Windows.
 
+## Test without moving (development only)
+
+Set `TEST_SKIP_START_POSITION_CHECK=true` in the root `.env`, then run `docker compose up -d --force-recreate --wait backend` and reload Expo Go. Without Docker, run the Go server with `-test-skip-start-position-check=true`. It defaults to `false`.
+
+This server-side test override only bypasses the runner's position requirement for Ready and prevents movement from automatically canceling readiness/the countdown. **Real GPS tracking and position updates remain unchanged**; no coordinates are simulated. The server reports the override in `startPositionCheckDisabled`, and the app shows a test banner and enables Ready independently of location. Location permission is still needed to share your real position, but not to start a test game.
+
+The override affects all games on that development server while enabled, is not persisted in SQLite, and must not be used for real games or production. Set it back to `false` and restart/recreate the backend after testing. Any old simulated positions are replaced by the next real report. The normal start-cell rules remain the default.
+
 ## Maps setup
 
 `react-native-maps` was installed using `npx expo install react-native-maps`, selecting the SDK 58-compatible version. Android uses `PROVIDER_GOOGLE`; iOS uses the default Apple Maps provider, which works in Expo Go and needs no API key. The grid is drawn with polygons and polylines. Manual selection requests no GPS permission and does not track the device.

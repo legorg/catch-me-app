@@ -57,6 +57,8 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 - Before the start, a ready runner who reports a position outside their start cell becomes **not ready** automatically (which cancels a running countdown).
 - Once running, runners move freely.
 
+Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-test-skip-start-position-check=true`) temporarily bypasses this Ready/countdown position gate. Real position reporting is unchanged. The override defaults to off, applies to the development server rather than a stored game rule, and is exposed as `startPositionCheckDisabled` with a test banner in the app. Never use it for real games.
+
 ## Positions and visibility [done: milestone 3]
 
 - Foreground location only, while the lobby/game screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start.
