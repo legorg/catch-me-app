@@ -33,7 +33,7 @@
     "lint": "eslint src scripts tests openapi-ts.config.mjs app.config.js",
     "typecheck": "tsc --noEmit",
     "api:generate": "openapi-ts",
-    "test:api": "tsx --test tests/api-client.test.ts tests/api-generation.test.mts tests/playground.test.ts",
+    "test:api": "tsx --test tests/api-client.test.ts tests/api-generation.test.mts tests/playground.test.ts tests/lobby.test.ts",
     "api:update": "tsx scripts/api.mts update",
     "api:check": "tsx scripts/api.mts check",
     "api:check-client": "tsx scripts/api.mts check-client"

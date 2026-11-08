@@ -26,15 +26,57 @@ export type CreateGameRequest = {
     longitude: number;
 };
 
+export type CreateGameResponse = {
+    game: GameResponse;
+    joinCodes: JoinCodes;
+};
+
 export type GameResponse = {
     createdAt: string;
     playground: Playground;
     sessionId: string;
 };
 
+export type GameStateResponse = {
+    joinCode: string;
+    playerId: string;
+    players: Array<PlayerResponse>;
+    playground: Playground;
+    serverTime: string;
+    sessionId: string;
+    /**
+     * Scheduled start, present during the countdown and once running.
+     */
+    startsAt?: string;
+    status: 'lobby' | 'countdown' | 'running';
+    team: 'runner' | 'hunter';
+};
+
 export type HealthResponse = {
     service: 'catch-me-backend';
     status: 'ok';
+};
+
+export type JoinCodes = {
+    hunter: string;
+    runner: string;
+};
+
+export type JoinGameRequest = {
+    code: string;
+    name: string;
+};
+
+export type JoinGameResponse = {
+    playerToken: string;
+    state: GameStateResponse;
+};
+
+export type PlayerResponse = {
+    name: string;
+    playerId: string;
+    ready: boolean;
+    team: 'runner' | 'hunter';
 };
 
 export type Playground = {
@@ -43,6 +85,10 @@ export type Playground = {
     center: Coordinates;
     columns: 6;
     rows: 6;
+};
+
+export type SetReadyRequest = {
+    ready: boolean;
 };
 
 export type CreateGameData = {
@@ -82,12 +128,12 @@ export type CreateGameError = CreateGameErrors[keyof CreateGameErrors];
 
 export type CreateGameResponses = {
     /**
-     * Game saved
+     * Game saved, with one join code per team
      */
-    201: GameResponse;
+    201: CreateGameResponse;
 };
 
-export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
+export type CreateGameResponse2 = CreateGameResponses[keyof CreateGameResponses];
 
 export type GetGameData = {
     body?: never;
@@ -134,6 +180,186 @@ export type GetGameResponses = {
 };
 
 export type GetGameResponse = GetGameResponses[keyof GetGameResponses];
+
+export type LeaveGameData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me';
+};
+
+export type LeaveGameErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Game has already started
+     */
+    409: ApiError;
+    /**
+     * Could not update game
+     */
+    500: ApiError;
+};
+
+export type LeaveGameError = LeaveGameErrors[keyof LeaveGameErrors];
+
+export type LeaveGameResponses = {
+    /**
+     * Left the game; the token is no longer valid
+     */
+    204: unknown;
+};
+
+export type GetGameStateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/game';
+};
+
+export type GetGameStateErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Could not load game
+     */
+    500: ApiError;
+};
+
+export type GetGameStateError = GetGameStateErrors[keyof GetGameStateErrors];
+
+export type GetGameStateResponses = {
+    /**
+     * Current game state
+     */
+    200: GameStateResponse;
+};
+
+export type GetGameStateResponse = GetGameStateResponses[keyof GetGameStateResponses];
+
+export type SetReadyData = {
+    /**
+     * Ready state; the game starts 10 seconds after all players are ready and both teams have players
+     */
+    body: SetReadyRequest;
+    path?: never;
+    query?: never;
+    url: '/api/me/ready';
+};
+
+export type SetReadyErrors = {
+    /**
+     * Invalid JSON or missing ready value
+     */
+    400: ApiError;
+    /**
+     * Missing or unknown player token
+     */
+    401: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Game has already started
+     */
+    409: ApiError;
+    /**
+     * Request body exceeds 1024 bytes
+     */
+    413: ApiError;
+    /**
+     * Could not update game
+     */
+    500: ApiError;
+};
+
+export type SetReadyError = SetReadyErrors[keyof SetReadyErrors];
+
+export type SetReadyResponses = {
+    /**
+     * Updated game state
+     */
+    200: GameStateResponse;
+};
+
+export type SetReadyResponse = SetReadyResponses[keyof SetReadyResponses];
+
+export type JoinGameData = {
+    /**
+     * Join code (case-insensitive) and display name (1-20 characters, unique per game)
+     */
+    body: JoinGameRequest;
+    path?: never;
+    query?: never;
+    url: '/api/players';
+};
+
+export type JoinGameErrors = {
+    /**
+     * Invalid JSON, join code, or name
+     */
+    400: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * No game with this join code
+     */
+    404: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Game started, full, or name taken
+     */
+    409: ApiError;
+    /**
+     * Request body exceeds 1024 bytes
+     */
+    413: ApiError;
+    /**
+     * Could not join game
+     */
+    500: ApiError;
+};
+
+export type JoinGameError = JoinGameErrors[keyof JoinGameErrors];
+
+export type JoinGameResponses = {
+    /**
+     * Joined; keep the player token secret
+     */
+    201: JoinGameResponse;
+};
+
+export type JoinGameResponse2 = JoinGameResponses[keyof JoinGameResponses];
 
 export type GetHealthData = {
     body?: never;

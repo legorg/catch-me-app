@@ -1,17 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { API_URL, checkBackend, createGame, loadGame } from '../src/api/client';
+import {
+  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, setReady,
+} from '../src/api/client';
 import { previewPlayground } from '../src/playground';
 
 const center = { latitude: 52.52, longitude: 13.405 };
-const game = {
-  sessionId: '00112233445566778899aabbccddeeff',
-  createdAt: '2026-11-08T12:00:00Z',
-  playground: previewPlayground(center),
+const created = {
+  game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center) },
+  joinCodes: { runner: 'K7M2QX', hunter: 'P4R9TW' },
+};
+const token = 'ab'.repeat(32);
+const state = {
+  sessionId: created.game.sessionId,
+  status: 'lobby',
+  serverTime: '2026-11-08T12:00:00Z',
+  playground: created.game.playground,
+  playerId: '8899aabbccddeeff0011223344556677',
+  team: 'runner',
+  joinCode: 'K7M2QX',
+  players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
 };
 
-test('generated create client posts the center as JSON', async (t) => {
+test('create posts the center and cell size as JSON', async (t) => {
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     const url = new URL(request.url);
     assert.equal(url.origin, new URL(API_URL).origin);
@@ -19,37 +31,63 @@ test('generated create client posts the center as JSON', async (t) => {
     assert.equal(request.method, 'POST');
     assert.equal(request.headers.get('Content-Type'), 'application/json');
     assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000 });
-    return Response.json(game, { status: 201 });
+    return Response.json(created, { status: 201 });
   });
-  assert.deepEqual(await createGame(center), game);
+  assert.deepEqual(await createGame(center), created);
 });
 
-test('custom and legacy cell sizes are sent and accepted on load', async (t) => {
-  for (const size of [100, 1500, 2000, 5000]) {
-    const saved = { ...game, playground: previewPlayground(center, size) };
+test('custom cell sizes are sent', async (t) => {
+  for (const size of [100, 1500, 5000]) {
+    const response = { ...created, game: { ...created.game, playground: previewPlayground(center, size) } };
     t.mock.method(globalThis, 'fetch', async (request: Request) => {
-      if (request.method === 'POST') assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size });
-      return Response.json(saved);
+      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size });
+      return Response.json(response, { status: 201 });
     });
-    assert.deepEqual(await createGame(center, size), saved);
-    assert.deepEqual(await loadGame(saved.sessionId), saved);
+    assert.deepEqual(await createGame(center, size), response);
   }
 });
 
-test('invalid cell sizes are rejected before creating a game', async (t) => {
+test('invalid input is rejected before a request', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => { assert.fail('should not fetch'); });
   for (const size of [0, 99, 1550, 5100, NaN, Infinity]) {
     await assert.rejects(createGame(center, size), /Cell size/);
   }
+  for (const code of ['', 'ABC', 'ABCDE0', 'ABCDE1', 'ABCDEFG']) {
+    await assert.rejects(joinGame(code, 'Ada'), /join code/);
+  }
+  for (const name of ['', '   ', 'x'.repeat(21)]) {
+    await assert.rejects(joinGame('K7M2QX', name), /name/);
+  }
 });
 
-test('generated load client requests the saved session ID', async (t) => {
+test('join normalizes the code and trims the name', async (t) => {
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
-    assert.equal(new URL(request.url).pathname, `/api/games/${game.sessionId}`);
-    assert.equal(request.method, 'GET');
-    return Response.json(game);
+    assert.equal(new URL(request.url).pathname, '/api/players');
+    assert.equal(request.method, 'POST');
+    assert.equal(request.headers.get('Authorization'), null);
+    assert.deepEqual(await request.json(), { code: 'K7M2QX', name: 'Ada' });
+    return Response.json({ playerToken: token, state }, { status: 201 });
   });
-  assert.deepEqual(await loadGame(game.sessionId), game);
+  assert.deepEqual(await joinGame(' k7m2qx ', ' Ada '), { playerToken: token, state });
+});
+
+test('player requests send the bearer token', async (t) => {
+  const seen: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
+    seen.push(`${request.method} ${new URL(request.url).pathname}`);
+    if (request.method === 'PUT') {
+      assert.deepEqual(await request.json(), { ready: true });
+    }
+    if (request.method === 'DELETE') {
+      return new Response(null, { status: 204 });
+    }
+    return Response.json(state);
+  });
+  assert.deepEqual(await getGameState(token), state);
+  assert.deepEqual(await setReady(token, true), state);
+  await leaveGame(token);
+  assert.deepEqual(seen, ['GET /api/me/game', 'PUT /api/me/ready', 'DELETE /api/me']);
 });
 
 test('health check also uses the generated client', async (t) => {
@@ -60,33 +98,30 @@ test('health check also uses the generated client', async (t) => {
   assert.deepEqual(await checkBackend(), { status: 'ok', service: 'catch-me-backend' });
 });
 
-test('API errors become readable errors for the screen', async (t) => {
-  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'game not found' }, { status: 404 }));
-  await assert.rejects(loadGame(game.sessionId), /game not found/);
+test('API errors keep the message and status', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'missing or invalid player token' }, { status: 401 }));
+  await assert.rejects(getGameState(token), (err: unknown) =>
+    err instanceof ApiError && err.status === 401 && err.message === 'missing or invalid player token');
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'name is already taken in this game' }, { status: 409 }));
+  await assert.rejects(joinGame('K7M2QX', 'Ada'), /name is already taken/);
 });
 
 test('malformed successful responses are rejected at runtime', async (t) => {
-  for (const body of [null, {}, { ...game, sessionId: 'bad' }, { ...game, createdAt: 'bad' },
-    { ...game, playground: { ...game.playground, rows: 8 } },
-    { ...game, playground: { ...game.playground, cellSizeMeters: 1550 } },
-    { ...game, playground: { ...game.playground, cellSizeMeters: '2000' } },
-    { ...game, playground: { ...game.playground, center: { latitude: 81, longitude: 0 } } },
-    { ...game, playground: { ...game.playground, bounds: { ...game.playground.bounds, east: 'bad' } } },
-    { ...game, playground: { ...game.playground, bounds: { ...game.playground.bounds, north: 0 } } },
+  for (const body of [null, {}, { ...created, joinCodes: { runner: 'bad', hunter: 'P4R9TW' } },
+    { ...created, game: { ...created.game, sessionId: 'bad' } },
+    { ...created, game: { ...created.game, playground: { ...created.game.playground, rows: 8 } } },
+    { ...created, game: { ...created.game, playground: { ...created.game.playground, bounds: { ...created.game.playground.bounds, north: 0 } } } },
   ]) {
-    t.mock.method(globalThis, 'fetch', async () => Response.json(body));
+    t.mock.method(globalThis, 'fetch', async () => Response.json(body, { status: 201 }));
     await assert.rejects(createGame(center), /Unexpected game response/);
   }
-});
-
-test('load rejects a response for a different session', async (t) => {
-  t.mock.method(globalThis, 'fetch', async () => Response.json({ ...game, sessionId: 'f'.repeat(32) }));
-  await assert.rejects(loadGame(game.sessionId), /different game/);
-});
-
-test('invalid IDs are rejected before a request', async (t) => {
-  t.mock.method(globalThis, 'fetch', async () => { assert.fail('should not fetch'); });
-  await assert.rejects(loadGame('../health'), /32 lowercase hexadecimal/);
+  for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCode: 'bad' },
+    { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null }]) {
+    t.mock.method(globalThis, 'fetch', async () => Response.json(body));
+    await assert.rejects(getGameState(token), /Unexpected game state/);
+  }
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ playerToken: 'short', state }, { status: 201 }));
+  await assert.rejects(joinGame('K7M2QX', 'Ada'), /Unexpected join response/);
 });
 
 test('network failures are propagated', async (t) => {
@@ -105,5 +140,5 @@ test('requests time out and abort the fetch', async (t) => {
     assert.equal(request.signal.aborted, true);
     throw new Error('Aborted');
   });
-  await assert.rejects(createGame(center), /Connection timed out/);
+  await assert.rejects(getGameState(token), /Connection timed out/);
 });

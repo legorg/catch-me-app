@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameData, GetGameErrors, GetGameResponses, GetHealthData, GetHealthErrors, GetHealthResponses } from './types.gen';
+import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameData, GetGameErrors, GetGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthErrors, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, SetReadyData, SetReadyErrors, SetReadyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -34,6 +34,49 @@ export const createGame = <ThrowOnError extends boolean = false>(options: Option
  * Load a saved game playground
  */
 export const getGame = <ThrowOnError extends boolean = false>(options: Options<GetGameData, ThrowOnError>) => (options.client ?? client).get<GetGameResponses, GetGameErrors, ThrowOnError>({ url: '/api/games/{sessionId}', ...options });
+
+/**
+ * Leave the game before it starts
+ */
+export const leaveGame = <ThrowOnError extends boolean = false>(options?: Options<LeaveGameData, ThrowOnError>) => (options?.client ?? client).delete<LeaveGameResponses, LeaveGameErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me',
+    ...options
+});
+
+/**
+ * Get the game state for the authenticated player
+ */
+export const getGameState = <ThrowOnError extends boolean = false>(options?: Options<GetGameStateData, ThrowOnError>) => (options?.client ?? client).get<GetGameStateResponses, GetGameStateErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/game',
+    ...options
+});
+
+/**
+ * Set the authenticated player's ready state
+ */
+export const setReady = <ThrowOnError extends boolean = false>(options: Options<SetReadyData, ThrowOnError>) => (options.client ?? client).put<SetReadyResponses, SetReadyErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/ready',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Join a game with a team join code
+ */
+export const joinGame = <ThrowOnError extends boolean = false>(options: Options<JoinGameData, ThrowOnError>) => (options.client ?? client).post<JoinGameResponses, JoinGameErrors, ThrowOnError>({
+    url: '/api/players',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Check backend health
