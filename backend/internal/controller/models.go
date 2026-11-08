@@ -63,7 +63,28 @@ type PlayerResponse struct {
 	Name     string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
 	Team     string `json:"team" enums:"runner,hunter" example:"runner"`
 	Ready    bool   `json:"ready" example:"false"`
+	// Present only for runners when the requester is a runner.
+	Route *RouteResponse `json:"route,omitempty"`
+	// Own position always; teammates' positions while running; runners'
+	// revealed positions for hunters while running.
+	Position *PositionResponse `json:"position,omitempty"`
 } // @name PlayerResponse
+
+type PositionResponse struct {
+	Latitude       float64 `json:"latitude" example:"52.52"`
+	Longitude      float64 `json:"longitude" example:"13.405"`
+	AccuracyMeters float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8"`
+	RecordedAt     string  `json:"recordedAt" format:"date-time" example:"2026-11-08T12:04:58Z"`
+	// Set when this is a runner position revealed to hunters.
+	RevealedAt string `json:"revealedAt,omitempty" format:"date-time" example:"2026-11-08T12:05:00Z"`
+} // @name PositionResponse
+
+// Pointer fields distinguish missing values from zero.
+type UpdatePositionRequest struct {
+	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
+	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
+	AccuracyMeters *float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8"`
+} // @name UpdatePositionRequest
 
 // GameStateResponse is the game as seen by the requesting player.
 type GameStateResponse struct {
@@ -71,12 +92,14 @@ type GameStateResponse struct {
 	Status     string `json:"status" enums:"lobby,countdown,running" example:"lobby"`
 	ServerTime string `json:"serverTime" format:"date-time" example:"2026-11-08T12:00:00Z"`
 	// Scheduled start, present during the countdown and once running.
-	StartsAt   string           `json:"startsAt,omitempty" format:"date-time" example:"2026-11-08T12:00:10Z"`
-	Playground Playground       `json:"playground"`
-	PlayerID   string           `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
-	Team       string           `json:"team" enums:"runner,hunter" example:"runner"`
-	JoinCode   string           `json:"joinCode" minLength:"6" maxLength:"6" example:"K7M2QX"`
-	Players    []PlayerResponse `json:"players"`
+	StartsAt string `json:"startsAt,omitempty" format:"date-time" example:"2026-11-08T12:00:10Z"`
+	// Next time hunters receive the runners' positions, present while running.
+	NextRevealAt string           `json:"nextRevealAt,omitempty" format:"date-time" example:"2026-11-08T12:05:10Z"`
+	Playground   Playground       `json:"playground"`
+	PlayerID     string           `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Team         string           `json:"team" enums:"runner,hunter" example:"runner"`
+	JoinCode     string           `json:"joinCode" minLength:"6" maxLength:"6" example:"K7M2QX"`
+	Players      []PlayerResponse `json:"players"`
 	// The requesting runner's own route; absent for hunters.
 	Route *RouteResponse `json:"route,omitempty"`
 } // @name GameStateResponse

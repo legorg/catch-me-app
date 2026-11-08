@@ -153,6 +153,17 @@ func TestLobbyFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := s.SetReady(ctx, runnerToken, true); err == nil {
+		t.Fatal("runner got ready without a position")
+	}
+	start := regenerated.Lobby.Game.Playground.CellCenter(regenerated.Me.Route.Start)
+	if _, err := s.UpdatePosition(ctx, runnerToken, start, -1); err == nil {
+		t.Fatal("invalid accuracy accepted")
+	}
+	moved, err := s.UpdatePosition(ctx, runnerToken, start, 8)
+	if err != nil || moved.Me.Position == nil || moved.Me.Position.RecordedAt != now {
+		t.Fatalf("position not stored with server time: %+v %v", moved.Me.Position, err)
+	}
 	if _, err := s.SetReady(ctx, runnerToken, true); err != nil {
 		t.Fatal(err)
 	}

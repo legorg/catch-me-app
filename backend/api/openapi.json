@@ -136,6 +136,12 @@
           "minLength": 6,
           "type": "string"
         },
+        "nextRevealAt": {
+          "description": "Next time hunters receive the runners' positions, present while running.",
+          "example": "2026-11-08T12:05:10Z",
+          "format": "date-time",
+          "type": "string"
+        },
         "playerId": {
           "example": "8899aabbccddeeff0011223344556677",
           "maxLength": 32,
@@ -303,9 +309,25 @@
           "minLength": 32,
           "type": "string"
         },
+        "position": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/PositionResponse"
+            }
+          ],
+          "description": "Own position always; teammates' positions while running; runners'\nrevealed positions for hunters while running."
+        },
         "ready": {
           "example": false,
           "type": "boolean"
+        },
+        "route": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RouteResponse"
+            }
+          ],
+          "description": "Present only for runners when the requester is a runner."
         },
         "team": {
           "enum": [
@@ -362,6 +384,42 @@
       ],
       "type": "object"
     },
+    "PositionResponse": {
+      "properties": {
+        "accuracyMeters": {
+          "example": 8,
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "latitude": {
+          "example": 52.52,
+          "type": "number"
+        },
+        "longitude": {
+          "example": 13.405,
+          "type": "number"
+        },
+        "recordedAt": {
+          "example": "2026-11-08T12:04:58Z",
+          "format": "date-time",
+          "type": "string"
+        },
+        "revealedAt": {
+          "description": "Set when this is a runner position revealed to hunters.",
+          "example": "2026-11-08T12:05:00Z",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "accuracyMeters",
+        "latitude",
+        "longitude",
+        "recordedAt"
+      ],
+      "type": "object"
+    },
     "RouteResponse": {
       "properties": {
         "end": {
@@ -399,6 +457,34 @@
       },
       "required": [
         "ready"
+      ],
+      "type": "object"
+    },
+    "UpdatePositionRequest": {
+      "properties": {
+        "accuracyMeters": {
+          "example": 8,
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "latitude": {
+          "example": 52.52,
+          "maximum": 80,
+          "minimum": -80,
+          "type": "number"
+        },
+        "longitude": {
+          "example": 13.405,
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "accuracyMeters",
+        "latitude",
+        "longitude"
       ],
       "type": "object"
     }
@@ -622,6 +708,78 @@
         "summary": "Get the game state for the authenticated player"
       }
     },
+    "/api/me/position": {
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "operationId": "updatePosition",
+        "parameters": [
+          {
+            "description": "Current coordinates and accuracy radius; the server records its own time",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdatePositionRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated game state",
+            "schema": {
+              "$ref": "#/definitions/GameStateResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid JSON, coordinates, or accuracy",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "403": {
+            "description": "Browser origin is not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ],
+        "summary": "Report the authenticated player's current position"
+      }
+    },
     "/api/me/ready": {
       "put": {
         "consumes": [
@@ -674,7 +832,7 @@
             }
           },
           "409": {
-            "description": "Game has already started",
+            "description": "Game has already started, or the runner is not in their start cell",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }

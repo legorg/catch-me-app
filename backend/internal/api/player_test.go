@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,13 @@ import (
 	"catch-me/backend/internal/controller"
 	"catch-me/backend/internal/service"
 )
+
+// cellCenter returns latitude and longitude of a cell such as "B1".
+func cellCenter(p controller.Playground, label string) [2]float64 {
+	column, row := float64(label[0]-'A'), float64(label[1]-'1')
+	b := p.Bounds
+	return [2]float64{b.North - (b.North-b.South)*(row+0.5)/6, b.West + (b.East-b.West)*(column+0.5)/6}
+}
 
 func send(t *testing.T, handler http.Handler, method, path, token, body string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -68,6 +76,17 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatal("state leaks the other team's code or a token")
 	}
 
+	decode[controller.APIError](t, send(t, handler, "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`), 409)
+	start := cellCenter(created.Game.Playground, regenerated.Route.Start)
+	positionBody := fmt.Sprintf(`{"latitude":%v,"longitude":%v,"accuracyMeters":8}`, start[0], start[1])
+	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, positionBody), 200)
+	if own := state.Players[0].Position; own == nil || own.Latitude != start[0] || own.AccuracyMeters != 8 || own.RevealedAt != "" {
+		t.Fatalf("own position missing: %+v", own)
+	}
+	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"position"`) {
+		t.Fatal("hunter sees a runner position before the game runs")
+	}
+
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`), 200)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 409)
 	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
@@ -114,6 +133,12 @@ func TestLobbyErrors(t *testing.T) {
 		{"leave without token", "DELETE", "/api/me", "", "", 401},
 		{"route without token", "POST", "/api/me/route", "", "", 401},
 		{"wrong route method", "GET", "/api/me/route", runner.PlayerToken, "", 405},
+		{"position without token", "PUT", "/api/me/position", "", `{"latitude":0,"longitude":0,"accuracyMeters":5}`, 401},
+		{"position missing accuracy", "PUT", "/api/me/position", runner.PlayerToken, `{"latitude":0,"longitude":0}`, 400},
+		{"position out of range", "PUT", "/api/me/position", runner.PlayerToken, `{"latitude":85,"longitude":0,"accuracyMeters":5}`, 400},
+		{"position bad accuracy", "PUT", "/api/me/position", runner.PlayerToken, `{"latitude":0,"longitude":0,"accuracyMeters":-1}`, 400},
+		{"wrong position method", "POST", "/api/me/position", runner.PlayerToken, "", 405},
+		{"ready outside start cell", "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`, 409},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := send(t, handler, tc.method, tc.path, tc.token, tc.body)

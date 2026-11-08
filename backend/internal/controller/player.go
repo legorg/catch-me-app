@@ -90,7 +90,7 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} APIError "Missing or unknown player token"
 // @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Game has already started"
+// @Failure 409 {object} APIError "Game has already started, or the runner is not in their start cell"
 // @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
 // @Failure 500 {object} APIError "Could not update game"
 // @Router /api/me/ready [put]
@@ -141,6 +141,51 @@ func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	view, err := c.service.RegenerateRoute(r.Context(), token)
+	if err != nil {
+		writeGameError(w, err, "could not update game")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
+// UpdatePosition stores the authenticated player's latest location.
+// @Summary Report the authenticated player's current position
+// @ID updatePosition
+// @Accept json
+// @Produce json
+// @Security PlayerToken
+// @Param body body UpdatePositionRequest true "Current coordinates and accuracy radius; the server records its own time"
+// @Success 200 {object} GameStateResponse "Updated game state"
+// @Failure 400 {object} APIError "Invalid JSON, coordinates, or accuracy"
+// @Failure 401 {object} APIError "Missing or unknown player token"
+// @Failure 403 {object} APIError "Browser origin is not allowed"
+// @Failure 405 {object} APIError "Method not allowed"
+// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
+// @Failure 500 {object} APIError "Could not update game"
+// @Router /api/me/position [put]
+func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPut) {
+		return
+	}
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	var body UpdatePositionRequest
+	if !decodeJSON(w, r, &body, "expected a JSON object with latitude, longitude, and accuracyMeters") {
+		return
+	}
+	if body.Latitude == nil || body.Longitude == nil || body.AccuracyMeters == nil {
+		WriteError(w, http.StatusBadRequest, "latitude, longitude, and accuracyMeters are required")
+		return
+	}
+	coordinates, err := game.ParseCoordinates(*body.Latitude, *body.Longitude)
+	if err != nil {
+		writeGameError(w, err, "invalid position")
+		return
+	}
+	view, err := c.service.UpdatePosition(r.Context(), token, coordinates, *body.AccuracyMeters)
 	if err != nil {
 		writeGameError(w, err, "could not update game")
 		return
@@ -200,13 +245,32 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	if !g.StartsAt.IsZero() {
 		response.StartsAt = g.StartsAt.Format(time.RFC3339Nano)
 	}
-	if route := view.Me.Route; route != nil {
-		response.Route = &RouteResponse{Start: route.Start.String(), End: route.End.String(), RegenerationsLeft: route.RegenerationsLeft}
+	if next := g.NextReveal(view.Now); !next.IsZero() {
+		response.NextRevealAt = next.Format(time.RFC3339Nano)
 	}
-	for _, p := range view.Lobby.Players {
-		response.Players = append(response.Players, PlayerResponse{
-			PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), Ready: p.Ready,
-		})
+	if route := view.Me.Route; route != nil {
+		response.Route = routeResponse(route)
+	}
+	// Visibility is decided by the domain; this only maps what it allows.
+	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
+		player := PlayerResponse{PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), Ready: p.Ready}
+		if p.Route != nil {
+			player.Route = routeResponse(p.Route)
+		}
+		if p.Position != nil {
+			player.Position = &PositionResponse{
+				Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
+				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt.Format(time.RFC3339Nano),
+			}
+			if !p.RevealedAt.IsZero() {
+				player.Position.RevealedAt = p.RevealedAt.Format(time.RFC3339Nano)
+			}
+		}
+		response.Players = append(response.Players, player)
 	}
 	return response
+}
+
+func routeResponse(route *game.RunnerRoute) *RouteResponse {
+	return &RouteResponse{Start: route.Start.String(), End: route.End.String(), RegenerationsLeft: route.RegenerationsLeft}
 }

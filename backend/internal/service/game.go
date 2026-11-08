@@ -94,6 +94,17 @@ func (s *GameService) RegenerateRoute(ctx context.Context, token game.PlayerToke
 	})
 }
 
+// UpdatePosition stores the player's latest location, timestamped with server time.
+func (s *GameService) UpdatePosition(ctx context.Context, token game.PlayerToken, coordinates game.Coordinates, accuracyMeters float64) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		position, err := game.NewPosition(coordinates, accuracyMeters, now)
+		if err != nil {
+			return err
+		}
+		return l.UpdatePosition(me.ID, position, now)
+	})
+}
+
 func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 	_, err := s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
 		return l.Leave(me.ID, now)
@@ -103,17 +114,18 @@ func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 
 func (s *GameService) updateAsPlayer(ctx context.Context, token game.PlayerToken, change func(*game.Lobby, game.Player, time.Time) error) (PlayerView, error) {
 	now, hash := s.now(), token.Hash()
-	var apply func(*game.Lobby) error
-	if change != nil {
-		apply = func(l *game.Lobby) error {
-			me, ok := l.PlayerByToken(hash)
-			if !ok {
-				return game.ErrUnauthorized
-			}
-			return change(l, me, now)
+	lobby, err := s.repository.UpdateLobbyByToken(ctx, hash, func(l *game.Lobby) error {
+		// Every request advances due reveals, so no background job is needed.
+		l.AdvanceReveals(now)
+		if change == nil {
+			return nil
 		}
-	}
-	lobby, err := s.repository.UpdateLobbyByToken(ctx, hash, apply)
+		me, ok := l.PlayerByToken(hash)
+		if !ok {
+			return game.ErrUnauthorized
+		}
+		return change(l, me, now)
+	})
 	if errors.Is(err, game.ErrNotFound) {
 		return PlayerView{}, game.ErrUnauthorized
 	}
