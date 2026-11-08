@@ -43,12 +43,14 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 
 Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 4).
 
-## Runner routes [next: milestone 2]
+## Runner routes [done: milestone 2]
 
-- In the lobby, each runner gets a random **start cell in one edge row** (row 1 or row 6) and an **end cell in the opposite edge row**. Which edge is the start is random per runner.
-- Each runner can **regenerate** their route **2 times**, only while not ready.
+- When a runner joins, they get a random **start cell in one edge row** (row 1 or row 6) and an **end cell in the opposite edge row**. Which edge is the start is random per runner; columns are random.
+- Each runner can **regenerate** their route **2 times**, only before the start and while not ready. A regenerated route always differs from the previous one.
 - Hunters have no assigned start point.
-- A runner's route is visible to that runner only (teammates may see it from milestone 3 on, decided then).
+- A runner's route is visible to that runner only. Teammate visibility is decided in milestone 3.
+- Runners who joined before routes existed have no route.
+- Whether runners must stand in their start cell when the game starts is decided in milestone 3, once positions exist.
 
 ## Positions and visibility [next: milestone 3]
 
@@ -74,7 +76,7 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 - Background location tracking.
 - Production readiness: HTTPS, rate limiting, versioned migrations, cleanup of old games, privacy policy, store builds.
 
-## API (milestone 1)
+## API (milestones 1 and 2)
 
 | Method and path | Auth | Purpose |
 |---|---|---|
@@ -83,11 +85,12 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 | `POST /api/players` | – | Join with `{code, name}`. Returns the player token and the game state. |
 | `GET /api/me/game` | Bearer | Game state as seen by the requesting player. |
 | `PUT /api/me/ready` | Bearer | Set `{ready: true/false}`. Returns the game state. |
+| `POST /api/me/route` | Bearer | Regenerate the runner's route. Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the playground, the requesting player's ID and team, their team's join code, and the list of players. Clients compute the countdown from `startsAt - serverTime` to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the playground, the requesting player's ID and team, their team's join code, the list of players, and, for runners, their own route. Clients compute the countdown from `startsAt - serverTime` to avoid depending on the phone's clock.
 
-Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken).
+Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route change not allowed).
 
 ## Tuning values
 

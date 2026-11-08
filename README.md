@@ -29,7 +29,7 @@ Creating a game returns one **join code per team** (runners and hunters). Anyone
 
 Saved sessions keep their stored size, including older 100 m-cell playgrounds. The Ent schema maps to the original `games` table and `session_id` primary key, preserving existing coordinates and timestamp text. Games created before join codes existed cannot be joined.
 
-Implemented so far: playground setup, join codes, players, lobby, ready-up, countdown, and start. Runner routes, GPS location sharing, catching, and finishing are **not implemented yet**. Joining returns a secret player token that authenticates later requests; the app keeps it in memory only, so restarting the app loses the session. A session ID identifies saved configuration; it is **not** a credential or a join code. Anyone with the ID can read the playground (not the codes or players) in this local-development version. Games currently remain until the database is explicitly removed; no automatic cleanup is implemented yet.
+Implemented so far: playground setup, join codes, players, lobby, ready-up, countdown, start, and runner routes (a random start cell on one edge row and a target cell on the opposite one, shown on the map, regenerable twice before getting ready). GPS location sharing, catching, and finishing are **not implemented yet**. Joining returns a secret player token that authenticates later requests; the app keeps it in memory only, so restarting the app loses the session. A session ID identifies saved configuration; it is **not** a credential or a join code. Anyone with the ID can read the playground (not the codes or players) in this local-development version. Games currently remain until the database is explicitly removed; no automatic cleanup is implemented yet.
 
 The grid uses a local spherical approximation, not survey-grade geometry. Center latitudes are restricted to -80° through 80°, and playgrounds crossing the international date line are rejected. The frontend previews the geometry; the backend recomputes and stores the authoritative bounds. Individual cell boundaries are derived from those bounds rather than stored as 36 duplicate records. No map imagery or player location history is stored. Confirm the whole area is safe and permitted for outdoor play.
 
@@ -102,6 +102,7 @@ The Go annotation `@ID` becomes `operationId` and determines each generated serv
 | `GET /api/me/game` | `getGameState()` | Game state as seen by the authenticated player |
 | `PUT /api/me/ready` | `setReady()` | Set `{ready}`; return the game state |
 | `DELETE /api/me` | `leaveGame()` | Leave before the game starts |
+| `POST /api/me/route` | `regenerateRoute()` | Give the runner a new random route (2 times, while not ready) |
 
 The `/api/me` endpoints require `Authorization: Bearer <playerToken>`. The game state contains only what the requesting player may see, for example only their own team's join code. Errors: 400 invalid input, 401 missing/unknown token, 404 unknown game or code, 409 rule violation (already started, full, name taken).
 
