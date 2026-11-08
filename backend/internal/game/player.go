@@ -143,11 +143,25 @@ type Player struct {
 	// Route is set for runners. It is nil for hunters and for runners who
 	// joined before routes existed.
 	Route *RunnerRoute
+	// Position is the latest reported location; Reveal is what hunters last
+	// saw of a runner.
+	Position *Position
+	Reveal   *Reveal
 }
 
 // SameState reports whether two snapshots of a player are identical.
 func (p Player) SameState(other Player) bool {
-	routeA, routeB := p.Route, other.Route
-	p.Route, other.Route = nil, nil
-	return p == other && sameRoute(routeA, routeB)
+	if !samePointee(p.Route, other.Route) || !samePointee(p.Position, other.Position) || !samePointee(p.Reveal, other.Reveal) {
+		return false
+	}
+	p.Route, p.Position, p.Reveal = nil, nil, nil
+	other.Route, other.Position, other.Reveal = nil, nil, nil
+	return p == other
+}
+
+func samePointee[T comparable](a, b *T) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }

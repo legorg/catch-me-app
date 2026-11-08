@@ -58,10 +58,3 @@ func randomRoute(regenerationsLeft int) RunnerRoute {
 		RegenerationsLeft: regenerationsLeft,
 	}
 }
-
-func sameRoute(a, b *RunnerRoute) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	return *a == *b
-}

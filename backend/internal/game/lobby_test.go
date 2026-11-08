@@ -10,9 +10,25 @@ import (
 var start = time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 
 func newLobby() Lobby {
-	return Lobby{Game: Game{SessionID: NewSessionID(), JoinCodes: NewJoinCodes()}}
+	center, _ := ParseCoordinates(52.52, 13.405)
+	playground, _ := NewPlayground(center, DefaultCellSize())
+	return Lobby{Game: Game{SessionID: NewSessionID(), JoinCodes: NewJoinCodes(), Playground: playground}}
 }
 
+// moveToStart reports a position in the runner's start cell.
+func moveToStart(t *testing.T, l *Lobby, id PlayerID, now time.Time) {
+	t.Helper()
+	p, _ := l.Player(id)
+	if p.Route == nil {
+		return
+	}
+	position, _ := NewPosition(l.Game.Playground.CellCenter(p.Route.Start), 5, now)
+	if err := l.UpdatePosition(id, position, now); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// join adds a player; runners immediately stand in their start cell.
 func join(t *testing.T, l *Lobby, team Team, name string, now time.Time) Player {
 	t.Helper()
 	parsed, err := ParsePlayerName(name)
@@ -23,6 +39,8 @@ func join(t *testing.T, l *Lobby, team Team, name string, now time.Time) Player 
 	if err != nil {
 		t.Fatal(err)
 	}
+	moveToStart(t, l, player.ID, now)
+	player, _ = l.Player(player.ID)
 	return player
 }
 

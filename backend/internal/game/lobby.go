@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"slices"
 	"time"
 )
@@ -113,8 +114,61 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time) error {
 	if i < 0 {
 		return ErrUnauthorized
 	}
+	if ready {
+		if err := l.requireInStartCell(l.Players[i], now); err != nil {
+			return err
+		}
+	}
 	l.Players[i].Ready = ready
 	l.reschedule(now)
+	return nil
+}
+
+// UpdatePosition stores a player's latest location. Before the start, a ready
+// runner who leaves their start cell becomes not ready.
+func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time) error {
+	i := slices.IndexFunc(l.Players, func(p Player) bool { return p.ID == id })
+	if i < 0 {
+		return ErrUnauthorized
+	}
+	// Snapshot due reveals first, so they never contain a position reported after the reveal time.
+	l.AdvanceReveals(now)
+	player := &l.Players[i]
+	player.Position = &position
+	if l.Game.Status(now) != StatusRunning && player.Ready && l.requireInStartCell(*player, now) != nil {
+		player.Ready = false
+		l.reschedule(now)
+	}
+	return nil
+}
+
+// AdvanceReveals records each runner's latest position for hunters once a
+// reveal time has passed. Calling it repeatedly is harmless.
+func (l *Lobby) AdvanceReveals(now time.Time) {
+	due := l.Game.LatestReveal(now)
+	if due.IsZero() {
+		return
+	}
+	for i := range l.Players {
+		p := &l.Players[i]
+		if p.Team == Runners && p.Position != nil && (p.Reveal == nil || p.Reveal.At.Before(due)) {
+			p.Reveal = &Reveal{Position: *p.Position, At: due}
+		}
+	}
+}
+
+// requireInStartCell checks that a runner recently reported a position inside
+// their start cell. Hunters and runners without a route always pass.
+func (l Lobby) requireInStartCell(p Player, now time.Time) error {
+	if p.Team != Runners || p.Route == nil {
+		return nil
+	}
+	if p.Position == nil || now.Sub(p.Position.RecordedAt) > StartCellMaxAge {
+		return &RuleError{Message: "share your location to get ready"}
+	}
+	if cell, ok := l.Game.Playground.CellAt(p.Position.Coordinates); !ok || cell != p.Route.Start {
+		return &RuleError{Message: fmt.Sprintf("go to your start cell %s to get ready", p.Route.Start)}
+	}
 	return nil
 }
 
