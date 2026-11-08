@@ -61,7 +61,8 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 
 ## Positions and visibility [done: milestone 3]
 
-- Foreground location only, while the lobby/game screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start.
+- Before the start, location is shared in the foreground only, while the lobby screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start.
+- **Background sharing [done]:** while the game runs, players who grant "Always" location access keep reporting with the screen off or another app open (Android shows a notification while sharing). It stops when the player leaves the game screen, closes the app, or the token becomes invalid; a restarted app does not resume it. It needs an installed app build; in Expo Go and browsers the app falls back to foreground sharing.
 - The app sends the latest fix every **5 seconds**, even when standing still. The server stamps each report with its own time and never trusts the phone's clock.
 - Only the **latest position** per player is stored, never a history. A player's position is deleted when they leave; deleting all positions at the end of a game follows in milestone 4.
 - Everyone always sees **their own** position.
@@ -83,7 +84,7 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 
 - **Jokers** (special one-off abilities) on top of periodic reveals.
 - Real-time updates (server-sent events or WebSockets) instead of polling.
-- Background location tracking.
+- Background location that survives an app restart (needs a persisted player token).
 - Production readiness: HTTPS, rate limiting, versioned migrations, cleanup of old games, privacy policy, store builds.
 
 ## API (milestones 1 to 3)
