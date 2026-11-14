@@ -179,52 +179,6 @@ export type CreateGameResponses = {
 
 export type CreateGameResponse2 = CreateGameResponses[keyof CreateGameResponses];
 
-export type GetGameData = {
-    body?: never;
-    path: {
-        /**
-         * 32 lowercase hexadecimal characters
-         */
-        sessionId: string;
-    };
-    query?: never;
-    url: '/api/games/{sessionId}';
-};
-
-export type GetGameErrors = {
-    /**
-     * Invalid session ID
-     */
-    400: ApiError;
-    /**
-     * Browser origin is not allowed
-     */
-    403: ApiError;
-    /**
-     * Game not found
-     */
-    404: ApiError;
-    /**
-     * Method not allowed
-     */
-    405: ApiError;
-    /**
-     * Could not load game
-     */
-    500: ApiError;
-};
-
-export type GetGameError = GetGameErrors[keyof GetGameErrors];
-
-export type GetGameResponses = {
-    /**
-     * Saved game
-     */
-    200: GameResponse;
-};
-
-export type GetGameResponse = GetGameResponses[keyof GetGameResponses];
-
 export type LeaveGameData = {
     body?: never;
     path?: never;

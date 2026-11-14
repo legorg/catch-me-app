@@ -34,8 +34,7 @@ services:
       - ./backend/api:/backend/api:ro
       - expo_state:/home/node/.expo
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     stdin_open: true
     tty: true
     init: true
@@ -43,5 +42,3 @@ services:
 volumes:
   game_data:
   expo_state:
-  go_module_cache:
-  go_build_cache:

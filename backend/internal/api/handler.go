@@ -11,7 +11,6 @@ func NewHandler(webOrigin string, games *controller.GameController) http.Handler
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", controller.Health)
 	mux.HandleFunc("/api/games", games.Create)
-	mux.HandleFunc("/api/games/{sessionId}", games.Get)
 	mux.HandleFunc("/api/players", games.Join)
 	mux.HandleFunc("/api/me", games.Leave)
 	mux.HandleFunc("/api/me/game", games.State)

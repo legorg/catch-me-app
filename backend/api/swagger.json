@@ -69,62 +69,6 @@
                 }
             }
         },
-        "/api/games/{sessionId}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Load a saved game playground",
-                "operationId": "getGame",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "32 lowercase hexadecimal characters",
-                        "name": "sessionId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Saved game",
-                        "schema": {
-                            "$ref": "#/definitions/GameResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid session ID",
-                        "schema": {
-                            "$ref": "#/definitions/ApiError"
-                        }
-                    },
-                    "403": {
-                        "description": "Browser origin is not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/ApiError"
-                        }
-                    },
-                    "404": {
-                        "description": "Game not found",
-                        "schema": {
-                            "$ref": "#/definitions/ApiError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Could not load game",
-                        "schema": {
-                            "$ref": "#/definitions/ApiError"
-                        }
-                    }
-                }
-            }
-        },
         "/api/me": {
             "delete": {
                 "security": [

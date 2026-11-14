@@ -1,0 +1,144 @@
+<mxfile host="drawio-plugin" compressed="false" version="22.1.22" type="embed" pages="2">
+  <diagram id="projektaufbau" name="1 - Projektaufbau">
+    <mxGraphModel dx="1100" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="p1-0" />
+        <mxCell id="p1-1" parent="p1-0" />
+        <mxCell id="p1-title" value="Catch me! – React im Projekt" style="text;html=0;align=center;fontSize=24;fontStyle=1;" parent="p1-1" vertex="1">
+          <mxGeometry x="40" y="20" width="1080" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-subtitle" value="Blau: React / UI · Grün: Daten / Dienste · Orange: Backend · Pfeile sind beschriftete Beziehungen" style="text;html=0;align=center;fontSize=13;" parent="p1-1" vertex="1">
+          <mxGeometry x="40" y="65" width="1080" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-layout" value="RootLayout · app/src/app/_layout.tsx&#xa;Expo Router Stack – verwaltet die Screens" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=15;" parent="p1-1" vertex="1">
+          <mxGeometry x="350" y="115" width="460" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-home" value="HomeScreen · index.tsx&#xa;Route /&#xa;State: code, name, busy, error&#xa;Aktion: Spiel beitreten" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="60" y="245" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-create" value="CreateScreen · create.tsx&#xa;Route /create&#xa;State: Mittelpunkt, Größe, created, ...&#xa;Aktion: Spielplatz / Spiel erstellen" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="430" y="245" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-lobby" value="LobbyScreen · lobby.tsx&#xa;Route /lobby (auch laufendes Spiel)&#xa;State: snapshot, now, busy, error&#xa;Polling beim Fokus: alle 2 Sekunden" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="800" y="245" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-nav1" value="Screen" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p1-1" source="p1-layout" target="p1-home" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-nav2" value="Screen" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p1-1" source="p1-layout" target="p1-create" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-nav3" value="Screen" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p1-1" source="p1-layout" target="p1-lobby" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-button" value="Button · components/button.tsx&#xa;Props: label, disabled, onPress, variant&#xa;Baut auf Pressable + Text auf&#xa;Von allen drei Screens verwendet" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="60" y="420" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-map" value="PlaygroundMap · components/&#xa;Props: playground, onSelect, markers, ...&#xa;.native.tsx: Android / iOS Karte&#xa;.tsx: Browser-Ersatzdarstellung" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="430" y="420" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-location" value="useLocationSharing · eigener Hook&#xa;Berechtigungen + echtes GPS + Versand&#xa;Effekte richten Dienste ein / räumen auf&#xa;Hook, keine sichtbare Komponente" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="800" y="420" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-usebutton" value="Props / Callback" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeColor=#6c8ebf;" parent="p1-1" source="p1-home" target="p1-button" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-usemap" value="Props / Callback" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeColor=#6c8ebf;" parent="p1-1" source="p1-create" target="p1-map" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-uselocation" value="nutzt Hook" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeColor=#82b366;" parent="p1-1" source="p1-lobby" target="p1-location" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-shared" value="Vereinfachte Ansicht: Create und Lobby verwenden jeweils eigene Button-Instanzen; Lobby verwendet auch PlaygroundMap.&#xa;Props fließen zum Kind. Übergebene Callbacks melden Ereignisse an den Screen zurück." style="text;html=0;align=center;whiteSpace=wrap;fontSize=13;" parent="p1-1" vertex="1">
+          <mxGeometry x="60" y="545" width="1040" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-api" value="app/src/api/client.ts + api/generated/&#xa;Screens / Standortversand rufen API-Funktionen auf&#xa;Eingabe- und Antwortprüfung, Fehler, Timeout → Fetch / HTTP" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="310" y="620" width="530" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-session" value="player-session.ts&#xa;Token nur im App-Speicher&#xa;Normales Modul, kein React-State&#xa;Keine Persistenz nach Neustart" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" parent="p1-1" vertex="1">
+          <mxGeometry x="60" y="620" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-backend" value="Go-Backend · Port 8080&#xa;API → Controller → Service → DB-Adapter&#xa;Verbindliche Regeln + erlaubte Daten pro Spieler&#xa;Details: docs/backend-ueberblick.drawio" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="310" y="755" width="530" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-http" value="HTTP-Anfrage / JSON-Antwort" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;startFill=1;endArrow=block;" parent="p1-1" source="p1-api" target="p1-backend" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-db" value="GORM / SQLite&#xa;Persistenter Spielzustand" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="890" y="755" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-persist" value="lesen / speichern" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;startFill=1;endArrow=block;" parent="p1-1" source="p1-backend" target="p1-db" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-footer" value="React-State auf dem Handy ist eine lokale UI-Sicht, nicht die Datenbank und nicht der Schiedsrichter.&#xa;Fangen, Zielankunft und Spielende sind noch nicht implementiert. Details: docs/react-erklaert.md" style="text;html=0;align=center;whiteSpace=wrap;fontSize=14;" parent="p1-1" vertex="1">
+          <mxGeometry x="60" y="880" width="1040" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="datenfluss" name="2 - React-Datenfluss">
+    <mxGraphModel dx="1100" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="p2-0" />
+        <mxCell id="p2-1" parent="p2-0" />
+        <mxCell id="p2-title" value="Wie React reagiert: Ereignis → State → Oberfläche" style="text;html=0;align=center;fontSize=24;fontStyle=1;" parent="p2-1" vertex="1">
+          <mxGeometry x="40" y="20" width="1080" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-input" value="1. Ereignis&#xa;Spieler tippt einen Namen&#xa;TextInput meldet onChangeText" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;" parent="p2-1" vertex="1">
+          <mxGeometry x="60" y="130" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-state" value="2. State-Update anfordern&#xa;setName(&#39;Anna&#39;)&#xa;React merkt den neuen Wert vor" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=15;" parent="p2-1" vertex="1">
+          <mxGeometry x="430" y="130" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-render" value="3. Rendern&#xa;HomeScreen wird erneut ausgeführt&#xa;name = &#39;Anna&#39;; canJoin neu berechnen&#xa;JSX beschreibt die gewünschte UI" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=15;" parent="p2-1" vertex="1">
+          <mxGeometry x="800" y="130" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-commit" value="4. Abgleichen und übernehmen&#xa;React vergleicht Elementbäume&#xa;Renderer aktualisiert nötige UI-Teile&#xa;Nicht den ganzen Screen neu aufbauen" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=15;" parent="p2-1" vertex="1">
+          <mxGeometry x="800" y="310" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-ui" value="5. Aktualisierte Oberfläche&#xa;TextInput value={name}&#xa;Button disabled={busy || !canJoin}&#xa;Bereit für das nächste Ereignis" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=15;" parent="p2-1" vertex="1">
+          <mxGeometry x="60" y="310" width="290" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-a" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p2-1" source="p2-input" target="p2-state" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-b" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p2-1" source="p2-state" target="p2-render" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-c" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p2-1" source="p2-render" target="p2-commit" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-d" value="UI-Änderungen" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p2-1" source="p2-commit" target="p2-ui" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e" value="nächste Eingabe" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;dashed=1;" parent="p2-1" source="p2-ui" target="p2-input" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-note" value="State ist der Wert des jeweiligen Renderdurchlaufs. Setter sind keine sofortigen lokalen Zuweisungen.&#xa;React kann mehrere Updates zusammenfassen. Props kommen vom Elternbaustein; Callbacks melden Ereignisse zurück." style="text;html=0;align=center;whiteSpace=wrap;fontSize=14;" parent="p2-1" vertex="1">
+          <mxGeometry x="60" y="455" width="1040" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-lobbytitle" value="Dasselbe Prinzip mit Backend-Daten: Lobby / Ready" style="text;html=0;align=left;fontSize=20;fontStyle=1;" parent="p2-1" vertex="1">
+          <mxGeometry x="60" y="555" width="1040" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-trigger" value="Auslöser&#xa;Ready-Button: setReady(...)&#xa;oder Polling: getGameState(...)&#xa;oder Position: updatePosition(...)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;" parent="p2-1" vertex="1">
+          <mxGeometry x="60" y="640" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-server" value="API-Client → HTTP → Go-Backend&#xa;Backend verarbeitet die Anfrage&#xa;und liefert erlaubten Spielzustand&#xa;Fehler werden separat angezeigt" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" parent="p2-1" vertex="1">
+          <mxGeometry x="430" y="640" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-snapshot" value="show(state) → setSnapshot(...)&#xa;Neuer lokaler React-State&#xa;LobbyScreen rendert erneut&#xa;Karte, Spieler und Status aktualisieren" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" parent="p2-1" vertex="1">
+          <mxGeometry x="800" y="640" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-f" value="Anfrage" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p2-1" source="p2-trigger" target="p2-server" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-g" value="geprüfte Antwort" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="p2-1" source="p2-server" target="p2-snapshot" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-effects" value="Effekte verbinden mit der Außenwelt&#xa;useFocusEffect: beim Fokus Polling starten, beim Verlassen Timer stoppen.&#xa;useEffect: Standortbeobachtung einrichten / aufräumen oder den Kartenausschnitt anpassen.&#xa;useRef: Referenz aufbewahren, ohne selbst einen Render auszulösen.&#xa;Abgeleitete Werte wie canJoin werden direkt berechnet, nicht über einen Effekt synchronisiert." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;align=left;spacing=16;" parent="p2-1" vertex="1">
+          <mxGeometry x="60" y="805" width="1040" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

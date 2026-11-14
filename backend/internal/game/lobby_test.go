@@ -19,11 +19,11 @@ func newLobby() Lobby {
 func moveToStart(t *testing.T, l *Lobby, id PlayerID, now time.Time) {
 	t.Helper()
 	p, _ := l.Player(id)
-	if p.Route == nil {
+	if p.Route.IsZero() {
 		return
 	}
 	position, _ := NewPosition(l.Game.Playground.CellCenter(p.Route.Start), 5, now)
-	if err := l.UpdatePosition(id, position, now); err != nil {
+	if err := l.UpdatePosition(id, position, now, false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -47,11 +47,11 @@ func join(t *testing.T, l *Lobby, team Team, name string, now time.Time) Player 
 func TestCountdownStartsWhenAllReadyAndBothTeamsPresent(t *testing.T) {
 	l := newLobby()
 	runner := join(t, &l, Runners, "Ada", start)
-	if err := l.SetReady(runner.ID, true, start); err != nil || l.Game.Status(start) != StatusLobby {
+	if err := l.SetReady(runner.ID, true, start, false); err != nil || l.Game.Status(start) != StatusLobby {
 		t.Fatal("countdown must not start without hunters")
 	}
 	hunter := join(t, &l, Hunters, "Bob", start)
-	if err := l.SetReady(hunter.ID, true, start.Add(time.Second)); err != nil {
+	if err := l.SetReady(hunter.ID, true, start.Add(time.Second), false); err != nil {
 		t.Fatal(err)
 	}
 	if want := start.Add(time.Second + CountdownDuration); !l.Game.StartsAt.Equal(want) {
@@ -62,7 +62,7 @@ func TestCountdownStartsWhenAllReadyAndBothTeamsPresent(t *testing.T) {
 	}
 	// Repeating ready does not restart a running countdown.
 	before := l.Game.StartsAt
-	if err := l.SetReady(hunter.ID, true, start.Add(5*time.Second)); err != nil || !l.Game.StartsAt.Equal(before) {
+	if err := l.SetReady(hunter.ID, true, start.Add(5*time.Second), false); err != nil || !l.Game.StartsAt.Equal(before) {
 		t.Fatal("countdown restarted")
 	}
 }
@@ -72,7 +72,7 @@ func TestCountdownCancelledAndRestarted(t *testing.T) {
 		name   string
 		cancel func(*Lobby, Player, time.Time) error
 	}{
-		{"unready", func(l *Lobby, p Player, now time.Time) error { return l.SetReady(p.ID, false, now) }},
+		{"unready", func(l *Lobby, p Player, now time.Time) error { return l.SetReady(p.ID, false, now, false) }},
 		{"join", func(l *Lobby, _ Player, now time.Time) error {
 			name, _ := ParsePlayerName("Late")
 			_, err := l.Join(l.Game.JoinCodes.Runner, name, NewPlayerToken(), now)
@@ -83,8 +83,8 @@ func TestCountdownCancelledAndRestarted(t *testing.T) {
 			l := newLobby()
 			runner := join(t, &l, Runners, "Ada", start)
 			hunter := join(t, &l, Hunters, "Bob", start)
-			_ = l.SetReady(runner.ID, true, start)
-			_ = l.SetReady(hunter.ID, true, start)
+			_ = l.SetReady(runner.ID, true, start, false)
+			_ = l.SetReady(hunter.ID, true, start, false)
 			if err := tc.cancel(&l, hunter, start.Add(3*time.Second)); err != nil {
 				t.Fatal(err)
 			}
@@ -97,8 +97,8 @@ func TestCountdownCancelledAndRestarted(t *testing.T) {
 	runner := join(t, &l, Runners, "Ada", start)
 	hunter := join(t, &l, Hunters, "Bob", start)
 	late := join(t, &l, Hunters, "Cy", start)
-	_ = l.SetReady(runner.ID, true, start)
-	_ = l.SetReady(hunter.ID, true, start)
+	_ = l.SetReady(runner.ID, true, start, false)
+	_ = l.SetReady(hunter.ID, true, start, false)
 	if err := l.Leave(late.ID, start.Add(4*time.Second)); err != nil {
 		t.Fatal(err)
 	}
@@ -111,12 +111,12 @@ func TestActionsRejectedOnceRunning(t *testing.T) {
 	l := newLobby()
 	runner := join(t, &l, Runners, "Ada", start)
 	hunter := join(t, &l, Hunters, "Bob", start)
-	_ = l.SetReady(runner.ID, true, start)
-	_ = l.SetReady(hunter.ID, true, start)
+	_ = l.SetReady(runner.ID, true, start, false)
+	_ = l.SetReady(hunter.ID, true, start, false)
 	running := start.Add(CountdownDuration)
 	name, _ := ParsePlayerName("Late")
 	_, joinErr := l.Join(l.Game.JoinCodes.Runner, name, NewPlayerToken(), running)
-	for _, err := range []error{joinErr, l.SetReady(runner.ID, false, running), l.Leave(runner.ID, running)} {
+	for _, err := range []error{joinErr, l.SetReady(runner.ID, false, running, false), l.Leave(runner.ID, running)} {
 		var rule *RuleError
 		if !errors.As(err, &rule) {
 			t.Fatalf("expected rule error, got %v", err)
@@ -135,9 +135,6 @@ func TestJoinRules(t *testing.T) {
 	unknown, _ := ParseJoinCode("ZZZZZZ")
 	if _, err := l.Join(unknown, duplicate, NewPlayerToken(), start); !errors.Is(err, ErrNotFound) {
 		t.Fatal("unknown code accepted")
-	}
-	if _, err := (&Lobby{}).Join(JoinCode{}, duplicate, NewPlayerToken(), start); !errors.Is(err, ErrNotFound) {
-		t.Fatal("legacy game without codes joinable")
 	}
 	for i := len(l.Players); i < MaxPlayers; i++ {
 		join(t, &l, Hunters, "P"+strings.Repeat("x", i%10)+string(rune('a'+i)), start)

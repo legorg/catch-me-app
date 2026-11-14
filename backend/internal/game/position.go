@@ -11,6 +11,9 @@ const (
 	// StartCellMaxAge is how recent a runner's position must be to prove they
 	// stand in their start cell.
 	StartCellMaxAge = 30 * time.Second
+	// HistoryRetention is how long every reported position is kept after a
+	// game's start (or creation, if it never started) for a later replay.
+	HistoryRetention = 7 * 24 * time.Hour
 )
 
 // Position is a player's latest reported location. RecordedAt is the server
@@ -28,11 +31,15 @@ func NewPosition(coordinates Coordinates, accuracyMeters float64, recordedAt tim
 	return Position{Coordinates: coordinates, AccuracyMeters: accuracyMeters, RecordedAt: recordedAt}, nil
 }
 
+func (p Position) IsZero() bool { return p.RecordedAt.IsZero() }
+
 // Reveal is a runner's position as shown to hunters at a reveal time.
 type Reveal struct {
 	Position Position
 	At       time.Time
 }
+
+func (r Reveal) IsZero() bool { return r.At.IsZero() }
 
 // CellAt returns the grid cell containing the coordinates, if inside the playground.
 func (p Playground) CellAt(c Coordinates) (Cell, bool) {

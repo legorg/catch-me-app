@@ -51,40 +51,10 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 		writeGameError(w, err, "could not save game")
 		return
 	}
-	w.Header().Set("Location", "/api/games/"+saved.SessionID.String())
 	WriteJSON(w, http.StatusCreated, CreateGameResponse{
 		Game:      gameResponse(saved),
 		JoinCodes: JoinCodes{Runner: saved.JoinCodes.Runner.String(), Hunter: saved.JoinCodes.Hunter.String()},
 	})
-}
-
-// Get loads the saved playground, without join codes or players.
-// @Summary Load a saved game playground
-// @ID getGame
-// @Produce json
-// @Param sessionId path string true "32 lowercase hexadecimal characters"
-// @Success 200 {object} GameResponse "Saved game"
-// @Failure 400 {object} APIError "Invalid session ID"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
-// @Failure 404 {object} APIError "Game not found"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 500 {object} APIError "Could not load game"
-// @Router /api/games/{sessionId} [get]
-func (c *GameController) Get(w http.ResponseWriter, r *http.Request) {
-	if !allowMethods(w, r, http.MethodGet, http.MethodHead) {
-		return
-	}
-	id, err := game.ParseSessionID(r.PathValue("sessionId"))
-	if err != nil {
-		writeGameError(w, err, "invalid session ID")
-		return
-	}
-	saved, err := c.service.Get(r.Context(), id)
-	if err != nil {
-		writeGameError(w, err, "could not load game")
-		return
-	}
-	WriteJSON(w, http.StatusOK, gameResponse(saved))
 }
 
 func (body CreateGameRequest) parse() (game.Coordinates, game.CellSize, error) {

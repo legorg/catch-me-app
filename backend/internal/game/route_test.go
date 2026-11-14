@@ -49,7 +49,7 @@ func TestRunnersGetRoutesHuntersDoNot(t *testing.T) {
 	l := newLobby()
 	runner := join(t, &l, Runners, "Ada", start)
 	hunter := join(t, &l, Hunters, "Bob", start)
-	if runner.Route == nil || runner.Route.RegenerationsLeft != MaxRouteRegenerations || hunter.Route != nil {
+	if runner.Route.IsZero() || runner.Route.RegenerationsLeft != MaxRouteRegenerations || !hunter.Route.IsZero() {
 		t.Fatalf("unexpected routes: %+v %+v", runner.Route, hunter.Route)
 	}
 }
@@ -67,9 +67,6 @@ func TestRegenerateRoute(t *testing.T) {
 		if current.Route.RegenerationsLeft != left || (current.Route.Start == previous.Start && current.Route.End == previous.End) {
 			t.Fatalf("route not regenerated: %+v after %+v", current.Route, previous)
 		}
-		if previous.RegenerationsLeft != left+1 {
-			t.Fatal("previous route snapshot was mutated")
-		}
 		previous = current.Route
 	}
 	var rule *RuleError
@@ -82,34 +79,15 @@ func TestRegenerateRoute(t *testing.T) {
 
 	l = newLobby()
 	runner = join(t, &l, Runners, "Ada", start)
-	_ = l.SetReady(runner.ID, true, start)
+	_ = l.SetReady(runner.ID, true, start, false)
 	if err := l.RegenerateRoute(runner.ID, start); !errors.As(err, &rule) {
 		t.Fatal("ready runner changed route")
 	}
 	hunter = join(t, &l, Hunters, "Bob", start)
-	_ = l.SetReady(hunter.ID, true, start)
-	_ = l.SetReady(runner.ID, false, start)
-	_ = l.SetReady(runner.ID, true, start)
+	_ = l.SetReady(hunter.ID, true, start, false)
+	_ = l.SetReady(runner.ID, false, start, false)
+	_ = l.SetReady(runner.ID, true, start, false)
 	if err := l.RegenerateRoute(runner.ID, start.Add(CountdownDuration)); !errors.As(err, &rule) {
 		t.Fatal("route changed after the start")
-	}
-}
-
-func TestPlayerSameState(t *testing.T) {
-	route := randomRoute(1)
-	copied := route
-	a := Player{ID: NewPlayerID(), Route: &route}
-	b := a
-	b.Route = &copied
-	if !a.SameState(b) {
-		t.Fatal("equal routes behind different pointers must compare equal")
-	}
-	b.Ready = true
-	if a.SameState(b) {
-		t.Fatal("ready change not detected")
-	}
-	b.Ready, copied.RegenerationsLeft = false, 0
-	if a.SameState(b) || a.SameState(Player{ID: a.ID}) {
-		t.Fatal("route change not detected")
 	}
 }

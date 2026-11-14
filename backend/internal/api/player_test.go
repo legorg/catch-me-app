@@ -30,6 +30,16 @@ func send(t *testing.T, handler http.Handler, method, path, token, body string) 
 	return recorder
 }
 
+// ownEntry is the requester's player entry. Joins can share a timestamp, so the order is not fixed.
+func ownEntry(state controller.GameStateResponse) controller.PlayerResponse {
+	for _, p := range state.Players {
+		if p.PlayerID == state.PlayerID {
+			return p
+		}
+	}
+	return controller.PlayerResponse{}
+}
+
 func decode[T any](t *testing.T, recorder *httptest.ResponseRecorder, status int) T {
 	t.Helper()
 	if recorder.Code != status {
@@ -43,7 +53,7 @@ func decode[T any](t *testing.T, recorder *httptest.ResponseRecorder, status int
 }
 
 func TestLobbyFlow(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t))))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), false)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405}`), 201)
 	codes := created.JoinCodes
 
@@ -80,7 +90,7 @@ func TestLobbyFlow(t *testing.T) {
 	start := cellCenter(created.Game.Playground, regenerated.Route.Start)
 	positionBody := fmt.Sprintf(`{"latitude":%v,"longitude":%v,"accuracyMeters":8}`, start[0], start[1])
 	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, positionBody), 200)
-	if own := state.Players[0].Position; own == nil || own.Latitude != start[0] || own.AccuracyMeters != 8 || own.RevealedAt != "" {
+	if own := ownEntry(state).Position; own == nil || own.Latitude != start[0] || own.AccuracyMeters != 8 || own.RevealedAt != "" {
 		t.Fatalf("own position missing: %+v", own)
 	}
 	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"position"`) {
@@ -107,7 +117,7 @@ func TestLobbyFlow(t *testing.T) {
 }
 
 func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), service.Options{SkipStartPositionCheck: true})))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), true)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
 	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Hunter+`","name":"Bob"}`), 201)
@@ -115,12 +125,12 @@ func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
 	countdown := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
 	for _, body := range []string{`{"latitude":1,"longitude":2,"accuracyMeters":8}`, `{"latitude":3,"longitude":4,"accuracyMeters":8}`} {
 		state := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, body), 200)
-		if !state.StartPositionCheckDisabled || state.Status != "countdown" || state.StartsAt != countdown.StartsAt || !state.Players[0].Ready {
+		if !state.StartPositionCheckDisabled || state.Status != "countdown" || state.StartsAt != countdown.StartsAt || !ownEntry(state).Ready {
 			t.Fatal("test override failed to preserve readiness and countdown")
 		}
 		var reported struct{ Latitude, Longitude float64 }
 		_ = json.Unmarshal([]byte(body), &reported)
-		own := state.Players[0].Position
+		own := ownEntry(state).Position
 		if own == nil || own.Latitude != reported.Latitude || own.Longitude != reported.Longitude {
 			t.Fatal("real reported position was replaced or not updated")
 		}
@@ -128,7 +138,7 @@ func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
 }
 
 func TestLobbyErrors(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t))))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), false)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
 	for _, tc := range []struct {

@@ -2,16 +2,16 @@ package game
 
 import "time"
 
-// VisiblePlayer is what one player may see of another. Hidden fields are nil.
+// VisiblePlayer is what one player may see of another. Hidden fields are zero.
 type VisiblePlayer struct {
 	ID    PlayerID
 	Name  PlayerName
 	Team  Team
 	Ready bool
-	Route *RunnerRoute
+	Route RunnerRoute
 	// Position is live for oneself and teammates, or a reveal (RevealedAt set)
 	// when a hunter looks at a runner.
-	Position   *Position
+	Position   Position
 	RevealedAt time.Time
 }
 
@@ -26,15 +26,14 @@ func (l Lobby) VisibleTo(viewer Player, now time.Time) []VisiblePlayer {
 	visible := make([]VisiblePlayer, 0, len(l.Players))
 	for _, p := range l.Players {
 		v := VisiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, Ready: p.Ready}
-		if viewer.Team == Runners && p.Team == Runners {
-			v.Route = p.Route
+		if viewer.Team == Runners {
+			v.Route = p.Route // Hunters have none.
 		}
 		switch {
 		case p.ID == viewer.ID, running && p.Team == viewer.Team:
 			v.Position = p.Position
-		case running && viewer.Team == Hunters && p.Reveal != nil:
-			position := p.Reveal.Position
-			v.Position, v.RevealedAt = &position, p.Reveal.At
+		case running && viewer.Team == Hunters && !p.Reveal.IsZero():
+			v.Position, v.RevealedAt = p.Reveal.Position, p.Reveal.At
 		}
 		visible = append(visible, v)
 	}

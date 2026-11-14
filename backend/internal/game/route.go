@@ -27,6 +27,9 @@ type RunnerRoute struct {
 	RegenerationsLeft int
 }
 
+// IsZero reports a missing route. A zero route (A1 to A1) is never valid.
+func (r RunnerRoute) IsZero() bool { return r == RunnerRoute{} }
+
 func ParseRunnerRoute(start, end string, regenerationsLeft int) (RunnerRoute, error) {
 	from, err := ParseCell(start)
 	if err != nil {

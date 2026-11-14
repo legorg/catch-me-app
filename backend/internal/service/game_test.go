@@ -15,6 +15,7 @@ type memoryRepository struct {
 	err        error
 	createErrs []error
 	calls      int
+	cutoff     time.Time
 }
 
 func newMemoryRepository() *memoryRepository {
@@ -35,16 +36,10 @@ func (r *memoryRepository) Create(ctx context.Context, saved game.Game) error {
 	return nil
 }
 
-func (r *memoryRepository) Get(ctx context.Context, id game.SessionID) (game.Game, error) {
+func (r *memoryRepository) DeleteHistoryBefore(ctx context.Context, cutoff time.Time) error {
 	r.calls++
-	if r.err != nil {
-		return game.Game{}, r.err
-	}
-	lobby, ok := r.lobbies[id]
-	if !ok {
-		return game.Game{}, game.ErrNotFound
-	}
-	return lobby.Game, nil
+	r.cutoff = cutoff
+	return r.err
 }
 
 func (r *memoryRepository) UpdateLobbyByJoinCode(ctx context.Context, code game.JoinCode, change func(*game.Lobby) error) (game.Lobby, error) {
@@ -77,13 +72,13 @@ func (r *memoryRepository) update(match func(game.Lobby) bool, change func(*game
 }
 
 func newService(r GameRepository, now time.Time) *GameService {
-	s := NewGameService(r)
+	s := NewGameService(r, false)
 	s.now = func() time.Time { return now }
 	return s
 }
 
-func TestCreateAndGet(t *testing.T) {
-	s := NewGameService(newMemoryRepository())
+func TestCreate(t *testing.T) {
+	s := NewGameService(newMemoryRepository(), false)
 	first, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize())
 	if err != nil {
 		t.Fatal(err)
@@ -102,20 +97,24 @@ func TestCreateAndGet(t *testing.T) {
 	if first.JoinCodes.Runner == (game.JoinCode{}) || first.JoinCodes.Runner == first.JoinCodes.Hunter {
 		t.Fatal("join codes missing")
 	}
-	loaded, err := s.Get(context.Background(), first.SessionID)
-	if err != nil || loaded != first {
-		t.Fatalf("incorrect loaded game: %+v %v", loaded, err)
+}
+
+func TestDeleteExpiredHistory(t *testing.T) {
+	r := newMemoryRepository()
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	if err := newService(r, now).DeleteExpiredHistory(context.Background()); err != nil || !r.cutoff.Equal(now.Add(-game.HistoryRetention)) {
+		t.Fatalf("wrong retention cutoff %v: %v", r.cutoff, err)
 	}
 }
 
 func TestCreateRetriesJoinCodeCollisions(t *testing.T) {
 	r := newMemoryRepository()
 	r.createErrs = []error{game.ErrJoinCodeTaken, game.ErrJoinCodeTaken}
-	if _, err := NewGameService(r).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize()); err != nil || r.calls != 3 {
+	if _, err := NewGameService(r, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize()); err != nil || r.calls != 3 {
 		t.Fatalf("collision not retried: %v after %d calls", err, r.calls)
 	}
 	r.createErrs = []error{game.ErrJoinCodeTaken, game.ErrJoinCodeTaken, game.ErrJoinCodeTaken, game.ErrJoinCodeTaken}
-	if _, err := NewGameService(r).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize()); !errors.Is(err, game.ErrJoinCodeTaken) {
+	if _, err := NewGameService(r, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize()); !errors.Is(err, game.ErrJoinCodeTaken) {
 		t.Fatal("endless retry")
 	}
 }
@@ -123,7 +122,7 @@ func TestCreateRetriesJoinCodeCollisions(t *testing.T) {
 func TestInvalidPlaygroundDoesNotCallDatabase(t *testing.T) {
 	r := newMemoryRepository()
 	center, _ := game.ParseCoordinates(0, 180)
-	_, err := NewGameService(r).Create(context.Background(), center, game.DefaultCellSize())
+	_, err := NewGameService(r, false).Create(context.Background(), center, game.DefaultCellSize())
 	var validation *game.ValidationError
 	if !errors.As(err, &validation) || r.calls != 0 {
 		t.Fatalf("expected validation error without database call: %v", err)
@@ -145,7 +144,7 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatalf("join failed: %+v %v", runner, err)
 	}
 	regenerated, err := s.RegenerateRoute(ctx, runnerToken)
-	if err != nil || regenerated.Me.Route == nil || regenerated.Me.Route.RegenerationsLeft != game.MaxRouteRegenerations-1 {
+	if err != nil || regenerated.Me.Route.IsZero() || regenerated.Me.Route.RegenerationsLeft != game.MaxRouteRegenerations-1 {
 		t.Fatalf("route not regenerated: %+v %v", regenerated.Me.Route, err)
 	}
 	bob, _ := game.ParsePlayerName("Bob")
@@ -161,7 +160,7 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatal("invalid accuracy accepted")
 	}
 	moved, err := s.UpdatePosition(ctx, runnerToken, start, 8)
-	if err != nil || moved.Me.Position == nil || moved.Me.Position.RecordedAt != now {
+	if err != nil || moved.Me.Position.RecordedAt != now {
 		t.Fatalf("position not stored with server time: %+v %v", moved.Me.Position, err)
 	}
 	if _, err := s.SetReady(ctx, runnerToken, true); err != nil {
@@ -200,19 +199,11 @@ func TestRepositoryErrorsRemainInspectable(t *testing.T) {
 	storageError := errors.New("storage unavailable")
 	r := newMemoryRepository()
 	r.err = storageError
-	s := NewGameService(r)
-	id := game.NewSessionID()
+	s := NewGameService(r, false)
 	if _, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize()); !errors.Is(err, storageError) {
 		t.Fatalf("create error lost: %v", err)
 	}
-	if _, err := s.Get(context.Background(), id); !errors.Is(err, storageError) {
-		t.Fatalf("get error lost: %v", err)
-	}
 	if _, err := s.State(context.Background(), game.NewPlayerToken()); !errors.Is(err, storageError) {
 		t.Fatalf("state error lost: %v", err)
-	}
-	r.err = game.ErrNotFound
-	if _, err := s.Get(context.Background(), id); !errors.Is(err, game.ErrNotFound) {
-		t.Fatalf("not-found lost: %v", err)
 	}
 }

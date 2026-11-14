@@ -74,12 +74,10 @@ func (c JoinCodes) For(team Team) JoinCode {
 }
 
 func (c JoinCodes) TeamFor(code JoinCode) (Team, bool) {
-	switch {
-	case code == JoinCode{}:
-		return "", false
-	case code == c.Runner:
+	switch code {
+	case c.Runner:
 		return Runners, true
-	case code == c.Hunter:
+	case c.Hunter:
 		return Hunters, true
 	}
 	return "", false
@@ -140,28 +138,9 @@ type Player struct {
 	Ready     bool
 	TokenHash TokenHash
 	JoinedAt  time.Time
-	// Route is set for runners. It is nil for hunters and for runners who
-	// joined before routes existed.
-	Route *RunnerRoute
-	// Position is the latest reported location; Reveal is what hunters last
-	// saw of a runner.
-	Position *Position
-	Reveal   *Reveal
-}
-
-// SameState reports whether two snapshots of a player are identical.
-func (p Player) SameState(other Player) bool {
-	if !samePointee(p.Route, other.Route) || !samePointee(p.Position, other.Position) || !samePointee(p.Reveal, other.Reveal) {
-		return false
-	}
-	p.Route, p.Position, p.Reveal = nil, nil, nil
-	other.Route, other.Position, other.Reveal = nil, nil, nil
-	return p == other
-}
-
-func samePointee[T comparable](a, b *T) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	return *a == *b
+	// Zero values mean "none": hunters have no route, Position is the latest
+	// report, and Reveal is what hunters last saw of a runner.
+	Route    RunnerRoute
+	Position Position
+	Reveal   Reveal
 }
