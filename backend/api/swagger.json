@@ -164,6 +164,84 @@
                 }
             }
         },
+        "/api/me/hunter-team": {
+            "put": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Join or create a hunter team",
+                "operationId": "setHunterTeam",
+                "parameters": [
+                    {
+                        "description": "Team name (1-20 characters); an existing team with this name (ignoring case) is joined, otherwise a new team is created",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SetHunterTeamRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated game state",
+                        "schema": {
+                            "$ref": "#/definitions/GameStateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid JSON or team name",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Not a hunter, ready, or game started",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body exceeds 1024 bytes",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/me/position": {
             "put": {
                 "security": [
@@ -772,6 +850,12 @@
                 "team"
             ],
             "properties": {
+                "hunterTeam": {
+                    "description": "Present for hunters who have chosen a hunter team.",
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "Wolves"
+                },
                 "name": {
                     "type": "string",
                     "maxLength": 20,
@@ -785,7 +869,7 @@
                     "example": "8899aabbccddeeff0011223344556677"
                 },
                 "position": {
-                    "description": "Own position always; teammates' positions while running; runners'\nrevealed positions for hunters while running.",
+                    "description": "Own position always; hunter teammates' positions always; runner\nteammates' positions while running; runners' revealed positions for\nhunters while running.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/PositionResponse"
@@ -913,6 +997,20 @@
                     "maxLength": 2,
                     "minLength": 2,
                     "example": "B1"
+                }
+            }
+        },
+        "SetHunterTeamRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "minLength": 1,
+                    "example": "Wolves"
                 }
             }
         },

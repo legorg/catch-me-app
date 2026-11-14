@@ -108,6 +108,33 @@ func (l *Lobby) RegenerateRoute(id PlayerID, now time.Time) error {
 	return nil
 }
 
+// SetHunterTeam puts a hunter into the hunter team with this name, creating it
+// if no hunter has it yet (names ignore case). Only possible before the start
+// and while not ready. A team left empty disappears.
+func (l *Lobby) SetHunterTeam(id PlayerID, name HunterTeamName, now time.Time) error {
+	if err := l.requireNotStarted(now); err != nil {
+		return err
+	}
+	i := l.index(id)
+	if i < 0 {
+		return ErrUnauthorized
+	}
+	switch {
+	case l.Players[i].Team != Hunters:
+		return &RuleError{Message: "only hunters choose a hunter team"}
+	case l.Players[i].Ready:
+		return &RuleError{Message: "set yourself not ready before changing your team"}
+	}
+	for _, p := range l.Players {
+		if p.HunterTeam.SameAs(name) {
+			name = p.HunterTeam // Keep the existing spelling.
+			break
+		}
+	}
+	l.Players[i].HunterTeam = name
+	return nil
+}
+
 // SetReady changes a player's ready state. skipStartCheck is the development
 // test override; it is a server setting, not a game rule.
 func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck bool) error {
@@ -117,6 +144,9 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 	i := l.index(id)
 	if i < 0 {
 		return ErrUnauthorized
+	}
+	if ready && l.Players[i].Team == Hunters && l.Players[i].HunterTeam.IsZero() {
+		return &RuleError{Message: "choose a hunter team to get ready"}
 	}
 	if ready && !skipStartCheck {
 		if err := l.requireInStartCell(l.Players[i], now); err != nil {

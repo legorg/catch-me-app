@@ -63,7 +63,8 @@ func load(t *testing.T, store *Store, code game.JoinCode, at time.Time) game.Lob
 	return lobby
 }
 
-// join adds a player; runners report a position in their start cell.
+// join adds a player; runners report a position in their start cell, and
+// hunters join the hunter team "Pack".
 func join(t *testing.T, store *Store, code game.JoinCode, name string, at time.Time) (game.Player, game.PlayerToken) {
 	t.Helper()
 	parsed, _ := game.ParsePlayerName(name)
@@ -71,8 +72,15 @@ func join(t *testing.T, store *Store, code game.JoinCode, name string, at time.T
 	var player game.Player
 	_, err := store.UpdateLobbyByJoinCode(context.Background(), code, at, func(l *game.Lobby) error {
 		var err error
-		if player, err = l.Join(code, parsed, token, at); err != nil || player.Route.IsZero() {
+		if player, err = l.Join(code, parsed, token, at); err != nil {
 			return err
+		}
+		if player.Team == game.Hunters {
+			player.HunterTeam, _ = game.ParseHunterTeamName("Pack")
+			return l.SetHunterTeam(player.ID, player.HunterTeam, at)
+		}
+		if player.Route.IsZero() {
+			return nil
 		}
 		player.Position, _ = game.NewPosition(l.Game.Playground.CellCenter(player.Route.Start), 5, at)
 		return l.UpdatePosition(player.ID, player.Position, at, false)

@@ -30,12 +30,20 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 - Joining returns a secret **player token**. Every later request authenticates with `Authorization: Bearer <token>`. The server stores only a SHA-256 hash of the token.
 - At most **30 players** per game.
 - Joining is possible in the lobby and during the countdown, not after the game has started.
-- In the lobby, each player sees all players (names, teams, ready state) and the join code of their **own** team, to invite teammates.
+- In the lobby, each player sees all players (names, teams, hunter teams, ready state) and the join code of their **own** team, to invite teammates.
+
+## Hunter teams [backend done, app next]
+
+- Runners are always one team. Hunters can form several **hunter teams**; all hunters share the same hunter join code.
+- A hunter joins without a team. In the lobby and during the countdown, a hunter who is not ready **chooses a hunter team by name**: an existing team with that name (ignoring case, keeping its spelling) is joined, otherwise a new one is created. Names follow the display name rules (1–20 characters).
+- A hunter team exists exactly while at least one hunter belongs to it; a team left by its last member disappears. There is no separate team record.
+- A hunter can only get ready with a hunter team, so every hunter team has a player and every hunter has a team when the game starts. The development override does not skip this.
+- Hunters win together (all hunter teams).
 
 ## Lobby and start [done: milestone 1]
 
 - Each player toggles **Ready**.
-- **Start condition:** every player is ready, and each team has at least one player.
+- **Start condition:** every player is ready, and each team has at least one player (hunters: see hunter teams).
 - When the start condition becomes true, the server schedules the start **10 seconds** later (countdown).
 - Whenever the start condition stops holding during the countdown (someone joins, leaves, un-readies, or a ready runner leaves their start cell), the countdown is cancelled. It restarts from 10 seconds once the condition holds again.
 - Once the countdown has passed, the game is **running**. Joining, leaving, and changing ready state are then rejected.
@@ -61,13 +69,14 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 
 ## Positions and visibility [done: milestone 3]
 
-- Before the start, location is shared in the foreground only, while the lobby screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start.
+- Before the start, location is shared in the foreground only, while the lobby screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start yet **[next: app]**; they should share from joining so their hunter team sees them.
 - **Background sharing [done]:** while the game runs, players who grant "Always" location access keep reporting with the screen off or another app open (Android shows a notification while sharing). It stops when the player leaves the game screen, closes the app, or the token becomes invalid; a restarted app does not resume it. It needs an installed app build; in Expo Go and browsers the app falls back to foreground sharing.
 - The app sends the latest fix every **5 seconds**, even when standing still. The server stamps each report with its own time and never trusts the phone's clock.
 - Every reported position is stored as its own record; the newest is the player's current position. A player's positions are deleted when they leave.
 - **Position history [stored only]:** all records together are kept for a replay or chart after the game. No endpoint or app screen reads them yet; once one exists, it must only show them after the game ended. Positions are deleted automatically **7 days after the game's start** (or creation, if it never started).
 - Everyone always sees **their own** position.
-- **Teammates** see each other's latest position **only while running**.
+- **Hunters of the same hunter team** see each other's latest position **at any time**, including the lobby. Hunters never see other hunter teams' positions.
+- **Runners** see each other's latest position **only while running**.
 - **Hunters** receive each runner's position once every **5 minutes** after the start (first reveal 5 minutes after the start). A reveal shows where the runner was at the reveal time (their last report before it), not live updates. The state includes `nextRevealAt` for both teams.
 - **Runners** never see hunters.
 - Players outside the playground get a warning only; there is no penalty.
@@ -97,12 +106,13 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 | `GET /api/me/game` | Bearer | Game state as seen by the requesting player. |
 | `PUT /api/me/ready` | Bearer | Set `{ready: true/false}`. Returns the game state. |
 | `POST /api/me/route` | Bearer | Regenerate the runner's route. Returns the game state. |
+| `PUT /api/me/hunter-team` | Bearer | Join or create the hunter team `{name}` (hunters, not ready, before the start). Returns the game state. |
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, their team's join code, their own route (runners), and the list of players. Each player entry carries only what the requester may see: routes (for runners) and a position (own, teammates while running, or a revealed runner position with `revealedAt` for hunters). Clients compute countdowns from the server time to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, their team's join code, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners) and a position (own, hunter teammates always, runner teammates while running, or a revealed runner position with `revealedAt` for hunters). Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
-Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route change not allowed, runner not in start cell).
+Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team).
 
 ## Tuning values
 

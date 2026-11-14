@@ -28,7 +28,8 @@ func moveToStart(t *testing.T, l *Lobby, id PlayerID, now time.Time) {
 	}
 }
 
-// join adds a player; runners immediately stand in their start cell.
+// join adds a player; runners immediately stand in their start cell, and
+// hunters join the hunter team "Pack".
 func join(t *testing.T, l *Lobby, team Team, name string, now time.Time) Player {
 	t.Helper()
 	parsed, err := ParsePlayerName(name)
@@ -40,8 +41,22 @@ func join(t *testing.T, l *Lobby, team Team, name string, now time.Time) Player 
 		t.Fatal(err)
 	}
 	moveToStart(t, l, player.ID, now)
+	if team == Hunters {
+		setHunterTeam(t, l, player.ID, "Pack", now)
+	}
 	player, _ = l.Player(player.ID)
 	return player
+}
+
+func setHunterTeam(t *testing.T, l *Lobby, id PlayerID, name string, now time.Time) {
+	t.Helper()
+	parsed, err := ParseHunterTeamName(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.SetHunterTeam(id, parsed, now); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestCountdownStartsWhenAllReadyAndBothTeamsPresent(t *testing.T) {
@@ -182,5 +197,60 @@ func TestPlayerParsing(t *testing.T) {
 	}
 	if _, err := ParseTeam("gamemaster"); !errors.As(err, &validation) {
 		t.Fatal("unknown team accepted")
+	}
+	for _, name := range []string{"", "  ", strings.Repeat("a", 21)} {
+		if _, err := ParseHunterTeamName(name); !errors.As(err, &validation) {
+			t.Fatalf("invalid team name accepted: %q", name)
+		}
+	}
+}
+
+func TestHunterTeams(t *testing.T) {
+	l := newLobby()
+	runner := join(t, &l, Runners, "Ada", start)
+	name, _ := ParsePlayerName("Bob")
+	bob, _ := l.Join(l.Game.JoinCodes.Hunter, name, NewPlayerToken(), start)
+	var rule *RuleError
+	if err := l.SetReady(bob.ID, true, start, true); !errors.As(err, &rule) {
+		t.Fatal("hunter without a team got ready, even with the test override")
+	}
+	red, _ := ParseHunterTeamName("Red")
+	if err := l.SetHunterTeam(runner.ID, red, start); !errors.As(err, &rule) {
+		t.Fatal("runner joined a hunter team")
+	}
+	setHunterTeam(t, &l, bob.ID, "Red", start)
+	cy := join(t, &l, Hunters, "Cy", start)
+	setHunterTeam(t, &l, cy.ID, " rED ", start)
+	if p, _ := l.Player(cy.ID); p.HunterTeam != red {
+		t.Fatalf("existing team spelling not kept: %q", p.HunterTeam)
+	}
+	dan := join(t, &l, Hunters, "Dan", start)
+	_ = l.SetReady(dan.ID, true, start, false)
+	if err := l.SetHunterTeam(dan.ID, red, start); !errors.As(err, &rule) {
+		t.Fatal("ready hunter changed team")
+	}
+
+	// Hunters of one team see each other already in the lobby; nobody else.
+	for _, p := range []Player{bob, cy, dan} {
+		_ = l.UpdatePosition(p.ID, position(t, l, "C3", start), start, false)
+	}
+	see := func(viewer, target PlayerID) bool {
+		v, _ := l.Player(viewer)
+		for _, other := range l.VisibleTo(v, start) {
+			if other.ID == target {
+				return !other.Position.IsZero()
+			}
+		}
+		return false
+	}
+	if !see(bob.ID, cy.ID) || !see(cy.ID, bob.ID) || see(bob.ID, dan.ID) || see(dan.ID, cy.ID) || see(runner.ID, bob.ID) || see(bob.ID, runner.ID) {
+		t.Fatal("hunter team visibility wrong")
+	}
+
+	for _, p := range []Player{runner, bob, cy, dan} {
+		_ = l.SetReady(p.ID, true, start, false)
+	}
+	if err := l.SetHunterTeam(bob.ID, red, l.Game.StartsAt); !errors.As(err, &rule) {
+		t.Fatal("team changed after the start")
 	}
 }

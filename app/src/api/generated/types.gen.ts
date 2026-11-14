@@ -85,11 +85,16 @@ export type JoinGameResponse = {
 };
 
 export type PlayerResponse = {
+    /**
+     * Present for hunters who have chosen a hunter team.
+     */
+    hunterTeam?: string;
     name: string;
     playerId: string;
     /**
-     * Own position always; teammates' positions while running; runners'
-     * revealed positions for hunters while running.
+     * Own position always; hunter teammates' positions always; runner
+     * teammates' positions while running; runners' revealed positions for
+     * hunters while running.
      */
     position?: PositionResponse;
     ready: boolean;
@@ -123,6 +128,10 @@ export type RouteResponse = {
     end: string;
     regenerationsLeft: number;
     start: string;
+};
+
+export type SetHunterTeamRequest = {
+    name: string;
 };
 
 export type SetReadyRequest = {
@@ -254,6 +263,58 @@ export type GetGameStateResponses = {
 };
 
 export type GetGameStateResponse = GetGameStateResponses[keyof GetGameStateResponses];
+
+export type SetHunterTeamData = {
+    /**
+     * Team name (1-20 characters); an existing team with this name (ignoring case) is joined, otherwise a new team is created
+     */
+    body: SetHunterTeamRequest;
+    path?: never;
+    query?: never;
+    url: '/api/me/hunter-team';
+};
+
+export type SetHunterTeamErrors = {
+    /**
+     * Invalid JSON or team name
+     */
+    400: ApiError;
+    /**
+     * Missing or unknown player token
+     */
+    401: ApiError;
+    /**
+     * Browser origin is not allowed
+     */
+    403: ApiError;
+    /**
+     * Method not allowed
+     */
+    405: ApiError;
+    /**
+     * Not a hunter, ready, or game started
+     */
+    409: ApiError;
+    /**
+     * Request body exceeds 1024 bytes
+     */
+    413: ApiError;
+    /**
+     * Could not update game
+     */
+    500: ApiError;
+};
+
+export type SetHunterTeamError = SetHunterTeamErrors[keyof SetHunterTeamErrors];
+
+export type SetHunterTeamResponses = {
+    /**
+     * Updated game state
+     */
+    200: GameStateResponse;
+};
+
+export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamResponses];
 
 export type UpdatePositionData = {
     /**

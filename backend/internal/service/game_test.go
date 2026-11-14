@@ -173,6 +173,17 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatal("hunter changed route")
 	}
 	view, err := s.SetReady(ctx, hunterToken, true)
+	if err == nil {
+		t.Fatal("hunter got ready without a hunter team")
+	}
+	wolves, _ := game.ParseHunterTeamName("Wolves")
+	if _, err := s.SetHunterTeam(ctx, runnerToken, wolves); err == nil {
+		t.Fatal("runner joined a hunter team")
+	}
+	if view, err = s.SetHunterTeam(ctx, hunterToken, wolves); err != nil || view.Me.HunterTeam != wolves {
+		t.Fatalf("hunter team not set: %+v %v", view.Me, err)
+	}
+	view, err = s.SetReady(ctx, hunterToken, true)
 	if err != nil || view.Lobby.Game.Status(now) != game.StatusCountdown || !view.Me.Ready || view.Me.Team != game.Hunters {
 		t.Fatalf("countdown not started: %+v %v", view, err)
 	}

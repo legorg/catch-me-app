@@ -148,6 +148,48 @@ func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request)
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
+// SetHunterTeam puts the authenticated hunter into a hunter team.
+// @Summary Join or create a hunter team
+// @ID setHunterTeam
+// @Accept json
+// @Produce json
+// @Security PlayerToken
+// @Param body body SetHunterTeamRequest true "Team name (1-20 characters); an existing team with this name (ignoring case) is joined, otherwise a new team is created"
+// @Success 200 {object} GameStateResponse "Updated game state"
+// @Failure 400 {object} APIError "Invalid JSON or team name"
+// @Failure 401 {object} APIError "Missing or unknown player token"
+// @Failure 403 {object} APIError "Browser origin is not allowed"
+// @Failure 405 {object} APIError "Method not allowed"
+// @Failure 409 {object} APIError "Not a hunter, ready, or game started"
+// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
+// @Failure 500 {object} APIError "Could not update game"
+// @Router /api/me/hunter-team [put]
+func (c *GameController) SetHunterTeam(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPut) {
+		return
+	}
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	var body SetHunterTeamRequest
+	if !decodeJSON(w, r, &body, "expected a JSON object with name") {
+		return
+	}
+	name, err := game.ParseHunterTeamName(body.Name)
+	if err != nil {
+		writeGameError(w, err, "invalid team name")
+		return
+	}
+	view, err := c.service.SetHunterTeam(r.Context(), token, name)
+	if err != nil {
+		writeGameError(w, err, "could not update game")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
 // UpdatePosition stores the authenticated player's latest location.
 // @Summary Report the authenticated player's current position
 // @ID updatePosition
@@ -254,7 +296,7 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	}
 	// Visibility is decided by the domain; this only maps what it allows.
 	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
-		player := PlayerResponse{PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), Ready: p.Ready}
+		player := PlayerResponse{PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}
 		if !p.Route.IsZero() {
 			player.Route = routeResponse(p.Route)
 		}

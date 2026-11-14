@@ -167,6 +167,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		{"/api/me/game", "get", "getGameState", "200", "GameStateResponse"},
 		{"/api/me/ready", "put", "setReady", "200", "GameStateResponse"},
 		{"/api/me/route", "post", "regenerateRoute", "200", "GameStateResponse"},
+		{"/api/me/hunter-team", "put", "setHunterTeam", "200", "GameStateResponse"},
 		{"/api/me/position", "put", "updatePosition", "200", "GameStateResponse"},
 	} {
 		operation := spec.Paths[tc.path][tc.method]

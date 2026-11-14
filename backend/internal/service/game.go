@@ -93,6 +93,13 @@ func (s *GameService) RegenerateRoute(ctx context.Context, token game.PlayerToke
 	})
 }
 
+// SetHunterTeam joins the hunter team with this name, creating it if needed.
+func (s *GameService) SetHunterTeam(ctx context.Context, token game.PlayerToken, name game.HunterTeamName) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.SetHunterTeam(me.ID, name, now)
+	})
+}
+
 // UpdatePosition stores the player's latest location, timestamped with server time.
 func (s *GameService) UpdatePosition(ctx context.Context, token game.PlayerToken, coordinates game.Coordinates, accuracyMeters float64) (PlayerView, error) {
 	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {

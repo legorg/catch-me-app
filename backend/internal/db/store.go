@@ -30,7 +30,7 @@ type gameRow struct {
 type playerRow struct {
 	ID                     string `gorm:"primaryKey"`
 	GameID                 string `gorm:"index;not null"`
-	Team, Name             string
+	Team, Name, HunterTeam string
 	TokenHash              string `gorm:"uniqueIndex;not null"`
 	Ready                  bool
 	JoinedAt               time.Time
@@ -212,7 +212,7 @@ func withoutPositions(p game.Player) game.Player {
 func toPlayerRow(gameID game.SessionID, p game.Player) playerRow {
 	row := playerRow{
 		ID: p.ID.String(), GameID: gameID.String(), Team: string(p.Team), Name: p.Name.String(),
-		TokenHash: p.TokenHash.String(), Ready: p.Ready, JoinedAt: p.JoinedAt,
+		TokenHash: p.TokenHash.String(), Ready: p.Ready, JoinedAt: p.JoinedAt, HunterTeam: p.HunterTeam.String(),
 	}
 	if !p.Route.IsZero() {
 		row.RouteStart, row.RouteEnd, row.RouteRegenerationsLeft = p.Route.Start.String(), p.Route.End.String(), p.Route.RegenerationsLeft
@@ -309,14 +309,19 @@ func parsePlayer(row playerRow) (game.Player, error) {
 	team, err3 := game.ParseTeam(row.Team)
 	hash, err4 := game.ParseTokenHash(row.TokenHash)
 	var route game.RunnerRoute
+	var hunterTeam game.HunterTeamName
 	var err5 error
 	if team == game.Runners {
 		route, err5 = game.ParseRunnerRoute(row.RouteStart, row.RouteEnd, row.RouteRegenerationsLeft)
+	} else if row.HunterTeam != "" {
+		hunterTeam, err5 = game.ParseHunterTeamName(row.HunterTeam)
 	}
 	if err := errors.Join(err1, err2, err3, err4, err5); err != nil {
 		return game.Player{}, err
 	}
-	return game.Player{ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), Route: route}, nil
+	return game.Player{
+		ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), HunterTeam: hunterTeam, Route: route,
+	}, nil
 }
 
 func parsePosition(row positionRow) (game.Position, error) {

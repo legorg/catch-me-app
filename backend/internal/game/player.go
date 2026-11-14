@@ -83,21 +83,44 @@ func (c JoinCodes) TeamFor(code JoinCode) (Team, bool) {
 	return "", false
 }
 
-type PlayerName struct{ value string }
-
-func ParsePlayerName(name string) (PlayerName, error) {
+// parseName trims a player or team name and checks its length and characters.
+func parseName(name, what string) (string, error) {
 	trimmed := strings.TrimSpace(name)
 	length := utf8.RuneCountInString(trimmed)
 	if length == 0 || length > MaxNameLength || !utf8.ValidString(trimmed) || strings.ContainsFunc(trimmed, unicode.IsControl) {
-		return PlayerName{}, &ValidationError{Message: "name must contain 1 to 20 characters"}
+		return "", &ValidationError{Message: what + " must contain 1 to 20 characters"}
 	}
-	return PlayerName{value: trimmed}, nil
+	return trimmed, nil
+}
+
+type PlayerName struct{ value string }
+
+func ParsePlayerName(name string) (PlayerName, error) {
+	trimmed, err := parseName(name, "name")
+	return PlayerName{value: trimmed}, err
 }
 
 func (n PlayerName) String() string { return n.value }
 
 // SameAs compares names ignoring case, so players remain distinguishable.
 func (n PlayerName) SameAs(other PlayerName) bool { return strings.EqualFold(n.value, other.value) }
+
+// HunterTeamName names a group of hunters who see each other's positions. A
+// hunter team exists exactly while at least one hunter belongs to it.
+type HunterTeamName struct{ value string }
+
+func ParseHunterTeamName(name string) (HunterTeamName, error) {
+	trimmed, err := parseName(name, "team name")
+	return HunterTeamName{value: trimmed}, err
+}
+
+func (n HunterTeamName) String() string { return n.value }
+func (n HunterTeamName) IsZero() bool   { return n.value == "" }
+
+// SameAs compares team names ignoring case.
+func (n HunterTeamName) SameAs(other HunterTeamName) bool {
+	return strings.EqualFold(n.value, other.value)
+}
 
 var secretPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
@@ -138,6 +161,8 @@ type Player struct {
 	Ready     bool
 	TokenHash TokenHash
 	JoinedAt  time.Time
+	// HunterTeam is zero for runners and for hunters who have not chosen one.
+	HunterTeam HunterTeamName
 	// Zero values mean "none": hunters have no route; Position is the latest
 	// report. Reveal is what hunters see of a runner: their last report before
 	// the latest reveal time (Game.LatestReveal), derived when loading.

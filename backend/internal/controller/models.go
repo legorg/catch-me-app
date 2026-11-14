@@ -58,15 +58,22 @@ type SetReadyRequest struct {
 	Ready *bool `json:"ready" example:"true"`
 } // @name SetReadyRequest
 
+type SetHunterTeamRequest struct {
+	Name string `json:"name" minLength:"1" maxLength:"20" example:"Wolves"`
+} // @name SetHunterTeamRequest
+
 type PlayerResponse struct {
 	PlayerID string `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 	Name     string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
 	Team     string `json:"team" enums:"runner,hunter" example:"runner"`
-	Ready    bool   `json:"ready" example:"false"`
+	// Present for hunters who have chosen a hunter team.
+	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves"`
+	Ready      bool   `json:"ready" example:"false"`
 	// Present only for runners when the requester is a runner.
 	Route *RouteResponse `json:"route,omitempty"`
-	// Own position always; teammates' positions while running; runners'
-	// revealed positions for hunters while running.
+	// Own position always; hunter teammates' positions always; runner
+	// teammates' positions while running; runners' revealed positions for
+	// hunters while running.
 	Position *PositionResponse `json:"position,omitempty"`
 } // @name PlayerResponse
 
