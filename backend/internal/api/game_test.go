@@ -164,7 +164,7 @@ func TestCreateGameCellSizes(t *testing.T) {
 
 // Smoke test only: ensure the generated contract describes the real routes.
 func TestOpenAPIRoutes(t *testing.T) {
-	data, err := os.ReadFile("../../api/openapi.json")
+	data, err := os.ReadFile("../../api/swagger.json")
 	if err != nil {
 		t.Fatal(err)
 	}

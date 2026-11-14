@@ -47,7 +47,6 @@ jobs:
           cache-dependency-path: |
             backend/go.mod
             backend/go.sum
-            backend/cmd/apigen/main.go
 
       - name: Install app dependencies
         run: npm ci
@@ -70,7 +69,14 @@ jobs:
         run: go vet ./...
 
       - name: Check generated API freshness
-        run: npm run api:check
+        run: |
+          (cd ../backend && go generate ./cmd/server)
+          npm run api:generate
+          if [ -n "$(git status --porcelain -- ../backend/api src/api/generated)" ]; then
+            git status --short -- ../backend/api src/api/generated
+            echo "Generated API files are stale; run go generate and npm run api:generate."
+            exit 1
+          fi
 
       - name: Typecheck app
         run: npm run typecheck

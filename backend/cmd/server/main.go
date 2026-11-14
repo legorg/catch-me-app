@@ -18,6 +18,8 @@ import (
 	"catch-me/backend/internal/service"
 )
 
+//go:generate go tool swag init -g main.go -d .,../../internal/controller --parseInternal --requiredByDefault --outputTypes json --output ../../api
+
 // @title Catch me! API
 // @version 0.1.0
 // @description API generated from Go handler annotations and response structs.

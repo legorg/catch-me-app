@@ -1,0 +1,1024 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API generated from Go handler annotations and response structs.",
+        "title": "Catch me! API",
+        "contact": {},
+        "version": "0.1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/games": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Create a 6 by 6 playground with adjustable cell size (default 2000 meters)",
+                "operationId": "createGame",
+                "parameters": [
+                    {
+                        "description": "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreateGameRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Game saved, with one join code per team",
+                        "schema": {
+                            "$ref": "#/definitions/CreateGameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid JSON, coordinates, or cell size",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body exceeds 1024 bytes",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not save game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/games/{sessionId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Load a saved game playground",
+                "operationId": "getGame",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "32 lowercase hexadecimal characters",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Saved game",
+                        "schema": {
+                            "$ref": "#/definitions/GameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid session ID",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Game not found",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not load game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/me": {
+            "delete": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Leave the game before it starts",
+                "operationId": "leaveGame",
+                "responses": {
+                    "204": {
+                        "description": "Left the game; the token is no longer valid"
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Game has already started",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/me/game": {
+            "get": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get the game state for the authenticated player",
+                "operationId": "getGameState",
+                "responses": {
+                    "200": {
+                        "description": "Current game state",
+                        "schema": {
+                            "$ref": "#/definitions/GameStateResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not load game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/me/position": {
+            "put": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Report the authenticated player's current position",
+                "operationId": "updatePosition",
+                "parameters": [
+                    {
+                        "description": "Current coordinates and accuracy radius; the server records its own time",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UpdatePositionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated game state",
+                        "schema": {
+                            "$ref": "#/definitions/GameStateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid JSON, coordinates, or accuracy",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body exceeds 1024 bytes",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/me/ready": {
+            "put": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Set the authenticated player's ready state",
+                "operationId": "setReady",
+                "parameters": [
+                    {
+                        "description": "Ready state; the game starts 10 seconds after all players are ready and both teams have players",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SetReadyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated game state",
+                        "schema": {
+                            "$ref": "#/definitions/GameStateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid JSON or missing ready value",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Game has already started, or the runner is not in their start cell",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body exceeds 1024 bytes",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/me/route": {
+            "post": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Regenerate the authenticated runner's route",
+                "operationId": "regenerateRoute",
+                "responses": {
+                    "200": {
+                        "description": "Updated game state with the new route",
+                        "schema": {
+                            "$ref": "#/definitions/GameStateResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Not a runner, ready, no changes left, or game started",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/players": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Join a game with a team join code",
+                "operationId": "joinGame",
+                "parameters": [
+                    {
+                        "description": "Join code (case-insensitive) and display name (1-20 characters, unique per game)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/JoinGameRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Joined; keep the player token secret",
+                        "schema": {
+                            "$ref": "#/definitions/JoinGameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid JSON, join code, or name",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "No game with this join code",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Game started, full, or name taken",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body exceeds 1024 bytes",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not join game",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Check backend health",
+                "operationId": "getHealth",
+                "responses": {
+                    "200": {
+                        "description": "Backend is running",
+                        "schema": {
+                            "$ref": "#/definitions/HealthResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Browser origin is not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "ApiError": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "cell size must be 100 to 5000 meters in steps of 100 meters"
+                }
+            }
+        },
+        "Bounds": {
+            "type": "object",
+            "required": [
+                "east",
+                "north",
+                "south",
+                "west"
+            ],
+            "properties": {
+                "east": {
+                    "type": "number",
+                    "example": 13.493678060701022
+                },
+                "north": {
+                    "type": "number",
+                    "example": 52.57395922182347
+                },
+                "south": {
+                    "type": "number",
+                    "example": 52.466040778176534
+                },
+                "west": {
+                    "type": "number",
+                    "example": 13.316321939298977
+                }
+            }
+        },
+        "Coordinates": {
+            "type": "object",
+            "required": [
+                "latitude",
+                "longitude"
+            ],
+            "properties": {
+                "latitude": {
+                    "type": "number",
+                    "maximum": 80,
+                    "minimum": -80,
+                    "example": 52.52
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 13.405
+                }
+            }
+        },
+        "CreateGameRequest": {
+            "type": "object",
+            "required": [
+                "latitude",
+                "longitude"
+            ],
+            "properties": {
+                "cellSizeMeters": {
+                    "type": "integer",
+                    "default": 2000,
+                    "maximum": 5000,
+                    "minimum": 100,
+                    "example": 2000
+                },
+                "latitude": {
+                    "type": "number",
+                    "maximum": 80,
+                    "minimum": -80,
+                    "example": 52.52
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 13.405
+                }
+            }
+        },
+        "CreateGameResponse": {
+            "type": "object",
+            "required": [
+                "game",
+                "joinCodes"
+            ],
+            "properties": {
+                "game": {
+                    "$ref": "#/definitions/GameResponse"
+                },
+                "joinCodes": {
+                    "$ref": "#/definitions/JoinCodes"
+                }
+            }
+        },
+        "GameResponse": {
+            "type": "object",
+            "required": [
+                "createdAt",
+                "playground",
+                "sessionId"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-08T12:00:00Z"
+                },
+                "playground": {
+                    "$ref": "#/definitions/Playground"
+                },
+                "sessionId": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 32,
+                    "example": "00112233445566778899aabbccddeeff"
+                }
+            }
+        },
+        "GameStateResponse": {
+            "type": "object",
+            "required": [
+                "joinCode",
+                "playerId",
+                "players",
+                "playground",
+                "serverTime",
+                "sessionId",
+                "status",
+                "team"
+            ],
+            "properties": {
+                "joinCode": {
+                    "type": "string",
+                    "maxLength": 6,
+                    "minLength": 6,
+                    "example": "K7M2QX"
+                },
+                "nextRevealAt": {
+                    "description": "Next time hunters receive the runners' positions, present while running.",
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-08T12:05:10Z"
+                },
+                "playerId": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 32,
+                    "example": "8899aabbccddeeff0011223344556677"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PlayerResponse"
+                    }
+                },
+                "playground": {
+                    "$ref": "#/definitions/Playground"
+                },
+                "route": {
+                    "description": "The requesting runner's own route; absent for hunters.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/RouteResponse"
+                        }
+                    ]
+                },
+                "serverTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-08T12:00:00Z"
+                },
+                "sessionId": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 32,
+                    "example": "00112233445566778899aabbccddeeff"
+                },
+                "startPositionCheckDisabled": {
+                    "description": "Explicit server-side development override; absent during normal play.",
+                    "type": "boolean",
+                    "example": false
+                },
+                "startsAt": {
+                    "description": "Scheduled start, present during the countdown and once running.",
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-08T12:00:10Z"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "lobby",
+                        "countdown",
+                        "running"
+                    ],
+                    "example": "lobby"
+                },
+                "team": {
+                    "type": "string",
+                    "enum": [
+                        "runner",
+                        "hunter"
+                    ],
+                    "example": "runner"
+                }
+            }
+        },
+        "HealthResponse": {
+            "type": "object",
+            "required": [
+                "service",
+                "status"
+            ],
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "enum": [
+                        "catch-me-backend"
+                    ],
+                    "example": "catch-me-backend"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ok"
+                    ],
+                    "example": "ok"
+                }
+            }
+        },
+        "JoinCodes": {
+            "type": "object",
+            "required": [
+                "hunter",
+                "runner"
+            ],
+            "properties": {
+                "hunter": {
+                    "type": "string",
+                    "maxLength": 6,
+                    "minLength": 6,
+                    "example": "P4R9TW"
+                },
+                "runner": {
+                    "type": "string",
+                    "maxLength": 6,
+                    "minLength": 6,
+                    "example": "K7M2QX"
+                }
+            }
+        },
+        "JoinGameRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 6,
+                    "minLength": 6,
+                    "example": "K7M2QX"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "minLength": 1,
+                    "example": "Ada"
+                }
+            }
+        },
+        "JoinGameResponse": {
+            "type": "object",
+            "required": [
+                "playerToken",
+                "state"
+            ],
+            "properties": {
+                "playerToken": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 64,
+                    "example": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+                },
+                "state": {
+                    "$ref": "#/definitions/GameStateResponse"
+                }
+            }
+        },
+        "PlayerResponse": {
+            "type": "object",
+            "required": [
+                "name",
+                "playerId",
+                "ready",
+                "team"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "minLength": 1,
+                    "example": "Ada"
+                },
+                "playerId": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 32,
+                    "example": "8899aabbccddeeff0011223344556677"
+                },
+                "position": {
+                    "description": "Own position always; teammates' positions while running; runners'\nrevealed positions for hunters while running.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/PositionResponse"
+                        }
+                    ]
+                },
+                "ready": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "route": {
+                    "description": "Present only for runners when the requester is a runner.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/RouteResponse"
+                        }
+                    ]
+                },
+                "team": {
+                    "type": "string",
+                    "enum": [
+                        "runner",
+                        "hunter"
+                    ],
+                    "example": "runner"
+                }
+            }
+        },
+        "Playground": {
+            "type": "object",
+            "required": [
+                "bounds",
+                "cellSizeMeters",
+                "center",
+                "columns",
+                "rows"
+            ],
+            "properties": {
+                "bounds": {
+                    "$ref": "#/definitions/Bounds"
+                },
+                "cellSizeMeters": {
+                    "type": "integer",
+                    "maximum": 5000,
+                    "minimum": 100,
+                    "example": 2000
+                },
+                "center": {
+                    "$ref": "#/definitions/Coordinates"
+                },
+                "columns": {
+                    "type": "integer",
+                    "enum": [
+                        6
+                    ],
+                    "example": 6
+                },
+                "rows": {
+                    "type": "integer",
+                    "enum": [
+                        6
+                    ],
+                    "example": 6
+                }
+            }
+        },
+        "PositionResponse": {
+            "type": "object",
+            "required": [
+                "accuracyMeters",
+                "latitude",
+                "longitude",
+                "recordedAt"
+            ],
+            "properties": {
+                "accuracyMeters": {
+                    "type": "number",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "example": 8
+                },
+                "latitude": {
+                    "type": "number",
+                    "example": 52.52
+                },
+                "longitude": {
+                    "type": "number",
+                    "example": 13.405
+                },
+                "recordedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-08T12:04:58Z"
+                },
+                "revealedAt": {
+                    "description": "Set when this is a runner position revealed to hunters.",
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-08T12:05:00Z"
+                }
+            }
+        },
+        "RouteResponse": {
+            "type": "object",
+            "required": [
+                "end",
+                "regenerationsLeft",
+                "start"
+            ],
+            "properties": {
+                "end": {
+                    "type": "string",
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "example": "E6"
+                },
+                "regenerationsLeft": {
+                    "type": "integer",
+                    "maximum": 2,
+                    "minimum": 0,
+                    "example": 2
+                },
+                "start": {
+                    "type": "string",
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "example": "B1"
+                }
+            }
+        },
+        "SetReadyRequest": {
+            "type": "object",
+            "required": [
+                "ready"
+            ],
+            "properties": {
+                "ready": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "UpdatePositionRequest": {
+            "type": "object",
+            "required": [
+                "accuracyMeters",
+                "latitude",
+                "longitude"
+            ],
+            "properties": {
+                "accuracyMeters": {
+                    "type": "number",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "example": 8
+                },
+                "latitude": {
+                    "type": "number",
+                    "maximum": 80,
+                    "minimum": -80,
+                    "example": 52.52
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 13.405
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "PlayerToken": {
+            "description": "\"Bearer \" followed by the playerToken returned when joining a game.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
