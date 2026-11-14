@@ -93,3 +93,40 @@ jobs:
       - name: Verify tracked files were not modified
         working-directory: .
         run: git diff --exit-code
+
+  devguard-backend:
+    name: DevGuard backend
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: l3montree-dev/devguard-ci-components/.github/workflows/full.yml@0afeae23b8443e4495b88cd0a25723dc469003d4 # v1.18.0
+    with:
+      devguard-asset-name: catch-me-app/catch-me/catch-me-server
+      path: /github/workspace/backend
+    secrets:
+      devguard-token: ${{ secrets.DEVGUARD_TOKEN }}
+      build-args: --context=/github/workspace/backend --dockerfile=/github/workspace/backend/Dockerfile
+
+  devguard-frontend:
+    name: DevGuard frontend
+    permissions:
+      contents: read
+    uses: l3montree-dev/devguard-ci-components/.github/workflows/code-scanning.yml@0afeae23b8443e4495b88cd0a25723dc469003d4 # v1.18.0
+    with:
+      devguard-asset-name: catch-me-app/catch-me/catch-me-app
+      path: /github/workspace/app
+    secrets:
+      devguard-token: ${{ secrets.DEVGUARD_TOKEN }}
+
+  devguard-zizmor:
+    name: DevGuard zizmor
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: l3montree-dev/devguard-ci-components/.github/workflows/zizmor-scanning.yml@0afeae23b8443e4495b88cd0a25723dc469003d4 # v1.18.0
+    with:
+      devguard-asset-name: catch-me-app/catch-me/catch-me-server
+    secrets:
+      devguard-token: ${{ secrets.DEVGUARD_TOKEN }}
