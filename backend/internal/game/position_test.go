@@ -111,7 +111,7 @@ func runningLobby(t *testing.T) (Lobby, Player, Player, Player) {
 }
 
 func TestRevealSchedule(t *testing.T) {
-	l, runner, _, _ := runningLobby(t)
+	l, _, _, _ := runningLobby(t)
 	began := l.Game.StartsAt
 	if !l.Game.LatestReveal(began.Add(RevealInterval-time.Second)).IsZero() || l.Game.NextReveal(began) != began.Add(RevealInterval) {
 		t.Fatal("first reveal must be one interval after the start")
@@ -121,26 +121,6 @@ func TestRevealSchedule(t *testing.T) {
 	}
 	if !l.Game.NextReveal(began.Add(-time.Second)).IsZero() {
 		t.Fatal("no reveals before the start")
-	}
-
-	firstReveal := began.Add(RevealInterval)
-	before := position(t, l, "B3", firstReveal.Add(-time.Second))
-	_ = l.UpdatePosition(runner.ID, before, firstReveal.Add(-time.Second), false)
-	after := position(t, l, "D4", firstReveal.Add(10*time.Second))
-	// The first request after the reveal time is this position update: the
-	// reveal must still show the position from before the reveal time.
-	_ = l.UpdatePosition(runner.ID, after, firstReveal.Add(10*time.Second), false)
-	p, _ := l.Player(runner.ID)
-	if p.Reveal.Position != before || p.Reveal.At != firstReveal {
-		t.Fatalf("unexpected reveal: %+v", p.Reveal)
-	}
-	l.AdvanceReveals(firstReveal.Add(time.Minute))
-	if p, _ := l.Player(runner.ID); p.Reveal.Position != before {
-		t.Fatal("reveal changed before the next interval")
-	}
-	l.AdvanceReveals(firstReveal.Add(RevealInterval))
-	if p, _ := l.Player(runner.ID); p.Reveal.Position != after {
-		t.Fatal("second reveal missing")
 	}
 }
 
@@ -177,7 +157,8 @@ func TestVisibility(t *testing.T) {
 		t.Fatal("hunters see no runner positions or routes before a reveal")
 	}
 	revealed := l.Game.StartsAt.Add(RevealInterval)
-	l.AdvanceReveals(revealed)
+	r := &l.Players[l.index(runner.ID)]
+	r.Reveal = Reveal{Position: r.Position, At: revealed}
 	v := find(l.VisibleTo(h, revealed), runner.ID)
 	if v.Position.IsZero() || v.RevealedAt != revealed || !v.Route.IsZero() {
 		t.Fatalf("hunter must see the revealed position: %+v", v)

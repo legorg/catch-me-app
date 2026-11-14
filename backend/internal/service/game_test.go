@@ -36,17 +36,17 @@ func (r *memoryRepository) Create(ctx context.Context, saved game.Game) error {
 	return nil
 }
 
-func (r *memoryRepository) DeleteHistoryBefore(ctx context.Context, cutoff time.Time) error {
+func (r *memoryRepository) DeletePositionsBefore(ctx context.Context, cutoff time.Time) error {
 	r.calls++
 	r.cutoff = cutoff
 	return r.err
 }
 
-func (r *memoryRepository) UpdateLobbyByJoinCode(ctx context.Context, code game.JoinCode, change func(*game.Lobby) error) (game.Lobby, error) {
+func (r *memoryRepository) UpdateLobbyByJoinCode(ctx context.Context, code game.JoinCode, now time.Time, change func(*game.Lobby) error) (game.Lobby, error) {
 	return r.update(func(l game.Lobby) bool { _, ok := l.Game.JoinCodes.TeamFor(code); return ok }, change)
 }
 
-func (r *memoryRepository) UpdateLobbyByToken(ctx context.Context, hash game.TokenHash, change func(*game.Lobby) error) (game.Lobby, error) {
+func (r *memoryRepository) UpdateLobbyByToken(ctx context.Context, hash game.TokenHash, now time.Time, change func(*game.Lobby) error) (game.Lobby, error) {
 	return r.update(func(l game.Lobby) bool { _, ok := l.PlayerByToken(hash); return ok }, change)
 }
 
@@ -99,10 +99,10 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestDeleteExpiredHistory(t *testing.T) {
+func TestDeleteExpiredPositions(t *testing.T) {
 	r := newMemoryRepository()
 	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
-	if err := newService(r, now).DeleteExpiredHistory(context.Background()); err != nil || !r.cutoff.Equal(now.Add(-game.HistoryRetention)) {
+	if err := newService(r, now).DeleteExpiredPositions(context.Background()); err != nil || !r.cutoff.Equal(now.Add(-game.PositionRetention)) {
 		t.Fatalf("wrong retention cutoff %v: %v", r.cutoff, err)
 	}
 }

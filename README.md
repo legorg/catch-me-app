@@ -25,7 +25,7 @@ Creating a game returns one **join code per team** (runners and hunters). Anyone
 
 Implemented so far: playground setup, join codes, players, lobby, ready-up, countdown, start, runner routes (a random start cell on one edge row and a target cell on the opposite one, regenerable twice before getting ready, visible to all runners), and foreground location sharing. Runners must stand in their start cell to get ready; while running, teammates see each other and hunters see the runners' positions every 5 minutes. Catching and finishing are **not implemented yet**. Positions are shared in the foreground before the start; while running, players who allow "Always" access keep sharing in the background (installed app builds only, not Expo Go; it stops when leaving the game screen or closing the app). Joining returns a secret player token that authenticates later requests; the app keeps it in memory only, so restarting the app loses the session. A session ID identifies a game; it is **not** a credential or a join code. Games currently remain until the database is explicitly removed.
 
-**Position history:** besides each player's latest position, the server keeps every reported position in `position_history`, for a replay or chart after the game. Nothing reads it yet (no endpoint, no chart). It is deleted when a player leaves, and automatically **7 days after the game's start** (or creation, if it never started): at server startup and then hourly.
+**Positions:** every reported position is a row in the `positions` table. A player's newest row is their current position; a runner's reveal for hunters is their last row before the reveal time. All rows together are the history for a replay or chart after the game, which nothing reads yet (no endpoint, no chart). Positions are deleted when a player leaves, and automatically **7 days after the game's start** (or creation, if it never started): at server startup and then hourly.
 
 The grid uses a local spherical approximation, not survey-grade geometry. Center latitudes are restricted to -80° through 80°, and playgrounds crossing the international date line are rejected. The frontend previews the geometry; the backend recomputes the authoritative bounds from center and cell size. No map imagery is stored. Confirm the whole area is safe and permitted for outdoor play.
 
@@ -43,7 +43,7 @@ The public API contract is separate from database rows. Changing a table must no
 
 ### Tables
 
-The schema is the three structs at the top of **`backend/internal/db/store.go`** (`games`, `players`, `position_history`). There is no code generation: change a struct and restart. Startup runs GORM's `AutoMigrate`, which creates missing tables, columns, and indexes but never drops or changes existing ones. Players reference their game, and history rows their player, with `ON DELETE CASCADE`. The `players` table stores only a SHA-256 hash of each player token. Times are stored as UTC text in SQLite's sortable format. GORM's SQL logging is off, because it would contain player positions.
+The schema is the three structs at the top of **`backend/internal/db/store.go`** (`games`, `players`, `positions`). There is no code generation: change a struct and restart. Startup runs GORM's `AutoMigrate`, which creates missing tables, columns, and indexes but never drops or changes existing ones. Players reference their game, and positions their player, with `ON DELETE CASCADE`. Positions are only inserted, never updated. The `players` table stores only a SHA-256 hash of each player token. Times are stored as UTC text in SQLite's sortable format. GORM's SQL logging is off, because it would contain player positions.
 
 The SQLite driver remains pure Go (`modernc.org/sqlite`, plugged into GORM's official SQLite dialect) and the API still builds with `CGO_ENABLED=0`. GORM's dialect also pulls in the cgo driver `mattn/go-sqlite3` as a dependency; it is never used.
 
@@ -145,7 +145,7 @@ The browser preview intentionally has no embedded map; use Android/iOS to create
 
 The backend image compiles a static Go executable into a minimal image without a shell (it runs as root). Compose has no health check; it starts Expo once the backend container is running.
 
-SQLite is stored at `/data/catch-me.sqlite` in the `game_data` Docker volume. Container restarts/recreation and `docker compose down` preserve saved games. **Do not use `docker compose down -v` unless you intend to delete all volume data.** Back up the database with the backend stopped to avoid an inconsistent copy. Direct `docker run` users must also mount a persistent volume at `/data`.
+SQLite is stored at `/data/catch-me.sqlite` in the `game_data` Docker volume. Container restarts/recreation and `docker compose down` preserve saved games. **Do not use `docker compose down -v` unless you intend to delete all volume data.** For a plain file copy, stop the backend first to avoid an inconsistent copy; the [SQLite snapshot workflow below](#inspect-a-local-database-snapshot) also works while the backend is running. Direct `docker run` users must also mount a persistent volume at `/data`.
 
 The app container is an **Expo development server**, not a production frontend or an Android/iOS emulator. It uses Node 24 and mounts source files for live reload without sharing Windows `node_modules` with Linux. The native app still runs in Expo Go or a development build on your device. Rebuild the app image after changing dependencies or other files not mounted in `compose.yaml`.
 
@@ -174,6 +174,46 @@ Restart with `docker compose up --build`. Open `exp://192.168.1.100:8081` in Exp
 Some Expo Go environments require Expo CLI and Expo Go to be signed in to the same Expo account. Sign in inside the container with `docker compose exec app npx expo login`; its CLI state is kept in the `expo_state` volume. Do not bake credentials into images.
 
 Compose takes its configuration from the **root `.env`** and passes the API URL to Expo. `app/.env.local` is for the non-Docker workflow only; dotenv loading is disabled inside the container to avoid conflicting settings.
+
+### Inspect a local database snapshot
+
+SQLite has no database server, network port, username, or password. To inspect data or try SQL changes in IntelliJ IDEA (with database support), DataGrip, or DB Browser for SQLite, open a **local snapshot**, not the live Docker volume.
+
+After the backend has initialized the database and the app image has been built (`docker compose up -d --build`), run this in **PowerShell from the repository root**:
+
+```powershell
+$dbDir = Join-Path $env:TEMP ("catch-me-db-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+New-Item -ItemType Directory -Path $dbDir | Out-Null
+
+docker run --rm --network none --read-only `
+  --mount type=volume,source=catch-me_game_data,target=/data,readonly `
+  --mount "type=bind,source=$dbDir,target=/export" `
+  --entrypoint node catch-me-app `
+  -e "const {DatabaseSync,backup}=require('node:sqlite'); const db=new DatabaseSync('/data/catch-me.sqlite',{readOnly:true}); backup(db,'/export/catch-me.sqlite').then(()=>db.close()).catch(e=>{console.error(e);process.exitCode=1});"
+
+if ($LASTEXITCODE -ne 0) { throw 'SQLite snapshot failed.' }
+Write-Output "$dbDir\catch-me.sqlite"
+```
+
+This uses Node's SQLite backup API in the existing app image to create a consistent snapshot while the backend can keep running. The source volume is mounted read-only; only the new local snapshot is written. No local Node or SQLite installation is needed. The names `catch-me_game_data` and `catch-me-app` assume the default Compose project name (`catch-me`); adjust them if you override it.
+
+In IntelliJ IDEA / DataGrip:
+
+1. Open **Database → + → Data Source → SQLite**.
+2. Select the printed `catch-me.sqlite` file (download the SQLite driver if prompted).
+3. Open a query console and run SQL, for example:
+
+```sql
+SELECT name, team, ready, position_recorded_at
+FROM players
+ORDER BY joined_at DESC;
+```
+
+In DB Browser for SQLite, use **Open Database** and select the same file.
+
+- The snapshot does **not** update automatically. Repeat the export and open the new file to inspect newer data.
+- SQL changes to the snapshot do **not** affect the running game. Do not copy an edited snapshot back over the live database.
+- Snapshots can contain sensitive player, location, and game-access data. Keep them out of Git and public shares; delete local copies when no longer needed. Live database retention does not remove exported copies.
 
 ### Container commands
 

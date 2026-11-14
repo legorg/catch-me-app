@@ -135,8 +135,6 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 	if i < 0 {
 		return ErrUnauthorized
 	}
-	// Snapshot due reveals first, so they never contain a position reported after the reveal time.
-	l.AdvanceReveals(now)
 	player := &l.Players[i]
 	player.Position = position
 	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireInStartCell(*player, now) != nil {
@@ -144,21 +142,6 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 		l.reschedule(now)
 	}
 	return nil
-}
-
-// AdvanceReveals records each runner's latest position for hunters once a
-// reveal time has passed. Calling it repeatedly is harmless.
-func (l *Lobby) AdvanceReveals(now time.Time) {
-	due := l.Game.LatestReveal(now)
-	if due.IsZero() {
-		return
-	}
-	for i := range l.Players {
-		p := &l.Players[i]
-		if p.Team == Runners && !p.Position.IsZero() && p.Reveal.At.Before(due) {
-			p.Reveal = Reveal{Position: p.Position, At: due}
-		}
-	}
 }
 
 // requireInStartCell checks that a runner recently reported a position inside

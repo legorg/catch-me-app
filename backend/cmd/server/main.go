@@ -58,7 +58,7 @@ func run(ctx context.Context, addr, webOrigin, dbPath string, skipStartPositionC
 		return err
 	}
 	games := service.NewGameService(store, skipStartPositionCheck)
-	go deleteExpiredHistory(ctx, games)
+	go deleteExpiredPositions(ctx, games)
 
 	server := &http.Server{
 		Handler:           api.NewHandler(webOrigin, controller.NewGameController(games)),
@@ -92,11 +92,11 @@ func run(ctx context.Context, addr, webOrigin, dbPath string, skipStartPositionC
 	}
 }
 
-// deleteExpiredHistory enforces the position history retention at startup
+// deleteExpiredPositions enforces the position retention at startup
 // and hourly until shutdown.
-func deleteExpiredHistory(ctx context.Context, games *service.GameService) {
+func deleteExpiredPositions(ctx context.Context, games *service.GameService) {
 	for {
-		if err := games.DeleteExpiredHistory(ctx); err != nil && ctx.Err() == nil {
+		if err := games.DeleteExpiredPositions(ctx); err != nil && ctx.Err() == nil {
 			log.Print(err)
 		}
 		select {

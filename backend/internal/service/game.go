@@ -13,13 +13,13 @@ import (
 // It exposes domain values, not database rows or SQL errors.
 type GameRepository interface {
 	Create(context.Context, game.Game) error
-	// UpdateLobby* load a lobby, apply change, and save atomically. A nil change
-	// only loads. Every changed position is also appended to the game's history.
-	UpdateLobbyByJoinCode(context.Context, game.JoinCode, func(*game.Lobby) error) (game.Lobby, error)
-	UpdateLobbyByToken(context.Context, game.TokenHash, func(*game.Lobby) error) (game.Lobby, error)
-	// DeleteHistoryBefore deletes the position history of games that started
-	// (or, if never started, were created) before cutoff.
-	DeleteHistoryBefore(context.Context, time.Time) error
+	// UpdateLobby* load a lobby as of now (including reveals), apply change, and
+	// save atomically. A nil change only loads.
+	UpdateLobbyByJoinCode(context.Context, game.JoinCode, time.Time, func(*game.Lobby) error) (game.Lobby, error)
+	UpdateLobbyByToken(context.Context, game.TokenHash, time.Time, func(*game.Lobby) error) (game.Lobby, error)
+	// DeletePositionsBefore deletes the positions of games that started (or, if
+	// never started, were created) before cutoff.
+	DeletePositionsBefore(context.Context, time.Time) error
 }
 
 type GameService struct {
@@ -66,7 +66,7 @@ func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellS
 func (s *GameService) Join(ctx context.Context, code game.JoinCode, name game.PlayerName) (PlayerView, game.PlayerToken, error) {
 	now, token := s.now(), game.NewPlayerToken()
 	var me game.Player
-	lobby, err := s.repository.UpdateLobbyByJoinCode(ctx, code, func(l *game.Lobby) error {
+	lobby, err := s.repository.UpdateLobbyByJoinCode(ctx, code, now, func(l *game.Lobby) error {
 		var err error
 		me, err = l.Join(code, name, token, now)
 		return err
@@ -111,16 +111,14 @@ func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 	return err
 }
 
-// DeleteExpiredHistory enforces game.HistoryRetention.
-func (s *GameService) DeleteExpiredHistory(ctx context.Context) error {
-	return s.repository.DeleteHistoryBefore(ctx, s.now().Add(-game.HistoryRetention))
+// DeleteExpiredPositions enforces game.PositionRetention.
+func (s *GameService) DeleteExpiredPositions(ctx context.Context) error {
+	return s.repository.DeletePositionsBefore(ctx, s.now().Add(-game.PositionRetention))
 }
 
 func (s *GameService) updateAsPlayer(ctx context.Context, token game.PlayerToken, change func(*game.Lobby, game.Player, time.Time) error) (PlayerView, error) {
 	now, hash := s.now(), token.Hash()
-	lobby, err := s.repository.UpdateLobbyByToken(ctx, hash, func(l *game.Lobby) error {
-		// Every request advances due reveals, so no background job is needed.
-		l.AdvanceReveals(now)
+	lobby, err := s.repository.UpdateLobbyByToken(ctx, hash, now, func(l *game.Lobby) error {
 		if change == nil {
 			return nil
 		}

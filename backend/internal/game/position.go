@@ -11,9 +11,9 @@ const (
 	// StartCellMaxAge is how recent a runner's position must be to prove they
 	// stand in their start cell.
 	StartCellMaxAge = 30 * time.Second
-	// HistoryRetention is how long every reported position is kept after a
-	// game's start (or creation, if it never started) for a later replay.
-	HistoryRetention = 7 * 24 * time.Hour
+	// PositionRetention is how long reported positions are kept after a game's
+	// start (or creation, if it never started), for a replay after the game.
+	PositionRetention = 7 * 24 * time.Hour
 )
 
 // Position is a player's latest reported location. RecordedAt is the server

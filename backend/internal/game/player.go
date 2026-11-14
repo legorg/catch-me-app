@@ -138,8 +138,9 @@ type Player struct {
 	Ready     bool
 	TokenHash TokenHash
 	JoinedAt  time.Time
-	// Zero values mean "none": hunters have no route, Position is the latest
-	// report, and Reveal is what hunters last saw of a runner.
+	// Zero values mean "none": hunters have no route; Position is the latest
+	// report. Reveal is what hunters see of a runner: their last report before
+	// the latest reveal time (Game.LatestReveal), derived when loading.
 	Route    RunnerRoute
 	Position Position
 	Reveal   Reveal

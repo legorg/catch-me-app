@@ -64,14 +64,14 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 - Before the start, location is shared in the foreground only, while the lobby screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start.
 - **Background sharing [done]:** while the game runs, players who grant "Always" location access keep reporting with the screen off or another app open (Android shows a notification while sharing). It stops when the player leaves the game screen, closes the app, or the token becomes invalid; a restarted app does not resume it. It needs an installed app build; in Expo Go and browsers the app falls back to foreground sharing.
 - The app sends the latest fix every **5 seconds**, even when standing still. The server stamps each report with its own time and never trusts the phone's clock.
-- Each player's **latest position** is stored for the rules. A player's position is deleted when they leave.
-- **Position history [stored only]:** every reported position is also kept, for a replay or chart after the game. No endpoint or app screen reads it yet; once one exists, it must only show history after the game ended. The history is deleted when a player leaves and automatically **7 days after the game's start** (or creation, if it never started).
+- Every reported position is stored as its own record; the newest is the player's current position. A player's positions are deleted when they leave.
+- **Position history [stored only]:** all records together are kept for a replay or chart after the game. No endpoint or app screen reads them yet; once one exists, it must only show them after the game ended. Positions are deleted automatically **7 days after the game's start** (or creation, if it never started).
 - Everyone always sees **their own** position.
 - **Teammates** see each other's latest position **only while running**.
 - **Hunters** receive each runner's position once every **5 minutes** after the start (first reveal 5 minutes after the start). A reveal shows where the runner was at the reveal time (their last report before it), not live updates. The state includes `nextRevealAt` for both teams.
 - **Runners** never see hunters.
 - Players outside the playground get a warning only; there is no penalty.
-- Reveals are recorded lazily: the first request touching the game after a reveal time snapshots the runners' positions, and position reports always snapshot before storing the new position.
+- Reveals are not stored: a reveal is derived from the stored positions as the runner's last report strictly before the latest reveal time.
 
 ## Catch, finish, and end [next: milestone 4]
 
@@ -79,7 +79,7 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 - **Finish:** a runner whose position lies inside their end cell finishes.
 - **Runners win** as soon as one runner finishes.
 - **Hunters win** when every runner is caught, or when the **90-minute** time limit runs out.
-- The game becomes `ended` with a winner; latest positions are deleted (the history is kept until its retention ends).
+- The game becomes `ended` with a winner; positions stay stored until their retention ends, for the replay.
 
 ## Later
 

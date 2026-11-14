@@ -15,8 +15,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Table rows. As in the domain, zero values mean "none": hunters have no
-// route, and a zero RecordedAt or RevealedAt means no position or reveal.
+// Table rows. A zero StartsAt means not scheduled; hunters have an empty route.
 type gameRow struct {
 	ID                  string `gorm:"primaryKey"`
 	CreatedAt           time.Time
@@ -37,27 +36,21 @@ type playerRow struct {
 	JoinedAt               time.Time
 	RouteStart, RouteEnd   string
 	RouteRegenerationsLeft int
-	Position               positionRow `gorm:"embedded;embeddedPrefix:position_"`
-	Reveal                 positionRow `gorm:"embedded;embeddedPrefix:reveal_"`
-	RevealedAt             time.Time
-	History                []historyRow `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
+	Positions              []positionRow `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
 }
 
+// positionRow is one reported position. A player's newest row is their current
+// position; all rows together are the history for a replay after the game.
 type positionRow struct {
+	ID                                  uint64 `gorm:"primaryKey"`
+	PlayerID                            string `gorm:"index;not null"`
 	Latitude, Longitude, AccuracyMeters float64
 	RecordedAt                          time.Time
 }
 
-// historyRow is one reported position, kept for a replay after the game.
-type historyRow struct {
-	ID       uint64      `gorm:"primaryKey"`
-	PlayerID string      `gorm:"index;not null"`
-	Position positionRow `gorm:"embedded"`
-}
-
-func (gameRow) TableName() string    { return "games" }
-func (playerRow) TableName() string  { return "players" }
-func (historyRow) TableName() string { return "position_history" }
+func (gameRow) TableName() string     { return "games" }
+func (playerRow) TableName() string   { return "players" }
+func (positionRow) TableName() string { return "positions" }
 
 type Store struct{ db *gorm.DB }
 
@@ -78,7 +71,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// updates cannot interleave.
 	database.SetMaxOpenConns(1)
 	// AutoMigrate creates missing tables, columns, and indexes; it never drops any.
-	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &historyRow{}); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &positionRow{}); err != nil {
 		_ = database.Close()
 		return nil, fmt.Errorf("initialize schema: %w", err)
 	}
@@ -117,18 +110,18 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 }
 
 // UpdateLobbyByJoinCode loads the game with this runner or hunter code and its
-// players, applies change, and saves the result in one transaction. A nil
-// change only loads.
-func (s *Store) UpdateLobbyByJoinCode(ctx context.Context, code game.JoinCode, change func(*game.Lobby) error) (game.Lobby, error) {
-	return s.updateLobby(ctx, change, "runner_code = ? OR hunter_code = ?", code.String(), code.String())
+// players as of now, applies change, and saves the result in one transaction.
+// A nil change only loads.
+func (s *Store) UpdateLobbyByJoinCode(ctx context.Context, code game.JoinCode, now time.Time, change func(*game.Lobby) error) (game.Lobby, error) {
+	return s.updateLobby(ctx, now, change, "runner_code = ? OR hunter_code = ?", code.String(), code.String())
 }
 
 // UpdateLobbyByToken is UpdateLobbyByJoinCode for the game of the player with this token hash.
-func (s *Store) UpdateLobbyByToken(ctx context.Context, hash game.TokenHash, change func(*game.Lobby) error) (game.Lobby, error) {
-	return s.updateLobby(ctx, change, "id = (SELECT game_id FROM players WHERE token_hash = ?)", hash.String())
+func (s *Store) UpdateLobbyByToken(ctx context.Context, hash game.TokenHash, now time.Time, change func(*game.Lobby) error) (game.Lobby, error) {
+	return s.updateLobby(ctx, now, change, "id = (SELECT game_id FROM players WHERE token_hash = ?)", hash.String())
 }
 
-func (s *Store) updateLobby(ctx context.Context, change func(*game.Lobby) error, where string, args ...any) (game.Lobby, error) {
+func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*game.Lobby) error, where string, args ...any) (game.Lobby, error) {
 	var lobby game.Lobby
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var row gameRow
@@ -139,10 +132,9 @@ func (s *Store) updateLobby(ctx context.Context, change func(*game.Lobby) error,
 		if err != nil {
 			return fmt.Errorf("select lobby: %w", err)
 		}
-		before, err := parseLobby(row)
+		before, err := loadLobby(tx, row, now)
 		if err != nil {
-			// %v, not %w: invalid stored data is a server error, not a client validation error.
-			return fmt.Errorf("parse stored lobby: %v", err)
+			return err
 		}
 		lobby = game.Lobby{Game: before.Game, Players: slices.Clone(before.Players)}
 		if change == nil {
@@ -156,17 +148,19 @@ func (s *Store) updateLobby(ctx context.Context, change func(*game.Lobby) error,
 	return lobby, err
 }
 
-// DeleteHistoryBefore deletes the position history of games that started (or,
-// if never started, were created) before cutoff. A zero start sorts first.
-func (s *Store) DeleteHistoryBefore(ctx context.Context, cutoff time.Time) error {
+// DeletePositionsBefore deletes the positions of games that started (or, if
+// never started, were created) before cutoff. A zero start sorts first.
+func (s *Store) DeletePositionsBefore(ctx context.Context, cutoff time.Time) error {
 	err := s.db.WithContext(ctx).Where(`player_id IN (SELECT players.id FROM players JOIN games ON games.id = players.game_id
-		WHERE max(games.created_at, games.starts_at) < ?)`, cutoff.UTC()).Delete(&historyRow{}).Error
+		WHERE max(games.created_at, games.starts_at) < ?)`, cutoff.UTC()).Delete(&positionRow{}).Error
 	if err != nil {
-		return fmt.Errorf("delete position history: %w", err)
+		return fmt.Errorf("delete positions: %w", err)
 	}
 	return nil
 }
 
+// saveLobby writes changed games and players. A changed position is a new row;
+// positions are never updated.
 func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	if !before.Game.StartsAt.Equal(after.Game.StartsAt) {
 		if err := tx.Model(&gameRow{ID: after.Game.SessionID.String()}).Update("starts_at", after.Game.StartsAt).Error; err != nil {
@@ -180,25 +174,28 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	for _, p := range after.Players {
 		previous, existed := removed[p.ID]
 		delete(removed, p.ID)
-		if existed && previous == p {
-			continue
-		}
-		row := toPlayerRow(after.Game.SessionID, p)
-		save := tx.Create
-		if existed {
-			save = tx.Save
-		}
-		if err := save(&row).Error; err != nil {
-			return fmt.Errorf("save player: %w", err)
+		if !existed || withoutPositions(previous) != withoutPositions(p) {
+			row := toPlayerRow(after.Game.SessionID, p)
+			save := tx.Create
+			if existed {
+				save = tx.Save
+			}
+			if err := save(&row).Error; err != nil {
+				return fmt.Errorf("save player: %w", err)
+			}
 		}
 		if p.Position != previous.Position && !p.Position.IsZero() {
-			if err := tx.Create(&historyRow{PlayerID: row.ID, Position: row.Position}).Error; err != nil {
-				return fmt.Errorf("save position history: %w", err)
+			position := positionRow{
+				PlayerID: p.ID.String(), Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
+				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt,
+			}
+			if err := tx.Create(&position).Error; err != nil {
+				return fmt.Errorf("save position: %w", err)
 			}
 		}
 	}
 	for id := range removed {
-		// Also deletes the player's position history (ON DELETE CASCADE).
+		// Also deletes the player's positions (ON DELETE CASCADE).
 		if err := tx.Delete(&playerRow{ID: id.String()}).Error; err != nil {
 			return fmt.Errorf("delete player: %w", err)
 		}
@@ -206,11 +203,16 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	return nil
 }
 
+// withoutPositions keeps the fields stored in the players table.
+func withoutPositions(p game.Player) game.Player {
+	p.Position, p.Reveal = game.Position{}, game.Reveal{}
+	return p
+}
+
 func toPlayerRow(gameID game.SessionID, p game.Player) playerRow {
 	row := playerRow{
 		ID: p.ID.String(), GameID: gameID.String(), Team: string(p.Team), Name: p.Name.String(),
 		TokenHash: p.TokenHash.String(), Ready: p.Ready, JoinedAt: p.JoinedAt,
-		Position: toPositionRow(p.Position), Reveal: toPositionRow(p.Reveal.Position), RevealedAt: p.Reveal.At,
 	}
 	if !p.Route.IsZero() {
 		row.RouteStart, row.RouteEnd, row.RouteRegenerationsLeft = p.Route.Start.String(), p.Route.End.String(), p.Route.RegenerationsLeft
@@ -218,12 +220,62 @@ func toPlayerRow(gameID game.SessionID, p game.Player) playerRow {
 	return row
 }
 
-func toPositionRow(p game.Position) positionRow {
-	return positionRow{Latitude: p.Coordinates.Latitude(), Longitude: p.Coordinates.Longitude(), AccuracyMeters: p.AccuracyMeters, RecordedAt: p.RecordedAt}
+// loadLobby rebuilds domain values through their parsers, so invalid stored
+// data is a server error. It adds each player's latest position and, for
+// runners, their reveal: the last position before the latest reveal time.
+func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
+	lobby, err := parseLobby(row)
+	if err != nil {
+		// %v, not %w: invalid stored data is a server error, not a client validation error.
+		return game.Lobby{}, fmt.Errorf("parse stored lobby: %v", err)
+	}
+	latest, err := lastPositions(tx, row.Players, time.Time{})
+	if err != nil {
+		return game.Lobby{}, err
+	}
+	var revealed map[string]game.Position
+	due := lobby.Game.LatestReveal(now)
+	if !due.IsZero() {
+		if revealed, err = lastPositions(tx, row.Players, due); err != nil {
+			return game.Lobby{}, err
+		}
+	}
+	for i := range lobby.Players {
+		p := &lobby.Players[i]
+		p.Position = latest[p.ID.String()]
+		if position, ok := revealed[p.ID.String()]; ok && p.Team == game.Runners {
+			p.Reveal = game.Reveal{Position: position, At: due}
+		}
+	}
+	return lobby, nil
 }
 
-// parseLobby rebuilds domain values through their parsers, so invalid stored
-// data is rejected. The playground is derived from center and cell size.
+// lastPositions returns each player's newest position, only counting positions
+// recorded before the given time unless it is zero.
+func lastPositions(tx *gorm.DB, players []playerRow, before time.Time) (map[string]game.Position, error) {
+	ids := make([]string, len(players))
+	for i, p := range players {
+		ids[i] = p.ID
+	}
+	newest := tx.Model(&positionRow{}).Select("max(id)").Where("player_id IN ?", ids).Group("player_id")
+	if !before.IsZero() {
+		newest = newest.Where("recorded_at < ?", before)
+	}
+	var rows []positionRow
+	if err := tx.Where("id IN (?)", newest).Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("select positions: %w", err)
+	}
+	positions := map[string]game.Position{}
+	for _, row := range rows {
+		position, err := parsePosition(row)
+		if err != nil {
+			return nil, fmt.Errorf("parse stored position: %v", err)
+		}
+		positions[row.PlayerID] = position
+	}
+	return positions, nil
+}
+
 func parseLobby(row gameRow) (game.Lobby, error) {
 	id, err1 := game.ParseSessionID(row.ID)
 	center, err2 := game.ParseCoordinates(row.Latitude, row.Longitude)
@@ -256,26 +308,18 @@ func parsePlayer(row playerRow) (game.Player, error) {
 	name, err2 := game.ParsePlayerName(row.Name)
 	team, err3 := game.ParseTeam(row.Team)
 	hash, err4 := game.ParseTokenHash(row.TokenHash)
-	position, err5 := parsePosition(row.Position)
-	revealed, err6 := parsePosition(row.Reveal)
 	var route game.RunnerRoute
-	var err7 error
+	var err5 error
 	if team == game.Runners {
-		route, err7 = game.ParseRunnerRoute(row.RouteStart, row.RouteEnd, row.RouteRegenerationsLeft)
+		route, err5 = game.ParseRunnerRoute(row.RouteStart, row.RouteEnd, row.RouteRegenerationsLeft)
 	}
-	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7); err != nil {
+	if err := errors.Join(err1, err2, err3, err4, err5); err != nil {
 		return game.Player{}, err
 	}
-	return game.Player{
-		ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(),
-		Route: route, Position: position, Reveal: game.Reveal{Position: revealed, At: row.RevealedAt.UTC()},
-	}, nil
+	return game.Player{ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), Route: route}, nil
 }
 
 func parsePosition(row positionRow) (game.Position, error) {
-	if row.RecordedAt.IsZero() {
-		return game.Position{}, nil
-	}
 	coordinates, err := game.ParseCoordinates(row.Latitude, row.Longitude)
 	if err != nil {
 		return game.Position{}, err
