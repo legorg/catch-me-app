@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setReady, updatePosition,
+  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { previewPlayground } from '../src/playground';
 
@@ -83,6 +83,9 @@ test('player requests send the bearer token', async (t) => {
     if (request.method === 'PUT' && new URL(request.url).pathname === '/api/me/position') {
       assert.deepEqual(await request.json(), { latitude: 52.5, longitude: 13.4, accuracyMeters: 8 });
     }
+    if (request.method === 'PUT' && new URL(request.url).pathname === '/api/me/hunter-team') {
+      assert.deepEqual(await request.json(), { name: 'Wolves' });
+    }
     if (request.method === 'DELETE') {
       return new Response(null, { status: 204 });
     }
@@ -91,9 +94,13 @@ test('player requests send the bearer token', async (t) => {
   assert.deepEqual(await getGameState(token), state);
   assert.deepEqual(await setReady(token, true), state);
   assert.deepEqual(await regenerateRoute(token), state);
+  assert.deepEqual(await setHunterTeam(token, ' Wolves '), state);
   assert.deepEqual(await updatePosition(token, { latitude: 52.5, longitude: 13.4, accuracyMeters: 8 }), state);
   await leaveGame(token);
-  assert.deepEqual(seen, ['GET /api/me/game', 'PUT /api/me/ready', 'POST /api/me/route', 'PUT /api/me/position', 'DELETE /api/me']);
+  assert.deepEqual(seen, [
+    'GET /api/me/game', 'PUT /api/me/ready', 'POST /api/me/route', 'PUT /api/me/hunter-team', 'PUT /api/me/position', 'DELETE /api/me',
+  ]);
+  await assert.rejects(setHunterTeam(token, '  '), /team name/);
 });
 
 test('health check also uses the generated client', async (t) => {

@@ -28,6 +28,11 @@ export function playersByTeam(players: PlayerResponse[]) {
 
 export const TEAM_LABELS = { runner: 'Runners', hunter: 'Hunters' } as const;
 
+/** Existing hunter team names, in the order their first member joined. */
+export function hunterTeams(players: PlayerResponse[]): string[] {
+  return [...new Set(players.flatMap((p) => (p.hunterTeam ? [p.hunterTeam] : [])))];
+}
+
 export const MARKER_COLORS = { me: '#27ae60', teammate: '#2f80ed', revealed: '#eb5757' } as const;
 
 export type PlayerMarker = {

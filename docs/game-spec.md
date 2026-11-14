@@ -32,7 +32,7 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 - Joining is possible in the lobby and during the countdown, not after the game has started.
 - In the lobby, each player sees all players (names, teams, hunter teams, ready state) and the join code of their **own** team, to invite teammates.
 
-## Hunter teams [backend done, app next]
+## Hunter teams [done]
 
 - Runners are always one team. Hunters can form several **hunter teams**; all hunters share the same hunter join code.
 - A hunter joins without a team. In the lobby and during the countdown, a hunter who is not ready **chooses a hunter team by name**: an existing team with that name (ignoring case, keeping its spelling) is joined, otherwise a new one is created. Names follow the display name rules (1–20 characters).
@@ -69,7 +69,7 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 
 ## Positions and visibility [done: milestone 3]
 
-- Before the start, location is shared in the foreground only, while the lobby screen is open. Runners share from joining (for the start cell check); everyone shares while running. Hunters do not share before the start yet **[next: app]**; they should share from joining so their hunter team sees them.
+- Before the start, location is shared in the foreground only, while the lobby screen is open. Everyone shares from joining: runners for the start cell check, hunters so their hunter team sees them.
 - **Background sharing [done]:** while the game runs, players who grant "Always" location access keep reporting with the screen off or another app open (Android shows a notification while sharing). It stops when the player leaves the game screen, closes the app, or the token becomes invalid; a restarted app does not resume it. It needs an installed app build; in Expo Go and browsers the app falls back to foreground sharing.
 - The app sends the latest fix every **5 seconds**, even when standing still. The server stamps each report with its own time and never trusts the phone's clock.
 - Every reported position is stored as its own record; the newest is the player's current position. A player's positions are deleted when they leave.

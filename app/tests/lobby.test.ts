@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateResponse } from '../src/api/client';
-import { MARKER_COLORS, formatDuration, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart } from '../src/lobby';
+import { MARKER_COLORS, formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart } from '../src/lobby';
 import { previewPlayground } from '../src/playground';
 
 const state: GameStateResponse = {
@@ -35,6 +35,16 @@ test('players are grouped by team in join order', () => {
   const teams = playersByTeam(state.players);
   assert.deepEqual(teams.runner.map((p) => p.name), ['Ada', 'Cy']);
   assert.deepEqual(teams.hunter.map((p) => p.name), ['Bob']);
+});
+
+test('hunter teams are listed once, in join order', () => {
+  const hunter = { team: 'hunter' as const, ready: false };
+  assert.deepEqual(hunterTeams([
+    ...state.players,
+    { ...hunter, playerId: 'd'.repeat(32), name: 'Dan', hunterTeam: 'Wolves' },
+    { ...hunter, playerId: 'e'.repeat(32), name: 'Eve', hunterTeam: 'Bears' },
+    { ...hunter, playerId: 'f'.repeat(32), name: 'Fay', hunterTeam: 'Wolves' },
+  ]), ['Wolves', 'Bears']);
 });
 
 test('reveal countdown and duration formatting', () => {

@@ -1,16 +1,17 @@
 import { router, useFocusEffect, useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  ApiError, getGameState, leaveGame, regenerateRoute, setReady, updatePosition, type GameStateResponse,
+  ApiError, MAX_NAME_LENGTH, getGameState, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition,
+  type GameStateResponse,
 } from '@/api/client';
 import Button from '@/components/button';
 import PlaygroundMap, { type CellHighlight } from '@/components/playground-map';
 import {
-  TEAM_LABELS, formatDuration, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart,
+  TEAM_LABELS, formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart,
 } from '@/lobby';
 import { playerSession } from '@/player-session';
 import { cellAt, edgeName } from '@/playground';
@@ -31,6 +32,7 @@ export default function LobbyScreen() {
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [newTeam, setNewTeam] = useState('');
   const token = playerSession.get();
   const focused = useIsFocused();
 
@@ -72,8 +74,8 @@ export default function LobbyScreen() {
   const countdown = state && snapshot ? secondsUntilStart(state, snapshot.receivedAt, now) : null;
   const running = state?.status === 'running' || countdown === 0;
   const skipStartPositionCheck = state?.startPositionCheckDisabled === true;
-  // Runners need their position before the start (start cell check); everyone shares while running.
-  const sharing = focused && !!token && !!state && (state.team === 'runner' || running);
+  // Everyone shares from joining: runners for the start cell check, hunters for their hunter team.
+  const sharing = focused && !!token && !!state;
   // Background sharing only while the game runs; the lobby stays foreground-only.
   const location = useLocationSharing(sharing, running, useCallback(async (fix: Fix) => {
     if (!token) return;
@@ -116,6 +118,11 @@ export default function LobbyScreen() {
     ? [{ cell: route.start, title: 'Start', color: START_COLOR }, { cell: route.end, title: 'Target', color: TARGET_COLOR }]
     : [];
   const permission = location.permission;
+  const needsHunterTeam = state.team === 'hunter' && !me?.hunterTeam;
+  const changeHunterTeam = (name: string) => void act(async () => {
+    show(await setHunterTeam(token, name));
+    setNewTeam('');
+  });
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -131,7 +138,7 @@ export default function LobbyScreen() {
             ? 'Catching and reaching the target arrive in the next milestone.'
             : countdown !== null
               ? skipStartPositionCheck ? 'Everyone is ready. Joining, leaving, or un-readying cancels the countdown.' : 'Everyone is ready. Joining, leaving, un-readying, or a runner leaving their start cell cancels the countdown.'
-              : skipStartPositionCheck ? 'The game starts 10 seconds after all players are ready and both teams have at least one player.' : 'The game starts 10 seconds after all players are ready and both teams have at least one player. Runners must stand in their start cell.'}
+              : skipStartPositionCheck ? 'The game starts 10 seconds after all players are ready and both teams have at least one player. Hunters need a hunter team.' : 'The game starts 10 seconds after all players are ready and both teams have at least one player. Runners must stand in their start cell; hunters need a hunter team.'}
         </Text>
         {running && nextReveal !== null && <View style={styles.card}>
           <Text style={styles.heading}>Next reveal in {formatDuration(nextReveal)}</Text>
@@ -145,15 +152,17 @@ export default function LobbyScreen() {
         <View style={styles.mapContainer}>
           <PlaygroundMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} markers={playerMarkers(state)} />
         </View>
-        {running && <Text style={styles.hint}>
-          ● You (green){state.team === 'runner' ? ' · teammates (blue)' : ' · teammates (blue) · revealed runners (red)'}. Runners never see hunters.
+        {(running || state.team === 'hunter') && <Text style={styles.hint}>
+          ● You (green){state.team === 'runner' ? ' · teammates (blue)' : ' · your hunter team (blue) · revealed runners (red)'}. Runners never see hunters.
         </Text>}
         {sharing && permission && !permission.granted && <View style={styles.card}>
           <Text style={styles.heading}>Share your location</Text>
           <Text style={styles.text}>
             {state.team === 'runner' && !running && !skipStartPositionCheck
               ? 'Runners must prove they stand in their start cell before getting ready.'
-              : location.background.available
+              : state.team === 'hunter' && !running
+                ? 'Your hunter team sees your position, already in the lobby.'
+                : location.background.available
                 ? 'Your teammates see your position while the game runs.'
                 : 'Your teammates see your position while the game runs. It is only shared while this screen is open.'}
           </Text>
@@ -176,7 +185,9 @@ export default function LobbyScreen() {
         </View>}
         {!!location.error && <Text style={[styles.text, styles.error]}>{location.error}</Text>}
         <View style={styles.card}>
-          <Text style={styles.text}>You are a <Text style={styles.heading}>{state.team}</Text>{me ? ` · ${me.name}` : ''}</Text>
+          <Text style={styles.text}>
+            You are a <Text style={styles.heading}>{state.team}</Text>{me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · team ${me.hunterTeam}` : ''}
+          </Text>
           {!running && <>
             <Text style={styles.text}>Invite teammates with your team&apos;s code:</Text>
             <Text selectable style={styles.code}>{state.joinCode}</Text>
@@ -206,6 +217,29 @@ export default function LobbyScreen() {
           />}
           {!running && me?.ready && route.regenerationsLeft > 0 && <Text style={styles.hint}>Set yourself not ready to change your route.</Text>}
         </View>}
+        {state.team === 'hunter' && !running && me && <View style={styles.card}>
+          <Text style={styles.heading}>Your hunter team</Text>
+          <Text style={[styles.text, needsHunterTeam && styles.error]}>
+            {needsHunterTeam ? 'Join or create a hunter team to get ready.' : `You hunt with team ${me.hunterTeam}.`}
+          </Text>
+          <Text style={styles.hint}>Hunters of the same team see each other&apos;s positions. Other hunter teams never see yours.</Text>
+          {hunterTeams(state.players).filter((team) => team !== me.hunterTeam).map((team) => (
+            <Button key={team} label={`Join ${team}`} variant="secondary" disabled={busy || me.ready} onPress={() => changeHunterTeam(team)} />
+          ))}
+          <TextInput
+            accessibilityLabel="New team name"
+            placeholder="New team name"
+            placeholderTextColor={colors.placeholder}
+            value={newTeam}
+            onChangeText={setNewTeam}
+            editable={!busy && !me.ready}
+            autoCorrect={false}
+            maxLength={MAX_NAME_LENGTH}
+            style={styles.input}
+          />
+          <Button label="Create team" variant="secondary" disabled={busy || me.ready || !newTeam.trim()} onPress={() => changeHunterTeam(newTeam)} />
+          {me.ready && <Text style={styles.hint}>Set yourself not ready to change your team.</Text>}
+        </View>}
         {(['runner', 'hunter'] as const).map((team) => (
           <View key={team} style={styles.card}>
             <Text style={styles.heading}>{TEAM_LABELS[team]} ({teams[team].length})</Text>
@@ -213,6 +247,7 @@ export default function LobbyScreen() {
             {teams[team].map((p) => (
               <Text key={p.playerId} style={styles.text}>
                 {p.ready ? '✓' : '○'} {p.name}{p.playerId === state.playerId ? ' (you)' : ''}
+                {team === 'hunter' ? ` · ${p.hunterTeam ? `team ${p.hunterTeam}` : 'no team'}` : ''}
                 {running ? '' : p.ready ? ' · ready' : ' · not ready'}
                 {p.route && p.playerId !== state.playerId ? ` · ${p.route.start} → ${p.route.end}` : ''}
               </Text>
@@ -224,7 +259,7 @@ export default function LobbyScreen() {
           <Button
             label={me.ready ? 'Not ready' : 'Ready'}
             variant={me.ready ? 'secondary' : 'primary'}
-            disabled={busy || (!skipStartPositionCheck && !me.ready && !!route && !inStartCell)}
+            disabled={busy || (!me.ready && needsHunterTeam) || (!skipStartPositionCheck && !me.ready && !!route && !inStartCell)}
             onPress={() => void act(async () => show(await setReady(token, !me.ready)))}
           />
           <Button label="Leave" variant="secondary" disabled={busy} onPress={() => void act(async () => {

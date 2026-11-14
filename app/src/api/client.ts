@@ -5,6 +5,7 @@ import {
   joinGame as postPlayer,
   leaveGame as deletePlayer,
   regenerateRoute as postRoute,
+  setHunterTeam as putHunterTeam,
   setReady as putReady,
   updatePosition as putPosition,
 } from './generated/sdk.gen';
@@ -101,6 +102,15 @@ export async function regenerateRoute(token: string): Promise<GameStateResponse>
   return data;
 }
 
+export async function setHunterTeam(token: string, name: string): Promise<GameStateResponse> {
+  if (!isValidPlayerName(name)) {
+    throw new Error(`Enter a team name with 1–${MAX_NAME_LENGTH} characters.`);
+  }
+  const data = await request((signal) => putHunterTeam({ baseUrl: API_URL, auth: bearer(token), body: { name: name.trim() }, signal }));
+  assertGameState(data);
+  return data;
+}
+
 export async function updatePosition(
   token: string, position: { latitude: number; longitude: number; accuracyMeters: number },
 ): Promise<GameStateResponse> {
@@ -153,6 +163,7 @@ function isPosition(value: unknown): boolean {
 
 function isPlayer(p: unknown): boolean {
   return isRecord(p) && isHex(p.playerId, 32) && typeof p.name === 'string' && isTeam(p.team) &&
+    (p.hunterTeam === undefined || (p.team === 'hunter' && typeof p.hunterTeam === 'string')) &&
     typeof p.ready === 'boolean' && (p.route === undefined || isRoute(p.route)) &&
     (p.position === undefined || isPosition(p.position));
 }
