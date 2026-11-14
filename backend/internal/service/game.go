@@ -10,13 +10,16 @@ import (
 )
 
 // GameRepository is the small persistence boundary used by this service.
-// It exposes domain values, not Ent entities or SQL errors.
+// It exposes domain values, not database rows or SQL errors.
 type GameRepository interface {
 	Create(context.Context, game.Game) error
-	Get(context.Context, game.SessionID) (game.Game, error)
-	// UpdateLobby* load a lobby, apply change, and save atomically. A nil change only loads.
+	// UpdateLobby* load a lobby, apply change, and save atomically. A nil change
+	// only loads. Every changed position is also appended to the game's history.
 	UpdateLobbyByJoinCode(context.Context, game.JoinCode, func(*game.Lobby) error) (game.Lobby, error)
 	UpdateLobbyByToken(context.Context, game.TokenHash, func(*game.Lobby) error) (game.Lobby, error)
+	// DeleteHistoryBefore deletes the position history of games that started
+	// (or, if never started, were created) before cutoff.
+	DeleteHistoryBefore(context.Context, time.Time) error
 }
 
 type GameService struct {
@@ -25,14 +28,10 @@ type GameService struct {
 	skipStartPositionCheck bool
 }
 
-type Options struct{ SkipStartPositionCheck bool }
-
-func NewGameService(repository GameRepository, options ...Options) *GameService {
-	s := &GameService{repository: repository, now: func() time.Time { return time.Now().UTC() }}
-	for _, option := range options {
-		s.skipStartPositionCheck = option.SkipStartPositionCheck
-	}
-	return s
+// NewGameService creates the service. skipStartPositionCheck is the
+// development test override and must be false for real games.
+func NewGameService(repository GameRepository, skipStartPositionCheck bool) *GameService {
+	return &GameService{repository: repository, now: func() time.Time { return time.Now().UTC() }, skipStartPositionCheck: skipStartPositionCheck}
 }
 
 // PlayerView is a lobby as seen by one of its players.
@@ -62,14 +61,6 @@ func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellS
 	}
 }
 
-func (s *GameService) Get(ctx context.Context, id game.SessionID) (game.Game, error) {
-	saved, err := s.repository.Get(ctx, id)
-	if err != nil {
-		return game.Game{}, fmt.Errorf("get game: %w", err)
-	}
-	return saved, nil
-}
-
 // Join adds a player to the team of the join code. The returned token is
 // shown to the player once; only its hash is stored.
 func (s *GameService) Join(ctx context.Context, code game.JoinCode, name game.PlayerName) (PlayerView, game.PlayerToken, error) {
@@ -92,7 +83,7 @@ func (s *GameService) State(ctx context.Context, token game.PlayerToken) (Player
 
 func (s *GameService) SetReady(ctx context.Context, token game.PlayerToken, ready bool) (PlayerView, error) {
 	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
-		return l.SetReady(me.ID, ready, now)
+		return l.SetReady(me.ID, ready, now, s.skipStartPositionCheck)
 	})
 }
 
@@ -109,7 +100,7 @@ func (s *GameService) UpdatePosition(ctx context.Context, token game.PlayerToken
 		if err != nil {
 			return err
 		}
-		return l.UpdatePosition(me.ID, position, now)
+		return l.UpdatePosition(me.ID, position, now, s.skipStartPositionCheck)
 	})
 }
 
@@ -120,10 +111,14 @@ func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 	return err
 }
 
+// DeleteExpiredHistory enforces game.HistoryRetention.
+func (s *GameService) DeleteExpiredHistory(ctx context.Context) error {
+	return s.repository.DeleteHistoryBefore(ctx, s.now().Add(-game.HistoryRetention))
+}
+
 func (s *GameService) updateAsPlayer(ctx context.Context, token game.PlayerToken, change func(*game.Lobby, game.Player, time.Time) error) (PlayerView, error) {
 	now, hash := s.now(), token.Hash()
 	lobby, err := s.repository.UpdateLobbyByToken(ctx, hash, func(l *game.Lobby) error {
-		l.SkipStartPositionCheck = s.skipStartPositionCheck
 		// Every request advances due reveals, so no background job is needed.
 		l.AdvanceReveals(now)
 		if change == nil {

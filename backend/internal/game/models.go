@@ -67,8 +67,7 @@ type Game struct {
 	SessionID  SessionID
 	CreatedAt  time.Time
 	Playground Playground
-	// JoinCodes is zero for games created before joining existed; they cannot be joined.
-	JoinCodes JoinCodes
+	JoinCodes  JoinCodes
 	// StartsAt is zero while the lobby is open, otherwise the scheduled start.
 	StartsAt time.Time
 }

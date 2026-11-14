@@ -249,16 +249,16 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	if next := g.NextReveal(view.Now); !next.IsZero() {
 		response.NextRevealAt = next.Format(time.RFC3339Nano)
 	}
-	if route := view.Me.Route; route != nil {
-		response.Route = routeResponse(route)
+	if !view.Me.Route.IsZero() {
+		response.Route = routeResponse(view.Me.Route)
 	}
 	// Visibility is decided by the domain; this only maps what it allows.
 	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
 		player := PlayerResponse{PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), Ready: p.Ready}
-		if p.Route != nil {
+		if !p.Route.IsZero() {
 			player.Route = routeResponse(p.Route)
 		}
-		if p.Position != nil {
+		if !p.Position.IsZero() {
 			player.Position = &PositionResponse{
 				Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
 				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt.Format(time.RFC3339Nano),
@@ -272,6 +272,6 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	return response
 }
 
-func routeResponse(route *game.RunnerRoute) *RouteResponse {
+func routeResponse(route game.RunnerRoute) *RouteResponse {
 	return &RouteResponse{Start: route.Start.String(), End: route.End.String(), RegenerationsLeft: route.RegenerationsLeft}
 }

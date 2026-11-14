@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameData, GetGameErrors, GetGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthErrors, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
+import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthErrors, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -29,11 +29,6 @@ export const createGame = <ThrowOnError extends boolean = false>(options: Option
         ...options.headers
     }
 });
-
-/**
- * Load a saved game playground
- */
-export const getGame = <ThrowOnError extends boolean = false>(options: Options<GetGameData, ThrowOnError>) => (options.client ?? client).get<GetGameResponses, GetGameErrors, ThrowOnError>({ url: '/api/games/{sessionId}', ...options });
 
 /**
  * Leave the game before it starts

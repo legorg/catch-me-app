@@ -36,16 +36,17 @@ func (g Game) Status(now time.Time) Status {
 type Lobby struct {
 	Game    Game
 	Players []Player
-	// Transient server test setting; never persisted as a game rule.
-	SkipStartPositionCheck bool
+}
+
+func (l Lobby) index(id PlayerID) int {
+	return slices.IndexFunc(l.Players, func(p Player) bool { return p.ID == id })
 }
 
 func (l Lobby) Player(id PlayerID) (Player, bool) {
-	i := slices.IndexFunc(l.Players, func(p Player) bool { return p.ID == id })
-	if i < 0 {
-		return Player{}, false
+	if i := l.index(id); i >= 0 {
+		return l.Players[i], true
 	}
-	return l.Players[i], true
+	return Player{}, false
 }
 
 func (l Lobby) PlayerByToken(hash TokenHash) (Player, bool) {
@@ -72,8 +73,7 @@ func (l *Lobby) Join(code JoinCode, name PlayerName, token PlayerToken, now time
 	}
 	player := Player{ID: NewPlayerID(), Name: name, Team: team, TokenHash: token.Hash(), JoinedAt: now}
 	if team == Runners {
-		route := randomRoute(MaxRouteRegenerations)
-		player.Route = &route
+		player.Route = randomRoute(MaxRouteRegenerations)
 	}
 	l.Players = append(l.Players, player)
 	l.reschedule(now)
@@ -87,13 +87,13 @@ func (l *Lobby) RegenerateRoute(id PlayerID, now time.Time) error {
 	if err := l.requireNotStarted(now); err != nil {
 		return err
 	}
-	i := slices.IndexFunc(l.Players, func(p Player) bool { return p.ID == id })
+	i := l.index(id)
 	if i < 0 {
 		return ErrUnauthorized
 	}
 	player := &l.Players[i]
 	switch {
-	case player.Team != Runners || player.Route == nil:
+	case player.Team != Runners:
 		return &RuleError{Message: "only runners have a route"}
 	case player.Ready:
 		return &RuleError{Message: "set yourself not ready before changing your route"}
@@ -104,19 +104,21 @@ func (l *Lobby) RegenerateRoute(id PlayerID, now time.Time) error {
 	for next.Start == player.Route.Start && next.End == player.Route.End {
 		next = randomRoute(next.RegenerationsLeft)
 	}
-	player.Route = &next
+	player.Route = next
 	return nil
 }
 
-func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time) error {
+// SetReady changes a player's ready state. skipStartCheck is the development
+// test override; it is a server setting, not a game rule.
+func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck bool) error {
 	if err := l.requireNotStarted(now); err != nil {
 		return err
 	}
-	i := slices.IndexFunc(l.Players, func(p Player) bool { return p.ID == id })
+	i := l.index(id)
 	if i < 0 {
 		return ErrUnauthorized
 	}
-	if ready {
+	if ready && !skipStartCheck {
 		if err := l.requireInStartCell(l.Players[i], now); err != nil {
 			return err
 		}
@@ -127,17 +129,17 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time) error {
 }
 
 // UpdatePosition stores a player's latest location. Before the start, a ready
-// runner who leaves their start cell becomes not ready.
-func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time) error {
-	i := slices.IndexFunc(l.Players, func(p Player) bool { return p.ID == id })
+// runner who leaves their start cell becomes not ready (unless skipStartCheck).
+func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, skipStartCheck bool) error {
+	i := l.index(id)
 	if i < 0 {
 		return ErrUnauthorized
 	}
 	// Snapshot due reveals first, so they never contain a position reported after the reveal time.
 	l.AdvanceReveals(now)
 	player := &l.Players[i]
-	player.Position = &position
-	if l.Game.Status(now) != StatusRunning && player.Ready && l.requireInStartCell(*player, now) != nil {
+	player.Position = position
+	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireInStartCell(*player, now) != nil {
 		player.Ready = false
 		l.reschedule(now)
 	}
@@ -153,19 +155,19 @@ func (l *Lobby) AdvanceReveals(now time.Time) {
 	}
 	for i := range l.Players {
 		p := &l.Players[i]
-		if p.Team == Runners && p.Position != nil && (p.Reveal == nil || p.Reveal.At.Before(due)) {
-			p.Reveal = &Reveal{Position: *p.Position, At: due}
+		if p.Team == Runners && !p.Position.IsZero() && p.Reveal.At.Before(due) {
+			p.Reveal = Reveal{Position: p.Position, At: due}
 		}
 	}
 }
 
 // requireInStartCell checks that a runner recently reported a position inside
-// their start cell. Hunters and runners without a route always pass.
+// their start cell. Hunters always pass.
 func (l Lobby) requireInStartCell(p Player, now time.Time) error {
-	if l.SkipStartPositionCheck || p.Team != Runners || p.Route == nil {
+	if p.Team != Runners {
 		return nil
 	}
-	if p.Position == nil || now.Sub(p.Position.RecordedAt) > StartCellMaxAge {
+	if p.Position.IsZero() || now.Sub(p.Position.RecordedAt) > StartCellMaxAge {
 		return &RuleError{Message: "share your location to get ready"}
 	}
 	if cell, ok := l.Game.Playground.CellAt(p.Position.Coordinates); !ok || cell != p.Route.Start {

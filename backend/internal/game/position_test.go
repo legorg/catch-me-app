@@ -48,24 +48,24 @@ func TestRunnerMustBeInStartCellToGetReady(t *testing.T) {
 	name, _ := ParsePlayerName("Ada")
 	runner, _ := l.Join(l.Game.JoinCodes.Runner, name, NewPlayerToken(), start)
 	var rule *RuleError
-	if err := l.SetReady(runner.ID, true, start); !errors.As(err, &rule) {
+	if err := l.SetReady(runner.ID, true, start, false); !errors.As(err, &rule) {
 		t.Fatal("ready without position accepted")
 	}
 	wrong := "A3"
-	if err := l.UpdatePosition(runner.ID, position(t, l, wrong, start), start); err != nil {
+	if err := l.UpdatePosition(runner.ID, position(t, l, wrong, start), start, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.SetReady(runner.ID, true, start); !errors.As(err, &rule) {
+	if err := l.SetReady(runner.ID, true, start, false); !errors.As(err, &rule) {
 		t.Fatal("ready outside start cell accepted")
 	}
-	_ = l.UpdatePosition(runner.ID, position(t, l, runner.Route.Start.String(), start), start)
-	if err := l.SetReady(runner.ID, true, start.Add(StartCellMaxAge+time.Second)); !errors.As(err, &rule) {
+	_ = l.UpdatePosition(runner.ID, position(t, l, runner.Route.Start.String(), start), start, false)
+	if err := l.SetReady(runner.ID, true, start.Add(StartCellMaxAge+time.Second), false); !errors.As(err, &rule) {
 		t.Fatal("stale position accepted")
 	}
-	if err := l.SetReady(runner.ID, true, start); err != nil {
+	if err := l.SetReady(runner.ID, true, start, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.SetReady(runner.ID, false, start.Add(time.Hour)); err != nil {
+	if err := l.SetReady(runner.ID, false, start.Add(time.Hour), false); err != nil {
 		t.Fatal("un-ready must never need a position")
 	}
 }
@@ -74,21 +74,21 @@ func TestLeavingStartCellCancelsReady(t *testing.T) {
 	l := newLobby()
 	runner := join(t, &l, Runners, "Ada", start)
 	hunter := join(t, &l, Hunters, "Bob", start)
-	_ = l.SetReady(runner.ID, true, start)
-	_ = l.SetReady(hunter.ID, true, start)
+	_ = l.SetReady(runner.ID, true, start, false)
+	_ = l.SetReady(hunter.ID, true, start, false)
 	if l.Game.Status(start) != StatusCountdown {
 		t.Fatal("countdown not started")
 	}
-	if err := l.UpdatePosition(runner.ID, position(t, l, "C3", start.Add(time.Second)), start.Add(time.Second)); err != nil {
+	if err := l.UpdatePosition(runner.ID, position(t, l, "C3", start.Add(time.Second)), start.Add(time.Second), false); err != nil {
 		t.Fatal(err)
 	}
 	if p, _ := l.Player(runner.ID); p.Ready || l.Game.Status(start.Add(time.Second)) != StatusLobby {
 		t.Fatal("leaving the start cell must cancel ready and the countdown")
 	}
 	moveToStart(t, &l, runner.ID, start.Add(2*time.Second))
-	_ = l.SetReady(runner.ID, true, start.Add(2*time.Second))
+	_ = l.SetReady(runner.ID, true, start.Add(2*time.Second), false)
 	running := l.Game.StartsAt
-	if err := l.UpdatePosition(runner.ID, position(t, l, "C3", running), running); err != nil {
+	if err := l.UpdatePosition(runner.ID, position(t, l, "C3", running), running, false); err != nil {
 		t.Fatal(err)
 	}
 	if p, _ := l.Player(runner.ID); !p.Ready || l.Game.Status(running) != StatusRunning {
@@ -103,7 +103,7 @@ func runningLobby(t *testing.T) (Lobby, Player, Player, Player) {
 	mate := join(t, &l, Runners, "Cy", start)
 	hunter := join(t, &l, Hunters, "Bob", start)
 	for _, p := range []Player{runner, mate, hunter} {
-		if err := l.SetReady(p.ID, true, start); err != nil {
+		if err := l.SetReady(p.ID, true, start, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -125,13 +125,13 @@ func TestRevealSchedule(t *testing.T) {
 
 	firstReveal := began.Add(RevealInterval)
 	before := position(t, l, "B3", firstReveal.Add(-time.Second))
-	_ = l.UpdatePosition(runner.ID, before, firstReveal.Add(-time.Second))
+	_ = l.UpdatePosition(runner.ID, before, firstReveal.Add(-time.Second), false)
 	after := position(t, l, "D4", firstReveal.Add(10*time.Second))
 	// The first request after the reveal time is this position update: the
 	// reveal must still show the position from before the reveal time.
-	_ = l.UpdatePosition(runner.ID, after, firstReveal.Add(10*time.Second))
+	_ = l.UpdatePosition(runner.ID, after, firstReveal.Add(10*time.Second), false)
 	p, _ := l.Player(runner.ID)
-	if p.Reveal == nil || p.Reveal.Position != before || p.Reveal.At != firstReveal {
+	if p.Reveal.Position != before || p.Reveal.At != firstReveal {
 		t.Fatalf("unexpected reveal: %+v", p.Reveal)
 	}
 	l.AdvanceReveals(firstReveal.Add(time.Minute))
@@ -158,28 +158,28 @@ func TestVisibility(t *testing.T) {
 	}
 	me, _ := l.Player(runner.ID)
 	asRunner := l.VisibleTo(me, lobbyTime)
-	if find(asRunner, runner.ID).Position == nil || find(asRunner, mate.ID).Position != nil {
+	if find(asRunner, runner.ID).Position.IsZero() || !find(asRunner, mate.ID).Position.IsZero() {
 		t.Fatal("before the start only the own position is visible")
 	}
-	if find(asRunner, mate.ID).Route == nil || find(asRunner, hunter.ID).Route != nil {
+	if find(asRunner, mate.ID).Route.IsZero() || !find(asRunner, hunter.ID).Route.IsZero() {
 		t.Fatal("runners see teammates' routes")
 	}
 
 	running := l.Game.StartsAt.Add(time.Minute)
-	_ = l.UpdatePosition(hunter.ID, position(t, l, "C3", running), running)
+	_ = l.UpdatePosition(hunter.ID, position(t, l, "C3", running), running, false)
 	asRunner = l.VisibleTo(me, running)
-	if find(asRunner, mate.ID).Position == nil || find(asRunner, hunter.ID).Position != nil {
+	if find(asRunner, mate.ID).Position.IsZero() || !find(asRunner, hunter.ID).Position.IsZero() {
 		t.Fatal("runners see teammates but never hunters")
 	}
 	h, _ := l.Player(hunter.ID)
 	asHunter := l.VisibleTo(h, running)
-	if find(asHunter, runner.ID).Position != nil || find(asHunter, runner.ID).Route != nil || find(asHunter, hunter.ID).Position == nil {
+	if !find(asHunter, runner.ID).Position.IsZero() || !find(asHunter, runner.ID).Route.IsZero() || find(asHunter, hunter.ID).Position.IsZero() {
 		t.Fatal("hunters see no runner positions or routes before a reveal")
 	}
 	revealed := l.Game.StartsAt.Add(RevealInterval)
 	l.AdvanceReveals(revealed)
 	v := find(l.VisibleTo(h, revealed), runner.ID)
-	if v.Position == nil || v.RevealedAt != revealed || v.Route != nil {
+	if v.Position.IsZero() || v.RevealedAt != revealed || !v.Route.IsZero() {
 		t.Fatalf("hunter must see the revealed position: %+v", v)
 	}
 }

@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"path/filepath"
 	"reflect"
@@ -12,6 +11,8 @@ import (
 
 	"catch-me/backend/internal/game"
 )
+
+var now = time.Date(2026, 11, 8, 12, 0, 0, 123456789, time.UTC)
 
 func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 	t.Helper()
@@ -31,7 +32,47 @@ func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return game.Game{SessionID: sessionID, CreatedAt: time.Date(2026, 11, 8, 12, 0, 0, 123456789, time.UTC), Playground: p}
+	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, JoinCodes: game.NewJoinCodes()}
+}
+
+func open(t *testing.T, path string) *Store {
+	t.Helper()
+	store, err := Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return store
+}
+
+func load(t *testing.T, store *Store, code game.JoinCode) game.Lobby {
+	t.Helper()
+	lobby, err := store.UpdateLobbyByJoinCode(context.Background(), code, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return lobby
+}
+
+// join adds a player; runners report a position in their start cell.
+func join(t *testing.T, store *Store, code game.JoinCode, name string, at time.Time) (game.Player, game.PlayerToken) {
+	t.Helper()
+	parsed, _ := game.ParsePlayerName(name)
+	token := game.NewPlayerToken()
+	var player game.Player
+	_, err := store.UpdateLobbyByJoinCode(context.Background(), code, func(l *game.Lobby) error {
+		var err error
+		if player, err = l.Join(code, parsed, token, at); err != nil || player.Route.IsZero() {
+			return err
+		}
+		position, _ := game.NewPosition(l.Game.Playground.CellCenter(player.Route.Start), 5, at)
+		player.Position = position
+		return l.UpdatePosition(player.ID, position, at, false)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return player, token
 }
 
 func TestStorePersistsAfterReopening(t *testing.T) {
@@ -41,127 +82,31 @@ func TestStorePersistsAfterReopening(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixtures := []game.Game{fixture(t, 52.52, 100, strings.Repeat("a", 32)), fixture(t, 52.52, 5000, strings.Repeat("b", 32))}
+	fixtures := []game.Game{fixture(t, 52.52, 100, strings.Repeat("a", 32)), fixture(t, 0, 5000, strings.Repeat("b", 32))}
 	for _, saved := range fixtures {
 		if err := store.Create(ctx, saved); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := store.Close(); err != nil {
-		t.Fatal(err)
-	}
-	reopened, err := Open(ctx, path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reopened.Close()
+	_ = store.Close()
+	reopened := open(t, path)
 	for _, want := range fixtures {
-		got, err := reopened.Get(ctx, want.SessionID)
-		if err != nil || !reflect.DeepEqual(got, want) {
-			t.Fatalf("game did not persist: %+v, %v", got, err)
+		if got := load(t, reopened, want.JoinCodes.Hunter); !reflect.DeepEqual(got.Game, want) || len(got.Players) != 0 {
+			t.Fatalf("game did not persist: %+v", got)
 		}
 	}
-	if _, err := reopened.Get(ctx, game.NewSessionID()); !errors.Is(err, game.ErrNotFound) {
-		t.Fatalf("not-found not translated: %v", err)
-	}
-	if err := reopened.Create(ctx, fixtures[0]); err == nil {
+	duplicate := fixtures[0]
+	duplicate.JoinCodes = game.NewJoinCodes()
+	if err := reopened.Create(ctx, duplicate); err == nil {
 		t.Fatal("duplicate ID accepted")
 	}
-	if err := reopened.client.Game.UpdateOneID(fixtures[0].SessionID.String()).SetCellSizeMeters(1550).Exec(ctx); err == nil {
-		t.Fatal("Ent schema validation bypassed")
+	clash := fixture(t, 52.52, 2000, strings.Repeat("c", 32))
+	clash.JoinCodes.Runner = fixtures[0].JoinCodes.Hunter
+	if err := reopened.Create(ctx, clash); !errors.Is(err, game.ErrJoinCodeTaken) {
+		t.Fatalf("code collision across columns not detected: %v", err)
 	}
-}
-
-const legacySchema = `CREATE TABLE games (
-	session_id TEXT PRIMARY KEY, created_at TEXT NOT NULL,
-	latitude REAL NOT NULL, longitude REAL NOT NULL,
-	north REAL NOT NULL, south REAL NOT NULL, east REAL NOT NULL, west REAL NOT NULL,
-	rows INTEGER NOT NULL, columns INTEGER NOT NULL, cell_size_meters INTEGER NOT NULL
-)`
-
-func insertLegacy(t *testing.T, database *sql.DB, id, createdAt string, latitude float64, p game.Playground) {
-	t.Helper()
-	b := p.Bounds()
-	_, err := database.Exec(`INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, createdAt, latitude, p.Center().Longitude(), b.North, b.South, b.East, b.West, p.Rows(), p.Columns(), p.CellSize().Meters())
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// Create the exact table used before Ent, then prove startup and subsequent
-// writes preserve its existing IDs, coordinates, sizes, and timestamp precision.
-func TestLegacyDatabaseCompatibility(t *testing.T) {
-	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "legacy.sqlite")
-	legacy, err := sql.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := legacy.Exec(legacySchema); err != nil {
-		t.Fatal(err)
-	}
-	fixtures := []game.Game{fixture(t, 0, 100, strings.Repeat("a", 32)), fixture(t, 52.52, 1500, strings.Repeat("b", 32)), fixture(t, 52.52, 2000, strings.Repeat("c", 32))}
-	for _, saved := range fixtures {
-		insertLegacy(t, legacy, saved.SessionID.String(), "2026-11-08T12:00:00.123456789Z", saved.Playground.Center().Latitude(), saved.Playground)
-	}
-	if err := legacy.Close(); err != nil {
-		t.Fatal(err)
-	}
-	for attempt := 0; attempt < 2; attempt++ {
-		store, err := Open(ctx, path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, want := range fixtures {
-			got, err := store.Get(ctx, want.SessionID)
-			if err != nil || !reflect.DeepEqual(got, want) {
-				t.Fatalf("legacy data changed: %+v, %v", got, err)
-			}
-		}
-		if attempt == 0 {
-			added := fixture(t, 52.52, 5000, strings.Repeat("d", 32))
-			if err := store.Create(ctx, added); err != nil {
-				t.Fatal(err)
-			}
-			fixtures = append(fixtures, added)
-		}
-		if err := store.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-// Rows written outside the store are parsed on load; invalid data must be a
-// server error, never a client validation error.
-func TestInvalidStoredDataIsNotAValidationError(t *testing.T) {
-	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "invalid.sqlite")
-	database, err := sql.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Exec(legacySchema); err != nil {
-		t.Fatal(err)
-	}
-	valid := fixture(t, 52.52, 2000, strings.Repeat("a", 32)).Playground
-	insertLegacy(t, database, strings.Repeat("a", 32), "not a time", 52.52, valid)
-	insertLegacy(t, database, strings.Repeat("b", 32), "2026-11-08T12:00:00Z", 85, valid)
-	if err := database.Close(); err != nil {
-		t.Fatal(err)
-	}
-	store, err := Open(ctx, path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	for _, id := range []string{strings.Repeat("a", 32), strings.Repeat("b", 32)} {
-		sessionID, _ := game.ParseSessionID(id)
-		_, err := store.Get(ctx, sessionID)
-		var validation *game.ValidationError
-		if err == nil || errors.As(err, &validation) {
-			t.Fatalf("invalid stored game: %v", err)
-		}
+	if _, err := reopened.UpdateLobbyByJoinCode(ctx, game.NewJoinCode(), nil); !errors.Is(err, game.ErrNotFound) {
+		t.Fatalf("not-found not translated: %v", err)
 	}
 }
 
@@ -171,77 +116,66 @@ func TestOpenRejectsMissingParent(t *testing.T) {
 	}
 }
 
-func TestJoinCodesAndLobbyPersist(t *testing.T) {
-	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "lobby.sqlite")
-	store, err := Open(ctx, path)
-	if err != nil {
+// Invalid stored data must be a server error, never a client validation error.
+func TestInvalidStoredDataIsNotAValidationError(t *testing.T) {
+	store := open(t, ":memory:")
+	saved := fixture(t, 52.52, 2000, strings.Repeat("a", 32))
+	if err := store.Create(context.Background(), saved); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.db.Exec("UPDATE games SET cell_size_meters = 1550").Error; err != nil {
+		t.Fatal(err)
+	}
+	_, err := store.UpdateLobbyByJoinCode(context.Background(), saved.JoinCodes.Runner, nil)
+	var validation *game.ValidationError
+	if err == nil || errors.As(err, &validation) {
+		t.Fatalf("invalid stored game: %v", err)
+	}
+}
+
+func TestLobbyPersists(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "lobby.sqlite")
+	store := open(t, path)
 	saved := fixture(t, 52.52, 2000, strings.Repeat("a", 32))
-	saved.JoinCodes = game.NewJoinCodes()
 	if err := store.Create(ctx, saved); err != nil {
 		t.Fatal(err)
 	}
-	clash := fixture(t, 52.52, 2000, strings.Repeat("b", 32))
-	clash.JoinCodes = game.JoinCodes{Runner: saved.JoinCodes.Hunter, Hunter: game.NewJoinCode()}
-	if err := store.Create(ctx, clash); !errors.Is(err, game.ErrJoinCodeTaken) {
-		t.Fatalf("code collision across columns not detected: %v", err)
-	}
-
-	now := time.Date(2026, 11, 8, 12, 0, 0, 123456789, time.UTC)
-	names := map[game.Team]string{game.Runners: "Ada", game.Hunters: "Bob"}
-	tokens := map[game.Team]game.PlayerToken{}
-	for i, team := range []game.Team{game.Runners, game.Hunters} {
-		name, _ := game.ParsePlayerName(names[team])
-		tokens[team] = game.NewPlayerToken()
-		joinedAt := now.Add(time.Duration(i) * time.Second)
-		_, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.For(team), func(l *game.Lobby) error {
-			player, err := l.Join(saved.JoinCodes.For(team), name, tokens[team], joinedAt)
-			if err != nil {
-				return err
-			}
-			if player.Route != nil {
-				position, _ := game.NewPosition(l.Game.Playground.CellCenter(player.Route.Start), 5, joinedAt)
-				if err := l.UpdatePosition(player.ID, position, joinedAt); err != nil {
-					return err
-				}
-			}
-			return l.SetReady(player.ID, true, joinedAt)
-		})
-		if err != nil {
+	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	for _, token := range []game.PlayerToken{runnerToken, hunterToken} {
+		if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), func(l *game.Lobby) error {
+			me, _ := l.PlayerByToken(token.Hash())
+			return l.SetReady(me.ID, true, now.Add(time.Second), false)
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := store.Close(); err != nil {
-		t.Fatal(err)
-	}
+	_ = store.Close()
 
-	store, err = Open(ctx, path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	lobby, err := store.UpdateLobbyByToken(ctx, tokens[game.Hunters].Hash(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if lobby.Game.JoinCodes != saved.JoinCodes || !lobby.Game.StartsAt.Equal(now.Add(time.Second+game.CountdownDuration)) || len(lobby.Players) != 2 {
+	store = open(t, path)
+	lobby := load(t, store, saved.JoinCodes.Runner)
+	runner.Ready, hunter.Ready = true, true
+	if !lobby.Game.StartsAt.Equal(now.Add(time.Second+game.CountdownDuration)) || !reflect.DeepEqual(lobby.Players, []game.Player{runner, hunter}) {
 		t.Fatalf("lobby not persisted: %+v", lobby)
 	}
-	if lobby.Players[0].Name.String() != "Ada" || !lobby.Players[0].Ready || !lobby.Players[0].JoinedAt.Equal(now) {
-		t.Fatalf("player not persisted: %+v", lobby.Players[0])
-	}
-	me, _ := lobby.PlayerByToken(tokens[game.Hunters].Hash())
-	if _, err := store.UpdateLobbyByToken(ctx, me.TokenHash, func(l *game.Lobby) error { return l.Leave(me.ID, now) }); err != nil {
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), func(l *game.Lobby) error { return l.Leave(hunter.ID, now) }); err != nil {
 		t.Fatal(err)
 	}
-	lobby, err = store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, nil)
-	if err != nil || len(lobby.Players) != 1 || !lobby.Game.StartsAt.IsZero() {
-		t.Fatalf("leave not persisted: %+v %v", lobby, err)
+	if lobby := load(t, store, saved.JoinCodes.Runner); len(lobby.Players) != 1 || !lobby.Game.StartsAt.IsZero() {
+		t.Fatalf("leave not persisted: %+v", lobby)
 	}
-	if _, err := store.UpdateLobbyByToken(ctx, me.TokenHash, nil); !errors.Is(err, game.ErrNotFound) {
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), nil); !errors.Is(err, game.ErrNotFound) {
 		t.Fatal("removed player's token still works")
+	}
+	if _, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), func(l *game.Lobby) error {
+		_ = l.SetReady(runner.ID, false, now, false)
+		return l.RegenerateRoute(runner.ID, now)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := load(t, store, saved.JoinCodes.Runner).Players[0].Route; got.RegenerationsLeft != game.MaxRouteRegenerations-1 || got == runner.Route {
+		t.Fatalf("regenerated route not persisted: %+v", got)
 	}
 	failed := errors.New("rule failed")
 	if _, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, func(l *game.Lobby) error {
@@ -250,119 +184,93 @@ func TestJoinCodesAndLobbyPersist(t *testing.T) {
 	}); !errors.Is(err, failed) {
 		t.Fatal("change error lost")
 	}
-	if lobby, _ := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, nil); len(lobby.Players) != 1 {
+	if lobby := load(t, store, saved.JoinCodes.Runner); len(lobby.Players) != 1 {
 		t.Fatal("failed change was saved")
 	}
 }
 
-func TestRoutesPersist(t *testing.T) {
+func TestPositionsRevealsAndHistoryPersist(t *testing.T) {
 	ctx := context.Background()
-	store, err := Open(ctx, filepath.Join(t.TempDir(), "routes.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := open(t, ":memory:")
 	saved := fixture(t, 52.52, 2000, strings.Repeat("a", 32))
-	saved.JoinCodes = game.NewJoinCodes()
 	if err := store.Create(ctx, saved); err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
-	token := game.NewPlayerToken()
-	name, _ := game.ParsePlayerName("Ada")
-	var joined game.Player
-	if _, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, func(l *game.Lobby) error {
-		joined, err = l.Join(saved.JoinCodes.Runner, name, token, now)
-		return err
-	}); err != nil {
+	runner, token := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
 		t.Fatal(err)
 	}
-	load := func() game.Player {
+	update := func(position game.Position) {
 		t.Helper()
-		lobby, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil)
-		if err != nil {
+		if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), func(l *game.Lobby) error {
+			return l.UpdatePosition(runner.ID, position, position.RecordedAt, false)
+		}); err != nil {
 			t.Fatal(err)
 		}
-		return lobby.Players[0]
 	}
-	if loaded := load(); !loaded.SameState(joined) || loaded.Route == nil {
-		t.Fatalf("route not persisted: %+v", loaded.Route)
-	}
-	if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), func(l *game.Lobby) error { return l.RegenerateRoute(joined.ID, now) }); err != nil {
-		t.Fatal(err)
-	}
-	if loaded := load(); loaded.Route.RegenerationsLeft != game.MaxRouteRegenerations-1 || *loaded.Route == *joined.Route {
-		t.Fatalf("regenerated route not persisted: %+v", loaded.Route)
+	first, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 12.5, start.Add(game.RevealInterval-time.Second))
+	second, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(game.RevealInterval+time.Second))
+	update(first)
+	update(second)
+	got := load(t, store, saved.JoinCodes.Runner).Players[0]
+	if got.Position != second || got.Reveal != (game.Reveal{Position: first, At: start.Add(game.RevealInterval)}) {
+		t.Fatalf("position or reveal not persisted: %+v %+v", got.Position, got.Reveal)
 	}
 
-	// Runners who joined before routes existed load without a route.
-	if err := store.client.Player.UpdateOneID(joined.ID.String()).ClearRouteStart().ClearRouteEnd().ClearRouteRegenerationsLeft().Exec(ctx); err != nil {
+	var history []historyRow
+	if err := store.db.Order("id").Find(&history).Error; err != nil {
 		t.Fatal(err)
 	}
-	if loaded := load(); loaded.Route != nil {
-		t.Fatal("missing route not loaded as nil")
+	if len(history) != 3 {
+		t.Fatalf("every reported position must be kept: %+v", history)
 	}
-	if err := store.client.Player.UpdateOneID(joined.ID.String()).SetRouteStart("A1").Exec(ctx); err != nil {
+	oldest, _ := parsePosition(history[0].Position)
+	latest, _ := parsePosition(history[2].Position)
+	if oldest != runner.Position || latest != second {
+		t.Fatalf("every reported position must be kept in order: %+v", history)
+	}
+	// Retention counts from the start, not from the report.
+	if err := store.DeleteHistoryBefore(ctx, start); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil); err == nil {
-		t.Fatal("incomplete stored route accepted")
+	if count(t, store) != 3 {
+		t.Fatal("history deleted before its retention ended")
+	}
+	if err := store.DeleteHistoryBefore(ctx, start.Add(time.Nanosecond)); err != nil {
+		t.Fatal(err)
+	}
+	if count(t, store) != 0 {
+		t.Fatal("expired history kept")
 	}
 }
 
-func TestPositionsAndRevealsPersist(t *testing.T) {
+func TestHistoryOfUnstartedGamesAndLeavingPlayers(t *testing.T) {
 	ctx := context.Background()
-	store, err := Open(ctx, filepath.Join(t.TempDir(), "positions.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
+	store := open(t, ":memory:")
 	saved := fixture(t, 52.52, 2000, strings.Repeat("a", 32))
-	saved.JoinCodes = game.NewJoinCodes()
-	saved.StartsAt = time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 	if err := store.Create(ctx, saved); err != nil {
 		t.Fatal(err)
 	}
-	token := game.NewPlayerToken()
-	name, _ := game.ParsePlayerName("Ada")
-	var joined game.Player
-	// Joining is not possible once running, so insert directly through the lobby.
-	if _, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, func(l *game.Lobby) error {
-		l.Game.StartsAt = time.Time{}
-		joined, err = l.Join(saved.JoinCodes.Runner, name, token, saved.StartsAt.Add(-time.Minute))
-		l.Game.StartsAt = saved.StartsAt
-		return err
-	}); err != nil {
+	ada, adaToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	join(t, store, saved.JoinCodes.Runner, "Cy", now)
+	if _, err := store.UpdateLobbyByToken(ctx, adaToken.Hash(), func(l *game.Lobby) error { return l.Leave(ada.ID, now) }); err != nil {
 		t.Fatal(err)
 	}
-	center := saved.Playground.CellCenter(joined.Route.Start)
-	first, _ := game.NewPosition(center, 12.5, saved.StartsAt.Add(game.RevealInterval-time.Second))
-	update := func(position game.Position) game.Player {
-		t.Helper()
-		lobby, err := store.UpdateLobbyByToken(ctx, token.Hash(), func(l *game.Lobby) error {
-			return l.UpdatePosition(joined.ID, position, position.RecordedAt)
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return lobby.Players[0]
+	if count(t, store) != 1 {
+		t.Fatal("leaving must delete the player's history")
 	}
-	update(first)
-	second, _ := game.NewPosition(saved.Playground.Center(), 3, saved.StartsAt.Add(game.RevealInterval+time.Second))
-	want := update(second)
-	loaded, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil)
-	if err != nil {
+	// A game that never started expires counting from its creation.
+	if err := store.DeleteHistoryBefore(ctx, now.Add(time.Nanosecond)); err != nil || count(t, store) != 0 {
+		t.Fatalf("history of an unstarted game kept: %v", err)
+	}
+}
+
+func count(t *testing.T, store *Store) int64 {
+	t.Helper()
+	var n int64
+	if err := store.db.Model(&historyRow{}).Count(&n).Error; err != nil {
 		t.Fatal(err)
 	}
-	got := loaded.Players[0]
-	if !got.SameState(want) || *got.Position != second || got.Reveal == nil || got.Reveal.Position != first ||
-		!got.Reveal.At.Equal(saved.StartsAt.Add(game.RevealInterval)) {
-		t.Fatalf("position or reveal not persisted: %+v %+v", got.Position, got.Reveal)
-	}
-	if err := store.client.Player.UpdateOneID(joined.ID.String()).ClearRevealedAt().Exec(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.UpdateLobbyByToken(ctx, token.Hash(), nil); err == nil {
-		t.Fatal("incomplete stored reveal accepted")
-	}
+	return n
 }

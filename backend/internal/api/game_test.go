@@ -25,8 +25,8 @@ func testStore(t *testing.T) *db.Store {
 	return store
 }
 
-func TestCreateAndLoadGame(t *testing.T) {
-	handler := NewHandler("http://localhost:8081", controller.NewGameController(service.NewGameService(testStore(t))))
+func TestCreateGame(t *testing.T) {
+	handler := NewHandler("http://localhost:8081", controller.NewGameController(service.NewGameService(testStore(t), false)))
 	request := httptest.NewRequest(http.MethodPost, "/api/games", strings.NewReader(`{"latitude":52.52,"longitude":13.405}`))
 	request.Header.Set("Origin", "http://localhost:8081")
 	request.Header.Set("Content-Type", "application/json")
@@ -54,18 +54,6 @@ func TestCreateAndLoadGame(t *testing.T) {
 	if game.Playground != want {
 		t.Fatalf("unexpected playground: %+v", game.Playground)
 	}
-	if created.Header().Get("Location") != "/api/games/"+game.SessionID {
-		t.Fatal("missing game location header")
-	}
-	loaded := httptest.NewRecorder()
-	handler.ServeHTTP(loaded, httptest.NewRequest(http.MethodGet, created.Header().Get("Location"), nil))
-	var loadedGame controller.GameResponse
-	if err := json.Unmarshal(loaded.Body.Bytes(), &loadedGame); loaded.Code != http.StatusOK || err != nil || loadedGame != game {
-		t.Fatalf("load: %d %s", loaded.Code, loaded.Body)
-	}
-	if strings.Contains(loaded.Body.String(), createdGame.JoinCodes.Runner) {
-		t.Fatal("public game load must not reveal join codes")
-	}
 	preflight := httptest.NewRequest(http.MethodOptions, "/api/me/ready", nil)
 	preflight.Header.Set("Origin", "http://localhost:8081")
 	preflight.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
@@ -79,7 +67,7 @@ func TestCreateAndLoadGame(t *testing.T) {
 
 func TestGameErrors(t *testing.T) {
 	store := testStore(t)
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(store)))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(store, false)))
 	for _, tc := range []struct {
 		name, method, path, body string
 		status                   int
@@ -104,10 +92,7 @@ func TestGameErrors(t *testing.T) {
 		{"large body", "POST", "/api/games", strings.Repeat(" ", 1025), 413},
 		{"large trailing body", "POST", "/api/games", `{"latitude":0,"longitude":0}` + strings.Repeat(" ", 1025), 413},
 		{"wrong create method", "GET", "/api/games", "", 405},
-		{"invalid ID", "GET", "/api/games/not-an-id", "", 400},
-		{"missing game", "GET", "/api/games/00112233445566778899aabbccddeeff", "", 404},
-		{"wrong load method", "POST", "/api/games/00112233445566778899aabbccddeeff", "", 405},
-		{"nested route", "GET", "/api/games/id/missing", "", 404},
+		{"removed load route", "GET", "/api/games/00112233445566778899aabbccddeeff", "", 404},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -122,20 +107,15 @@ func TestGameErrors(t *testing.T) {
 		})
 	}
 	_ = store.Close()
-	for _, tc := range []struct{ method, path, body string }{
-		{"POST", "/api/games", `{"latitude":0,"longitude":0}`},
-		{"GET", "/api/games/00112233445566778899aabbccddeeff", ""},
-	} {
-		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body)))
-		if recorder.Code != 500 || strings.Contains(recorder.Body.String(), "sql") {
-			t.Fatalf("storage errors should be generic: %d %s", recorder.Code, recorder.Body)
-		}
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest("POST", "/api/games", strings.NewReader(`{"latitude":0,"longitude":0}`)))
+	if recorder.Code != 500 || strings.Contains(recorder.Body.String(), "sql") {
+		t.Fatalf("storage errors should be generic: %d %s", recorder.Code, recorder.Body)
 	}
 }
 
 func TestCreateGameCellSizes(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t))))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), false)))
 	for _, tc := range []struct {
 		body string
 		size int
@@ -152,12 +132,6 @@ func TestCreateGameCellSizes(t *testing.T) {
 		var created controller.CreateGameResponse
 		if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil || recorder.Code != 201 || created.Game.Playground.CellSizeMeters != tc.size {
 			t.Fatalf("unexpected size: %d %s", recorder.Code, recorder.Body)
-		}
-		loaded := httptest.NewRecorder()
-		handler.ServeHTTP(loaded, httptest.NewRequest("GET", recorder.Header().Get("Location"), nil))
-		var game controller.GameResponse
-		if err := json.Unmarshal(loaded.Body.Bytes(), &game); loaded.Code != 200 || err != nil || game != created.Game {
-			t.Fatal("saved size changed on load")
 		}
 	}
 }
@@ -189,7 +163,6 @@ func TestOpenAPIRoutes(t *testing.T) {
 	for _, tc := range []struct{ path, method, id, status, schema string }{
 		{"/health", "get", "getHealth", "200", "HealthResponse"},
 		{"/api/games", "post", "createGame", "201", "CreateGameResponse"},
-		{"/api/games/{sessionId}", "get", "getGame", "200", "GameResponse"},
 		{"/api/players", "post", "joinGame", "201", "JoinGameResponse"},
 		{"/api/me/game", "get", "getGameState", "200", "GameStateResponse"},
 		{"/api/me/ready", "put", "setReady", "200", "GameStateResponse"},

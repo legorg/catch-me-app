@@ -8,69 +8,46 @@ A minimal starting point for a hunter-versus-runner game: one Expo mobile app an
 app/                      Expo + React Native + TypeScript
   src/app/                Screens and layouts (Expo Router)
   src/api/                Backend requests and generated TypeScript client
-backend/                  Go standard-library HTTP + Ent + SQLite
+backend/                  Go standard-library HTTP + GORM + SQLite
   api/swagger.json        Generated API document (do not edit)
   cmd/server/             Server entry point
-  cmd/dbgen/              Ent generation and freshness check
   internal/api/           Route registration, CORS, integration tests
   internal/controller/    HTTP parsing, response models, error mapping
   internal/service/       Game use cases and persistence interface
   internal/game/          Parsed domain values, lobby rules, playground geometry
-  internal/db/            Ent-backed SQLite store
-    ent/schema/           Handwritten Go table definitions
-    ent/                  Generated database client (do not edit)
+  internal/db/store.go    GORM table structs and SQLite store
 docs/game-spec.md         Game rules, milestones, and API overview
 ```
 
-The app lets you select a playground on a map in the Android/iOS app (Google Maps on Android, Apple Maps on iOS), preview a north-aligned **6 × 6 grid**, and create a game. Cells default to approximately **2 km × 2 km** (12 km × 12 km total). Before saving, adjust **Cell side length (km)** between **0.1 and 5 km**, in 0.1 km steps; comma and dot decimals are accepted. The map fits the selected/resized grid, but panning or zooming never changes its physical size. The Go backend stores the center, boundary coordinates, chosen cell size, dimensions, and creation timestamp through Ent using the pure-Go `modernc.org/sqlite` driver. There is no separate database service; HTTP remains standard-library Go.
+The app lets you select a playground on a map in the Android/iOS app (Google Maps on Android, Apple Maps on iOS), preview a north-aligned **6 × 6 grid**, and create a game. Cells default to approximately **2 km × 2 km** (12 km × 12 km total). Before saving, adjust **Cell side length (km)** between **0.1 and 5 km**, in 0.1 km steps; comma and dot decimals are accepted. The map fits the selected/resized grid, but panning or zooming never changes its physical size. The Go backend stores the center, chosen cell size, and creation timestamp through GORM using the pure-Go `modernc.org/sqlite` driver. There is no separate database service; HTTP remains standard-library Go.
 
 Creating a game returns one **join code per team** (runners and hunters). Anyone joins with a code and a display name, then waits in the **lobby**. There is no human gamemaster: the backend is the referee. When every player is ready and both teams have at least one player, a 10-second countdown starts and the game switches to running. The full rule set and the remaining milestones are in [docs/game-spec.md](docs/game-spec.md).
 
-Saved sessions keep their stored size, including older 100 m-cell playgrounds. The Ent schema maps to the original `games` table and `session_id` primary key, preserving existing coordinates and timestamp text. Games created before join codes existed cannot be joined.
+Implemented so far: playground setup, join codes, players, lobby, ready-up, countdown, start, runner routes (a random start cell on one edge row and a target cell on the opposite one, regenerable twice before getting ready, visible to all runners), and foreground location sharing. Runners must stand in their start cell to get ready; while running, teammates see each other and hunters see the runners' positions every 5 minutes. Catching and finishing are **not implemented yet**. Positions are shared in the foreground before the start; while running, players who allow "Always" access keep sharing in the background (installed app builds only, not Expo Go; it stops when leaving the game screen or closing the app). Joining returns a secret player token that authenticates later requests; the app keeps it in memory only, so restarting the app loses the session. A session ID identifies a game; it is **not** a credential or a join code. Games currently remain until the database is explicitly removed.
 
-Implemented so far: playground setup, join codes, players, lobby, ready-up, countdown, start, runner routes (a random start cell on one edge row and a target cell on the opposite one, regenerable twice before getting ready, visible to all runners), and foreground location sharing. Runners must stand in their start cell to get ready; while running, teammates see each other and hunters see the runners' positions every 5 minutes. Catching and finishing are **not implemented yet**. Positions are shared in the foreground before the start; while running, players who allow "Always" access keep sharing in the background (installed app builds only, not Expo Go; it stops when leaving the game screen or closing the app). Only the latest position per player is stored. Joining returns a secret player token that authenticates later requests; the app keeps it in memory only, so restarting the app loses the session. A session ID identifies saved configuration; it is **not** a credential or a join code. Anyone with the ID can read the playground (not the codes or players) in this local-development version. Games currently remain until the database is explicitly removed; no automatic cleanup is implemented yet.
+**Position history:** besides each player's latest position, the server keeps every reported position in `position_history`, for a replay or chart after the game. Nothing reads it yet (no endpoint, no chart). It is deleted when a player leaves, and automatically **7 days after the game's start** (or creation, if it never started): at server startup and then hourly.
 
-The grid uses a local spherical approximation, not survey-grade geometry. Center latitudes are restricted to -80° through 80°, and playgrounds crossing the international date line are rejected. The frontend previews the geometry; the backend recomputes and stores the authoritative bounds. Individual cell boundaries are derived from those bounds rather than stored as 36 duplicate records. No map imagery or player location history is stored. Confirm the whole area is safe and permitted for outdoor play.
+The grid uses a local spherical approximation, not survey-grade geometry. Center latitudes are restricted to -80° through 80°, and playgrounds crossing the international date line are rejected. The frontend previews the geometry; the backend recomputes the authoritative bounds from center and cell size. No map imagery is stored. Confirm the whole area is safe and permitted for outdoor play.
 
-## Backend layers and Ent
+## Backend layers and database
 
 Request flow is **API → controller → service → database**:
 
 - `internal/api` registers endpoints and applies CORS/security headers. It contains no game validation or queries.
 - `internal/controller` decodes bounded JSON requests, parses them into domain values (applying the default cell size when omitted), invokes the service, maps domain errors to HTTP statuses, and maps domain values to public response models.
-- `internal/service` owns game creation/loading, joining, ready-up, leaving, random IDs and tokens, and timestamps. It accepts only parsed domain values and depends on a `GameRepository` interface, not SQLite or Ent. Lobby changes go through `UpdateLobbyBy*`, which load a game with its players, apply a domain change, and save it in one transaction.
-- `internal/db` implements that interface using generated Ent setters and lookups. Loaded rows are parsed again, so invalid stored data becomes a server error. Ent-specific errors/entities stay inside this layer.
-- `internal/game` holds domain values and geometry with no HTTP/database dependencies. Values are parsed, not validated: `ParseSessionID`, `ParseCoordinates`, `ParseCellSize`, and `NewPlayground` are the only way to build them from raw input, and their fields are private. The Ent schema reuses these parsers as validators. `cmd/server` wires the layers together; no dependency-injection framework or generic repository hierarchy is used.
+- `internal/service` owns game creation, joining, ready-up, leaving, history cleanup, random IDs and tokens, and timestamps. It accepts only parsed domain values and depends on a `GameRepository` interface, not SQLite or GORM. Lobby changes go through `UpdateLobbyBy*`, which load a game with its players, apply a domain change, and save it in one transaction.
+- `internal/db` implements that interface with GORM. Loaded rows are parsed again, so invalid stored data becomes a server error. GORM types and errors stay inside this layer.
+- `internal/game` holds domain values and geometry with no HTTP/database dependencies. Values are parsed, not validated: `ParseSessionID`, `ParseCoordinates`, `ParseCellSize`, and `NewPlayground` are the only way to build them from raw input, and their fields are private. Optional values (route, position, reveal) are plain values whose zero value means "none". `cmd/server` wires the layers together; no dependency-injection framework or generic repository hierarchy is used.
 
-The public API contract is separate from database entities. Changing an Ent model must not accidentally change frontend responses or expose future private fields.
+The public API contract is separate from database rows. Changing a table must not accidentally change frontend responses.
 
-### Declare and query tables in Go
+### Tables
 
-Edit **`backend/internal/db/ent/schema/game.go`** for table/field definitions, then regenerate:
+The schema is the three structs at the top of **`backend/internal/db/store.go`** (`games`, `players`, `position_history`). There is no code generation: change a struct and restart. Startup runs GORM's `AutoMigrate`, which creates missing tables, columns, and indexes but never drops or changes existing ones. Players reference their game, and history rows their player, with `ON DELETE CASCADE`. The `players` table stores only a SHA-256 hash of each player token. Times are stored as UTC text in SQLite's sortable format. GORM's SQL logging is off, because it would contain player positions.
 
-```sh
-# From backend/:
-go run ./cmd/dbgen
-go run ./cmd/dbgen -check
-go test ./...
-```
+The SQLite driver remains pure Go (`modernc.org/sqlite`, plugged into GORM's official SQLite dialect) and the API still builds with `CGO_ENABLED=0`. GORM's dialect also pulls in the cgo driver `mattn/go-sqlite3` as a dependency; it is never used.
 
-Or from the repository root:
-
-```sh
-docker compose run --rm --workdir /workspace/backend api-tools go run ./cmd/dbgen
-docker compose run --rm --workdir /workspace/backend api-tools go run ./cmd/dbgen -check
-```
-
-Ent **v0.14.6** is pinned in `go.mod`; the generator uses that same version. Keep generated files under `internal/db/ent/` in Git; never edit them manually (the `schema/` subdirectory is handwritten input). `-check` generates into a temporary directory and compares changed, missing, and extra files without updating committed output. Go tests and the backend Docker build include this freshness check, so CI catches stale Ent code automatically. API generation remains a separate command, needed only when the HTTP contract changes.
-
-Schema validators protect writes through Ent; they are not a substitute for domain parsing, authorization, or a complete set of SQLite CHECK constraints. The `players` table stores only a SHA-256 hash of each player token.
-
-### Schema initialization and existing databases
-
-Startup uses Ent's automatic schema migration with column/index dropping explicitly disabled. It creates the table on a fresh database and reconciles the mapped schema on an existing one. Tests seed the exact pre-Ent schema and verify that old sessions and new writes survive repeated startup without changed IDs, sizes, coordinates, or timestamp precision. The SQLite driver remains pure Go and the API still builds with `CGO_ENABLED=0`.
-
-This is a **local-development migration policy**, not a production migration workflow. Back up existing databases before schema changes. Before production, adopt reviewed, versioned migrations rather than automatically applying evolving schemas during server startup; some schema changes can rebuild SQLite tables even with dropping disabled. Ent includes migration dependencies, but no Atlas CLI or additional running service is required for this setup.
+This is a **local-development migration policy**, not a production migration workflow. Databases from the earlier Ent version are **not compatible**; delete them (`docker compose down -v` removes the `game_data` volume and all saved games). Before production, adopt reviewed, versioned migrations rather than automatically applying evolving schemas during server startup.
 
 ## Go-first API generation and frontend service
 
@@ -96,7 +73,6 @@ The Go annotation `@ID` becomes `operationId` and determines each generated serv
 | --- | --- | --- |
 | `GET /health` | `getHealth()` | Backend health check |
 | `POST /api/games` | `createGame()` | Save a playground; return the game and both join codes |
-| `GET /api/games/{sessionId}` | `getGame()` | Load a saved playground (no codes or players) |
 | `POST /api/players` | `joinGame()` | Join with `{code, name}`; return a player token and the game state |
 | `GET /api/me/game` | `getGameState()` | Game state as seen by the authenticated player |
 | `PUT /api/me/ready` | `setReady()` | Set `{ready}`; return the game state |
@@ -148,9 +124,9 @@ console.log(data.sessionId);
 | `go generate ./cmd/server` (in `backend/`) | Generate the API document from Go |
 | `npm run api:generate` (in `app/`) | Regenerate the frontend client from the document |
 
-Frontend tests check JSON requests, bearer tokens, successful responses, errors with HTTP status, runtime guards, timeouts, the server-clock countdown, and grid geometry/labels. Backend tests cover both generation pipelines, domain parsing, lobby rules (countdown start/cancel, joining limits, actions after start), isolated service behavior, real SQLite persistence and legacy compatibility, HTTP save/load and lobby flows, authentication, invalid requests, storage errors, CORS, and grid geometry. Contract checks are smoke tests, **not full OpenAPI schema validation**.
+Frontend tests check JSON requests, bearer tokens, successful responses, errors with HTTP status, runtime guards, timeouts, the server-clock countdown, and grid geometry/labels. Backend tests cover the generated API document's routes, domain parsing, lobby rules (countdown start/cancel, joining limits, actions after start), isolated service behavior, real SQLite persistence including position history and its cleanup, HTTP create and lobby flows, authentication, invalid requests, storage errors, CORS, and grid geometry. Contract checks are smoke tests, **not full OpenAPI schema validation**.
 
-The backend Docker build runs the source/document freshness test. The app Docker build regenerates the client from that document. Update the generated files before rebuilding after an API change.
+Docker builds do not run tests or regenerate anything; CI (`.github/workflows/ci.yml`) runs the tests and fails on stale generated files. Update the generated files before rebuilding after an API change.
 
 ## Run with Docker (recommended)
 
@@ -167,13 +143,13 @@ docker compose up --build
 
 The browser preview intentionally has no embedded map; use Android/iOS to create a game. Joining and the lobby work in the browser too.
 
-The backend image compiles a static Go executable, runs tests and vet during the build, and runs the executable as a non-root user. Compose waits for its health check before starting Expo.
+The backend image compiles a static Go executable into a minimal image without a shell (it runs as root). Compose has no health check; it starts Expo once the backend container is running.
 
 SQLite is stored at `/data/catch-me.sqlite` in the `game_data` Docker volume. Container restarts/recreation and `docker compose down` preserve saved games. **Do not use `docker compose down -v` unless you intend to delete all volume data.** Back up the database with the backend stopped to avoid an inconsistent copy. Direct `docker run` users must also mount a persistent volume at `/data`.
 
 The app container is an **Expo development server**, not a production frontend or an Android/iOS emulator. It uses Node 24 and mounts source files for live reload without sharing Windows `node_modules` with Linux. The native app still runs in Expo Go or a development build on your device. Rebuild the app image after changing dependencies or other files not mounted in `compose.yaml`.
 
-`tsconfig.json` stays writable inside the app image because Expo updates it during startup; it is deliberately not mounted as an individual file. Rebuild after changing the host's TypeScript configuration. Both running services have readiness health checks.
+`tsconfig.json` stays writable inside the app image because Expo updates it during startup; it is deliberately not mounted as an individual file. Rebuild after changing the host's TypeScript configuration.
 
 ### Use a physical phone with Docker
 
