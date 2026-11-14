@@ -1,0 +1,14 @@
+{
+  "language.switch": "Language",
+  "home.intro": "Runners try to reach their target, hunters try to catch them. The app is the referee, so everyone can play.",
+  "home.joinHeading": "Join a game",
+  "home.joinCode": "Join code",
+  "home.yourName": "Your name",
+  "home.codeHint": "The code decides your team. Ask the game creator or a teammate for it.",
+  "home.joinFailed": "Could not join the game.",
+  "home.join": "Join game",
+  "home.createHeading": "Start a new game",
+  "home.createText": "Choose a playground on the map and get one join code per team.",
+  "home.create": "Create a game",
+  "home.devHint": "Local development only. Location sharing and game rules are not implemented yet."
+}

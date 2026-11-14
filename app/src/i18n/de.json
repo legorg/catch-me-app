@@ -1,0 +1,14 @@
+{
+  "language.switch": "Sprache",
+  "home.intro": "Läufer versuchen ihr Ziel zu erreichen, Jäger versuchen sie zu fangen. Die App ist der Schiedsrichter, so können alle mitspielen.",
+  "home.joinHeading": "Einem Spiel beitreten",
+  "home.joinCode": "Beitrittscode",
+  "home.yourName": "Dein Name",
+  "home.codeHint": "Der Code bestimmt dein Team. Frag die Person, die das Spiel erstellt hat, oder jemanden aus deinem Team.",
+  "home.joinFailed": "Beitritt zum Spiel fehlgeschlagen.",
+  "home.join": "Beitreten",
+  "home.createHeading": "Neues Spiel starten",
+  "home.createText": "Wähle ein Spielfeld auf der Karte und erhalte einen Beitrittscode pro Team.",
+  "home.create": "Spiel erstellen",
+  "home.devHint": "Nur für die lokale Entwicklung. Standortfreigabe und Spielregeln sind noch nicht umgesetzt."
+}
