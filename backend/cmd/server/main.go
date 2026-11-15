@@ -34,7 +34,6 @@ import (
 func main() {
 	godotenv.Load("../.env")
 	addr := flag.String("addr", ":8080", "HTTP listen address")
-	webOrigin := flag.String("web-origin", "http://localhost:8081", "Allowed browser origin; empty disables browser access")
 	dbPath := flag.String("db", "catch-me.sqlite", "SQLite database file (parent directory must exist)")
 	googlePlacesAPIKey := flag.String("google-places-api-key", os.Getenv("GOOGLE_MAPS_KEY"), "Google Places API (New) key used to find landmarks for game routes (env GOOGLE_MAPS_KEY); required")
 	skipStartPositionCheck := flag.Bool("test-skip-start-position-check", false, "Development only: bypass runner Ready position checks; keep real location updates")
@@ -43,13 +42,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, *addr, *webOrigin, *dbPath, *googlePlacesAPIKey, *skipStartPositionCheck); err != nil {
+	if err := run(ctx, *addr, *dbPath, *googlePlacesAPIKey, *skipStartPositionCheck); err != nil {
 		log.Printf("server failed: %v", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, addr, webOrigin, dbPath, googlePlacesAPIKey string, skipStartPositionCheck bool) error {
+func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStartPositionCheck bool) error {
 	if googlePlacesAPIKey == "" {
 		return errors.New("a Google Places API key is required: set -google-places-api-key or GOOGLE_MAPS_KEY")
 	}
@@ -69,7 +68,7 @@ func run(ctx context.Context, addr, webOrigin, dbPath, googlePlacesAPIKey string
 	go deleteExpiredPositions(ctx, games)
 
 	server := &http.Server{
-		Handler:           api.NewHandler(webOrigin, controller.NewGameController(games)),
+		Handler:           api.NewHandler(controller.NewGameController(games)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

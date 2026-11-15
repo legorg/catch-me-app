@@ -5,7 +5,7 @@ import { isBackgroundSharingAvailable, startBackgroundSharing, stopBackgroundSha
 import { translate } from './i18n';
 
 const SEND_INTERVAL_MS = 5000;
-// Browsers may not report accuracy; treat it as poor rather than precise.
+// A fix without accuracy is treated as poor rather than precise.
 const UNKNOWN_ACCURACY_METERS = 1000;
 
 export type Fix = { latitude: number; longitude: number; accuracyMeters: number };

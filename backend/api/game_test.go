@@ -26,9 +26,8 @@ func testStore(t *testing.T) *db.Store {
 }
 
 func TestCreateGame(t *testing.T) {
-	handler := NewHandler("http://localhost:8081", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
 	request := httptest.NewRequest(http.MethodPost, "/api/games", strings.NewReader(`{"latitude":52.52,"longitude":13.405}`))
-	request.Header.Set("Origin", "http://localhost:8081")
 	request.Header.Set("Content-Type", "application/json")
 	created := httptest.NewRecorder()
 	handler.ServeHTTP(created, request)
@@ -54,20 +53,11 @@ func TestCreateGame(t *testing.T) {
 	if game.Playground != want {
 		t.Fatalf("unexpected playground: %+v", game.Playground)
 	}
-	preflight := httptest.NewRequest(http.MethodOptions, "/api/me/ready", nil)
-	preflight.Header.Set("Origin", "http://localhost:8081")
-	preflight.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, preflight)
-	if recorder.Code != 204 || !strings.Contains(recorder.Header().Get("Access-Control-Allow-Methods"), "PUT") ||
-		recorder.Header().Get("Access-Control-Allow-Headers") != "Authorization, Content-Type" {
-		t.Fatal("authenticated JSON preflight not supported")
-	}
 }
 
 func TestGameErrors(t *testing.T) {
 	store := testStore(t)
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(store, centerLandmarks{}, false)))
+	handler := NewHandler(controller.NewGameController(service.NewGameService(store, centerLandmarks{}, false)))
 	for _, tc := range []struct {
 		name, method, path, body string
 		status                   int
@@ -115,7 +105,7 @@ func TestGameErrors(t *testing.T) {
 }
 
 func TestCreateGameCellSizes(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
 	for _, tc := range []struct {
 		body string
 		size int

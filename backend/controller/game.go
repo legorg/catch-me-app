@@ -27,7 +27,6 @@ func NewGameController(service *service.GameService) *GameController {
 // @Param body body CreateGameRequest true "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings"
 // @Success 201 {object} CreateGameResponse "Game saved, with one join code per team"
 // @Failure 400 {object} APIError "Invalid JSON, coordinates, or cell size"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 422 {object} APIError "No landmark found at the edges of the playground"

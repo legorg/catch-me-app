@@ -12,7 +12,7 @@ app/                      Expo + React Native + TypeScript
 backend/                  Go standard-library HTTP + GORM + SQLite
   api/swagger.json        Generated API document (do not edit)
   cmd/server/             Server entry point
-  api/                    Route registration, CORS, integration tests
+  api/                    Route registration, security headers, integration tests
   controller/             HTTP parsing, response models, error mapping
   service/                Game use cases and persistence interface
   game/                   Parsed domain values, lobby rules, playground geometry
@@ -36,7 +36,7 @@ The grid uses a local spherical approximation, not survey-grade geometry. Center
 
 Request flow is **API → controller → service → database**:
 
-- `api` registers endpoints and applies CORS/security headers. It contains no game validation or queries.
+- `api` registers endpoints and applies security headers. It contains no game validation or queries.
 - `controller` decodes bounded JSON requests, parses them into domain values (applying the default cell size when omitted), invokes the service, maps domain errors to HTTP statuses, and maps domain values to public response models.
 - `service` owns game creation, joining, ready-up, leaving, history cleanup, random IDs and tokens, and timestamps. It accepts only parsed domain values and depends on a `GameRepository` interface, not SQLite or GORM. Lobby changes go through `UpdateLobbyBy*`, which load a game with its players, apply a domain change, and save it in one transaction.
 - `db` implements that interface with GORM. Loaded rows are parsed again, so invalid stored data becomes a server error. GORM types and errors stay inside this layer.
@@ -127,7 +127,7 @@ console.log(data.sessionId);
 | `go generate ./cmd/server` (in `backend/`) | Generate the API document from Go |
 | `npm run api:generate` (in `app/`) | Regenerate the frontend client from the document |
 
-Frontend tests check JSON requests, bearer tokens, successful responses, errors with HTTP status, runtime guards, timeouts, the server-clock countdown, and grid geometry/labels. Backend tests cover the generated API document's routes, domain parsing, lobby rules (countdown start/cancel, joining limits, actions after start), isolated service behavior, real SQLite persistence including position history and its cleanup, HTTP create and lobby flows, authentication, invalid requests, storage errors, CORS, and grid geometry. Contract checks are smoke tests, **not full OpenAPI schema validation**.
+Frontend tests check JSON requests, bearer tokens, successful responses, errors with HTTP status, runtime guards, timeouts, the server-clock countdown, and grid geometry/labels. Backend tests cover the generated API document's routes, domain parsing, lobby rules (countdown start/cancel, joining limits, actions after start), isolated service behavior, real SQLite persistence including position history and its cleanup, HTTP create and lobby flows, authentication, invalid requests, storage errors, and grid geometry. Contract checks are smoke tests, **not full OpenAPI schema validation**.
 
 Docker builds do not run tests or regenerate anything; CI (`.github/workflows/ci.yml`) runs the tests and fails on stale generated files. Update the generated files before rebuilding after an API change.
 
@@ -142,9 +142,6 @@ docker compose up --build
 ```
 
 - **API:** <http://localhost:8080/health>
-- **App browser preview:** <http://localhost:8081>
-
-The browser preview intentionally has no embedded map; use Android/iOS to create a game. Joining and the lobby work in the browser too.
 
 The backend image compiles a static Go executable into a minimal image without a shell (it runs as root). Compose has no health check; it starts Expo once the backend container is running.
 
@@ -162,15 +159,14 @@ Copy the **root** `.env.example` to `.env` (PowerShell):
 Copy-Item .env.example .env
 ```
 
-Replace the three values with your computer's LAN IP, for example:
+Replace the values with your computer's LAN IP, for example:
 
 ```dotenv
 EXPO_HOST=192.168.1.100
 EXPO_PUBLIC_API_URL=http://192.168.1.100:8080
-WEB_ORIGIN=http://192.168.1.100:8081
 ```
 
-Restart with `docker compose up --build`. Open `exp://192.168.1.100:8081` in Expo Go, or scan the QR code shown in the Expo logs. Your phone and computer must share a network, and ports **8080 and 8081** must be allowed through the firewall on a trusted private network. Keep the browser preview on `http://192.168.1.100:8081` too, so its origin matches `WEB_ORIGIN`.
+Restart with `docker compose up --build`. Open `exp://192.168.1.100:8081` in Expo Go, or scan the QR code shown in the Expo logs. Your phone and computer must share a network, and ports **8080 and 8081** must be allowed through the firewall on a trusted private network.
 
 `EXPO_HOST` overrides the hostname Expo advertises, so the phone gets the computer's IP rather than the container's private IP. For an Android Studio emulator, use `EXPO_HOST=10.0.2.2` and `EXPO_PUBLIC_API_URL=http://10.0.2.2:8080`.
 
@@ -264,10 +260,10 @@ The API listens on port **8080**, on all network interfaces so a phone on your n
 Optional flags:
 
 ```sh
-go run ./cmd/server -addr :8080 -web-origin http://localhost:8081
+go run ./cmd/server -addr :8080
 ```
 
-`-web-origin` allows the optional Expo browser preview to call the API. Native app requests do not need CORS. CORS is not authentication. This plain-HTTP starter is for trusted local development; use HTTPS and add authentication before deploying gameplay or location data.
+This plain-HTTP starter is for trusted local development; use HTTPS and add authentication before deploying gameplay or location data.
 
 The local database defaults to `backend/catch-me.sqlite` when run from `backend/` and is Git-ignored. Use `-db PATH` to select a different file; its parent directory must already exist.
 
@@ -284,7 +280,6 @@ For macOS/Linux, use `cp .env.example .env.local` instead. Set `EXPO_PUBLIC_API_
 
 | Device | API address |
 | --- | --- |
-| Browser on your computer | `http://localhost:8080` |
 | Android Studio emulator | `http://10.0.2.2:8080` |
 | iOS simulator on the backend computer | `http://localhost:8080` |
 | Physical phone | `http://YOUR_COMPUTER_LAN_IP:8080` |
@@ -304,13 +299,7 @@ npm start
 
 On iPhone, Expo Go is enough: iOS uses Apple Maps, which needs no API key. Android Google Maps with our own key requires a native build configured as described below. Pan/zoom the map, tap to choose a center, and press **Create game**. The app shows the runner and hunter join codes; enter your name and join a team yourself. Other players enter a code and their name on the home screen. In the lobby, runners allow location access and walk to their start cell; everyone then taps **Ready**. The game starts 10 seconds after the last player is ready if both teams have players.
 
-For a browser preview:
-
-```sh
-npm run web
-```
-
-Browser preview uses port **8081** to match the backend's default allowed web origin. iOS simulator development requires macOS; a native iPhone build can be produced using macOS or EAS, then connect to the development server running on Windows.
+iOS simulator development requires macOS; a native iPhone build can be produced using macOS or EAS, then connect to the development server running on Windows.
 
 ## Test without moving (development only)
 
@@ -340,7 +329,7 @@ See the [SDK 58 maps setup documentation](https://docs.expo.dev/versions/v58.0.0
 
 `.github/workflows/ci.yml` runs a single **Project checks** job on pull requests, pushes to `main`, and manual runs from GitHub's Actions tab.
 
-It checks Go formatting, backend tests and vet, generated API freshness, frontend TypeScript and lint, API client/generation tests, and Android/iOS/web JavaScript bundle exports. Checks do not regenerate committed files; stale generated output fails CI and must be regenerated (`go generate`, `npm run api:generate`) before pushing.
+It checks Go formatting, backend tests and vet, generated API freshness, frontend TypeScript and lint, API client/generation tests, and Android/iOS JavaScript bundle exports. Checks do not regenerate committed files; stale generated output fails CI and must be regenerated (`go generate`, `npm run api:generate`) before pushing.
 
 The workflow uses Node 24 and Go 1.26, caches npm downloads and Go modules/builds, and requires no custom secrets. Actions are pinned to commit hashes, the repository token is read-only, and superseded runs are canceled.
 

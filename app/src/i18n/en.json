@@ -94,7 +94,7 @@
   "lobby.sharingBackground": "Sharing in the background",
   "lobby.sharingForeground": "Sharing while the screen is on",
   "lobby.sharingBackgroundText": "Your position keeps being shared when the screen is off or you switch apps, until you leave the game screen or close the app.",
-  "lobby.backgroundUnavailable": "Keep this screen open. Background sharing needs an installed app build; Expo Go and browsers cannot share in the background.",
+  "lobby.backgroundUnavailable": "Keep this screen open. Background sharing needs an installed app build; Expo Go cannot share in the background.",
   "lobby.allowAlways": "Allow \"Always\" location access to keep sharing when the screen is off.",
   "lobby.shareInBackground": "Share in the background",
   "lobby.backgroundBlocked": "Background location is blocked. Allow \"Always\" in the system settings, or keep this screen open.",

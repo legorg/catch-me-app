@@ -16,7 +16,6 @@ import (
 // @Param body body JoinGameRequest true "Join code (6 digits) and display name (1-20 characters, unique per game)"
 // @Success 201 {object} JoinGameResponse "Joined; keep the player token secret"
 // @Failure 400 {object} APIError "Invalid JSON, join code, or name"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 404 {object} APIError "No game with this join code"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 409 {object} APIError "Game started, full, or name taken"
@@ -56,7 +55,6 @@ func (c *GameController) Join(w http.ResponseWriter, r *http.Request) {
 // @Security PlayerToken
 // @Success 200 {object} GameStateResponse "Current game state"
 // @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 500 {object} APIError "Could not load game"
 // @Router /api/me/game [get]
@@ -87,7 +85,6 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} GameStateResponse "Updated game state"
 // @Failure 400 {object} APIError "Invalid JSON or missing ready value"
 // @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 409 {object} APIError "Game has already started, or the runner is not in their start cell"
 // @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
@@ -125,7 +122,6 @@ func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 // @Security PlayerToken
 // @Success 200 {object} GameStateResponse "Updated game state with the new route"
 // @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 409 {object} APIError "Not a runner, ready, no changes left, or game started"
 // @Failure 500 {object} APIError "Could not update game"
@@ -157,7 +153,6 @@ func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request)
 // @Success 200 {object} GameStateResponse "Updated game state"
 // @Failure 400 {object} APIError "Invalid JSON or team name"
 // @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 409 {object} APIError "Not a hunter, ready, or game started"
 // @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
@@ -199,7 +194,6 @@ func (c *GameController) SetHunterTeam(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} GameStateResponse "Updated game state"
 // @Failure 400 {object} APIError "Invalid JSON, coordinates, or accuracy"
 // @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
 // @Failure 500 {object} APIError "Could not update game"
@@ -241,7 +235,6 @@ func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) 
 // @Security PlayerToken
 // @Success 204 "Left the game; the token is no longer valid"
 // @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 409 {object} APIError "Game has already started"
 // @Failure 500 {object} APIError "Could not update game"

@@ -87,8 +87,8 @@ jobs:
       - name: Test frontend API client and generation
         run: npm run test:api
 
-      - name: Bundle Android, iOS, and web
-        run: npx expo export --platform all --max-workers 2
+      - name: Bundle Android and iOS
+        run: npx expo export --platform android --platform ios --max-workers 2
 
       - name: Verify tracked files were not modified
         working-directory: .

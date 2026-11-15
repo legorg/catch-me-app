@@ -9,7 +9,7 @@ import (
 
 func TestHealth(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	NewHandler("", nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
+	NewHandler(nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -43,45 +43,12 @@ func TestRouting(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			NewHandler("", nil).ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
+			NewHandler(nil).ServeHTTP(recorder, httptest.NewRequest(test.method, test.path, nil))
 			if recorder.Code != test.status {
 				t.Fatalf("status = %d, want %d", recorder.Code, test.status)
 			}
 			if test.status == http.StatusMethodNotAllowed && recorder.Header().Get("Allow") != "GET, HEAD" {
 				t.Fatal("missing allowed methods")
-			}
-		})
-	}
-}
-
-func TestCORS(t *testing.T) {
-	for _, test := range []struct {
-		name          string
-		allowedOrigin string
-		origin        string
-		method        string
-		status        int
-		allowOrigin   string
-	}{
-		{"native request", "http://localhost:8081", "", http.MethodGet, http.StatusOK, ""},
-		{"allowed browser", "http://localhost:8081", "http://localhost:8081", http.MethodGet, http.StatusOK, "http://localhost:8081"},
-		{"preflight", "http://localhost:8081", "http://localhost:8081", http.MethodOptions, http.StatusNoContent, "http://localhost:8081"},
-		{"other browser", "http://localhost:8081", "https://example.com", http.MethodGet, http.StatusForbidden, ""},
-		{"rejected preflight", "http://localhost:8081", "https://example.com", http.MethodOptions, http.StatusForbidden, ""},
-		{"browser access disabled", "", "http://localhost:8081", http.MethodGet, http.StatusForbidden, ""},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(test.method, "/health", nil)
-			if test.origin != "" {
-				request.Header.Set("Origin", test.origin)
-			}
-			recorder := httptest.NewRecorder()
-			NewHandler(test.allowedOrigin, nil).ServeHTTP(recorder, request)
-			if recorder.Code != test.status {
-				t.Fatalf("status = %d, want %d", recorder.Code, test.status)
-			}
-			if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != test.allowOrigin {
-				t.Fatalf("allowed origin = %q, want %q", got, test.allowOrigin)
 			}
 		})
 	}

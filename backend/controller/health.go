@@ -9,7 +9,6 @@ import (
 // @ID getHealth
 // @Produce json
 // @Success 200 {object} HealthResponse "Backend is running"
-// @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Router /health [get]
 func Health(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodGet, http.MethodHead) {

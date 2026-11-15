@@ -42,12 +42,6 @@
                             "$ref": "#/definitions/controller.APIError"
                         }
                     },
-                    "403": {
-                        "description": "Browser origin is not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
                     "405": {
                         "description": "Method not allowed",
                         "schema": {
@@ -103,12 +97,6 @@
                             "$ref": "#/definitions/controller.APIError"
                         }
                     },
-                    "403": {
-                        "description": "Browser origin is not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
                     "405": {
                         "description": "Method not allowed",
                         "schema": {
@@ -151,12 +139,6 @@
                     },
                     "401": {
                         "description": "Missing or unknown player token",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
-                    "403": {
-                        "description": "Browser origin is not allowed",
                         "schema": {
                             "$ref": "#/definitions/controller.APIError"
                         }
@@ -217,12 +199,6 @@
                     },
                     "401": {
                         "description": "Missing or unknown player token",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
-                    "403": {
-                        "description": "Browser origin is not allowed",
                         "schema": {
                             "$ref": "#/definitions/controller.APIError"
                         }
@@ -299,12 +275,6 @@
                             "$ref": "#/definitions/controller.APIError"
                         }
                     },
-                    "403": {
-                        "description": "Browser origin is not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
                     "405": {
                         "description": "Method not allowed",
                         "schema": {
@@ -371,12 +341,6 @@
                             "$ref": "#/definitions/controller.APIError"
                         }
                     },
-                    "403": {
-                        "description": "Browser origin is not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
                     "405": {
                         "description": "Method not allowed",
                         "schema": {
@@ -425,12 +389,6 @@
                     },
                     "401": {
                         "description": "Missing or unknown player token",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
-                    "403": {
-                        "description": "Browser origin is not allowed",
                         "schema": {
                             "$ref": "#/definitions/controller.APIError"
                         }
@@ -490,12 +448,6 @@
                             "$ref": "#/definitions/controller.APIError"
                         }
                     },
-                    "403": {
-                        "description": "Browser origin is not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
-                        }
-                    },
                     "404": {
                         "description": "No game with this join code",
                         "schema": {
@@ -541,12 +493,6 @@
                         "description": "Backend is running",
                         "schema": {
                             "$ref": "#/definitions/controller.HealthResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Browser origin is not allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controller.APIError"
                         }
                     }
                 }

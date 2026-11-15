@@ -94,7 +94,7 @@
   "lobby.sharingBackground": "Teilen im Hintergrund",
   "lobby.sharingForeground": "Teilen bei eingeschaltetem Bildschirm",
   "lobby.sharingBackgroundText": "Deine Position wird weiter geteilt, wenn der Bildschirm aus ist oder du die App wechselst, bis du den Spielbildschirm verlässt oder die App schließt.",
-  "lobby.backgroundUnavailable": "Lass diesen Bildschirm offen. Teilen im Hintergrund braucht eine installierte App; Expo Go und Browser können das nicht.",
+  "lobby.backgroundUnavailable": "Lass diesen Bildschirm offen. Teilen im Hintergrund braucht eine installierte App; Expo Go kann das nicht.",
   "lobby.allowAlways": "Erlaube den Standortzugriff „Immer“, damit weiter geteilt wird, wenn der Bildschirm aus ist.",
   "lobby.shareInBackground": "Im Hintergrund teilen",
   "lobby.backgroundBlocked": "Standort im Hintergrund ist blockiert. Erlaube „Immer“ in den Systemeinstellungen oder lass diesen Bildschirm offen.",

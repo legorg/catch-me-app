@@ -34,7 +34,7 @@
         <mxCell id="p1-button" value="Button · components/button.tsx&#xa;Props: label, disabled, onPress, variant&#xa;Baut auf Pressable + Text auf&#xa;Von allen drei Screens verwendet" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
           <mxGeometry x="60" y="420" width="300" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="p1-map" value="PlaygroundMap · components/&#xa;Props: playground, onSelect, markers, ...&#xa;.native.tsx: Android / iOS Karte&#xa;.tsx: Browser-Ersatzdarstellung" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
+        <mxCell id="p1-map" value="PlaygroundMap · components/&#xa;Props: playground, onSelect, markers, ...&#xa;Android / iOS Karte" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="p1-1" vertex="1">
           <mxGeometry x="430" y="420" width="300" height="100" as="geometry" />
         </mxCell>
         <mxCell id="p1-location" value="useLocationSharing · eigener Hook&#xa;Berechtigungen + echtes GPS + Versand&#xa;Effekte richten Dienste ein / räumen auf&#xa;Hook, keine sichtbare Komponente" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" parent="p1-1" vertex="1">

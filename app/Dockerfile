@@ -12,4 +12,4 @@ COPY --chown=node:node backend/api/ /backend/api/
 
 EXPOSE 8081
 
-CMD ["npx", "expo", "start", "--host", "lan", "--port", "8081", "--web"]
+CMD ["npx", "expo", "start", "--host", "lan", "--port", "8081"]

@@ -49,7 +49,7 @@ func decode[T any](t *testing.T, recorder *httptest.ResponseRecorder, status int
 
 func TestLobbyFlow(t *testing.T) {
 	// The start-cell check depends on a per-runner cell that responses no longer expose.
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405}`), 201)
 	codes := created.JoinCodes
 
@@ -108,7 +108,7 @@ func TestLobbyFlow(t *testing.T) {
 }
 
 func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
 	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Hunter+`","name":"Bob"}`), 201)
@@ -137,7 +137,7 @@ func (centerLandmarks) Landmarks(_ context.Context, cell game.Bounds) ([]game.La
 }
 
 func TestLobbyErrors(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
 	for _, tc := range []struct {

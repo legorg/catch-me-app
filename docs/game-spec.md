@@ -130,7 +130,7 @@ One-off special abilities on top of the periodic reveals. Candidates:
 ### Moving the playground square [planned]
 
 - When creating a game, the creator can drag the 6 × 6 grid on the map to fine-tune its position, instead of only placing it by choosing the center.
-- Open: dragging the whole square vs. moving the map under a fixed square, whether it also works with the Apple Maps and Google Maps views and the browser fallback, whether the position can still change after creation (probably not once players joined, since routes depend on the grid).
+- Open: dragging the whole square vs. moving the map under a fixed square, whether it also works with the Apple Maps and Google Maps views, whether the position can still change after creation (probably not once players joined, since routes depend on the grid).
 
 ### Further ideas
 
