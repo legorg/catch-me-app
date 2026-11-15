@@ -9,7 +9,7 @@ import { ApiError, MAX_SKETCH_POINTS, addSketch, clearSketches, updatePosition, 
 import Button from '@/components/button';
 import PlaygroundMap, { type CellHighlight, type MapMarker } from '@/components/playground-map';
 import { translateParts, useT } from '@/i18n';
-import { formatDuration, jokerMarkers, playerMarkers, revealMarkers, secondsUntil, sketchLines, thinPoints } from '@/lobby';
+import { formatDuration, jokerMarkers, jokerZones, playerMarkers, revealMarkers, secondsUntil, sketchLines, thinPoints } from '@/lobby';
 import { cellAt } from '@/playground';
 import { colors, styles } from '@/styles';
 import { goHome, useGameState } from '@/use-game-state';
@@ -106,10 +106,13 @@ export default function GameScreen() {
   const stopCell = route ? cellAt(state.playground, route.stop.coordinates) : null;
   const startTitle = route?.start.title || t('lobby.start');
   const stopTitle = route?.stop.title || t('lobby.target');
-  const highlights: CellHighlight[] = route ? [
-    ...(startCell ? [{ cell: startCell, title: startTitle, color: START_COLOR }] : []),
-    ...(stopCell ? [{ cell: stopCell, title: stopTitle, color: TARGET_COLOR }] : []),
-  ] : [];
+  const highlights: CellHighlight[] = [
+    ...(route ? [
+      ...(startCell ? [{ cell: startCell, title: startTitle, color: START_COLOR }] : []),
+      ...(stopCell ? [{ cell: stopCell, title: stopTitle, color: TARGET_COLOR }] : []),
+    ] : []),
+    ...jokerZones(state),
+  ];
   const markers: MapMarker[] = [
     ...(route ? [
       { id: 'route-start', coordinate: route.start.coordinates, title: startTitle, description: t('lobby.start'), color: START_COLOR },

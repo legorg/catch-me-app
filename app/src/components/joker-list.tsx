@@ -1,42 +1,48 @@
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { GameStateResponse, JokerKind, JokerResponse } from '@/api/client';
 import Button from '@/components/button';
 import { getLanguage, translate, useT } from '@/i18n';
 import { colors, styles } from '@/styles';
 
-const TITLE_KEYS = { showRunners: 'joker.showRunners.title' } as const;
-const TEXT_KEYS = { showRunners: 'joker.showRunners.text' } as const;
+const TITLE_KEYS = { showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title' } as const;
+const TEXT_KEYS = { showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text' } as const;
+const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const ROWS = ['1', '2', '3', '4', '5', '6'];
 
 /** The jokers of the player's team, each with a two-step button to use it. */
 export default function JokerList({ state, error, onUse }: {
   state: GameStateResponse;
   error: string;
-  onUse: (kind: JokerKind) => Promise<void>;
+  onUse: (kind: JokerKind, cell?: string) => Promise<void>;
 }) {
   const t = useT();
   const [confirming, setConfirming] = useState<JokerKind | null>(null);
+  const [cell, setCell] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // queryZone needs a cell picker, which comes with the app step; until then only the known jokers.
-  const jokers = state.jokers.filter((j): j is JokerResponse & { kind: JokerKind } => j.kind === 'showRunners');
 
   const use = async (kind: JokerKind) => {
     if (busy) return;
     setBusy(true);
     try {
-      await onUse(kind);
+      await onUse(kind, kind === 'queryZone' ? cell ?? undefined : undefined);
     } finally {
       setBusy(false);
       setConfirming(null);
+      setCell(null);
     }
+  };
+  const cancel = () => {
+    setConfirming(null);
+    setCell(null);
   };
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
       <Text style={styles.heading}>{t('joker.title')}</Text>
-      {jokers.length === 0 && <Text style={styles.hint}>{t('joker.none')}</Text>}
-      {jokers.map((joker) => (
+      {state.jokers.length === 0 && <Text style={styles.hint}>{t('joker.none')}</Text>}
+      {state.jokers.map((joker) => (
         <View key={joker.kind} style={styles.card}>
           <Text style={styles.heading}>{t(TITLE_KEYS[joker.kind])}</Text>
           <Text style={styles.text}>{t(TEXT_KEYS[joker.kind])}</Text>
@@ -45,18 +51,51 @@ export default function JokerList({ state, error, onUse }: {
             : joker.available
               ? confirming === joker.kind
                 ? <>
-                  <Text style={[styles.text, styles.error]}>{t('joker.confirm')}</Text>
+                  {joker.kind === 'queryZone' && <CellPicker selected={cell} onSelect={setCell} disabled={busy} />}
+                  <Text style={[styles.text, styles.error]}>
+                    {joker.kind === 'queryZone' && cell ? t('joker.confirmCell', { cell }) : t('joker.confirm')}
+                  </Text>
                   <View style={styles.row}>
-                    <Button label={t('joker.confirmYes')} disabled={busy} onPress={() => void use(joker.kind)} />
-                    <Button label={t('joker.cancel')} variant="secondary" disabled={busy} onPress={() => setConfirming(null)} />
+                    <Button label={t('joker.confirmYes')} disabled={busy || (joker.kind === 'queryZone' && !cell)} onPress={() => void use(joker.kind)} />
+                    <Button label={t('joker.cancel')} variant="secondary" disabled={busy} onPress={cancel} />
                   </View>
                 </>
-                : <Button label={t('joker.use')} onPress={() => setConfirming(joker.kind)} />
+                : <Button label={t('joker.use')} onPress={() => { setConfirming(joker.kind); setCell(null); }} />
               : <Text style={styles.hint}>{t('joker.waitForStart')}</Text>}
         </View>
       ))}
       {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
     </ScrollView>
+  );
+}
+
+/** The 6 by 6 grid as buttons, laid out like the map: A–F west to east, 1–6 north to south. */
+function CellPicker({ selected, onSelect, disabled }: { selected: string | null; onSelect: (cell: string) => void; disabled: boolean }) {
+  const t = useT();
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={styles.hint}>{t('joker.chooseCell')}</Text>
+      {ROWS.map((row) => (
+        <View key={row} style={picker.row}>
+          {COLUMNS.map((column) => {
+            const cell = column + row;
+            const active = cell === selected;
+            return (
+              <Pressable
+                key={cell}
+                accessibilityRole="button"
+                accessibilityLabel={t('joker.cell', { cell })}
+                accessibilityState={{ selected: active, disabled }}
+                disabled={disabled}
+                onPress={() => onSelect(cell)}
+                style={[picker.cell, active && picker.selected]}>
+                <Text style={[picker.label, active && picker.selectedLabel]}>{cell}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -67,12 +106,24 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
   return (
     <View style={{ gap: 4 }}>
       <Text style={[styles.text, { color: colors.accent }]}>{translate('joker.usedAt', { time: time(joker.usedAt ?? '') })}</Text>
-      {positions.length === 0 && <Text style={styles.hint}>{t('joker.noPositions')}</Text>}
-      {positions.map((p) => (
-        <Text key={p.playerId} style={styles.hint}>
-          {state.players.find((player) => player.playerId === p.playerId)?.name} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}
-        </Text>
-      ))}
+      {joker.kind === 'queryZone'
+        ? !!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>
+        : <>
+          {positions.length === 0 && <Text style={styles.hint}>{t('joker.noPositions')}</Text>}
+          {positions.map((p) => (
+            <Text key={p.playerId} style={styles.hint}>
+              {state.players.find((player) => player.playerId === p.playerId)?.name} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}
+            </Text>
+          ))}
+        </>}
     </View>
   );
 }
+
+const picker = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 6 },
+  cell: { flex: 1, aspectRatio: 1, maxWidth: 56, minHeight: 40, borderRadius: 8, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  selected: { backgroundColor: colors.accent },
+  label: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+  selectedLabel: { color: colors.background },
+});

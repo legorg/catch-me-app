@@ -1,5 +1,6 @@
 import type { GameStateResponse, PlayerResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
+import { cellBounds } from './playground';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -73,16 +74,43 @@ export function revealMarkers(state: GameStateResponse): (PlayerMarker & { label
   })));
 }
 
-/** Markers for what the team's used jokers showed: each runner where they were when it was used. */
+/** Markers for what the team's used jokers showed: each runner where they were when it was used, and the queried zone with its answer. */
 export function jokerMarkers(state: GameStateResponse): PlayerMarker[] {
-  return state.jokers.flatMap((joker) => (joker.positions ?? []).map((position) => ({
-    id: `joker-${joker.kind}-${position.playerId}`,
-    coordinate: { latitude: position.latitude, longitude: position.longitude },
-    title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
-    description: translate('joker.marker', { time: clockTime(joker.usedAt ?? position.recordedAt, true) }),
-    color: MARKER_COLORS.joker,
-  })));
+  return state.jokers.flatMap((joker) => [
+    ...(joker.positions ?? []).map((position) => ({
+      id: `joker-${joker.kind}-${position.playerId}`,
+      coordinate: { latitude: position.latitude, longitude: position.longitude },
+      title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
+      description: translate('joker.marker', { time: clockTime(joker.usedAt ?? position.recordedAt, true) }),
+      color: MARKER_COLORS.joker,
+    })),
+    ...queriedZones([joker]).map((zone) => {
+      const b = cellBounds(state.playground, zone.cell);
+      return {
+        id: `joker-${joker.kind}-${zone.cell}`,
+        coordinate: { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 },
+        title: zone.title,
+        description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
+        color: zone.color,
+      };
+    }),
+  ]);
 }
+
+/** The cells the team queried, colored by the answer: green with a runner inside, red without. */
+export function jokerZones(state: GameStateResponse): { cell: string; title: string; color: string }[] {
+  return queriedZones(state.jokers);
+}
+
+function queriedZones(jokers: GameStateResponse['jokers']) {
+  return jokers.flatMap((joker) => joker.cell && joker.found !== undefined ? [{
+    cell: joker.cell,
+    title: translate(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell }),
+    color: joker.found ? ZONE_COLORS.found : ZONE_COLORS.empty,
+  }] : []);
+}
+
+export const ZONE_COLORS = { found: '#27ae60', empty: '#eb5757' } as const;
 
 export const SKETCH_COLOR = '#9b51e0';
 

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateResponse } from '../src/api/client';
-import { MARKER_COLORS, SKETCH_COLOR, formatDuration, hunterTeams, jokerMarkers, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
-import { previewPlayground } from '../src/playground';
+import { MARKER_COLORS, SKETCH_COLOR, ZONE_COLORS, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
+import { cellBounds, previewPlayground } from '../src/playground';
 
 const state: GameStateResponse = {
   sessionId: '00112233445566778899aabbccddeeff',
@@ -109,6 +109,22 @@ test('a used joker becomes one marker per runner it showed', () => {
   ]);
   assert.match(markers[0].description, /Joker/);
   assert.deepEqual(jokerMarkers({ ...state, jokers: [{ kind: 'showRunners', available: true }] }), []);
+});
+
+test('a queried zone is highlighted and marked in its center, colored by the answer', () => {
+  const jokers = [
+    { kind: 'queryZone' as const, available: false, usedAt: '2026-11-08T12:07:00Z', cell: 'A1', found: true },
+    { kind: 'queryZone' as const, available: false, usedAt: '2026-11-08T12:08:00Z', cell: 'F6', found: false },
+  ];
+  const zones = jokerZones({ ...state, jokers });
+  assert.deepEqual(zones.map((z) => [z.cell, z.color]), [['A1', ZONE_COLORS.found], ['F6', ZONE_COLORS.empty]]);
+  assert.match(zones[0].title, /at least one runner/);
+  assert.match(zones[1].title, /no runner/);
+  const [marker] = jokerMarkers({ ...state, jokers: [jokers[0]] });
+  const b = cellBounds(state.playground, 'A1');
+  assert.deepEqual(marker.coordinate, { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 });
+  assert.equal(marker.color, ZONE_COLORS.found);
+  assert.deepEqual(jokerZones({ ...state, jokers: [{ kind: 'queryZone', available: true }] }), []);
 });
 
 test('sketches become lines in the sketch color, in the order the server sent them', () => {

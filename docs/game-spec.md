@@ -108,7 +108,7 @@ Agreed topics whose rules are still open. Each needs its rules settled here befo
 - Show the stored position history as a replay or chart of everyone's movements. It is only available after the game ended (see position history).
 - Open: what exactly the result shows, replay vs. static track chart, how long it stays reachable (positions are deleted 7 days after the start).
 
-### Jokers [first joker implemented]
+### Jokers [hunter jokers implemented, runner jokers planned]
 
 One-off special abilities on top of the periodic reveals. A joker belongs to a team: runners, or one hunter team (hunters of the same team share it). The app has a joker sheet (the "Jokers" button on the game screen) listing the team's jokers.
 
@@ -116,7 +116,7 @@ One-off special abilities on top of the periodic reveals. A joker belongs to a t
 
 Every joker can be used once per game and team, only while the game is running; using it again is a `409`. The server enforces all of them.
 
-**Query a zone** (hunter teams) [backend done]: any hunter of the team picks one cell of the grid. The team gets a yes/no answer: was at least one runner inside that cell at that moment (each runner's last report at or before the use; a runner without a report counts as outside)? The answer does not say how many runners or which. The cell and the answer stay on the team's map; only that hunter team sees them, and runners are not told. The server stores the cell and the time; the answer is derived from the position history.
+**Query a zone** (hunter teams) [implemented]: any hunter of the team picks one cell of the grid (in the app: a 6 by 6 cell picker in the joker sheet). The team gets a yes/no answer: was at least one runner inside that cell at that moment (each runner's last report at or before the use; a runner without a report counts as outside)? The answer does not say how many runners or which. The cell and the answer stay on the team's map; only that hunter team sees them, and runners are not told. The server stores the cell and the time; the answer is derived from the position history.
 
 **Runner jokers** belong to the runner team as a whole: each exists once per game, and when one runner uses it, it is used up for all runners. It affects only the runner who used it, and only that runner's **next reveal**. All runners see which runner team jokers were used, by whom and when. Hunters are never told that a joker was used; they only see its effect at the reveal. A runner can have at most one pending runner joker at a time (a second one before the next reveal is a `409`).
 
