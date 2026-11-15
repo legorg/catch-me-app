@@ -672,7 +672,7 @@
         "GameStateResponse": {
             "type": "object",
             "required": [
-                "joinCode",
+                "joinCodes",
                 "playerId",
                 "players",
                 "playground",
@@ -682,11 +682,8 @@
                 "team"
             ],
             "properties": {
-                "joinCode": {
-                    "type": "string",
-                    "maxLength": 6,
-                    "minLength": 6,
-                    "example": "482913"
+                "joinCodes": {
+                    "$ref": "#/definitions/JoinCodes"
                 },
                 "nextRevealAt": {
                     "description": "Next time hunters receive the runners' positions, present while running.",

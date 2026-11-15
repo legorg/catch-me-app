@@ -9,6 +9,7 @@ import {
   type GameStateResponse,
 } from '@/api/client';
 import Button from '@/components/button';
+import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
 import PlaygroundMap, { type CellHighlight } from '@/components/playground-map';
@@ -192,11 +193,8 @@ export default function LobbyScreen() {
             })}
             {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
           </Text>
-          {!running && <>
-            <Text style={styles.text}>{t('lobby.invite')}</Text>
-            <Text selectable style={styles.code}>{state.joinCode}</Text>
-          </>}
         </View>
+        {!running && <JoinCodes codes={state.joinCodes} />}
         {route && <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
           <Text style={styles.text}>

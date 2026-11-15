@@ -281,9 +281,9 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 		Playground:                 playgroundResponse(g.Playground),
 		PlayerID:                   view.Me.ID.String(),
 		Team:                       string(view.Me.Team),
-		// Only the player's own team code, to invite teammates.
-		JoinCode: g.JoinCodes.For(view.Me.Team).String(),
-		Players:  make([]PlayerResponse, 0, len(view.Lobby.Players)),
+		// Both codes, so any player (e.g. the creator after joining) can invite to either team.
+		JoinCodes: JoinCodes{Runner: g.JoinCodes.Runner.String(), Hunter: g.JoinCodes.Hunter.String()},
+		Players:   make([]PlayerResponse, 0, len(view.Lobby.Players)),
 	}
 	if !g.StartsAt.IsZero() {
 		response.StartsAt = g.StartsAt.Format(time.RFC3339Nano)

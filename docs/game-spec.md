@@ -30,7 +30,7 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 - Joining returns a secret **player token**. Every later request authenticates with `Authorization: Bearer <token>`. The server stores only a SHA-256 hash of the token.
 - At most **30 players** per game.
 - Joining is possible in the lobby and during the countdown, not after the game has started.
-- In the lobby, each player sees all players (names, teams, hunter teams, ready state) and the join code of their **own** team, to invite teammates.
+- In the lobby, each player sees all players (names, teams, hunter teams, ready state) and **both** join codes, so anyone (including the creator after joining) can invite players to either team.
 
 ## Hunter teams [done]
 
@@ -117,15 +117,20 @@ One-off special abilities on top of the periodic reveals. Candidates:
 - **Query a zone:** ask whether any runner is currently inside a chosen cell.
 - Open: which team gets which jokers and how many, when they can be used, how long effects last, and how the server enforces them (it must stay the referee; fake positions may only ever be sent to the intended viewers).
 
-### Seeing join codes after joining [planned]
-
-- Today a player only sees their own team's code, so a creator who joined cannot pass on the other team's code anymore.
-- Open: show both codes to everyone in the lobby, only to the creator (needs a creator role, against "no extra rights"), or keep them on the create screen until the creator leaves it.
-
 ### Team map drawings and notes [planned]
 
 - Players of one team (runners, or one hunter team) draw on the map and add notes that only their team sees.
 - Open: drawing types (lines, areas, markers), editing and deleting, whether notes are kept for the replay. Visibility must be enforced by the server like positions.
+
+### Share link for a game [planned]
+
+- Invite players with a link instead of typing a code: opening it starts the app (or the store/browser) with the join code filled in, so only the name is missing.
+- Open: one link per team or one link with a team choice, link format and domain (deep links need the deployment's domain and app configuration), what happens without the app installed, sharing via the system share sheet.
+
+### Moving the playground square [planned]
+
+- When creating a game, the creator can drag the 6 × 6 grid on the map to fine-tune its position, instead of only placing it by choosing the center.
+- Open: dragging the whole square vs. moving the map under a fixed square, whether it also works with the Apple Maps and Google Maps views and the browser fallback, whether the position can still change after creation (probably not once players joined, since routes depend on the grid).
 
 ### Further ideas
 
@@ -146,7 +151,7 @@ One-off special abilities on top of the periodic reveals. Candidates:
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, their team's join code, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners) and a position (own, hunter teammates always, runner teammates while running, or a revealed runner position with `revealedAt` for hunters). Clients compute countdowns from the server time to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners) and a position (own, hunter teammates always, runner teammates while running, or a revealed runner position with `revealedAt` for hunters). Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
 Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team).
 

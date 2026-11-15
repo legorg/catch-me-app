@@ -19,7 +19,7 @@ const state = {
   playground: created.game.playground,
   playerId: '8899aabbccddeeff0011223344556677',
   team: 'runner',
-  joinCode: '482913',
+  joinCodes: { runner: '482913', hunter: '071564' },
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
   route: { start: 'B1', end: 'E6', regenerationsLeft: 2 },
 };
@@ -128,10 +128,10 @@ test('malformed successful responses are rejected at runtime', async (t) => {
     t.mock.method(globalThis, 'fetch', async () => Response.json(body, { status: 201 }));
     await assert.rejects(createGame(center), /Unexpected game response/);
   }
-  for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCode: 'bad' },
+  for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCodes: { runner: 'bad', hunter: '071564' } }, { ...state, joinCodes: { runner: '482913', hunter: '482913' } }, { ...state, joinCodes: undefined },
     { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null },
     { ...state, route: { start: 'G1', end: 'E6', regenerationsLeft: 2 } }, { ...state, route: { ...state.route, regenerationsLeft: 3 } },
-    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter', joinCode: '071564' },
+    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter' },
     { ...state, nextRevealAt: 'bad' }, { ...state, startPositionCheckDisabled: 'true' },
     { ...state, players: [{ ...state.players[0], position: { latitude: 95, longitude: 0, accuracyMeters: 5, recordedAt: state.serverTime } }] },
     { ...state, players: [{ ...state.players[0], position: { latitude: 0, longitude: 0, accuracyMeters: -1, recordedAt: state.serverTime } }] },

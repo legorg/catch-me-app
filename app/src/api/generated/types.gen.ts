@@ -38,7 +38,7 @@ export type GameResponse = {
 };
 
 export type GameStateResponse = {
-    joinCode: string;
+    joinCodes: JoinCodes;
     /**
      * Next time hunters receive the runners' positions, present while running.
      */

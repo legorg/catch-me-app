@@ -13,7 +13,7 @@ const state: GameStateResponse = {
   playground: previewPlayground({ latitude: 52.52, longitude: 13.405 }),
   playerId: 'a'.repeat(32),
   team: 'runner',
-  joinCode: '482913',
+  joinCodes: { runner: '482913', hunter: '071564' },
   players: [
     { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', ready: true },
     { playerId: 'b'.repeat(32), name: 'Bob', team: 'hunter', ready: true },

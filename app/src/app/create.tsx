@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MAX_NAME_LENGTH, createGame, isValidPlayerName, joinGame, type Coordinates, type CreateGameResponse } from '@/api/client';
 import Button from '@/components/button';
+import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
 import PlaygroundMap from '@/components/playground-map';
@@ -120,20 +121,7 @@ export default function CreateScreen() {
         {busy && <ActivityIndicator color={colors.accent} />}
         {!created && <Button label={t('create.create')} onPress={() => void create()} disabled={busy || cannotCreate} />}
         {created && <>
-          <View style={styles.card}>
-            <Text style={styles.heading}>{t('create.joinCodes')}</Text>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.text}>{t('team.runners')}</Text>
-                <Text selectable style={styles.code}>{created.joinCodes.runner}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.text}>{t('team.hunters')}</Text>
-                <Text selectable style={styles.code}>{created.joinCodes.hunter}</Text>
-              </View>
-            </View>
-            <Text style={styles.hint}>{t('create.codesHint')}</Text>
-          </View>
+          <JoinCodes codes={created.joinCodes} />
           <View style={styles.card}>
             <Text style={styles.heading}>{t('create.joinYourself')}</Text>
             <TextInput

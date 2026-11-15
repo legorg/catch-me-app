@@ -59,7 +59,7 @@ func TestLobbyFlow(t *testing.T) {
 
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "",
 		`{"code":" `+codes.Runner+` ","name":" Ada "}`), 201)
-	if len(runner.PlayerToken) != 64 || runner.State.Team != "runner" || runner.State.JoinCode != codes.Runner ||
+	if len(runner.PlayerToken) != 64 || runner.State.Team != "runner" || runner.State.JoinCodes != codes ||
 		runner.State.Status != "lobby" || runner.State.StartsAt != "" || runner.State.SessionID != created.Game.SessionID ||
 		len(runner.State.Players) != 1 || runner.State.Players[0].Name != "Ada" || runner.State.PlayerID != runner.State.Players[0].PlayerID {
 		t.Fatalf("unexpected join response: %+v", runner)
@@ -82,8 +82,8 @@ func TestLobbyFlow(t *testing.T) {
 	if len(state.Players) != 2 || state.Playground != created.Game.Playground {
 		t.Fatalf("unexpected state: %+v", state)
 	}
-	if strings.Contains(stateRecorder.Body.String(), codes.Hunter) || strings.Contains(stateRecorder.Body.String(), runner.PlayerToken) {
-		t.Fatal("state leaks the other team's code or a token")
+	if state.JoinCodes != codes || strings.Contains(stateRecorder.Body.String(), runner.PlayerToken) {
+		t.Fatal("state must show both join codes and never a token")
 	}
 
 	decode[controller.APIError](t, send(t, handler, "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`), 409)

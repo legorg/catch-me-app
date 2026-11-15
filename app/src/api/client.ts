@@ -9,12 +9,12 @@ import {
   setReady as putReady,
   updatePosition as putPosition,
 } from './generated/sdk.gen';
-import type { CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, Playground } from './generated/types.gen';
+import type { CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Playground } from './generated/types.gen';
 import { translate } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type {
-  Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, PlayerResponse, Playground,
+  Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, PlayerResponse, Playground,
   PositionResponse, RouteResponse,
 } from './generated/types.gen';
 
@@ -59,7 +59,7 @@ export async function createGame(center: { latitude: number; longitude: number }
   const game = isRecord(data) ? data.game : undefined;
   const codes = isRecord(data) ? data.joinCodes : undefined;
   if (!isRecord(game) || !isHex(game.sessionId, 32) || !isDate(game.createdAt) || !isPlayground(game.playground) ||
-      !isRecord(codes) || !isJoinCode(codes.runner) || !isJoinCode(codes.hunter)) {
+      !isJoinCodes(codes)) {
     throw new Error(translate('client.unexpectedGame'));
   }
   return data as CreateGameResponse;
@@ -145,6 +145,10 @@ function isJoinCode(value: unknown): value is string {
   return typeof value === 'string' && JOIN_CODE_PATTERN.test(value);
 }
 
+function isJoinCodes(value: unknown): value is JoinCodes {
+  return isRecord(value) && isJoinCode(value.runner) && isJoinCode(value.hunter) && value.runner !== value.hunter;
+}
+
 function isTeam(value: unknown): value is 'runner' | 'hunter' {
   return value === 'runner' || value === 'hunter';
 }
@@ -186,7 +190,7 @@ function assertGameState(body: unknown): asserts body is GameStateResponse {
       !isDate(body.serverTime) || (body.startsAt !== undefined && !isDate(body.startsAt)) ||
       (body.startPositionCheckDisabled !== undefined && typeof body.startPositionCheckDisabled !== 'boolean') ||
       (body.nextRevealAt !== undefined && !isDate(body.nextRevealAt)) ||
-      !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCode(body.joinCode) ||
+      !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCodes(body.joinCodes) ||
       (body.route !== undefined && (body.team !== 'runner' || !isRoute(body.route))) ||
       !Array.isArray(body.players) || !body.players.every(isPlayer)) {
     throw new Error(translate('client.unexpectedState'));

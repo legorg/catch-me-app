@@ -107,7 +107,7 @@ type GameStateResponse struct {
 	Playground   Playground       `json:"playground"`
 	PlayerID     string           `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 	Team         string           `json:"team" enums:"runner,hunter" example:"runner"`
-	JoinCode     string           `json:"joinCode" minLength:"6" maxLength:"6" example:"482913"`
+	JoinCodes    JoinCodes        `json:"joinCodes"`
 	Players      []PlayerResponse `json:"players"`
 	// The requesting runner's own route; absent for hunters.
 	Route *RouteResponse `json:"route,omitempty"`
