@@ -7,7 +7,7 @@ import { updatePosition } from '@/api/client';
 import Button from '@/components/button';
 import PlaygroundMap, { type CellHighlight, type MapMarker } from '@/components/playground-map';
 import { translateParts, useT } from '@/i18n';
-import { formatDuration, playerMarkers, revealMarkers, secondsUntil } from '@/lobby';
+import { formatDuration, jokerMarkers, playerMarkers, revealMarkers, secondsUntil } from '@/lobby';
 import { cellAt } from '@/playground';
 import { colors, styles } from '@/styles';
 import { goHome, useGameState } from '@/use-game-state';
@@ -19,7 +19,7 @@ const TARGET_COLOR = '#eb5757';
 export default function GameScreen() {
   const t = useT();
   const insets = useSafeAreaInsets();
-  const { token, snapshot, state, now, error, focused, show, fail, running } = useGameState();
+  const { token, snapshot, state, now, error, show, fail, running } = useGameState();
   const [infoOpen, setInfoOpen] = useState(false);
 
   // The game screen only opens when the countdown ends, so this buzzes once at the start.
@@ -41,7 +41,8 @@ export default function GameScreen() {
     if (state && !running) router.replace('/lobby');
   }, [state, running]);
 
-  const location = useLocationSharing(focused && !!token && !!state, true, useCallback(async (fix: Fix) => {
+  // Not tied to focus: the jokers sheet opens over this screen and sharing must not stop meanwhile.
+  const location = useLocationSharing(!!token && !!state, true, useCallback(async (fix: Fix) => {
     if (!token) return;
     try {
       show(await updatePosition(token, fix));
@@ -77,6 +78,7 @@ export default function GameScreen() {
       { id: 'route-stop', coordinate: route.stop.coordinates, title: stopTitle, description: t('lobby.target'), color: TARGET_COLOR },
     ] : []),
     ...revealMarkers(state),
+    ...jokerMarkers(state),
     ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),
   ];
   const permission = location.permission;
@@ -89,17 +91,17 @@ export default function GameScreen() {
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12, paddingLeft: insets.left + 12, paddingRight: insets.right + 12 }]}>
         <View pointerEvents="none" style={overlay.hud}>
-          <Text style={styles.text}>
-            {translateParts('lobby.youAre', {
-              team: <Text key="team" style={styles.heading}>{t(isRunner ? 'team.runner' : 'team.hunter')}</Text>,
-            })}
-            {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
-          </Text>
           {nextReveal !== null && <Text accessibilityLiveRegion="polite" style={styles.heading}>{t('lobby.nextReveal', { time: formatDuration(nextReveal) })}</Text>}
           {myCell === null && <Text style={[styles.heading, styles.error]}>{t('lobby.outside')}</Text>}
         </View>
         <View pointerEvents="box-none" style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'flex-start', gap: 8 }}>
           {infoOpen && <ScrollView style={overlay.info} contentContainerStyle={{ gap: 12 }}>
+            <Text style={styles.text}>
+              {translateParts('lobby.youAre', {
+                team: <Text key="team" style={styles.heading}>{t(isRunner ? 'team.runner' : 'team.hunter')}</Text>,
+              })}
+              {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
+            </Text>
             {nextReveal !== null && <Text style={styles.hint}>{t(isRunner ? 'lobby.revealRunner' : 'lobby.revealHunter')}</Text>}
             {route && isRunner && <Text style={styles.text}>
               {translateParts('lobby.route', {
@@ -135,6 +137,9 @@ export default function GameScreen() {
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Pressable accessibilityRole="button" onPress={goHome} style={overlay.pill}>
               <Text style={styles.secondaryButtonText}>{t('lobby.exit')}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/jokers')} style={overlay.pill}>
+              <Text style={styles.secondaryButtonText}>{t('joker.button')}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityState={{ expanded: infoOpen }} onPress={() => setInfoOpen(!infoOpen)} style={overlay.pill}>
               <Text style={styles.secondaryButtonText}>{infoOpen ? '✕' : 'ⓘ'}</Text>

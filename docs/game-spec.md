@@ -107,11 +107,15 @@ Agreed topics whose rules are still open. Each needs its rules settled here befo
 - Show the stored position history as a replay or chart of everyone's movements. It is only available after the game ended (see position history).
 - Open: what exactly the result shows, replay vs. static track chart, how long it stays reachable (positions are deleted 7 days after the start).
 
-### Jokers [planned]
+### Jokers [first joker implemented]
 
-One-off special abilities on top of the periodic reveals. Candidates:
+One-off special abilities on top of the periodic reveals. A joker belongs to a team: runners, or one hunter team (hunters of the same team share it). The app has a joker sheet (the "Jokers" button on the game screen) listing the team's jokers.
 
-- **Show position:** reveal a player's current position outside the reveal schedule.
+**Show runners** (hunter teams): once per game and hunter team, while the game is running, any hunter of the team can use it. The team then sees where every runner was at that moment (each runner's last report at or before the use). The result stays on the map, in a different color than the reveals, and is visible only to that hunter team; other hunter teams still have their own joker, and runners are not told. The server stores only that the team used it (and when); the positions are derived from the stored position history, like reveals. Using it again is a `409`.
+
+Candidates:
+
+- **Show runners** *(implemented)*: a hunter team sees every runner's position as of now, once per game (see below).
 - **Show a fake position:** a runner makes hunters see a wrong position at the next reveal.
 - **Show only the zone:** a reveal shows only the runner's cell instead of the exact position.
 - **Query a zone:** ask whether any runner is currently inside a chosen cell.
@@ -149,11 +153,12 @@ One-off special abilities on top of the periodic reveals. Candidates:
 | `POST /api/me/route` | Bearer | Regenerate the runner's route. Returns the game state. |
 | `PUT /api/me/hunter-team` | Bearer | Join or create the hunter team `{name}` (hunters, not ready, before the start). Returns the game state. |
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
+| `POST /api/me/jokers` | Bearer | Use the joker `{kind: "showRunners"}` of the player's hunter team (while running, once). Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt`). Runners never get reveals, and hunters never get a live runner position. Clients compute countdowns from the server time to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), the `jokers` of the requester's own team (hunters in a hunter team; each with `available`, and once used `usedAt` and the `positions` it showed; runners have none yet), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt`). Runners never get reveals, and hunters never get a live runner position. Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
-Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team).
+Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team, joker not available: game not running, already used, or not a hunter in a team).
 
 ## Tuning values
 

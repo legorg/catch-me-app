@@ -298,6 +298,48 @@ func TestRevealsKeepEveryReveal(t *testing.T) {
 	}
 }
 
+func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	before, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 4, start.Add(10*time.Second))
+	after, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(70*time.Second))
+	move(t, store, runnerToken, before)
+	usedAt := start.Add(60 * time.Second)
+	use := func(at time.Time) error {
+		_, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), at, func(l *game.Lobby) error {
+			return l.UseJoker(hunter.ID, game.JokerShowRunners, at)
+		})
+		return err
+	}
+	if err := use(usedAt); err != nil {
+		t.Fatal(err)
+	}
+	move(t, store, runnerToken, after)
+
+	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(100*time.Second))
+	if len(lobby.Jokers) != 1 || lobby.Jokers[0].Kind != game.JokerShowRunners || !lobby.Jokers[0].UsedAt.Equal(usedAt) || lobby.Jokers[0].Team != hunter.HunterTeam {
+		t.Fatalf("used joker not stored: %+v", lobby.Jokers)
+	}
+	got := lobby.Jokers[0].Positions
+	if len(got) != 1 || got[0].PlayerID != runner.ID || got[0].Position != before {
+		t.Fatalf("the joker must show where the runner was when it was used, not later: %+v", got)
+	}
+	var rule *game.RuleError
+	if err := use(start.Add(90 * time.Second)); !errors.As(err, &rule) {
+		t.Fatalf("a second use must be refused: %v", err)
+	}
+	if count := load(t, store, saved.JoinCodes.Hunter, start.Add(100*time.Second)); len(count.Jokers) != 1 {
+		t.Fatal("a refused use was saved")
+	}
+}
+
 func TestPositionsOfUnstartedGamesAndLeavingPlayers(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")

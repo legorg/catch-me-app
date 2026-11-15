@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, activateJoker, checkBackend, createGame, getGameState, joinGame, leaveGame, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { previewPlayground } from '../src/playground';
 
@@ -25,6 +25,7 @@ const state = {
   playerId: '8899aabbccddeeff0011223344556677',
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
+  jokers: [],
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
   route,
 };
@@ -132,6 +133,26 @@ test('API errors keep the message and status', async (t) => {
   await assert.rejects(joinGame('482913', 'Ada'), /name is already taken/);
 });
 
+test('using a joker posts its kind with the token and returns the state', async (t) => {
+  const used = {
+    ...state,
+    jokers: [{
+      kind: 'showRunners', available: false, usedAt: '2026-11-08T12:07:00Z',
+      positions: [{ playerId: state.playerId, latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' }],
+    }],
+  };
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.equal(new URL(request.url).pathname, '/api/me/jokers');
+    assert.equal(request.method, 'POST');
+    assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
+    assert.deepEqual(await request.json(), { kind: 'showRunners' });
+    return Response.json(used);
+  });
+  assert.deepEqual(await activateJoker(token, 'showRunners'), used);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'your hunter team already used this joker' }, { status: 409 }));
+  await assert.rejects(activateJoker(token, 'showRunners'), /already used/);
+});
+
 test('malformed successful responses are rejected at runtime', async (t) => {
   for (const body of [null, {}, { ...created, joinCodes: { runner: 'bad', hunter: '071564' } },
     { ...created, game: { ...created.game, sessionId: 'bad' } }, { ...created, game: { ...created.game, route: undefined } },
@@ -149,6 +170,9 @@ test('malformed successful responses are rejected at runtime', async (t) => {
     { ...state, nextRevealAt: 'bad' }, { ...state, startPositionCheckDisabled: 'true' },
     { ...state, players: [{ ...state.players[0], position: { latitude: 95, longitude: 0, accuracyMeters: 5, recordedAt: state.serverTime } }] },
     { ...state, players: [{ ...state.players[0], position: { latitude: 0, longitude: 0, accuracyMeters: -1, recordedAt: state.serverTime } }] },
+    { ...state, jokers: undefined }, { ...state, jokers: [{ kind: 'teleport', available: true }] },
+    { ...state, jokers: [{ kind: 'showRunners', available: 'yes' }] },
+    { ...state, jokers: [{ kind: 'showRunners', available: false, usedAt: 'bad' }] },
     { ...state, team: 'gamemaster' }]) {
     t.mock.method(globalThis, 'fetch', async () => Response.json(body));
     await assert.rejects(getGameState(token), /Unexpected game state/);

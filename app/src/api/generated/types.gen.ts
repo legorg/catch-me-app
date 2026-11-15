@@ -50,6 +50,10 @@ export type ControllerGameRoute = {
 export type ControllerGameStateResponse = {
     joinCodes: ControllerJoinCodes;
     /**
+     * The requesting player's team's jokers; empty for runners (they have none yet) and hunters without a team.
+     */
+    jokers: Array<ControllerJokerResponse>;
+    /**
      * Next time hunters receive the runners' positions, present while running.
      */
     nextRevealAt?: string;
@@ -92,6 +96,30 @@ export type ControllerJoinGameRequest = {
 export type ControllerJoinGameResponse = {
     playerToken: string;
     state: ControllerGameStateResponse;
+};
+
+export type ControllerJokerPositionResponse = {
+    accuracyMeters: number;
+    latitude: number;
+    longitude: number;
+    playerId: string;
+    recordedAt: string;
+};
+
+export type ControllerJokerResponse = {
+    /**
+     * True while the game runs and the team has not used it yet.
+     */
+    available: boolean;
+    kind: 'showRunners';
+    /**
+     * What the joker showed (showRunners: each runner's position at usedAt), once used.
+     */
+    positions?: Array<ControllerJokerPositionResponse>;
+    /**
+     * Set once the team used it.
+     */
+    usedAt?: string;
 };
 
 export type ControllerLandmark = {
@@ -157,6 +185,10 @@ export type ControllerUpdatePositionRequest = {
     accuracyMeters: number;
     latitude: number;
     longitude: number;
+};
+
+export type ControllerUseJokerRequest = {
+    kind: 'showRunners';
 };
 
 export type CreateGameData = {
@@ -322,6 +354,54 @@ export type SetHunterTeamResponses = {
 };
 
 export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamResponses];
+
+export type ActivateJokerData = {
+    /**
+     * The joker to use; each hunter team can use each joker once, while the game runs
+     */
+    body: ControllerUseJokerRequest;
+    path?: never;
+    query?: never;
+    url: '/api/me/jokers';
+};
+
+export type ActivateJokerErrors = {
+    /**
+     * Invalid JSON or unknown joker
+     */
+    400: ControllerApiError;
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a hunter in a team, game not running, or joker already used
+     */
+    409: ControllerApiError;
+    /**
+     * Request body exceeds 1024 bytes
+     */
+    413: ControllerApiError;
+    /**
+     * Could not update game
+     */
+    500: ControllerApiError;
+};
+
+export type ActivateJokerError = ActivateJokerErrors[keyof ActivateJokerErrors];
+
+export type ActivateJokerResponses = {
+    /**
+     * Updated game state, with what the joker showed
+     */
+    200: ControllerGameStateResponse;
+};
+
+export type ActivateJokerResponse = ActivateJokerResponses[keyof ActivateJokerResponses];
 
 export type UpdatePositionData = {
     /**

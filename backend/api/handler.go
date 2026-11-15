@@ -18,6 +18,7 @@ func NewHandler(games *controller.GameController) http.Handler {
 	mux.HandleFunc("/api/me/route", games.RegenerateRoute)
 	mux.HandleFunc("/api/me/hunter-team", games.SetHunterTeam)
 	mux.HandleFunc("/api/me/position", games.UpdatePosition)
+	mux.HandleFunc("/api/me/jokers", games.UseJoker)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		controller.WriteError(w, http.StatusNotFound, "not found")
 	})

@@ -228,6 +228,47 @@ func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) 
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
+// UseJoker spends a joker of the authenticated hunter's team.
+// @Summary Use a joker
+// @ID activateJoker
+// @Accept json
+// @Produce json
+// @Security PlayerToken
+// @Param body body UseJokerRequest true "The joker to use; each hunter team can use each joker once, while the game runs"
+// @Success 200 {object} GameStateResponse "Updated game state, with what the joker showed"
+// @Failure 400 {object} APIError "Invalid JSON or unknown joker"
+// @Failure 401 {object} APIError "Missing or unknown player token"
+// @Failure 405 {object} APIError "Method not allowed"
+// @Failure 409 {object} APIError "Not a hunter in a team, game not running, or joker already used"
+// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
+// @Failure 500 {object} APIError "Could not update game"
+// @Router /api/me/jokers [post]
+func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost) {
+		return
+	}
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	var body UseJokerRequest
+	if !decodeJSON(w, r, &body, "expected a JSON object with kind") {
+		return
+	}
+	kind, err := game.ParseJokerKind(body.Kind)
+	if err != nil {
+		writeGameError(w, err, "invalid joker")
+		return
+	}
+	view, err := c.service.UseJoker(r.Context(), token, kind)
+	if err != nil {
+		writeGameError(w, err, "could not update game")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
 // Leave removes the authenticated player before the game starts.
 // @Summary Leave the game before it starts
 // @ID leaveGame
@@ -282,6 +323,21 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	}
 	if next := g.NextReveal(view.Now); !next.IsZero() {
 		response.NextRevealAt = &next
+	}
+	response.Jokers = make([]JokerResponse, 0)
+	for _, j := range view.Lobby.JokersFor(view.Me, view.Now) {
+		joker := JokerResponse{Kind: string(j.Kind), Available: j.Available}
+		if !j.UsedAt.IsZero() {
+			usedAt := j.UsedAt
+			joker.UsedAt = &usedAt
+		}
+		for _, p := range j.Positions {
+			joker.Positions = append(joker.Positions, JokerPositionResponse{
+				PlayerID: p.PlayerID.String(), Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
+				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt,
+			})
+		}
+		response.Jokers = append(response.Jokers, joker)
 	}
 	if view.Me.Team == game.Runners {
 		route := gameRouteResponse(g.Route)

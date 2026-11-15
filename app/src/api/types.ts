@@ -8,6 +8,8 @@ export type {
   ControllerHealthResponse as HealthResponse,
   ControllerJoinCodes as JoinCodes,
   ControllerJoinGameResponse as JoinGameResponse,
+  ControllerJokerPositionResponse as JokerPositionResponse,
+  ControllerJokerResponse as JokerResponse,
   ControllerLandmark as Landmark,
   ControllerPlayerResponse as PlayerResponse,
   ControllerPlayground as Playground,

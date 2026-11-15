@@ -230,6 +230,78 @@
                 }
             }
         },
+        "/api/me/jokers": {
+            "post": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Use a joker",
+                "operationId": "activateJoker",
+                "parameters": [
+                    {
+                        "description": "The joker to use; each hunter team can use each joker once, while the game runs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.UseJokerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated game state, with what the joker showed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.GameStateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid JSON or unknown joker",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Not a hunter in a team, game not running, or joker already used",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body exceeds 1024 bytes",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/me/position": {
             "put": {
                 "security": [
@@ -664,6 +736,7 @@
             "type": "object",
             "required": [
                 "joinCodes",
+                "jokers",
                 "playerId",
                 "players",
                 "playground",
@@ -675,6 +748,13 @@
             "properties": {
                 "joinCodes": {
                     "$ref": "#/definitions/controller.JoinCodes"
+                },
+                "jokers": {
+                    "description": "The requesting player's team's jokers; empty for runners (they have none yet) and hunters without a team.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controller.JokerResponse"
+                    }
                 },
                 "nextRevealAt": {
                     "description": "Next time hunters receive the runners' positions, present while running.",
@@ -823,6 +903,79 @@
                 },
                 "state": {
                     "$ref": "#/definitions/controller.GameStateResponse"
+                }
+            }
+        },
+        "controller.JokerPositionResponse": {
+            "type": "object",
+            "required": [
+                "accuracyMeters",
+                "latitude",
+                "longitude",
+                "playerId",
+                "recordedAt"
+            ],
+            "properties": {
+                "accuracyMeters": {
+                    "type": "number",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "example": 8
+                },
+                "latitude": {
+                    "type": "number",
+                    "maximum": 80,
+                    "minimum": -80,
+                    "example": 52.52
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 13.405
+                },
+                "playerId": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 32,
+                    "example": "8899aabbccddeeff0011223344556677"
+                },
+                "recordedAt": {
+                    "type": "string",
+                    "example": "2026-11-08T12:04:58Z"
+                }
+            }
+        },
+        "controller.JokerResponse": {
+            "type": "object",
+            "required": [
+                "available",
+                "kind"
+            ],
+            "properties": {
+                "available": {
+                    "description": "True while the game runs and the team has not used it yet.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "showRunners"
+                    ],
+                    "example": "showRunners"
+                },
+                "positions": {
+                    "description": "What the joker showed (showRunners: each runner's position at usedAt), once used.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controller.JokerPositionResponse"
+                    }
+                },
+                "usedAt": {
+                    "description": "Set once the team used it.",
+                    "type": "string",
+                    "example": "2026-11-08T12:07:00Z"
                 }
             }
         },
@@ -1060,6 +1213,21 @@
                     "maximum": 180,
                     "minimum": -180,
                     "example": 13.405
+                }
+            }
+        },
+        "controller.UseJokerRequest": {
+            "type": "object",
+            "required": [
+                "kind"
+            ],
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "showRunners"
+                    ],
+                    "example": "showRunners"
                 }
             }
         }

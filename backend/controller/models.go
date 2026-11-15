@@ -116,6 +116,29 @@ type UpdatePositionRequest struct {
 	AccuracyMeters *float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"required,gte=0,lte=10000"`
 }
 
+type UseJokerRequest struct {
+	Kind string `json:"kind" enums:"showRunners" example:"showRunners" validate:"required,oneof=showRunners"`
+}
+
+// JokerResponse is one joker of the requesting player's team.
+type JokerResponse struct {
+	Kind string `json:"kind" enums:"showRunners" example:"showRunners" validate:"required,oneof=showRunners"`
+	// True while the game runs and the team has not used it yet.
+	Available bool `json:"available" example:"true"`
+	// Set once the team used it.
+	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z" validate:"omitempty"`
+	// What the joker showed (showRunners: each runner's position at usedAt), once used.
+	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,dive"`
+}
+
+type JokerPositionResponse struct {
+	PlayerID       string    `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
+	Latitude       float64   `json:"latitude" example:"52.52" validate:"gte=-80,lte=80"`
+	Longitude      float64   `json:"longitude" example:"13.405" validate:"gte=-180,lte=180"`
+	AccuracyMeters float64   `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"gte=0,lte=10000"`
+	RecordedAt     time.Time `json:"recordedAt" example:"2026-11-08T12:04:58Z" validate:"required"`
+}
+
 // GameStateResponse is the game as seen by the requesting player.
 type GameStateResponse struct {
 	// Explicit server-side development override; absent during normal play.
@@ -132,6 +155,8 @@ type GameStateResponse struct {
 	Team         string           `json:"team" enums:"runner,hunter" example:"runner" validate:"required,oneof=runner hunter"`
 	JoinCodes    JoinCodes        `json:"joinCodes"`
 	Players      []PlayerResponse `json:"players" validate:"dive"`
+	// The requesting player's team's jokers; empty for runners (they have none yet) and hunters without a team.
+	Jokers []JokerResponse `json:"jokers" validate:"dive"`
 	// The game's route between two landmarks; only runners get it, hunters have to find them.
 	Route *GameRoute `json:"route,omitempty"`
 }

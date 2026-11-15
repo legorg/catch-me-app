@@ -126,5 +126,19 @@
   "lobby.leave": "Leave",
   "lobby.exit": "Exit to home",
   "lobby.countdownTitle": "Game starts in",
-  "lobby.countdownHint": "Get to your position. Anyone who un-readies or leaves cancels the countdown."
+  "lobby.countdownHint": "Get to your position. Anyone who un-readies or leaves cancels the countdown.",
+  "joker.button": "Jokers",
+  "joker.title": "Jokers",
+  "joker.close": "Close",
+  "joker.none": "Your team has no jokers.",
+  "joker.showRunners.title": "Show runners",
+  "joker.showRunners.text": "Once per game, your hunter team sees where every runner is right now. The positions stay on the map.",
+  "joker.use": "Use joker",
+  "joker.confirm": "Use it now? Each hunter team can do this only once.",
+  "joker.confirmYes": "Yes, use it",
+  "joker.cancel": "Cancel",
+  "joker.usedAt": "Used at {time}",
+  "joker.waitForStart": "Available once the game is running.",
+  "joker.noPositions": "No runner had reported a position yet.",
+  "joker.marker": "Joker · {time}"
 }

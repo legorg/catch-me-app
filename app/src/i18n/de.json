@@ -126,5 +126,19 @@
   "lobby.leave": "Verlassen",
   "lobby.exit": "Zur Startseite",
   "lobby.countdownTitle": "Spiel startet in",
-  "lobby.countdownHint": "Geh auf deine Position. Wer „Nicht bereit“ wählt oder geht, bricht den Countdown ab."
+  "lobby.countdownHint": "Geh auf deine Position. Wer „Nicht bereit“ wählt oder geht, bricht den Countdown ab.",
+  "joker.button": "Joker",
+  "joker.title": "Joker",
+  "joker.close": "Schließen",
+  "joker.none": "Dein Team hat keine Joker.",
+  "joker.showRunners.title": "Läufer zeigen",
+  "joker.showRunners.text": "Einmal pro Spiel sieht dein Jäger-Team, wo jeder Läufer gerade ist. Die Positionen bleiben auf der Karte.",
+  "joker.use": "Joker einsetzen",
+  "joker.confirm": "Jetzt einsetzen? Jedes Jäger-Team kann das nur einmal.",
+  "joker.confirmYes": "Ja, einsetzen",
+  "joker.cancel": "Abbrechen",
+  "joker.usedAt": "Eingesetzt um {time}",
+  "joker.waitForStart": "Verfügbar, sobald das Spiel läuft.",
+  "joker.noPositions": "Noch kein Läufer hat eine Position gemeldet.",
+  "joker.marker": "Joker · {time}"
 }

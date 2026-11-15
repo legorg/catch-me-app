@@ -1,4 +1,5 @@
 import {
+  activateJoker as postJoker,
   createGame as postGame,
   getGameState as fetchGameState,
   getHealth,
@@ -14,8 +15,8 @@ import { translate } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type {
-  Coordinates, CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Landmark,
-  PlayerResponse, Playground, PositionResponse,
+  Coordinates, CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerPositionResponse,
+  JokerResponse, Landmark, PlayerResponse, Playground, PositionResponse,
 } from './types';
 
 export const API_URL = (
@@ -114,6 +115,15 @@ export async function setHunterTeam(token: string, name: string): Promise<GameSt
   return data;
 }
 
+export type JokerKind = 'showRunners';
+
+/** Spends a joker of the player's hunter team (once per game, while it runs). */
+export async function activateJoker(token: string, kind: JokerKind): Promise<GameStateResponse> {
+  const data = await request((signal) => postJoker({ baseUrl: API_URL, auth: bearer(token), body: { kind }, signal }));
+  assertGameState(data);
+  return data;
+}
+
 export async function updatePosition(
   token: string, position: { latitude: number; longitude: number; accuracyMeters: number },
 ): Promise<GameStateResponse> {
@@ -176,6 +186,12 @@ function isReveal(value: unknown): boolean {
   return isPosition(value) && isDate((value as Record<string, unknown>).revealedAt);
 }
 
+function isJoker(j: unknown): boolean {
+  return isRecord(j) && j.kind === 'showRunners' && typeof j.available === 'boolean' &&
+    (j.usedAt === undefined || isDate(j.usedAt)) &&
+    (j.positions === undefined || (Array.isArray(j.positions) && j.positions.every((p) => isRecord(p) && isHex(p.playerId, 32) && isPosition(p))));
+}
+
 function isPlayer(p: unknown): boolean {
   return isRecord(p) && isHex(p.playerId, 32) && typeof p.name === 'string' && isTeam(p.team) &&
     (p.hunterTeam === undefined || (p.team === 'hunter' && typeof p.hunterTeam === 'string')) &&
@@ -204,7 +220,8 @@ function assertGameState(body: unknown): asserts body is GameStateResponse {
       !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCodes(body.joinCodes) ||
       // Only runners get the route; hunters must not.
       (body.team === 'runner' ? !isGameRoute(body.route) : body.route !== undefined) ||
-      !Array.isArray(body.players) || !body.players.every(isPlayer)) {
+      !Array.isArray(body.players) || !body.players.every(isPlayer) ||
+      !Array.isArray(body.jokers) || !body.jokers.every(isJoker)) {
     throw new Error(translate('client.unexpectedState'));
   }
 }

@@ -190,3 +190,27 @@ func TestLobbyErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
+	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
+	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
+	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Hunter+`","name":"Bob"}`), 201)
+	body := `{"kind":"showRunners"}`
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", "", body), 401)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"teleport"}`), 400)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, body), 409)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, body), 409)
+	decode[controller.APIError](t, send(t, handler, "GET", "/api/me/jokers", hunter.PlayerToken, ""), 405)
+	for _, token := range []string{runner.PlayerToken, hunter.PlayerToken} {
+		state := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", token, ""), 200)
+		if state.Jokers == nil || len(state.Jokers) != 0 {
+			t.Fatalf("a player without a hunter team has no jokers: %+v", state.Jokers)
+		}
+	}
+	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
+	state := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
+	if len(state.Jokers) != 1 || state.Jokers[0].Kind != "showRunners" || state.Jokers[0].Available || state.Jokers[0].UsedAt != nil {
+		t.Fatalf("a hunter team has the joker, unavailable before the game runs: %+v", state.Jokers)
+	}
+}

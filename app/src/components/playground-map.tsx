@@ -11,6 +11,11 @@ import { DEFAULT_CENTER, boundaryCoordinates, cellBounds, cellLabels, gridLines 
 // Apple Maps centers the pin on the coordinate; lift it by half its height so the tip lands there. Google Maps already does.
 const PIN_OFFSET = Platform.OS === 'ios' ? { x: 0, y: -20 } : undefined;
 
+// A numbered pin is 40 high with its tip at the bottom. iOS works out `anchor` from the view size before the view
+// is laid out, which leaves the tip too low, so it gets an explicit offset (half the height) instead.
+const NUMBERED_PIN_ANCHOR = Platform.OS === 'ios' ? undefined : { x: 0.5, y: 1 };
+const NUMBERED_PIN_OFFSET = Platform.OS === 'ios' ? { x: 0, y: -20 } : undefined;
+
 export type CellHighlight = { cell: string; title: string; color: string };
 
 export type MapMarker = {
@@ -19,8 +24,8 @@ export type MapMarker = {
   title: string;
   description: string;
   color: string;
-  /** 0 to 1, default 1. */
-  opacity?: number;
+  /** A number or short text shown inside the pin. */
+  label?: string;
 };
 
 export type PlaygroundMapProps = {
@@ -145,12 +150,19 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
             </Marker>
           ))}
         </>}
-        {markers.map(({ id, coordinate, title, description, color, opacity }) => (
-          // The marker opacity prop is unreliable on the native pin, so a fading marker is a dot view whose own opacity is drawn into it.
-          opacity === undefined
+        {markers.map(({ id, coordinate, title, description, color, label }) => (
+          // The native pin cannot hold text, so a numbered marker is drawn: a round head with the number and a pointed tail.
+          label === undefined
             ? <Marker key={id} coordinate={coordinate} title={title} description={description} pinColor={color} centerOffset={PIN_OFFSET} />
-            : <Marker key={`${id}-${opacity}`} coordinate={coordinate} title={title} description={description} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-              <View style={[styles.dot, { backgroundColor: color, opacity }]} />
+            : <Marker key={`${id}-${label}`} coordinate={coordinate} title={title} description={description} anchor={NUMBERED_PIN_ANCHOR} centerOffset={NUMBERED_PIN_OFFSET} tracksViewChanges={false}>
+              <View style={styles.numberedPin}>
+                {/* White triangle behind, colored one in front and over the head's border: together a bordered tail. */}
+                <View style={styles.pinTailBorder} />
+                <View style={[styles.pinHead, { backgroundColor: color }]}>
+                  <Text style={styles.pinNumber}>{label}</Text>
+                </View>
+                <View style={[styles.pinTail, { borderTopColor: color }]} />
+              </View>
             </Marker>
         ))}
       </MapView>
@@ -179,6 +191,10 @@ const styles = StyleSheet.create({
   locateButton: { backgroundColor: '#ffffff', borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   locating: { opacity: 0.6 },
   locateError: { color: '#ffffff', backgroundColor: '#eb5757', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12 },
-  dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#ffffff' },
+  numberedPin: { width: 32, height: 40 },
+  pinHead: { position: 'absolute', top: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  pinTailBorder: { position: 'absolute', top: 26, left: 8, width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#ffffff' },
+  pinTail: { position: 'absolute', top: 28, left: 11, width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 10, borderLeftColor: 'transparent', borderRightColor: 'transparent' },
+  pinNumber: { fontSize: 14, fontWeight: '800', color: '#ffffff' },
   label: { fontSize: 11, color: '#10251c', backgroundColor: '#ffffff', padding: 2, borderRadius: 3, fontWeight: '700' },
 });

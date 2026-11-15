@@ -40,6 +40,8 @@ type Lobby struct {
 	// time (Game.RevealTimes) the runner's last report before it. Derived when
 	// loading; times before the runner's first report have no reveal.
 	Reveals map[PlayerID][]Reveal
+	// Jokers are the jokers hunter teams used, in order of use.
+	Jokers []JokerUse
 }
 
 func (l Lobby) index(id PlayerID) int {

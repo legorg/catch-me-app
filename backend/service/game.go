@@ -158,6 +158,13 @@ func (s *GameService) SetHunterTeam(ctx context.Context, token game.PlayerToken,
 	})
 }
 
+// UseJoker spends a joker of the player's team.
+func (s *GameService) UseJoker(ctx context.Context, token game.PlayerToken, kind game.JokerKind) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.UseJoker(me.ID, kind, now)
+	})
+}
+
 // UpdatePosition stores the player's latest location, timestamped with server time.
 func (s *GameService) UpdatePosition(ctx context.Context, token game.PlayerToken, coordinates game.Coordinates, accuracyMeters float64) (PlayerView, error) {
 	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {

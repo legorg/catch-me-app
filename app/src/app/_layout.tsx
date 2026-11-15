@@ -35,6 +35,11 @@ export default function RootLayout() {
       <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
       {/* The map fills the screen under its own overlay, so no header; leaving goes through the exit button. */}
       <Stack.Screen name="game" options={{ headerShown: false, gestureEnabled: false, statusBarStyle: 'dark' }} />
+      {/* A native sheet over the game screen: it brings its own slide, backdrop dimming and drag to dismiss. */}
+      <Stack.Screen name="jokers" options={{
+        presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [0.55, 1], sheetGrabberVisible: true,
+        contentStyle: { backgroundColor: colors.background },
+      }} />
     </Stack>
   );
 }

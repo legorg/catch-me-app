@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateResponse } from '../src/api/client';
-import { MARKER_COLORS, formatDuration, hunterTeams, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart } from '../src/lobby';
+import { MARKER_COLORS, formatDuration, hunterTeams, jokerMarkers, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart } from '../src/lobby';
 import { previewPlayground } from '../src/playground';
 
 const state: GameStateResponse = {
@@ -14,6 +14,7 @@ const state: GameStateResponse = {
   playerId: 'a'.repeat(32),
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
+  jokers: [],
   players: [
     { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', ready: true },
     { playerId: 'b'.repeat(32), name: 'Bob', team: 'hunter', ready: true },
@@ -77,18 +78,34 @@ test('markers cover only live positions the server sent, colored by kind', () =>
   assert.match(markers[0].description, /±8 m/);
 });
 
-test('every reveal is a marker, the newest opaque and older ones fading', () => {
+test('every reveal is a numbered marker per runner, oldest first', () => {
   const at = (n: number) => `2026-11-08T12:0${n}:00Z`;
   const reveal = (n: number) => ({ latitude: 50 + n, longitude: 6, accuracyMeters: 5, recordedAt: at(n), revealedAt: at(n + 1) });
   const markers = revealMarkers({
     ...state,
-    players: [{ ...state.players[0], reveals: [reveal(1), reveal(2), reveal(3), reveal(4)] }, state.players[2]],
+    players: [
+      { ...state.players[0], reveals: [reveal(1), reveal(2), reveal(3)] },
+      { ...state.players[2], reveals: [reveal(4), reveal(5)] },
+    ],
   });
-  assert.deepEqual(markers.map((m) => m.coordinate.latitude), [51, 52, 53, 54]);
-  assert.equal(markers[3].opacity, 1);
-  assert.ok(markers[0].opacity < markers[1].opacity && markers[1].opacity < markers[2].opacity && markers[2].opacity < markers[3].opacity);
-  assert.ok(markers.every((m) => m.opacity > 0 && m.color === MARKER_COLORS.revealed));
-  assert.equal(new Set(markers.map((m) => m.id)).size, 4);
-  assert.match(markers[3].description, /Revealed at/);
+  assert.deepEqual(markers.map((m) => m.coordinate.latitude), [51, 52, 53, 54, 55]);
+  assert.deepEqual(markers.map((m) => m.label), ['1', '2', '3', '1', '2']);
+  assert.ok(markers.every((m) => m.color === MARKER_COLORS.revealed));
+  assert.equal(new Set(markers.map((m) => m.id)).size, 5);
+  assert.match(markers[2].description, /Revealed at/);
   assert.deepEqual(revealMarkers(state), []);
+});
+
+test('a used joker becomes one marker per runner it showed', () => {
+  const position = (playerId: string, latitude: number) => ({ playerId, latitude, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' });
+  const markers = jokerMarkers({
+    ...state,
+    jokers: [{ kind: 'showRunners', available: false, usedAt: '2026-11-08T12:07:00Z', positions: [position(state.players[0].playerId, 52.5), position(state.players[2].playerId, 52.6)] }],
+  });
+  assert.deepEqual(markers.map((m) => [m.title, m.coordinate.latitude, m.color]), [
+    ['Ada', 52.5, MARKER_COLORS.joker],
+    ['Cy', 52.6, MARKER_COLORS.joker],
+  ]);
+  assert.match(markers[0].description, /Joker/);
+  assert.deepEqual(jokerMarkers({ ...state, jokers: [{ kind: 'showRunners', available: true }] }), []);
 });
