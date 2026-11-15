@@ -8,11 +8,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.catchme.app",
+      "bundleIdentifier": "com.catch-me-app",
       "supportsTablet": true
     },
     "android": {
-      "package": "com.catchme.app",
+      "package": "com.catch-me-app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
