@@ -133,6 +133,18 @@ func TestRevealSchedule(t *testing.T) {
 	}
 }
 
+func TestRevealTimes(t *testing.T) {
+	l, _, _, _ := runningLobby(t)
+	began := l.Game.StartsAt
+	if len(l.Game.RevealTimes(began.Add(RevealInterval-time.Second))) != 0 || len(l.Game.RevealTimes(began.Add(-time.Second))) != 0 {
+		t.Fatal("no reveals before the first one")
+	}
+	times := l.Game.RevealTimes(began.Add(3*RevealInterval + time.Second))
+	if len(times) != 3 || times[0] != began.Add(RevealInterval) || times[2] != l.Game.LatestReveal(began.Add(3*RevealInterval+time.Second)) {
+		t.Fatalf("all reveal times, oldest first, expected: %v", times)
+	}
+}
+
 func TestVisibility(t *testing.T) {
 	l, runner, mate, hunter := runningLobby(t)
 	lobbyTime := start.Add(time.Second)
@@ -166,10 +178,22 @@ func TestVisibility(t *testing.T) {
 		t.Fatal("hunters see no runner positions or routes before a reveal")
 	}
 	revealed := l.Game.StartsAt.Add(RevealInterval)
-	r := &l.Players[l.index(runner.ID)]
-	r.Reveal = Reveal{Position: r.Position, At: revealed}
+	r := l.Players[l.index(runner.ID)]
+	earlier := Reveal{Position: r.Position, At: revealed.Add(-RevealInterval)}
+	latest := Reveal{Position: r.Position, At: revealed}
+	l.Reveals = map[PlayerID][]Reveal{runner.ID: {earlier, latest}}
 	v := find(l.VisibleTo(h, revealed), runner.ID)
-	if v.Position.IsZero() || v.RevealedAt != revealed || !v.Route.IsZero() {
-		t.Fatalf("hunter must see the revealed position: %+v", v)
+	if len(v.Reveals) != 2 || v.Reveals[0] != earlier || v.Reveals[1] != latest || !v.Position.IsZero() || !v.Route.IsZero() {
+		t.Fatalf("hunter must see every reveal, not the live position: %+v", v)
+	}
+	// Reveals reach hunters only, and only for runners.
+	if got := find(l.VisibleTo(me, revealed), runner.ID).Reveals; len(got) != 0 {
+		t.Fatalf("runners must not see reveals: %+v", got)
+	}
+	if got := find(l.VisibleTo(h, revealed), hunter.ID).Reveals; len(got) != 0 {
+		t.Fatalf("hunters have no reveals: %+v", got)
+	}
+	if got := find(l.VisibleTo(h, lobbyTime), runner.ID).Reveals; len(got) != 0 {
+		t.Fatalf("no reveals before the game runs: %+v", got)
 	}
 }

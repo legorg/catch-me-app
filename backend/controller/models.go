@@ -86,10 +86,20 @@ type PlayerResponse struct {
 	// Present for hunters who have chosen a hunter team.
 	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves" validate:"omitempty,max=20"`
 	Ready      bool   `json:"ready" example:"false"`
-	// Own position always; hunter teammates' positions always; runner
-	// teammates' positions while running; runners' revealed positions for
-	// hunters while running.
+	// Live position: own always; hunter teammates' always; runner teammates'
+	// while running. Hunters see runners through reveals instead.
 	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
+	// Hunters only, for runners while running: every reveal so far, oldest first.
+	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,dive"`
+}
+
+// RevealResponse is where a runner was at a reveal time.
+type RevealResponse struct {
+	Latitude       float64   `json:"latitude" example:"52.52" validate:"gte=-80,lte=80"`
+	Longitude      float64   `json:"longitude" example:"13.405" validate:"gte=-180,lte=180"`
+	AccuracyMeters float64   `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"gte=0,lte=10000"`
+	RecordedAt     time.Time `json:"recordedAt" example:"2026-11-08T12:04:58Z" validate:"required"`
+	RevealedAt     time.Time `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
 }
 
 type PositionResponse struct {
@@ -97,8 +107,6 @@ type PositionResponse struct {
 	Longitude      float64   `json:"longitude" example:"13.405" validate:"gte=-180,lte=180"`
 	AccuracyMeters float64   `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"gte=0,lte=10000"`
 	RecordedAt     time.Time `json:"recordedAt" example:"2026-11-08T12:04:58Z" validate:"required"`
-	// Set when this is a runner position revealed to hunters.
-	RevealedAt *time.Time `json:"revealedAt,omitempty" example:"2026-11-08T12:05:00Z" validate:"omitempty"`
 }
 
 // Pointer fields distinguish missing values from zero.

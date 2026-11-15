@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateResponse } from '../src/api/client';
-import { MARKER_COLORS, formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart } from '../src/lobby';
+import { MARKER_COLORS, formatDuration, hunterTeams, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart } from '../src/lobby';
 import { previewPlayground } from '../src/playground';
 
 const state: GameStateResponse = {
@@ -60,20 +60,35 @@ test('reveal countdown and duration formatting', () => {
   assert.equal(formatDuration(9), '0:09');
 });
 
-test('markers cover only positions the server sent, colored by kind', () => {
+test('markers cover only live positions the server sent, colored by kind', () => {
   const at = '2026-11-08T12:00:00Z';
   const markers = playerMarkers({
     ...state,
     players: [
       { ...state.players[0], position: { latitude: 52.5, longitude: 13.4, accuracyMeters: 7.6, recordedAt: at } },
       { ...state.players[1] },
-      { ...state.players[2], position: { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: at, revealedAt: at } },
+      { ...state.players[2], position: { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: at } },
     ],
   });
   assert.deepEqual(markers.map((m) => [m.title, m.color]), [
     ['Ada (you)', MARKER_COLORS.me],
-    ['Cy', MARKER_COLORS.revealed],
+    ['Cy', MARKER_COLORS.teammate],
   ]);
   assert.match(markers[0].description, /±8 m/);
-  assert.match(markers[1].description, /Revealed at/);
+});
+
+test('every reveal is a marker, the newest opaque and older ones fading', () => {
+  const at = (n: number) => `2026-11-08T12:0${n}:00Z`;
+  const reveal = (n: number) => ({ latitude: 50 + n, longitude: 6, accuracyMeters: 5, recordedAt: at(n), revealedAt: at(n + 1) });
+  const markers = revealMarkers({
+    ...state,
+    players: [{ ...state.players[0], reveals: [reveal(1), reveal(2), reveal(3), reveal(4)] }, state.players[2]],
+  });
+  assert.deepEqual(markers.map((m) => m.coordinate.latitude), [51, 52, 53, 54]);
+  assert.equal(markers[3].opacity, 1);
+  assert.ok(markers[0].opacity < markers[1].opacity && markers[1].opacity < markers[2].opacity && markers[2].opacity < markers[3].opacity);
+  assert.ok(markers.every((m) => m.opacity > 0 && m.color === MARKER_COLORS.revealed));
+  assert.equal(new Set(markers.map((m) => m.id)).size, 4);
+  assert.match(markers[3].description, /Revealed at/);
+  assert.deepEqual(revealMarkers(state), []);
 });

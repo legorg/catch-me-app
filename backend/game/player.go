@@ -160,9 +160,7 @@ type Player struct {
 	// HunterTeam is zero for runners and for hunters who have not chosen one.
 	HunterTeam HunterTeamName
 	// Zero values mean "none": hunters have no route; Position is the latest
-	// report. Reveal is what hunters see of a runner: their last report before
-	// the latest reveal time (Game.LatestReveal), derived when loading.
+	// report. Reveals live on the Lobby.
 	Route    RunnerRoute
 	Position Position
-	Reveal   Reveal
 }

@@ -42,21 +42,47 @@ export type PlayerMarker = {
   color: string;
 };
 
-/** Map markers for every position the server allowed this player to see. */
+/** Map markers for every live position the server allowed this player to see. */
 export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
   return state.players.flatMap((p) => {
     if (!p.position) return [];
-    const { latitude, longitude, accuracyMeters, recordedAt, revealedAt } = p.position;
+    const { latitude, longitude, accuracyMeters, recordedAt } = p.position;
     const me = p.playerId === state.playerId;
-    const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit' });
     return [{
       id: p.playerId,
       coordinate: { latitude, longitude },
       title: me ? translate('common.you', { name: p.name }) : p.name,
-      description: revealedAt
-        ? translate('marker.revealedAt', { time: time(revealedAt) })
-        : translate('marker.accuracy', { meters: Math.round(accuracyMeters), time: time(recordedAt) }),
-      color: me ? MARKER_COLORS.me : revealedAt ? MARKER_COLORS.revealed : MARKER_COLORS.teammate,
+      description: translate('marker.accuracy', { meters: Math.round(accuracyMeters), time: clockTime(recordedAt) }),
+      color: me ? MARKER_COLORS.me : MARKER_COLORS.teammate,
     }];
   });
+}
+
+const OLDEST_REVEAL_OPACITY = 0.15;
+const REVEAL_FADE_STEP = 0.15;
+const PREVIOUS_REVEAL_OPACITY = 0.7;
+
+/**
+ * Markers for every reveal the server sent (hunters only), oldest first from the server.
+ * The newest reveal of a runner is opaque; each older one fades further.
+ */
+export function revealMarkers(state: GameStateResponse): (PlayerMarker & { opacity: number })[] {
+  return state.players.flatMap((p) => {
+    const reveals = p.reveals ?? [];
+    return reveals.map((reveal, index) => {
+      const age = reveals.length - 1 - index;
+      return {
+        id: `reveal-${p.playerId}-${reveal.revealedAt}`,
+        coordinate: { latitude: reveal.latitude, longitude: reveal.longitude },
+        title: p.name,
+        description: translate('marker.revealedAt', { time: clockTime(reveal.revealedAt, true) }),
+        color: MARKER_COLORS.revealed,
+        opacity: age === 0 ? 1 : Math.max(OLDEST_REVEAL_OPACITY, PREVIOUS_REVEAL_OPACITY - (age - 1) * REVEAL_FADE_STEP),
+      };
+    });
+  });
+}
+
+function clockTime(iso: string, seconds = false): string {
+  return new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: seconds ? '2-digit' : undefined });
 }

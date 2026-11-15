@@ -872,7 +872,7 @@
                     "example": "8899aabbccddeeff0011223344556677"
                 },
                 "position": {
-                    "description": "Own position always; hunter teammates' positions always; runner\nteammates' positions while running; runners' revealed positions for\nhunters while running.",
+                    "description": "Live position: own always; hunter teammates' always; runner teammates'\nwhile running. Hunters see runners through reveals instead.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/controller.PositionResponse"
@@ -882,6 +882,13 @@
                 "ready": {
                     "type": "boolean",
                     "example": false
+                },
+                "reveals": {
+                    "description": "Hunters only, for runners while running: every reveal so far, oldest first.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controller.RevealResponse"
+                    }
                 },
                 "team": {
                     "type": "string",
@@ -961,9 +968,42 @@
                 "recordedAt": {
                     "type": "string",
                     "example": "2026-11-08T12:04:58Z"
+                }
+            }
+        },
+        "controller.RevealResponse": {
+            "type": "object",
+            "required": [
+                "accuracyMeters",
+                "latitude",
+                "longitude",
+                "recordedAt",
+                "revealedAt"
+            ],
+            "properties": {
+                "accuracyMeters": {
+                    "type": "number",
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "example": 8
+                },
+                "latitude": {
+                    "type": "number",
+                    "maximum": 80,
+                    "minimum": -80,
+                    "example": 52.52
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 13.405
+                },
+                "recordedAt": {
+                    "type": "string",
+                    "example": "2026-11-08T12:04:58Z"
                 },
                 "revealedAt": {
-                    "description": "Set when this is a runner position revealed to hunters.",
                     "type": "string",
                     "example": "2026-11-08T12:05:00Z"
                 }

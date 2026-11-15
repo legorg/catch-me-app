@@ -236,19 +236,22 @@ func TestPositionsAndReveals(t *testing.T) {
 	first, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 12.5, reveal.Add(-time.Second))
 	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal)
 	move(t, store, token, first)
-	if got := load(t, store, saved.JoinCodes.Runner, reveal.Add(-time.Second)).Players[0]; got.Position != first || !got.Reveal.IsZero() {
-		t.Fatalf("no reveal before the first reveal time: %+v", got)
+	if before := load(t, store, saved.JoinCodes.Runner, reveal.Add(-time.Second)); before.Players[0].Position != first || len(before.Reveals) != 0 {
+		t.Fatalf("no reveal before the first reveal time: %+v %+v", before.Players[0], before.Reveals)
 	}
 	move(t, store, token, second)
 	// A reveal shows the last position strictly before the reveal time.
-	players := load(t, store, saved.JoinCodes.Runner, reveal.Add(time.Minute)).Players
-	if got := players[0]; got.Position != second || got.Reveal != (game.Reveal{Position: first, At: reveal}) {
-		t.Fatalf("latest position or reveal wrong: %+v %+v", got.Position, got.Reveal)
+	lobby := load(t, store, saved.JoinCodes.Runner, reveal.Add(game.RevealInterval/2))
+	if got := lobby.Players[0]; got.Position != second {
+		t.Fatalf("latest position wrong: %+v", got.Position)
 	}
-	if got := players[1]; !got.Position.IsZero() || !got.Reveal.IsZero() {
-		t.Fatalf("hunter without positions got one: %+v", got)
+	if got := lobby.Reveals[runner.ID]; len(got) != 1 || got[0] != (game.Reveal{Position: first, At: reveal}) {
+		t.Fatalf("reveal wrong: %+v", got)
 	}
-	if got := load(t, store, saved.JoinCodes.Runner, reveal.Add(game.RevealInterval)).Players[0].Reveal; got.Position != second {
+	if got := lobby.Players[1]; !got.Position.IsZero() || len(lobby.Reveals) != 1 {
+		t.Fatalf("hunter without positions got one: %+v %+v", got, lobby.Reveals)
+	}
+	if got := load(t, store, saved.JoinCodes.Runner, reveal.Add(game.RevealInterval)).Reveals[runner.ID]; len(got) != 2 || got[1].Position != second {
 		t.Fatalf("second reveal missing: %+v", got)
 	}
 
@@ -261,6 +264,37 @@ func TestPositionsAndReveals(t *testing.T) {
 	}
 	if err := store.DeletePositionsBefore(ctx, start.Add(time.Nanosecond)); err != nil || count(t, store) != 0 {
 		t.Fatalf("expired positions kept: %v", err)
+	}
+}
+
+func TestRevealsKeepEveryReveal(t *testing.T) {
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	// Joining reports a first position at `now`.
+	runner, token := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	reveal := func(n time.Duration) time.Time { return start.Add(n * game.RevealInterval) }
+	first, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 4, reveal(1).Add(time.Second))
+	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal(3).Add(-time.Second))
+	move(t, store, token, first)
+	move(t, store, token, second)
+
+	lobby := load(t, store, saved.JoinCodes.Runner, reveal(3).Add(time.Second))
+	// Reveal 1 shows the position from joining, reveal 2 the first report (nothing new before reveal 2), reveal 3 the second.
+	all := lobby.Reveals[runner.ID]
+	if len(all) != 3 || all[0].At != reveal(1) || all[0].Position.RecordedAt != now ||
+		all[1].At != reveal(2) || all[1].Position != first || all[2].At != reveal(3) || all[2].Position != second {
+		t.Fatalf("reveals wrong: %+v", all)
+	}
+	if len(lobby.Reveals) != 1 {
+		t.Fatalf("only the runner has reveals: %+v", lobby.Reveals)
+	}
+	if first := load(t, store, saved.JoinCodes.Runner, reveal(1).Add(time.Second)); len(first.Reveals[runner.ID]) != 1 {
+		t.Fatal("exactly the first reveal expected")
 	}
 }
 

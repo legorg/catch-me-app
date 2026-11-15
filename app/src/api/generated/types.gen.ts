@@ -110,12 +110,15 @@ export type ControllerPlayerResponse = {
     name: string;
     playerId: string;
     /**
-     * Own position always; hunter teammates' positions always; runner
-     * teammates' positions while running; runners' revealed positions for
-     * hunters while running.
+     * Live position: own always; hunter teammates' always; runner teammates'
+     * while running. Hunters see runners through reveals instead.
      */
     position?: ControllerPositionResponse;
     ready: boolean;
+    /**
+     * Hunters only, for runners while running: every reveal so far, oldest first.
+     */
+    reveals?: Array<ControllerRevealResponse>;
     team: 'runner' | 'hunter';
 };
 
@@ -132,10 +135,14 @@ export type ControllerPositionResponse = {
     latitude: number;
     longitude: number;
     recordedAt: string;
-    /**
-     * Set when this is a runner position revealed to hunters.
-     */
-    revealedAt?: string;
+};
+
+export type ControllerRevealResponse = {
+    accuracyMeters: number;
+    latitude: number;
+    longitude: number;
+    recordedAt: string;
+    revealedAt: string;
 };
 
 export type ControllerSetHunterTeamRequest = {

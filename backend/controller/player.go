@@ -295,9 +295,12 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 				Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
 				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt,
 			}
-			if !p.RevealedAt.IsZero() {
-				player.Position.RevealedAt = &p.RevealedAt
-			}
+		}
+		for _, r := range p.Reveals {
+			player.Reveals = append(player.Reveals, RevealResponse{
+				Latitude: r.Position.Coordinates.Latitude(), Longitude: r.Position.Coordinates.Longitude(),
+				AccuracyMeters: r.Position.AccuracyMeters, RecordedAt: r.Position.RecordedAt, RevealedAt: r.At,
+			})
 		}
 		response.Players = append(response.Players, player)
 	}

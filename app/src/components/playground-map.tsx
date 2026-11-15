@@ -19,6 +19,8 @@ export type MapMarker = {
   title: string;
   description: string;
   color: string;
+  /** 0 to 1, default 1. */
+  opacity?: number;
 };
 
 export type PlaygroundMapProps = {
@@ -29,9 +31,11 @@ export type PlaygroundMapProps = {
   markers?: MapMarker[];
   /** Fill the parent instead of using the default height. */
   fullscreen?: boolean;
+  /** Extra space around the location button, e.g. safe-area insets under a fullscreen map. */
+  controlsInset?: { bottom?: number; right?: number };
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], fullscreen = false }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], fullscreen = false, controlsInset }: PlaygroundMapProps) {
   const t = useT();
   // Where the map's center (and so the grid) is on screen. Native maps shift it from the middle of the
   // view, e.g. by safe-area margins under the notch, so the crosshair is placed by asking the map.
@@ -115,6 +119,8 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
           latitudeDelta: bounds ? (bounds.north - bounds.south) * 2 : 0.03,
           longitudeDelta: bounds ? (bounds.east - bounds.west) * 2 : 0.03,
         }}
+        // The grid colors are made for a light map, so ignore the phone's dark mode.
+        userInterfaceStyle="light"
         rotateEnabled={false}
         pitchEnabled={false}
         // The blue dot, once the user has allowed location.
@@ -139,15 +145,20 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
             </Marker>
           ))}
         </>}
-        {markers.map(({ id, coordinate, title, description, color }) => (
-          <Marker key={id} coordinate={coordinate} title={title} description={description} pinColor={color} centerOffset={PIN_OFFSET} />
+        {markers.map(({ id, coordinate, title, description, color, opacity }) => (
+          // The marker opacity prop is unreliable on the native pin, so a fading marker is a dot view whose own opacity is drawn into it.
+          opacity === undefined
+            ? <Marker key={id} coordinate={coordinate} title={title} description={description} pinColor={color} centerOffset={PIN_OFFSET} />
+            : <Marker key={`${id}-${opacity}`} coordinate={coordinate} title={title} description={description} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+              <View style={[styles.dot, { backgroundColor: color, opacity }]} />
+            </Marker>
         ))}
       </MapView>
     {editable && <View pointerEvents="none" style={[styles.crosshair, anchor && { left: anchor.x - 12, top: anchor.y - 12, right: undefined, bottom: undefined, width: 24, height: 24 }]}>
       <View style={styles.crossH} />
       <View style={styles.crossV} />
     </View>}
-    <View style={styles.locate}>
+    <View style={[styles.locate, { right: 12 + (controlsInset?.right ?? 0), bottom: 12 + (controlsInset?.bottom ?? 0) }]}>
       {!!locateError && <Text style={styles.locateError}>{locateError}</Text>}
       <Pressable accessibilityRole="button" accessibilityLabel={t('map.myLocation')} disabled={locating} onPress={() => void locate()} style={[styles.locateButton, locating && styles.locating]}>
         <Ionicons name="locate" size={22} color="#10251c" />
@@ -168,5 +179,6 @@ const styles = StyleSheet.create({
   locateButton: { backgroundColor: '#ffffff', borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   locating: { opacity: 0.6 },
   locateError: { color: '#ffffff', backgroundColor: '#eb5757', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12 },
+  dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#ffffff' },
   label: { fontSize: 11, color: '#10251c', backgroundColor: '#ffffff', padding: 2, borderRadius: 3, fontWeight: '700' },
 });

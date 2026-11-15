@@ -142,7 +142,7 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 		if err != nil {
 			return err
 		}
-		lobby = game.Lobby{Game: before.Game, Players: slices.Clone(before.Players)}
+		lobby = game.Lobby{Game: before.Game, Players: slices.Clone(before.Players), Reveals: before.Reveals}
 		if change == nil {
 			return nil
 		}
@@ -211,7 +211,7 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 
 // withoutPositions keeps the fields stored in the players table.
 func withoutPositions(p game.Player) game.Player {
-	p.Position, p.Reveal = game.Position{}, game.Reveal{}
+	p.Position = game.Position{}
 	return p
 }
 
@@ -228,45 +228,83 @@ func toPlayerRow(gameID game.SessionID, p game.Player) playerRow {
 
 // loadLobby rebuilds domain values through their parsers, so invalid stored
 // data is a server error. It adds each player's latest position and, for
-// runners, their reveal: the last position before the latest reveal time.
+// runners, their reveals: at each reveal time the last position before it.
 func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 	lobby, err := parseLobby(row)
 	if err != nil {
 		// %v, not %w: invalid stored data is a server error, not a client validation error.
 		return game.Lobby{}, fmt.Errorf("parse stored lobby: %v", err)
 	}
-	latest, err := lastPositions(tx, row.Players, time.Time{})
+	latest, err := lastPositions(tx, row.Players)
 	if err != nil {
 		return game.Lobby{}, err
 	}
-	var revealed map[string]game.Position
-	due := lobby.Game.LatestReveal(now)
-	if !due.IsZero() {
-		if revealed, err = lastPositions(tx, row.Players, due); err != nil {
-			return game.Lobby{}, err
+	times := lobby.Game.RevealTimes(now)
+	var runnerIDs []string
+	for _, p := range lobby.Players {
+		if p.Team == game.Runners {
+			runnerIDs = append(runnerIDs, p.ID.String())
 		}
 	}
+	reveals, err := runnerReveals(tx, runnerIDs, times)
+	if err != nil {
+		return game.Lobby{}, err
+	}
+	lobby.Reveals = map[game.PlayerID][]game.Reveal{}
 	for i := range lobby.Players {
 		p := &lobby.Players[i]
 		p.Position = latest[p.ID.String()]
-		if position, ok := revealed[p.ID.String()]; ok && p.Team == game.Runners {
-			p.Reveal = game.Reveal{Position: position, At: due}
+		if all := reveals[p.ID.String()]; len(all) > 0 {
+			lobby.Reveals[p.ID] = all
 		}
 	}
 	return lobby, nil
 }
 
-// lastPositions returns each player's newest position, only counting positions
-// recorded before the given time unless it is zero.
-func lastPositions(tx *gorm.DB, players []playerRow, before time.Time) (map[string]game.Position, error) {
+// runnerReveals returns, per runner, their reveal at every given time (oldest
+// first): the last position recorded before it. Times before the runner's first
+// position have no reveal.
+func runnerReveals(tx *gorm.DB, runnerIDs []string, times []time.Time) (map[string][]game.Reveal, error) {
+	reveals := map[string][]game.Reveal{}
+	if len(runnerIDs) == 0 || len(times) == 0 {
+		return reveals, nil
+	}
+	var rows []positionRow
+	err := tx.Where("player_id IN ? AND recorded_at < ?", runnerIDs, times[len(times)-1]).
+		Order("player_id, recorded_at, id").Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("select positions: %w", err)
+	}
+	byPlayer := map[string][]positionRow{}
+	for _, row := range rows {
+		byPlayer[row.PlayerID] = append(byPlayer[row.PlayerID], row)
+	}
+	for id, positions := range byPlayer {
+		next := 0 // positions[:next] were recorded before the current reveal time
+		for _, at := range times {
+			for next < len(positions) && positions[next].RecordedAt.Before(at) {
+				next++
+			}
+			if next == 0 {
+				continue
+			}
+			position, err := parsePosition(positions[next-1])
+			if err != nil {
+				return nil, fmt.Errorf("parse stored position: %v", err)
+			}
+			reveals[id] = append(reveals[id], game.Reveal{Position: position, At: at})
+		}
+	}
+	return reveals, nil
+}
+
+// lastPositions returns each player's newest position.
+func lastPositions(tx *gorm.DB, players []playerRow) (map[string]game.Position, error) {
 	ids := make([]string, len(players))
 	for i, p := range players {
 		ids[i] = p.ID
 	}
 	newest := tx.Model(&positionRow{}).Select("max(id)").Where("player_id IN ?", ids).Group("player_id")
-	if !before.IsZero() {
-		newest = newest.Where("recorded_at < ?", before)
-	}
 	var rows []positionRow
 	if err := tx.Where("id IN (?)", newest).Find(&rows).Error; err != nil {
 		return nil, fmt.Errorf("select positions: %w", err)

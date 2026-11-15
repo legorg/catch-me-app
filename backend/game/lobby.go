@@ -36,6 +36,10 @@ func (g Game) Status(now time.Time) Status {
 type Lobby struct {
 	Game    Game
 	Players []Player
+	// Reveals are what hunters see of each runner, oldest first: at every reveal
+	// time (Game.RevealTimes) the runner's last report before it. Derived when
+	// loading; times before the runner's first report have no reveal.
+	Reveals map[PlayerID][]Reveal
 }
 
 func (l Lobby) index(id PlayerID) int {

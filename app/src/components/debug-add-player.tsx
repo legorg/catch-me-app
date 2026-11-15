@@ -2,13 +2,63 @@ import { useState } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { MAX_NAME_LENGTH, isValidPlayerName, joinGame, setHunterTeam, setReady, type JoinCodes } from '@/api/client';
+import {
+  ApiError, MAX_NAME_LENGTH, isValidPlayerName, joinGame, setHunterTeam, setReady, updatePosition, type JoinCodes,
+} from '@/api/client';
+import type { Bounds, Coordinates } from '@/api/types';
 import Button from '@/components/button';
 import { colors, styles } from '@/styles';
 
+const MOVE_INTERVAL_MS = 5000;
+// About 120 m per step, i.e. a brisk jog.
+const STEP_DEGREES = 0.0011;
+const MAX_TURN = 0.6;
+
+type Bot = { token: string; position: Coordinates; bounds: Bounds; heading: number };
+
+// Bots outlive the lobby, so they keep reporting after the game screen replaces it.
+const bots = new Map<string, Bot>();
+let mover: ReturnType<typeof setInterval> | undefined;
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+function randomIn({ north, south, east, west }: Bounds): Coordinates {
+  return { latitude: south + Math.random() * (north - south), longitude: west + Math.random() * (east - west) };
+}
+
+function report(name: string, bot: Bot) {
+  updatePosition(bot.token, { ...bot.position, accuracyMeters: 5 }).catch((err: unknown) => {
+    // The game is gone (or the data was reset): stop moving this bot.
+    if (err instanceof ApiError && err.status === 401) bots.delete(name);
+  });
+}
+
+function addBot(name: string, bot: Bot) {
+  bots.set(name, bot);
+  report(name, bot);
+  mover ??= setInterval(() => {
+    for (const [botName, b] of bots) {
+      const { north, south, east, west } = b.bounds;
+      // Keep going roughly the same way, turning a little each step.
+      b.heading += (Math.random() - 0.5) * 2 * MAX_TURN;
+      const latitude = b.position.latitude + Math.sin(b.heading) * STEP_DEGREES;
+      const longitude = b.position.longitude + Math.cos(b.heading) * STEP_DEGREES;
+      // Turn around at the edge of the playground.
+      if (latitude < south || latitude > north || longitude < west || longitude > east) b.heading += Math.PI;
+      b.position = { latitude: clamp(latitude, south, north), longitude: clamp(longitude, west, east) };
+      report(botName, b);
+    }
+    if (bots.size === 0) {
+      clearInterval(mover);
+      mover = undefined;
+    }
+  }, MOVE_INTERVAL_MS);
+}
+
 /**
  * Development only: adds another player to the game from this device, so a game can be tested alone.
- * The bot's token is dropped right away; it never polls or shares a position.
+ * The bot reports a position inside the grid right away (a runner at its route start) and then walks
+ * on a wandering course every 5 seconds, so reveals have something to show. It never polls the game.
  */
 export default function DebugAddPlayer({ codes }: { codes: JoinCodes }) {
   const [open, setOpen] = useState(false);
@@ -24,10 +74,12 @@ export default function DebugAddPlayer({ codes }: { codes: JoinCodes }) {
     setBusy(true);
     setMessage('');
     try {
-      const { playerToken } = await joinGame(codes[team], name);
+      const { playerToken, state } = await joinGame(codes[team], name);
       if (team === 'hunter') await setHunterTeam(playerToken, hunterTeam);
       if (ready) await setReady(playerToken, true);
-      setMessage(`Added ${name.trim()}.`);
+      const { bounds } = state.playground;
+      addBot(name.trim(), { token: playerToken, bounds, position: state.route?.start.coordinates ?? randomIn(bounds), heading: Math.random() * 2 * Math.PI });
+      setMessage(`Added ${name.trim()}; it reports a position every 5 seconds.`);
       setName(nextName(name));
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));

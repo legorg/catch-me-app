@@ -85,7 +85,7 @@ func TestLobbyFlow(t *testing.T) {
 	start := [2]float64{created.Game.Playground.Center.Latitude, created.Game.Playground.Center.Longitude}
 	positionBody := fmt.Sprintf(`{"latitude":%v,"longitude":%v,"accuracyMeters":8}`, start[0], start[1])
 	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, positionBody), 200)
-	if own := ownEntry(state).Position; own == nil || own.Latitude != start[0] || own.AccuracyMeters != 8 || own.RevealedAt != nil {
+	if own := ownEntry(state).Position; own == nil || own.Latitude != start[0] || own.AccuracyMeters != 8 {
 		t.Fatalf("own position missing: %+v", own)
 	}
 	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"position"`) {

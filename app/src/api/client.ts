@@ -169,15 +169,19 @@ function isGameRoute(value: unknown): value is GameRoute {
 function isPosition(value: unknown): boolean {
   return isRecord(value) && finite(value.latitude) && Math.abs(value.latitude) <= 90 &&
     finite(value.longitude) && Math.abs(value.longitude) <= 180 &&
-    finite(value.accuracyMeters) && value.accuracyMeters >= 0 && isDate(value.recordedAt) &&
-    (value.revealedAt === undefined || isDate(value.revealedAt));
+    finite(value.accuracyMeters) && value.accuracyMeters >= 0 && isDate(value.recordedAt);
+}
+
+function isReveal(value: unknown): boolean {
+  return isPosition(value) && isDate((value as Record<string, unknown>).revealedAt);
 }
 
 function isPlayer(p: unknown): boolean {
   return isRecord(p) && isHex(p.playerId, 32) && typeof p.name === 'string' && isTeam(p.team) &&
     (p.hunterTeam === undefined || (p.team === 'hunter' && typeof p.hunterTeam === 'string')) &&
     typeof p.ready === 'boolean' &&
-    (p.position === undefined || isPosition(p.position));
+    (p.position === undefined || isPosition(p.position)) &&
+    (p.reveals === undefined || (Array.isArray(p.reveals) && p.reveals.every(isReveal)));
 }
 
 function isPlayground(p: unknown): p is Playground {

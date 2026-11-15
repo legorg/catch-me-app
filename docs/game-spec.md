@@ -77,10 +77,10 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 - Everyone always sees **their own** position.
 - **Hunters of the same hunter team** see each other's latest position **at any time**, including the lobby. Hunters never see other hunter teams' positions.
 - **Runners** see each other's latest position **only while running**.
-- **Hunters** receive each runner's position once every **5 minutes** after the start (first reveal 5 minutes after the start). A reveal shows where the runner was at the reveal time (their last report before it), not live updates. The state includes `nextRevealAt` for both teams.
+- **Hunters** receive each runner's position once every **30 seconds** after the start (first reveal 30 seconds after the start). A reveal shows where the runner was at the reveal time (their last report before it), not live updates. The state includes `nextRevealAt` for both teams. Hunters get **every** reveal so far, oldest first (`reveals` per runner), not just the latest; the app fades older ones.
 - **Runners** never see hunters.
 - Players outside the playground get a warning only; there is no penalty.
-- Reveals are not stored: a reveal is derived from the stored positions as the runner's last report strictly before the latest reveal time.
+- Reveals are not stored: each reveal is derived from the stored positions as the runner's last report strictly before that reveal time. A reveal time before the runner's first report has no reveal.
 
 ## Catch, finish, and end [next: milestone 4]
 
@@ -151,7 +151,7 @@ One-off special abilities on top of the periodic reveals. Candidates:
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners) and a position (own, hunter teammates always, runner teammates while running, or a revealed runner position with `revealedAt` for hunters). Clients compute countdowns from the server time to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt`). Runners never get reveals, and hunters never get a live runner position. Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
 Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team).
 
@@ -164,7 +164,7 @@ Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game 
 | Name length | 1–20 characters |
 | Route regenerations | 2 |
 | Catch radius / position age | 50 m / 30 s |
-| Reveal interval | 5 min |
+| Reveal interval | 30 s |
 | Start cell position max age | 30 s |
 | Position send interval (app) | 5 s |
 | Time limit | 90 min |

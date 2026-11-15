@@ -7,7 +7,7 @@ import (
 const (
 	MaxAccuracyMeters = 10000
 	// RevealInterval is how often hunters receive the runners' positions.
-	RevealInterval = 5 * time.Minute
+	RevealInterval = 30 * time.Second
 	// StartPositionMaxAge is how recent a runner's position must be to prove they
 	// are at the start of the route.
 	StartPositionMaxAge = 30 * time.Second
@@ -74,6 +74,20 @@ func (g Game) LatestReveal(now time.Time) time.Time {
 		return time.Time{}
 	}
 	return g.StartsAt.Add(count * RevealInterval)
+}
+
+// RevealTimes are all reveal times up to now, oldest first; empty before the first one.
+func (g Game) RevealTimes(now time.Time) []time.Time {
+	latest := g.LatestReveal(now)
+	if latest.IsZero() {
+		return nil
+	}
+	count := int(latest.Sub(g.StartsAt) / RevealInterval)
+	times := make([]time.Time, count)
+	for i := range times {
+		times[i] = g.StartsAt.Add(time.Duration(i+1) * RevealInterval)
+	}
+	return times
 }
 
 // NextReveal is the next reveal time while running, otherwise zero.
