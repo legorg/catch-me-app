@@ -1,5 +1,6 @@
+import * as Location from 'expo-location';
 import { Stack, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 
 import { MAX_NAME_LENGTH, createGame, isValidPlayerName, joinGame, type Coordinates, type CreateGameResponse } from '@/api/client';
@@ -18,6 +19,8 @@ type Message = { key: MessageKey } | { text: string };
 export default function CreateScreen() {
   const t = useT();
   const [selected, setSelected] = useState<Coordinates | null>(null);
+  // Where the device is, once known; the grid starts there instead of at the default spot.
+  const [here, setHere] = useState<Coordinates | null>(null);
   const [cellSizeText, setCellSizeText] = useState(String(DEFAULT_CELL_SIZE_METERS / 1000));
   const [created, setCreated] = useState<CreateGameResponse | null>(null);
   const [name, setName] = useState('');
@@ -25,12 +28,30 @@ export default function CreateScreen() {
   const [message, setMessage] = useState<Message>({ key: 'create.pickCenter' });
   const [error, setError] = useState(false);
   const cellSize = parseCellSizeKm(cellSizeText);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const { granted } = await Location.requestForegroundPermissionsAsync();
+        if (!granted) return;
+        const { coords } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!active) return;
+        const position = { latitude: coords.latitude, longitude: coords.longitude };
+        setHere(position);
+        setSelected(position);
+      } catch {
+        // stay at the default spot; the map's locate button still works
+      }
+    })();
+    return () => { active = false; };
+  }, []);
   let playground = created?.game.playground ?? null;
   let sizeError = !created && cellSize === null ? t('create.cellSizeInvalid') : '';
   // The grid starts at a default spot; the user drags it, and can only create once they have.
   if (!created && cellSize !== null) {
     try {
-      playground = previewPlayground(selected ?? DEFAULT_CENTER, cellSize);
+      playground = previewPlayground(selected ?? here ?? DEFAULT_CENTER, cellSize);
     } catch (err) {
       sizeError = err instanceof Error ? err.message : t('create.sizeInvalid');
     }
@@ -105,7 +126,8 @@ export default function CreateScreen() {
           {!!sizeError && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{sizeError}</Text>}
         </View>}
         <View style={styles.mapContainer}>
-          <FullscreenMap key={created?.game.sessionId ?? 'draft'} playground={playground} editable={!created && !busy} onSelect={selectCenter} />
+          {/* Remounts once when the position arrives, so the map opens there. */}
+          <FullscreenMap key={`${created?.game.sessionId ?? 'draft'}-${here ? 'here' : 'default'}`} playground={playground} editable={!created && !busy} onSelect={selectCenter} />
         </View>
         {playground && <Text style={styles.text}>
           {t('create.center', { latitude: playground.center.latitude.toFixed(6), longitude: playground.center.longitude.toFixed(6) })}
