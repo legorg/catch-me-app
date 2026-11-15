@@ -22,7 +22,7 @@ export const API_URL = (
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
 ).trim().replace(/\/+$/, '');
 
-export const JOIN_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/;
+export const JOIN_CODE_PATTERN = /^[0-9]{6}$/;
 const CELL_PATTERN = /^[A-F][1-6]$/;
 export const MAX_NAME_LENGTH = 20;
 
@@ -35,7 +35,7 @@ export class ApiError extends Error {
 }
 
 export function normalizeJoinCode(code: string): string {
-  return code.trim().toUpperCase();
+  return code.trim();
 }
 
 export function isValidPlayerName(name: string): boolean {

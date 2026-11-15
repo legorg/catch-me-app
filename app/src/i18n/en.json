@@ -53,7 +53,7 @@
   "client.unexpectedGame": "Unexpected game response. Check the API URL.",
   "client.unexpectedJoin": "Unexpected join response. Check the API URL.",
   "client.unexpectedState": "Unexpected game state. Check the API URL.",
-  "client.joinCode": "Enter the 6-character join code.",
+  "client.joinCode": "Enter the 6-digit join code.",
   "client.name": "Enter a name with 1–{max} characters.",
   "client.teamName": "Enter a team name with 1–{max} characters.",
   "client.status": "Request failed with status {status}.",

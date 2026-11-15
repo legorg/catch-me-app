@@ -58,7 +58,7 @@ func TestLobbyFlow(t *testing.T) {
 	codes := created.JoinCodes
 
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "",
-		`{"code":" `+strings.ToLower(codes.Runner)+` ","name":" Ada "}`), 201)
+		`{"code":" `+codes.Runner+` ","name":" Ada "}`), 201)
 	if len(runner.PlayerToken) != 64 || runner.State.Team != "runner" || runner.State.JoinCode != codes.Runner ||
 		runner.State.Status != "lobby" || runner.State.StartsAt != "" || runner.State.SessionID != created.Game.SessionID ||
 		len(runner.State.Players) != 1 || runner.State.Players[0].Name != "Ada" || runner.State.PlayerID != runner.State.Players[0].PlayerID {
@@ -148,13 +148,14 @@ func TestLobbyErrors(t *testing.T) {
 		name, method, path, token, body string
 		status                          int
 	}{
-		{"unknown code", "POST", "/api/players", "", `{"code":"ZZZZZZ","name":"Bob"}`, 404},
+		{"unknown code", "POST", "/api/players", "", `{"code":"000000","name":"Bob"}`, 404},
 		{"invalid code", "POST", "/api/players", "", `{"code":"ABC","name":"Bob"}`, 400},
+		{"letters in code", "POST", "/api/players", "", `{"code":"K7M2QX","name":"Bob"}`, 400},
 		{"missing code", "POST", "/api/players", "", `{"name":"Bob"}`, 400},
 		{"empty name", "POST", "/api/players", "", `{"code":"` + created.JoinCodes.Hunter + `","name":"  "}`, 400},
 		{"long name", "POST", "/api/players", "", `{"code":"` + created.JoinCodes.Hunter + `","name":"` + strings.Repeat("x", 21) + `"}`, 400},
 		{"duplicate name", "POST", "/api/players", "", `{"code":"` + created.JoinCodes.Hunter + `","name":"ADA"}`, 409},
-		{"unknown join field", "POST", "/api/players", "", `{"code":"ZZZZZZ","name":"Bob","team":"hunter"}`, 400},
+		{"unknown join field", "POST", "/api/players", "", `{"code":"123456","name":"Bob","team":"hunter"}`, 400},
 		{"wrong join method", "GET", "/api/players", "", "", 405},
 		{"missing token", "GET", "/api/me/game", "", "", 401},
 		{"malformed token", "GET", "/api/me/game", "abc", "", 401},

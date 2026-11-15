@@ -9,7 +9,7 @@ import { previewPlayground } from '../src/playground';
 const center = { latitude: 52.52, longitude: 13.405 };
 const created = {
   game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center) },
-  joinCodes: { runner: 'K7M2QX', hunter: 'P4R9TW' },
+  joinCodes: { runner: '482913', hunter: '071564' },
 };
 const token = 'ab'.repeat(32);
 const state = {
@@ -19,7 +19,7 @@ const state = {
   playground: created.game.playground,
   playerId: '8899aabbccddeeff0011223344556677',
   team: 'runner',
-  joinCode: 'K7M2QX',
+  joinCode: '482913',
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
   route: { start: 'B1', end: 'E6', regenerationsLeft: 2 },
 };
@@ -53,11 +53,11 @@ test('invalid input is rejected before a request', async (t) => {
   for (const size of [0, 99, 1550, 5100, NaN, Infinity]) {
     await assert.rejects(createGame(center, size), /Cell size/);
   }
-  for (const code of ['', 'ABC', 'ABCDE0', 'ABCDE1', 'ABCDEFG']) {
+  for (const code of ['', '123', '12345A', 'K7M2QX', '1234567', '123 45']) {
     await assert.rejects(joinGame(code, 'Ada'), /join code/);
   }
   for (const name of ['', '   ', 'x'.repeat(21)]) {
-    await assert.rejects(joinGame('K7M2QX', name), /name/);
+    await assert.rejects(joinGame('482913', name), /name/);
   }
 });
 
@@ -66,10 +66,10 @@ test('join normalizes the code and trims the name', async (t) => {
     assert.equal(new URL(request.url).pathname, '/api/players');
     assert.equal(request.method, 'POST');
     assert.equal(request.headers.get('Authorization'), null);
-    assert.deepEqual(await request.json(), { code: 'K7M2QX', name: 'Ada' });
+    assert.deepEqual(await request.json(), { code: '482913', name: 'Ada' });
     return Response.json({ playerToken: token, state }, { status: 201 });
   });
-  assert.deepEqual(await joinGame(' k7m2qx ', ' Ada '), { playerToken: token, state });
+  assert.deepEqual(await joinGame(' 482913 ', ' Ada '), { playerToken: token, state });
 });
 
 test('player requests send the bearer token', async (t) => {
@@ -116,11 +116,11 @@ test('API errors keep the message and status', async (t) => {
   await assert.rejects(getGameState(token), (err: unknown) =>
     err instanceof ApiError && err.status === 401 && err.message === 'missing or invalid player token');
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'name is already taken in this game' }, { status: 409 }));
-  await assert.rejects(joinGame('K7M2QX', 'Ada'), /name is already taken/);
+  await assert.rejects(joinGame('482913', 'Ada'), /name is already taken/);
 });
 
 test('malformed successful responses are rejected at runtime', async (t) => {
-  for (const body of [null, {}, { ...created, joinCodes: { runner: 'bad', hunter: 'P4R9TW' } },
+  for (const body of [null, {}, { ...created, joinCodes: { runner: 'bad', hunter: '071564' } },
     { ...created, game: { ...created.game, sessionId: 'bad' } },
     { ...created, game: { ...created.game, playground: { ...created.game.playground, rows: 8 } } },
     { ...created, game: { ...created.game, playground: { ...created.game.playground, bounds: { ...created.game.playground.bounds, north: 0 } } } },
@@ -131,7 +131,7 @@ test('malformed successful responses are rejected at runtime', async (t) => {
   for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCode: 'bad' },
     { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null },
     { ...state, route: { start: 'G1', end: 'E6', regenerationsLeft: 2 } }, { ...state, route: { ...state.route, regenerationsLeft: 3 } },
-    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter', joinCode: 'P4R9TW' },
+    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter', joinCode: '071564' },
     { ...state, nextRevealAt: 'bad' }, { ...state, startPositionCheckDisabled: 'true' },
     { ...state, players: [{ ...state.players[0], position: { latitude: 95, longitude: 0, accuracyMeters: 5, recordedAt: state.serverTime } }] },
     { ...state, players: [{ ...state.players[0], position: { latitude: 0, longitude: 0, accuracyMeters: -1, recordedAt: state.serverTime } }] },
@@ -140,7 +140,7 @@ test('malformed successful responses are rejected at runtime', async (t) => {
     await assert.rejects(getGameState(token), /Unexpected game state/);
   }
   t.mock.method(globalThis, 'fetch', async () => Response.json({ playerToken: 'short', state }, { status: 201 }));
-  await assert.rejects(joinGame('K7M2QX', 'Ada'), /Unexpected join response/);
+  await assert.rejects(joinGame('482913', 'Ada'), /Unexpected join response/);
 });
 
 test('network failures are propagated', async (t) => {

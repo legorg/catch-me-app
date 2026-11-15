@@ -1,6 +1,6 @@
 # Catch me! game specification
 
-Status legend: **[done]** implemented, **[next]** planned in the given milestone.
+Status legend: **[done]** implemented, **[next]** planned in the given milestone, **[planned]** agreed, rules still open.
 
 ## Principles
 
@@ -25,7 +25,7 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 
 ## Joining [done: milestone 1]
 
-- Creating a game returns two **join codes**: one for runners, one for hunters. Codes are 6 characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no easily confused 0/O, 1/I). Input is case-insensitive.
+- Creating a game returns two **join codes**: one for runners, one for hunters. Codes are 6 digits (`000000` to `999999`, leading zeros count) so they can be typed on a number pad.
 - A player joins with a code and a **display name** (1–20 characters after trimming, no control characters, unique per game ignoring case). The code decides the team.
 - Joining returns a secret **player token**. Every later request authenticates with `Authorization: Bearer <token>`. The server stores only a SHA-256 hash of the token.
 - At most **30 players** per game.
@@ -90,12 +90,48 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 - **Hunters win** when every runner is caught, or when the **90-minute** time limit runs out.
 - The game becomes `ended` with a winner; positions stay stored until their retention ends, for the replay.
 
-## Later
+## Next steps
 
-- **Jokers** (special one-off abilities) on top of periodic reveals.
+Agreed topics whose rules are still open. Each needs its rules settled here before it is implemented.
+
+### Deployment and pipeline [planned]
+
+- Decide **where** the backend runs (hosting, domain, HTTPS) and **how** the app is distributed (EAS builds, internal testing, stores).
+- Extend the GitHub Actions pipeline (`.github/workflows/ci.yml`) from checks to build and deploy: backend image, app builds, configuration and secrets per environment.
+- Production readiness still needed before real games: HTTPS, rate limiting, versioned migrations instead of AutoMigrate, cleanup of old games, privacy policy.
+- Open: hosting target, environments (staging/production), who triggers a deployment.
+
+### Game result and history view [planned, after milestone 4]
+
+- After the game ends, show the result (winner, catches, finish) to all players.
+- Show the stored position history as a replay or chart of everyone's movements. It is only available after the game ended (see position history).
+- Open: what exactly the result shows, replay vs. static track chart, how long it stays reachable (positions are deleted 7 days after the start).
+
+### Jokers [planned]
+
+One-off special abilities on top of the periodic reveals. Candidates:
+
+- **Show position:** reveal a player's current position outside the reveal schedule.
+- **Show a fake position:** a runner makes hunters see a wrong position at the next reveal.
+- **Show only the zone:** a reveal shows only the runner's cell instead of the exact position.
+- **Query a zone:** ask whether any runner is currently inside a chosen cell.
+- Open: which team gets which jokers and how many, when they can be used, how long effects last, and how the server enforces them (it must stay the referee; fake positions may only ever be sent to the intended viewers).
+
+### Seeing join codes after joining [planned]
+
+- Today a player only sees their own team's code, so a creator who joined cannot pass on the other team's code anymore.
+- Open: show both codes to everyone in the lobby, only to the creator (needs a creator role, against "no extra rights"), or keep them on the create screen until the creator leaves it.
+
+### Team map drawings and notes [planned]
+
+- Players of one team (runners, or one hunter team) draw on the map and add notes that only their team sees.
+- Open: drawing types (lines, areas, markers), editing and deleting, whether notes are kept for the replay. Visibility must be enforced by the server like positions.
+
+### Further ideas
+
 - Real-time updates (server-sent events or WebSockets) instead of polling.
 - Background location that survives an app restart (needs a persisted player token).
-- Production readiness: HTTPS, rate limiting, versioned migrations, cleanup of old games, privacy policy, store builds.
+- Translated backend error messages (currently English; the app prevents most of them by validating input first).
 
 ## API (milestones 1 to 3)
 

@@ -459,7 +459,7 @@ export type RegenerateRouteResponse = RegenerateRouteResponses[keyof RegenerateR
 
 export type JoinGameData = {
     /**
-     * Join code (case-insensitive) and display name (1-20 characters, unique per game)
+     * Join code (6 digits) and display name (1-20 characters, unique per game)
      */
     body: JoinGameRequest;
     path?: never;

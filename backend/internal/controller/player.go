@@ -14,7 +14,7 @@ import (
 // @ID joinGame
 // @Accept json
 // @Produce json
-// @Param body body JoinGameRequest true "Join code (case-insensitive) and display name (1-20 characters, unique per game)"
+// @Param body body JoinGameRequest true "Join code (6 digits) and display name (1-20 characters, unique per game)"
 // @Success 201 {object} JoinGameResponse "Joined; keep the player token secret"
 // @Failure 400 {object} APIError "Invalid JSON, join code, or name"
 // @Failure 403 {object} APIError "Browser origin is not allowed"

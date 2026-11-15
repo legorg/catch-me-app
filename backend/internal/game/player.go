@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"math/big"
 	"regexp"
 	"strings"
 	"time"
@@ -14,8 +16,6 @@ import (
 const (
 	JoinCodeLength = 6
 	MaxNameLength  = 20
-	// Uppercase letters and digits without easily confused 0/O and 1/I.
-	joinCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 )
 
 type Team string
@@ -35,21 +35,17 @@ func ParseTeam(team string) (Team, error) {
 
 type JoinCode struct{ value string }
 
+// NewJoinCode returns 6 random digits; leading zeros are kept.
 func NewJoinCode() JoinCode {
-	code := make([]byte, JoinCodeLength)
-	_, _ = rand.Read(code)
-	for i, b := range code {
-		// 256 is a multiple of the 32-character alphabet, so this is unbiased.
-		code[i] = joinCodeAlphabet[int(b)%len(joinCodeAlphabet)]
-	}
-	return JoinCode{value: string(code)}
+	n, _ := rand.Int(rand.Reader, big.NewInt(1_000_000)) // Never fails since Go 1.24; crashes the program instead.
+	return JoinCode{value: fmt.Sprintf("%0*d", JoinCodeLength, n.Int64())}
 }
 
-// ParseJoinCode accepts surrounding spaces and lowercase input.
+// ParseJoinCode accepts surrounding spaces.
 func ParseJoinCode(code string) (JoinCode, error) {
-	normalized := strings.ToUpper(strings.TrimSpace(code))
-	if len(normalized) != JoinCodeLength || strings.Trim(normalized, joinCodeAlphabet) != "" {
-		return JoinCode{}, &ValidationError{Message: "join code must contain 6 letters or digits"}
+	normalized := strings.TrimSpace(code)
+	if len(normalized) != JoinCodeLength || strings.Trim(normalized, "0123456789") != "" {
+		return JoinCode{}, &ValidationError{Message: "join code must contain 6 digits"}
 	}
 	return JoinCode{value: normalized}, nil
 }

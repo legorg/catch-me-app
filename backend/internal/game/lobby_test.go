@@ -147,7 +147,7 @@ func TestJoinRules(t *testing.T) {
 	if _, err := l.Join(l.Game.JoinCodes.Hunter, duplicate, NewPlayerToken(), start); !errors.As(err, &rule) {
 		t.Fatal("duplicate name accepted")
 	}
-	unknown, _ := ParseJoinCode("ZZZZZZ")
+	unknown, _ := ParseJoinCode("000000")
 	if _, err := l.Join(unknown, duplicate, NewPlayerToken(), start); !errors.Is(err, ErrNotFound) {
 		t.Fatal("unknown code accepted")
 	}
@@ -165,14 +165,17 @@ func TestPlayerParsing(t *testing.T) {
 	if codes.Runner == codes.Hunter {
 		t.Fatal("codes must differ")
 	}
-	if code, err := ParseJoinCode(" " + strings.ToLower(codes.Runner.String()) + " "); err != nil || code != codes.Runner {
-		t.Fatal("join codes must be case-insensitive and trimmed")
+	if code, err := ParseJoinCode(" " + codes.Runner.String() + " "); err != nil || code != codes.Runner {
+		t.Fatal("join codes must be trimmed")
+	}
+	if code, err := ParseJoinCode("012345"); err != nil || code.String() != "012345" {
+		t.Fatal("leading zeros must be kept")
 	}
 	if team, ok := codes.TeamFor(codes.Hunter); !ok || team != Hunters {
 		t.Fatal("hunter code not recognized")
 	}
 	var validation *ValidationError
-	for _, code := range []string{"", "ABCDE", "ABCDEFG", "ABCDE0", "ABCDE1", "ABCDEO", "ABC-EF"} {
+	for _, code := range []string{"", "12345", "1234567", "12345A", "K7M2QX", "123 45", "-12345", "１２３４５６"} {
 		if _, err := ParseJoinCode(code); !errors.As(err, &validation) {
 			t.Fatalf("invalid code accepted: %q", code)
 		}

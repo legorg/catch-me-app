@@ -200,7 +200,7 @@ func TestLobbyFlow(t *testing.T) {
 	if _, err := s.SetReady(ctx, game.NewPlayerToken(), true); !errors.Is(err, game.ErrUnauthorized) {
 		t.Fatal("unknown token accepted")
 	}
-	unknown, _ := game.ParseJoinCode("ZZZZZZ")
+	unknown, _ := game.ParseJoinCode("000000")
 	if _, _, err := s.Join(ctx, unknown, bob); !errors.Is(err, game.ErrNotFound) {
 		t.Fatal("unknown code accepted")
 	}

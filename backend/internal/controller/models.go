@@ -39,8 +39,8 @@ type GameResponse struct {
 } // @name GameResponse
 
 type JoinCodes struct {
-	Runner string `json:"runner" minLength:"6" maxLength:"6" example:"K7M2QX"`
-	Hunter string `json:"hunter" minLength:"6" maxLength:"6" example:"P4R9TW"`
+	Runner string `json:"runner" minLength:"6" maxLength:"6" example:"482913"`
+	Hunter string `json:"hunter" minLength:"6" maxLength:"6" example:"071564"`
 } // @name JoinCodes
 
 type CreateGameResponse struct {
@@ -49,7 +49,7 @@ type CreateGameResponse struct {
 } // @name CreateGameResponse
 
 type JoinGameRequest struct {
-	Code string `json:"code" minLength:"6" maxLength:"6" example:"K7M2QX"`
+	Code string `json:"code" minLength:"6" maxLength:"6" example:"482913"`
 	Name string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
 } // @name JoinGameRequest
 
@@ -107,7 +107,7 @@ type GameStateResponse struct {
 	Playground   Playground       `json:"playground"`
 	PlayerID     string           `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 	Team         string           `json:"team" enums:"runner,hunter" example:"runner"`
-	JoinCode     string           `json:"joinCode" minLength:"6" maxLength:"6" example:"K7M2QX"`
+	JoinCode     string           `json:"joinCode" minLength:"6" maxLength:"6" example:"482913"`
 	Players      []PlayerResponse `json:"players"`
 	// The requesting runner's own route; absent for hunters.
 	Route *RouteResponse `json:"route,omitempty"`

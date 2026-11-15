@@ -456,7 +456,7 @@
                 "operationId": "joinGame",
                 "parameters": [
                     {
-                        "description": "Join code (case-insensitive) and display name (1-20 characters, unique per game)",
+                        "description": "Join code (6 digits) and display name (1-20 characters, unique per game)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -686,7 +686,7 @@
                     "type": "string",
                     "maxLength": 6,
                     "minLength": 6,
-                    "example": "K7M2QX"
+                    "example": "482913"
                 },
                 "nextRevealAt": {
                     "description": "Next time hunters receive the runners' positions, present while running.",
@@ -792,13 +792,13 @@
                     "type": "string",
                     "maxLength": 6,
                     "minLength": 6,
-                    "example": "P4R9TW"
+                    "example": "071564"
                 },
                 "runner": {
                     "type": "string",
                     "maxLength": 6,
                     "minLength": 6,
-                    "example": "K7M2QX"
+                    "example": "482913"
                 }
             }
         },
@@ -813,7 +813,7 @@
                     "type": "string",
                     "maxLength": 6,
                     "minLength": 6,
-                    "example": "K7M2QX"
+                    "example": "482913"
                 },
                 "name": {
                     "type": "string",
