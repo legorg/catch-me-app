@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -9,6 +9,7 @@ import {
   type GameStateResponse,
 } from '@/api/client';
 import Button from '@/components/button';
+import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
 import PlaygroundMap, { type CellHighlight } from '@/components/playground-map';
 import { translate, translateParts, useT } from '@/i18n';
@@ -130,7 +131,7 @@ export default function LobbyScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardScrollView>
         <LanguageSwitch />
         <Text style={styles.title}>
           {running ? t('lobby.titleRunning') : countdown !== null ? t('lobby.titleCountdown', { seconds: countdown }) : t('lobby.title')}
@@ -277,7 +278,7 @@ export default function LobbyScreen() {
           })} />
         </View>}
         {running && <Button label={t('lobby.exit')} variant="secondary" onPress={goHome} />}
-      </ScrollView>
+      </KeyboardScrollView>
     </SafeAreaView>
   );
 }

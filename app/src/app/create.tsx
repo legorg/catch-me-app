@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MAX_NAME_LENGTH, createGame, isValidPlayerName, joinGame, type Coordinates, type CreateGameResponse } from '@/api/client';
 import Button from '@/components/button';
+import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
 import PlaygroundMap from '@/components/playground-map';
 import { formatNumber, useT, type MessageKey } from '@/i18n';
@@ -84,7 +85,7 @@ export default function CreateScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardScrollView>
         <LanguageSwitch />
         <Text style={styles.heading}>{t(created ? 'create.createdTitle' : 'create.chooseTitle')}</Text>
         <Text style={styles.text}>
@@ -152,7 +153,7 @@ export default function CreateScreen() {
             </View>
           </View>
         </>}
-      </ScrollView>
+      </KeyboardScrollView>
     </SafeAreaView>
   );
 }
