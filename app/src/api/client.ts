@@ -10,6 +10,7 @@ import {
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import type { CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, Playground } from './generated/types.gen';
+import { translate } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type {
@@ -45,21 +46,21 @@ export function isValidPlayerName(name: string): boolean {
 export async function checkBackend(): Promise<HealthResponse> {
   const data = await request((signal) => getHealth({ baseUrl: API_URL, signal }));
   if (!isRecord(data) || data.status !== 'ok' || data.service !== 'catch-me-backend') {
-    throw new Error('Unexpected backend response. Check the API URL.');
+    throw new Error(translate('client.unexpectedHealth'));
   }
   return data;
 }
 
 export async function createGame(center: { latitude: number; longitude: number }, cellSizeMeters = DEFAULT_CELL_SIZE_METERS): Promise<CreateGameResponse> {
   if (!isValidCellSize(cellSizeMeters)) {
-    throw new Error('Cell size must be 0.1–5 km in steps of 0.1 km.');
+    throw new Error(translate('playground.cellSizeInvalid'));
   }
   const data = await request((signal) => postGame({ baseUrl: API_URL, body: { ...center, cellSizeMeters }, signal }));
   const game = isRecord(data) ? data.game : undefined;
   const codes = isRecord(data) ? data.joinCodes : undefined;
   if (!isRecord(game) || !isHex(game.sessionId, 32) || !isDate(game.createdAt) || !isPlayground(game.playground) ||
       !isRecord(codes) || !isJoinCode(codes.runner) || !isJoinCode(codes.hunter)) {
-    throw new Error('Unexpected game response. Check the API URL.');
+    throw new Error(translate('client.unexpectedGame'));
   }
   return data as CreateGameResponse;
 }
@@ -67,14 +68,14 @@ export async function createGame(center: { latitude: number; longitude: number }
 export async function joinGame(code: string, name: string): Promise<JoinGameResponse> {
   const normalized = normalizeJoinCode(code);
   if (!JOIN_CODE_PATTERN.test(normalized)) {
-    throw new Error('Enter the 6-character join code.');
+    throw new Error(translate('client.joinCode'));
   }
   if (!isValidPlayerName(name)) {
-    throw new Error(`Enter a name with 1–${MAX_NAME_LENGTH} characters.`);
+    throw new Error(translate('client.name', { max: MAX_NAME_LENGTH }));
   }
   const data = await request((signal) => postPlayer({ baseUrl: API_URL, body: { code: normalized, name: name.trim() }, signal }));
   if (!isRecord(data) || !isHex(data.playerToken, 64)) {
-    throw new Error('Unexpected join response. Check the API URL.');
+    throw new Error(translate('client.unexpectedJoin'));
   }
   assertGameState(data.state);
   return data as JoinGameResponse;
@@ -104,7 +105,7 @@ export async function regenerateRoute(token: string): Promise<GameStateResponse>
 
 export async function setHunterTeam(token: string, name: string): Promise<GameStateResponse> {
   if (!isValidPlayerName(name)) {
-    throw new Error(`Enter a team name with 1–${MAX_NAME_LENGTH} characters.`);
+    throw new Error(translate('client.teamName', { max: MAX_NAME_LENGTH }));
   }
   const data = await request((signal) => putHunterTeam({ baseUrl: API_URL, auth: bearer(token), body: { name: name.trim() }, signal }));
   assertGameState(data);
@@ -188,7 +189,7 @@ function assertGameState(body: unknown): asserts body is GameStateResponse {
       !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCode(body.joinCode) ||
       (body.route !== undefined && (body.team !== 'runner' || !isRoute(body.route))) ||
       !Array.isArray(body.players) || !body.players.every(isPlayer)) {
-    throw new Error('Unexpected game state. Check the API URL.');
+    throw new Error(translate('client.unexpectedState'));
   }
 }
 
@@ -209,18 +210,18 @@ async function request<R extends Result>(call: (signal: AbortSignal) => Promise<
     if (result.error !== undefined || status < 200 || status > 299) {
       const message = isRecord(result.error) && typeof result.error.error === 'string'
         ? result.error.error
-        : `Request failed with status ${status}.`;
+        : translate('client.status', { status });
       throw new ApiError(message, status);
     }
     return result.data as NonNullable<R['data']>;
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error('Connection timed out. Check the API URL and your network.');
+      throw new Error(translate('client.timeout'));
     }
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error('Could not reach the backend. Check the API URL and your network.');
+    throw new Error(translate('client.unreachable'));
   } finally {
     clearTimeout(timeout);
   }

@@ -32,6 +32,21 @@ export function translate(key: MessageKey, params: Record<string, string | numbe
   return LANGUAGES[current][key].replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String(params[name]) : match));
 }
 
+/** Like translate, but placeholders may be filled with anything, e.g. styled text elements (give them keys). */
+export function translateParts<T>(key: MessageKey, parts: Record<string, T>): (string | T)[] {
+  return LANGUAGES[current][key].split(/(\{\w+\})/).filter((piece) => piece !== '').map((piece) => {
+    const name = /^\{(\w+)\}$/.exec(piece)?.[1];
+    return name !== undefined && name in parts ? parts[name] : piece;
+  });
+}
+
+/** A number in the current language's format, e.g. 0.5 as "0,5" in German. */
+export function formatNumber(value: number, fractionDigits?: { min?: number; max?: number }): string {
+  return new Intl.NumberFormat(current, {
+    minimumFractionDigits: fractionDigits?.min, maximumFractionDigits: fractionDigits?.max,
+  }).format(value);
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => { listeners.delete(listener); };

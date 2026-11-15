@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Coordinates, Playground } from '../api/generated/types.gen';
+import { useT } from '../i18n';
 
 export type CellHighlight = { cell: string; title: string; color: string };
 
@@ -23,10 +24,11 @@ export type PlaygroundMapProps = {
 // Metro resolves playground-map.native.tsx on Android/iOS. Never import the
 // native maps library into the optional browser preview.
 export default function PlaygroundMap({ playground, highlights = [], markers = [] }: PlaygroundMapProps) {
+  const t = useT();
   return (
     <View style={styles.fallback}>
-      <Text style={styles.text}>Playground maps are available in the Android and iOS app.</Text>
-      {playground && <Text style={styles.text}>Saved grid: {playground.rows} × {playground.columns}</Text>}
+      <Text style={styles.text}>{t('map.appOnly')}</Text>
+      {playground && <Text style={styles.text}>{t('map.savedGrid', { rows: playground.rows, columns: playground.columns })}</Text>}
       {highlights.map(({ cell, title }) => <Text key={cell + title} style={styles.text}>{title}: {cell}</Text>)}
       {markers.map(({ id, title, description }) => <Text key={id} style={styles.text}>{title}: {description}</Text>)}
     </View>

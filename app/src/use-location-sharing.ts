@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 
 import { isBackgroundSharingAvailable, startBackgroundSharing, stopBackgroundSharing } from './background-location';
+import { translate } from './i18n';
 
 const SEND_INTERVAL_MS = 5000;
 // Browsers may not report accuracy; treat it as poor rather than precise.
@@ -39,7 +40,7 @@ export function useLocationSharing(active: boolean, background: boolean, send: (
   useEffect(() => {
     if (!inBackground) return;
     startBackgroundSharing().catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : 'Background location could not start.');
+      setError(err instanceof Error ? err.message : translate('location.backgroundFailed'));
     });
     return () => { void stopBackgroundSharing(); };
   }, [inBackground]);
@@ -63,7 +64,7 @@ export function useLocationSharing(active: boolean, background: boolean, send: (
       (reason) => setError(reason),
     ).then(
       (s) => { if (stopped) s.remove(); else subscription = s; },
-      (err: unknown) => setError(err instanceof Error ? err.message : 'Location is unavailable.'),
+      (err: unknown) => setError(err instanceof Error ? err.message : translate('location.unavailable')),
     );
     const timer = setInterval(deliver, SEND_INTERVAL_MS);
     return () => {

@@ -1,4 +1,5 @@
 import type { GameStateResponse, PlayerResponse } from './api/generated/types.gen';
+import { getLanguage, translate } from './i18n';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -26,8 +27,6 @@ export function playersByTeam(players: PlayerResponse[]) {
   };
 }
 
-export const TEAM_LABELS = { runner: 'Runners', hunter: 'Hunters' } as const;
-
 /** Existing hunter team names, in the order their first member joined. */
 export function hunterTeams(players: PlayerResponse[]): string[] {
   return [...new Set(players.flatMap((p) => (p.hunterTeam ? [p.hunterTeam] : [])))];
@@ -49,12 +48,14 @@ export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
     if (!p.position) return [];
     const { latitude, longitude, accuracyMeters, recordedAt, revealedAt } = p.position;
     const me = p.playerId === state.playerId;
-    const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit' });
     return [{
       id: p.playerId,
       coordinate: { latitude, longitude },
-      title: me ? `${p.name} (you)` : p.name,
-      description: revealedAt ? `Revealed at ${time(revealedAt)}` : `±${Math.round(accuracyMeters)} m · ${time(recordedAt)}`,
+      title: me ? translate('common.you', { name: p.name }) : p.name,
+      description: revealedAt
+        ? translate('marker.revealedAt', { time: time(revealedAt) })
+        : translate('marker.accuracy', { meters: Math.round(accuracyMeters), time: time(recordedAt) }),
       color: me ? MARKER_COLORS.me : revealedAt ? MARKER_COLORS.revealed : MARKER_COLORS.teammate,
     }];
   });

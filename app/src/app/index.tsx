@@ -56,8 +56,8 @@ export default function HomeScreen() {
             style={styles.input}
           />
           <TextInput
-            accessibilityLabel={t('home.yourName')}
-            placeholder={t('home.yourName')}
+            accessibilityLabel={t('common.yourName')}
+            placeholder={t('common.yourName')}
             placeholderTextColor={colors.placeholder}
             value={name}
             onChangeText={setName}

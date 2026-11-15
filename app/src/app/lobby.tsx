@@ -9,9 +9,11 @@ import {
   type GameStateResponse,
 } from '@/api/client';
 import Button from '@/components/button';
+import LanguageSwitch from '@/components/language-switch';
 import PlaygroundMap, { type CellHighlight } from '@/components/playground-map';
+import { translate, translateParts, useT } from '@/i18n';
 import {
-  TEAM_LABELS, formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart,
+  formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart,
 } from '@/lobby';
 import { playerSession } from '@/player-session';
 import { cellAt, edgeName } from '@/playground';
@@ -28,6 +30,7 @@ function goHome() {
 }
 
 export default function LobbyScreen() {
+  const t = useT();
   const [snapshot, setSnapshot] = useState<{ state: GameStateResponse; receivedAt: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
@@ -47,7 +50,7 @@ export default function LobbyScreen() {
       goHome();
       return;
     }
-    setError(err instanceof Error ? err.message : 'Could not reach the backend.');
+    setError(err instanceof Error ? err.message : translate('common.backendUnreachable'));
   }, []);
 
   useFocusEffect(useCallback(() => {
@@ -115,7 +118,7 @@ export default function LobbyScreen() {
   const inStartCell = !!route && myCell === route.start;
   const nextReveal = secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
   const highlights: CellHighlight[] = route
-    ? [{ cell: route.start, title: 'Start', color: START_COLOR }, { cell: route.end, title: 'Target', color: TARGET_COLOR }]
+    ? [{ cell: route.start, title: t('lobby.start'), color: START_COLOR }, { cell: route.end, title: t('lobby.target'), color: TARGET_COLOR }]
     : [];
   const permission = location.permission;
   const needsHunterTeam = state.team === 'hunter' && !me?.hunterTeam;
@@ -128,107 +131,111 @@ export default function LobbyScreen() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{running ? 'Game running' : countdown !== null ? `Starting in ${countdown}` : 'Lobby'}</Text>
+        <LanguageSwitch />
+        <Text style={styles.title}>
+          {running ? t('lobby.titleRunning') : countdown !== null ? t('lobby.titleCountdown', { seconds: countdown }) : t('lobby.title')}
+        </Text>
         {skipStartPositionCheck && <View style={styles.card}>
-          <Text style={[styles.heading, styles.error]}>TEST MODE — start position check disabled</Text>
-          <Text style={styles.text}>Ready and the countdown do not depend on your position. Your real GPS location is still shared normally.</Text>
+          <Text style={[styles.heading, styles.error]}>{t('lobby.testMode')}</Text>
+          <Text style={styles.text}>{t('lobby.testModeText')}</Text>
         </View>}
         <Text accessibilityLiveRegion="polite" style={styles.text}>
           {running
-            ? 'Catching and reaching the target arrive in the next milestone.'
+            ? t('lobby.runningInfo')
             : countdown !== null
-              ? skipStartPositionCheck ? 'Everyone is ready. Joining, leaving, or un-readying cancels the countdown.' : 'Everyone is ready. Joining, leaving, un-readying, or a runner leaving their start cell cancels the countdown.'
-              : skipStartPositionCheck ? 'The game starts 10 seconds after all players are ready and both teams have at least one player. Hunters need a hunter team.' : 'The game starts 10 seconds after all players are ready and both teams have at least one player. Runners must stand in their start cell; hunters need a hunter team.'}
+              ? t(skipStartPositionCheck ? 'lobby.countdownInfoTest' : 'lobby.countdownInfo')
+              : t(skipStartPositionCheck ? 'lobby.startInfoTest' : 'lobby.startInfo')}
         </Text>
         {running && nextReveal !== null && <View style={styles.card}>
-          <Text style={styles.heading}>Next reveal in {formatDuration(nextReveal)}</Text>
-          <Text style={styles.hint}>
-            {state.team === 'hunter'
-              ? 'Every 5 minutes you see where each runner was at that moment.'
-              : 'Every 5 minutes the hunters see where you are at that moment.'}
-          </Text>
+          <Text style={styles.heading}>{t('lobby.nextReveal', { time: formatDuration(nextReveal) })}</Text>
+          <Text style={styles.hint}>{t(state.team === 'hunter' ? 'lobby.revealHunter' : 'lobby.revealRunner')}</Text>
         </View>}
-        {running && myCell === null && <Text style={[styles.heading, styles.error]}>You are outside the playground.</Text>}
+        {running && myCell === null && <Text style={[styles.heading, styles.error]}>{t('lobby.outside')}</Text>}
         <View style={styles.mapContainer}>
           <PlaygroundMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} markers={playerMarkers(state)} />
         </View>
         {(running || state.team === 'hunter') && <Text style={styles.hint}>
-          ● You (green){state.team === 'runner' ? ' · teammates (blue)' : ' · your hunter team (blue) · revealed runners (red)'}. Runners never see hunters.
+          {t(state.team === 'runner' ? 'lobby.legendRunner' : 'lobby.legendHunter')}
         </Text>}
         {sharing && permission && !permission.granted && <View style={styles.card}>
-          <Text style={styles.heading}>Share your location</Text>
+          <Text style={styles.heading}>{t('lobby.shareHeading')}</Text>
           <Text style={styles.text}>
-            {state.team === 'runner' && !running && !skipStartPositionCheck
-              ? 'Runners must prove they stand in their start cell before getting ready.'
+            {t(state.team === 'runner' && !running && !skipStartPositionCheck
+              ? 'lobby.shareRunnerStart'
               : state.team === 'hunter' && !running
-                ? 'Your hunter team sees your position, already in the lobby.'
-                : location.background.available
-                ? 'Your teammates see your position while the game runs.'
-                : 'Your teammates see your position while the game runs. It is only shared while this screen is open.'}
+                ? 'lobby.shareHunterLobby'
+                : location.background.available ? 'lobby.shareRunning' : 'lobby.shareRunningForeground')}
           </Text>
           {permission.canAskAgain
-            ? <Button label="Allow location" onPress={() => void location.requestPermission()} />
-            : <Text style={[styles.text, styles.error]}>Location access is blocked. Allow it in the system settings.</Text>}
+            ? <Button label={t('lobby.allowLocation')} onPress={() => void location.requestPermission()} />
+            : <Text style={[styles.text, styles.error]}>{t('lobby.locationBlocked')}</Text>}
         </View>}
         {running && permission?.granted && <View style={styles.card}>
-          <Text style={styles.heading}>{location.background.active ? 'Sharing in the background' : 'Sharing while the screen is on'}</Text>
+          <Text style={styles.heading}>{t(location.background.active ? 'lobby.sharingBackground' : 'lobby.sharingForeground')}</Text>
           {location.background.active
-            ? <Text style={styles.text}>Your position keeps being shared when the screen is off or you switch apps, until you leave the game screen or close the app.</Text>
+            ? <Text style={styles.text}>{t('lobby.sharingBackgroundText')}</Text>
             : !location.background.available
-              ? <Text style={styles.hint}>Keep this screen open. Background sharing needs an installed app build; Expo Go and browsers cannot share in the background.</Text>
+              ? <Text style={styles.hint}>{t('lobby.backgroundUnavailable')}</Text>
               : location.background.permission?.canAskAgain !== false
                 ? <>
-                  <Text style={styles.text}>Allow &quot;Always&quot; location access to keep sharing when the screen is off.</Text>
-                  <Button label="Share in the background" variant="secondary" onPress={() => void location.background.request()} />
+                  <Text style={styles.text}>{t('lobby.allowAlways')}</Text>
+                  <Button label={t('lobby.shareInBackground')} variant="secondary" onPress={() => void location.background.request()} />
                 </>
-                : <Text style={styles.hint}>Background location is blocked. Allow &quot;Always&quot; in the system settings, or keep this screen open.</Text>}
+                : <Text style={styles.hint}>{t('lobby.backgroundBlocked')}</Text>}
         </View>}
         {!!location.error && <Text style={[styles.text, styles.error]}>{location.error}</Text>}
         <View style={styles.card}>
           <Text style={styles.text}>
-            You are a <Text style={styles.heading}>{state.team}</Text>{me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · team ${me.hunterTeam}` : ''}
+            {translateParts('lobby.youAre', {
+              team: <Text key="team" style={styles.heading}>{t(state.team === 'runner' ? 'team.runner' : 'team.hunter')}</Text>,
+            })}
+            {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
           </Text>
           {!running && <>
-            <Text style={styles.text}>Invite teammates with your team&apos;s code:</Text>
+            <Text style={styles.text}>{t('lobby.invite')}</Text>
             <Text selectable style={styles.code}>{state.joinCode}</Text>
           </>}
         </View>
         {route && <View style={styles.card}>
-          <Text style={styles.heading}>Your route</Text>
+          <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
           <Text style={styles.text}>
-            Start in <Text style={[styles.heading, { color: START_COLOR }]}>{route.start}</Text> ({edgeName(route.start)}) and reach{' '}
-            <Text style={[styles.heading, { color: TARGET_COLOR }]}>{route.end}</Text> ({edgeName(route.end)}) without being caught.
+            {translateParts('lobby.route', {
+              start: <Text key="start" style={[styles.heading, { color: START_COLOR }]}>{route.start}</Text>,
+              startEdge: edgeName(route.start),
+              end: <Text key="end" style={[styles.heading, { color: TARGET_COLOR }]}>{route.end}</Text>,
+              endEdge: edgeName(route.end),
+            })}
           </Text>
           {!running && <Text style={[styles.text, !inStartCell && !skipStartPositionCheck && styles.error]}>
             {skipStartPositionCheck
-              ? myCell ? `You are in ${myCell}. The start-position check is disabled for testing.` : 'The start-position check is disabled for testing.'
+              ? myCell ? t('lobby.inCellCheckDisabled', { cell: myCell }) : t('lobby.checkDisabled')
               : inStartCell
-              ? '✓ You are in your start cell.'
-              : myCell
-                ? `You are in ${myCell}. Go to ${route.start} to get ready.`
-                : me?.position ? 'You are outside the playground.' : 'Waiting for your location...'}
+                ? t('lobby.inStartCell')
+                : myCell
+                  ? t('lobby.goToStart', { cell: myCell, start: route.start })
+                  : t(me?.position ? 'lobby.outside' : 'lobby.waitingForLocation')}
           </Text>}
-          <Text style={styles.hint}>Only runners see routes. Hunters start anywhere.</Text>
+          <Text style={styles.hint}>{t('lobby.routesHint')}</Text>
           {!running && <Button
-            label={`New route (${route.regenerationsLeft} left)`}
+            label={t('lobby.newRoute', { left: route.regenerationsLeft })}
             variant="secondary"
             disabled={busy || me?.ready || route.regenerationsLeft === 0}
             onPress={() => void act(async () => show(await regenerateRoute(token)))}
           />}
-          {!running && me?.ready && route.regenerationsLeft > 0 && <Text style={styles.hint}>Set yourself not ready to change your route.</Text>}
+          {!running && me?.ready && route.regenerationsLeft > 0 && <Text style={styles.hint}>{t('lobby.unreadyForRoute')}</Text>}
         </View>}
         {state.team === 'hunter' && !running && me && <View style={styles.card}>
-          <Text style={styles.heading}>Your hunter team</Text>
+          <Text style={styles.heading}>{t('lobby.hunterTeamHeading')}</Text>
           <Text style={[styles.text, needsHunterTeam && styles.error]}>
-            {needsHunterTeam ? 'Join or create a hunter team to get ready.' : `You hunt with team ${me.hunterTeam}.`}
+            {needsHunterTeam ? t('lobby.needHunterTeam') : t('lobby.huntWith', { name: me.hunterTeam ?? '' })}
           </Text>
-          <Text style={styles.hint}>Hunters of the same team see each other&apos;s positions. Other hunter teams never see yours.</Text>
+          <Text style={styles.hint}>{t('lobby.hunterTeamHint')}</Text>
           {hunterTeams(state.players).filter((team) => team !== me.hunterTeam).map((team) => (
-            <Button key={team} label={`Join ${team}`} variant="secondary" disabled={busy || me.ready} onPress={() => changeHunterTeam(team)} />
+            <Button key={team} label={t('lobby.joinTeam', { name: team })} variant="secondary" disabled={busy || me.ready} onPress={() => changeHunterTeam(team)} />
           ))}
           <TextInput
-            accessibilityLabel="New team name"
-            placeholder="New team name"
+            accessibilityLabel={t('lobby.newTeamName')}
+            placeholder={t('lobby.newTeamName')}
             placeholderTextColor={colors.placeholder}
             value={newTeam}
             onChangeText={setNewTeam}
@@ -237,18 +244,20 @@ export default function LobbyScreen() {
             maxLength={MAX_NAME_LENGTH}
             style={styles.input}
           />
-          <Button label="Create team" variant="secondary" disabled={busy || me.ready || !newTeam.trim()} onPress={() => changeHunterTeam(newTeam)} />
-          {me.ready && <Text style={styles.hint}>Set yourself not ready to change your team.</Text>}
+          <Button label={t('lobby.createTeam')} variant="secondary" disabled={busy || me.ready || !newTeam.trim()} onPress={() => changeHunterTeam(newTeam)} />
+          {me.ready && <Text style={styles.hint}>{t('lobby.unreadyForTeam')}</Text>}
         </View>}
         {(['runner', 'hunter'] as const).map((team) => (
           <View key={team} style={styles.card}>
-            <Text style={styles.heading}>{TEAM_LABELS[team]} ({teams[team].length})</Text>
-            {teams[team].length === 0 && <Text style={styles.hint}>Nobody yet.</Text>}
+            <Text style={styles.heading}>
+              {t('lobby.teamCount', { team: t(team === 'runner' ? 'team.runners' : 'team.hunters'), count: teams[team].length })}
+            </Text>
+            {teams[team].length === 0 && <Text style={styles.hint}>{t('lobby.nobody')}</Text>}
             {teams[team].map((p) => (
               <Text key={p.playerId} style={styles.text}>
-                {p.ready ? '✓' : '○'} {p.name}{p.playerId === state.playerId ? ' (you)' : ''}
-                {team === 'hunter' ? ` · ${p.hunterTeam ? `team ${p.hunterTeam}` : 'no team'}` : ''}
-                {running ? '' : p.ready ? ' · ready' : ' · not ready'}
+                {p.ready ? '✓' : '○'} {p.playerId === state.playerId ? t('common.you', { name: p.name }) : p.name}
+                {team === 'hunter' ? ` · ${p.hunterTeam ? t('lobby.hunterTeam', { name: p.hunterTeam }) : t('lobby.noTeam')}` : ''}
+                {running ? '' : ` · ${t(p.ready ? 'lobby.ready' : 'lobby.notReady')}`}
                 {p.route && p.playerId !== state.playerId ? ` · ${p.route.start} → ${p.route.end}` : ''}
               </Text>
             ))}
@@ -257,17 +266,17 @@ export default function LobbyScreen() {
         {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
         {!running && me && <View style={styles.row}>
           <Button
-            label={me.ready ? 'Not ready' : 'Ready'}
+            label={t(me.ready ? 'lobby.notReadyButton' : 'lobby.readyButton')}
             variant={me.ready ? 'secondary' : 'primary'}
             disabled={busy || (!me.ready && needsHunterTeam) || (!skipStartPositionCheck && !me.ready && !!route && !inStartCell)}
             onPress={() => void act(async () => show(await setReady(token, !me.ready)))}
           />
-          <Button label="Leave" variant="secondary" disabled={busy} onPress={() => void act(async () => {
+          <Button label={t('lobby.leave')} variant="secondary" disabled={busy} onPress={() => void act(async () => {
             await leaveGame(token);
             goHome();
           })} />
         </View>}
-        {running && <Button label="Exit to home" variant="secondary" onPress={goHome} />}
+        {running && <Button label={t('lobby.exit')} variant="secondary" onPress={goHome} />}
       </ScrollView>
     </SafeAreaView>
   );

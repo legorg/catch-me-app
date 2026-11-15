@@ -1,4 +1,5 @@
 import type { Bounds, Coordinates, Playground } from './api/generated/types.gen';
+import { translate } from './i18n';
 
 const EARTH_RADIUS_METERS = 6371008.8;
 export const DEFAULT_CELL_SIZE_METERS = 2000;
@@ -18,11 +19,11 @@ export function parseCellSizeKm(text: string): number | null {
 // Preview only. The backend computes and stores the authoritative geometry.
 export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_CELL_SIZE_METERS): Playground {
   if (!isValidCellSize(cellSizeMeters)) {
-    throw new Error('Cell size must be 0.1–5 km in steps of 0.1 km.');
+    throw new Error(translate('playground.cellSizeInvalid'));
   }
   if (!Number.isFinite(center.latitude) || Math.abs(center.latitude) > 80 ||
       !Number.isFinite(center.longitude) || Math.abs(center.longitude) > 180) {
-    throw new Error('Choose a center between 80° south and 80° north.');
+    throw new Error(translate('playground.latitudeInvalid'));
   }
   const latitudeDelta = (6 * cellSizeMeters / 2) / EARTH_RADIUS_METERS * 180 / Math.PI;
   const longitudeDelta = latitudeDelta / Math.cos(center.latitude * Math.PI / 180);
@@ -31,7 +32,7 @@ export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_
     east: center.longitude + longitudeDelta, west: center.longitude - longitudeDelta,
   };
   if (bounds.west < -180 || bounds.east > 180) {
-    throw new Error('The playground cannot cross the international date line.');
+    throw new Error(translate('playground.dateLine'));
   }
   return { center, bounds, rows: 6, columns: 6, cellSizeMeters };
 }
@@ -78,7 +79,7 @@ export function cellBounds(p: Playground, label: string): Bounds {
   const column = label.charCodeAt(0) - 65;
   const row = Number(label.slice(1)) - 1;
   if (!/^[A-F][1-6]$/.test(label) || column >= p.columns || row >= p.rows) {
-    throw new Error(`Unknown cell ${label}.`);
+    throw new Error(translate('playground.unknownCell', { cell: label }));
   }
   const height = (p.bounds.north - p.bounds.south) / p.rows;
   const width = (p.bounds.east - p.bounds.west) / p.columns;
@@ -89,7 +90,7 @@ export function cellBounds(p: Playground, label: string): Bounds {
 
 /** Which playground edge a cell in row 1 or 6 lies on. */
 export function edgeName(label: string): string {
-  return label.endsWith('1') ? 'north edge' : label.endsWith('6') ? 'south edge' : 'inside';
+  return translate(label.endsWith('1') ? 'playground.northEdge' : label.endsWith('6') ? 'playground.southEdge' : 'playground.inside');
 }
 
 /** Label of the cell containing the coordinates, or null outside the playground. Mirrors the backend. */

@@ -3,6 +3,7 @@ import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 
 import { ApiError, updatePosition } from './api/client';
+import { translate } from './i18n';
 import { playerSession } from './player-session';
 
 const TASK_NAME = 'catch-me-background-location';
@@ -55,9 +56,10 @@ export async function startBackgroundSharing(): Promise<void> {
     pausesUpdatesAutomatically: false,
     activityType: Location.ActivityType.Fitness,
     showsBackgroundLocationIndicator: true,
+    // Uses the language active when sharing starts.
     foregroundService: {
-      notificationTitle: 'Catch me! is sharing your location',
-      notificationBody: 'Your team sees your position while the game runs.',
+      notificationTitle: translate('location.notificationTitle'),
+      notificationBody: translate('location.notificationBody'),
       killServiceOnDestroy: true,
     },
   });
