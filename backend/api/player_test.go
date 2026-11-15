@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"catch-me/backend/internal/controller"
-	"catch-me/backend/internal/game"
-	"catch-me/backend/internal/service"
+	"catch-me/backend/controller"
+	"catch-me/backend/game"
+	"catch-me/backend/service"
 )
 
 func send(t *testing.T, handler http.Handler, method, path, token, body string) *httptest.ResponseRecorder {

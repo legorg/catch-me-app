@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"catch-me/backend/internal/game"
+	"catch-me/backend/game"
 )
 
 type memoryRepository struct {

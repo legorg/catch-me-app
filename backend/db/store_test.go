@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"catch-me/backend/internal/game"
+	"catch-me/backend/game"
 )
 
 var now = time.Date(2026, 11, 8, 12, 0, 0, 123456789, time.UTC)

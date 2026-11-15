@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"catch-me/backend/internal/game"
+	"catch-me/backend/game"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

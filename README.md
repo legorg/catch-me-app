@@ -12,11 +12,11 @@ app/                      Expo + React Native + TypeScript
 backend/                  Go standard-library HTTP + GORM + SQLite
   api/swagger.json        Generated API document (do not edit)
   cmd/server/             Server entry point
-  internal/api/           Route registration, CORS, integration tests
-  internal/controller/    HTTP parsing, response models, error mapping
-  internal/service/       Game use cases and persistence interface
-  internal/game/          Parsed domain values, lobby rules, playground geometry
-  internal/db/store.go    GORM table structs and SQLite store
+  api/                    Route registration, CORS, integration tests
+  controller/             HTTP parsing, response models, error mapping
+  service/                Game use cases and persistence interface
+  game/                   Parsed domain values, lobby rules, playground geometry
+  db/store.go             GORM table structs and SQLite store
 docs/game-spec.md         Game rules, milestones, and API overview
 ```
 
@@ -36,17 +36,17 @@ The grid uses a local spherical approximation, not survey-grade geometry. Center
 
 Request flow is **API → controller → service → database**:
 
-- `internal/api` registers endpoints and applies CORS/security headers. It contains no game validation or queries.
-- `internal/controller` decodes bounded JSON requests, parses them into domain values (applying the default cell size when omitted), invokes the service, maps domain errors to HTTP statuses, and maps domain values to public response models.
-- `internal/service` owns game creation, joining, ready-up, leaving, history cleanup, random IDs and tokens, and timestamps. It accepts only parsed domain values and depends on a `GameRepository` interface, not SQLite or GORM. Lobby changes go through `UpdateLobbyBy*`, which load a game with its players, apply a domain change, and save it in one transaction.
-- `internal/db` implements that interface with GORM. Loaded rows are parsed again, so invalid stored data becomes a server error. GORM types and errors stay inside this layer.
-- `internal/game` holds domain values and geometry with no HTTP/database dependencies. Values are parsed, not validated: `ParseSessionID`, `ParseCoordinates`, `ParseCellSize`, and `NewPlayground` are the only way to build them from raw input, and their fields are private. Optional values (route, position, reveal) are plain values whose zero value means "none". `cmd/server` wires the layers together; no dependency-injection framework or generic repository hierarchy is used.
+- `api` registers endpoints and applies CORS/security headers. It contains no game validation or queries.
+- `controller` decodes bounded JSON requests, parses them into domain values (applying the default cell size when omitted), invokes the service, maps domain errors to HTTP statuses, and maps domain values to public response models.
+- `service` owns game creation, joining, ready-up, leaving, history cleanup, random IDs and tokens, and timestamps. It accepts only parsed domain values and depends on a `GameRepository` interface, not SQLite or GORM. Lobby changes go through `UpdateLobbyBy*`, which load a game with its players, apply a domain change, and save it in one transaction.
+- `db` implements that interface with GORM. Loaded rows are parsed again, so invalid stored data becomes a server error. GORM types and errors stay inside this layer.
+- `game` holds domain values and geometry with no HTTP/database dependencies. Values are parsed, not validated: `ParseSessionID`, `ParseCoordinates`, `ParseCellSize`, and `NewPlayground` are the only way to build them from raw input, and their fields are private. Optional values (route, position, reveal) are plain values whose zero value means "none". `cmd/server` wires the layers together; no dependency-injection framework or generic repository hierarchy is used.
 
 The public API contract is separate from database rows. Changing a table must not accidentally change frontend responses.
 
 ### Tables
 
-The schema is the three structs at the top of **`backend/internal/db/store.go`** (`games`, `players`, `positions`). There is no code generation: change a struct and restart. Startup runs GORM's `AutoMigrate`, which creates missing tables, columns, and indexes but never drops or changes existing ones. Players reference their game, and positions their player, with `ON DELETE CASCADE`. Positions are only inserted, never updated. The `players` table stores only a SHA-256 hash of each player token. Times are stored as UTC text in SQLite's sortable format. GORM's SQL logging is off, because it would contain player positions.
+The schema is the three structs at the top of **`backend/db/store.go`** (`games`, `players`, `positions`). There is no code generation: change a struct and restart. Startup runs GORM's `AutoMigrate`, which creates missing tables, columns, and indexes but never drops or changes existing ones. Players reference their game, and positions their player, with `ON DELETE CASCADE`. Positions are only inserted, never updated. The `players` table stores only a SHA-256 hash of each player token. Times are stored as UTC text in SQLite's sortable format. GORM's SQL logging is off, because it would contain player positions.
 
 The SQLite driver remains pure Go (`modernc.org/sqlite`, plugged into GORM's official SQLite dialect) and the API still builds with `CGO_ENABLED=0`. GORM's dialect also pulls in the cgo driver `mattn/go-sqlite3` as a dependency; it is never used.
 
@@ -64,7 +64,7 @@ backend/api/swagger.json
 app/src/api/generated/
 ```
 
-Response fields come from `backend/internal/controller/models.go` and its JSON tags. Endpoint parameters and response codes come from the annotations on controller methods in `game.go` and `health.go`; actual routing is registered in `internal/api/handler.go`. Keep route registrations and `@Router`, `@Param`, and `@Success`/`@Failure` annotations synchronized; Go's standard library cannot infer an HTTP contract from arbitrary code.
+Response fields come from `backend/controller/models.go` and its JSON tags. Endpoint parameters and response codes come from the annotations on controller methods in `game.go` and `health.go`; actual routing is registered in `api/handler.go`. Keep route registrations and `@Router`, `@Param`, and `@Success`/`@Failure` annotations synchronized; Go's standard library cannot infer an HTTP contract from arbitrary code.
 
 Both the API document and frontend client are autogenerated. **Do not edit either output by hand.** The stable Swaggo tool emits Swagger/OpenAPI **2.0** JSON (identified by `"swagger": "2.0"`), despite the `swagger.json` filename. The frontend generator supports this format. We deliberately avoid a prerelease OpenAPI 3 generator for this simple setup.
 

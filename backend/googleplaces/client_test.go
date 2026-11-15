@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"catch-me/backend/internal/game"
+	"catch-me/backend/game"
 )
 
 func TestLandmarksSendsRectangleAndFiltersResults(t *testing.T) {

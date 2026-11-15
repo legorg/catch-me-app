@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"catch-me/backend/internal/game"
-	"catch-me/backend/internal/service"
+	"catch-me/backend/game"
+	"catch-me/backend/service"
 )
 
 type GameController struct{ service *service.GameService }

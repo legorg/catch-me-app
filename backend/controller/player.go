@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"catch-me/backend/internal/game"
-	"catch-me/backend/internal/service"
+	"catch-me/backend/game"
+	"catch-me/backend/service"
 )
 
 // Join adds a player to the team of the join code.

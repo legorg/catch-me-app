@@ -4,7 +4,7 @@ package api
 import (
 	"net/http"
 
-	"catch-me/backend/internal/controller"
+	"catch-me/backend/controller"
 )
 
 func NewHandler(webOrigin string, games *controller.GameController) http.Handler {

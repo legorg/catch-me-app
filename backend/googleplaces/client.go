@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"catch-me/backend/internal/game"
+	"catch-me/backend/game"
 )
 
 // DefaultBaseURL is the production Places API (New) endpoint.

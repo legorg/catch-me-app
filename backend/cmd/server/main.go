@@ -12,16 +12,16 @@ import (
 	"syscall"
 	"time"
 
-	"catch-me/backend/internal/api"
-	"catch-me/backend/internal/controller"
-	"catch-me/backend/internal/db"
-	"catch-me/backend/internal/googleplaces"
-	"catch-me/backend/internal/service"
+	"catch-me/backend/api"
+	"catch-me/backend/controller"
+	"catch-me/backend/db"
+	"catch-me/backend/googleplaces"
+	"catch-me/backend/service"
 
 	"github.com/joho/godotenv"
 )
 
-//go:generate go tool swag init -g main.go -d .,../../internal/controller --parseInternal --requiredByDefault --outputTypes json --output ../../api
+//go:generate go tool swag init -g main.go -d .,../../controller --requiredByDefault --outputTypes json --output ../../api
 
 // @title Catch me! API
 // @version 0.1.0

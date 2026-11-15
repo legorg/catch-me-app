@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"catch-me/backend/internal/controller"
-	"catch-me/backend/internal/db"
-	domain "catch-me/backend/internal/game"
-	"catch-me/backend/internal/service"
+	"catch-me/backend/controller"
+	"catch-me/backend/db"
+	domain "catch-me/backend/game"
+	"catch-me/backend/service"
 )
 
 func testStore(t *testing.T) *db.Store {
@@ -138,7 +138,7 @@ func TestCreateGameCellSizes(t *testing.T) {
 
 // Smoke test only: ensure the generated contract describes the real routes.
 func TestOpenAPIRoutes(t *testing.T) {
-	data, err := os.ReadFile("../../api/swagger.json")
+	data, err := os.ReadFile("swagger.json")
 	if err != nil {
 		t.Fatal(err)
 	}

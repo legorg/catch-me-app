@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"catch-me/backend/internal/game"
+	"catch-me/backend/game"
 )
 
 // landmarkTimeout bounds all lookups for one edge; it stays below the server write timeout.

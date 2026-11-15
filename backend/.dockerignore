@@ -3,7 +3,15 @@
 !go.sum
 !cmd/
 !cmd/**
-!internal/
-!internal/**
 !api/
 !api/**
+!controller/
+!controller/**
+!db/
+!db/**
+!game/
+!game/**
+!googleplaces/
+!googleplaces/**
+!service/
+!service/**
