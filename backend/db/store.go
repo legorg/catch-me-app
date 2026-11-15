@@ -3,6 +3,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -31,6 +32,7 @@ type gameRow struct {
 	StopLat, StopLon    float64
 	Players             []playerRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 	Jokers              []jokerRow  `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	Sketches            []sketchRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 }
 
 type playerRow struct {
@@ -65,10 +67,22 @@ type jokerRow struct {
 	UsedAt time.Time `gorm:"not null"`
 }
 
+// sketchRow is one line a hunter team drew. It belongs to the team, so it has no
+// player and stays when its author leaves. Points is a JSON array of
+// [latitude, longitude] pairs.
+type sketchRow struct {
+	ID        string    `gorm:"primaryKey"`
+	GameID    string    `gorm:"index;not null"`
+	Team      string    `gorm:"not null"`
+	Points    string    `gorm:"not null"`
+	CreatedAt time.Time `gorm:"not null"`
+}
+
 func (gameRow) TableName() string     { return "games" }
 func (jokerRow) TableName() string    { return "jokers" }
 func (playerRow) TableName() string   { return "players" }
 func (positionRow) TableName() string { return "positions" }
+func (sketchRow) TableName() string   { return "sketches" }
 
 type Store struct{ db *gorm.DB }
 
@@ -89,7 +103,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// updates cannot interleave.
 	database.SetMaxOpenConns(1)
 	// AutoMigrate creates missing tables, columns, and indexes; it never drops any.
-	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &positionRow{}, &jokerRow{}); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &positionRow{}, &jokerRow{}, &sketchRow{}); err != nil {
 		_ = database.Close()
 		return nil, fmt.Errorf("initialize schema: %w", err)
 	}
@@ -156,7 +170,7 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 		if err != nil {
 			return err
 		}
-		lobby = game.Lobby{Game: before.Game, Players: slices.Clone(before.Players), Reveals: before.Reveals, Jokers: slices.Clone(before.Jokers)}
+		lobby = game.Lobby{Game: before.Game, Players: slices.Clone(before.Players), Reveals: before.Reveals, Jokers: slices.Clone(before.Jokers), Sketches: slices.Clone(before.Sketches)}
 		if change == nil {
 			return nil
 		}
@@ -168,15 +182,21 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 	return lobby, err
 }
 
-// DeletePositionsBefore deletes the positions of games that started (or, if
-// never started, were created) before cutoff. A zero start sorts first.
+// DeletePositionsBefore deletes the positions and sketches of games that
+// started (or, if never started, were created) before cutoff. A zero start sorts first.
 func (s *Store) DeletePositionsBefore(ctx context.Context, cutoff time.Time) error {
-	err := s.db.WithContext(ctx).Where(`player_id IN (SELECT players.id FROM players JOIN games ON games.id = players.game_id
-		WHERE max(games.created_at, games.starts_at) < ?)`, cutoff.UTC()).Delete(&positionRow{}).Error
-	if err != nil {
-		return fmt.Errorf("delete positions: %w", err)
-	}
-	return nil
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Where(`player_id IN (SELECT players.id FROM players JOIN games ON games.id = players.game_id
+			WHERE max(games.created_at, games.starts_at) < ?)`, cutoff.UTC()).Delete(&positionRow{}).Error
+		if err != nil {
+			return fmt.Errorf("delete positions: %w", err)
+		}
+		err = tx.Where(`game_id IN (SELECT id FROM games WHERE max(created_at, starts_at) < ?)`, cutoff.UTC()).Delete(&sketchRow{}).Error
+		if err != nil {
+			return fmt.Errorf("delete sketches: %w", err)
+		}
+		return nil
+	})
 }
 
 // saveLobby writes changed games and players. A changed position is a new row;
@@ -224,11 +244,51 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 			return fmt.Errorf("save joker: %w", err)
 		}
 	}
+	if err := saveSketches(tx, after.Game.SessionID, before.Sketches, after.Sketches); err != nil {
+		return err
+	}
 	for id := range removed {
 		// Also deletes the player's positions (ON DELETE CASCADE).
 		if err := tx.Delete(&playerRow{ID: id.String()}).Error; err != nil {
 			return fmt.Errorf("delete player: %w", err)
 		}
+	}
+	return nil
+}
+
+// saveSketches inserts added sketches and deletes removed ones; sketches are never changed.
+func saveSketches(tx *gorm.DB, gameID game.SessionID, before, after []game.Sketch) error {
+	removed := map[game.SketchID]bool{}
+	for _, s := range before {
+		removed[s.ID] = true
+	}
+	for _, s := range after {
+		if removed[s.ID] {
+			delete(removed, s.ID)
+			continue
+		}
+		points := make([][2]float64, 0, len(s.Line.Points()))
+		for _, p := range s.Line.Points() {
+			points = append(points, [2]float64{p.Latitude(), p.Longitude()})
+		}
+		encoded, err := json.Marshal(points)
+		if err != nil {
+			return fmt.Errorf("encode sketch: %w", err)
+		}
+		row := sketchRow{ID: s.ID.String(), GameID: gameID.String(), Team: s.Team.String(), Points: string(encoded), CreatedAt: s.CreatedAt}
+		if err := tx.Create(&row).Error; err != nil {
+			return fmt.Errorf("save sketch: %w", err)
+		}
+	}
+	if len(removed) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(removed))
+	for id := range removed {
+		ids = append(ids, id.String())
+	}
+	if err := tx.Where("id IN ?", ids).Delete(&sketchRow{}).Error; err != nil {
+		return fmt.Errorf("delete sketches: %w", err)
 	}
 	return nil
 }
@@ -298,6 +358,17 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 			return game.Lobby{}, err
 		}
 		lobby.Jokers = append(lobby.Jokers, use)
+	}
+	var sketchRows []sketchRow
+	if err := tx.Where("game_id = ?", row.ID).Order("created_at, id").Find(&sketchRows).Error; err != nil {
+		return game.Lobby{}, fmt.Errorf("select sketches: %w", err)
+	}
+	for _, s := range sketchRows {
+		sketch, err := parseSketch(s)
+		if err != nil {
+			return game.Lobby{}, fmt.Errorf("parse stored sketch: %v", err)
+		}
+		lobby.Sketches = append(lobby.Sketches, sketch)
 	}
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{}
 	for i := range lobby.Players {
@@ -468,6 +539,29 @@ func parsePlayer(row playerRow) (game.Player, error) {
 	return game.Player{
 		ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), HunterTeam: hunterTeam, Route: route,
 	}, nil
+}
+
+func parseSketch(row sketchRow) (game.Sketch, error) {
+	id, err1 := game.ParseSketchID(row.ID)
+	team, err2 := game.ParseHunterTeamName(row.Team)
+	var pairs [][2]float64
+	err3 := json.Unmarshal([]byte(row.Points), &pairs)
+	if err := errors.Join(err1, err2, err3); err != nil {
+		return game.Sketch{}, err
+	}
+	points := make([]game.Coordinates, 0, len(pairs))
+	for _, pair := range pairs {
+		point, err := game.ParseCoordinates(pair[0], pair[1])
+		if err != nil {
+			return game.Sketch{}, err
+		}
+		points = append(points, point)
+	}
+	line, err := game.NewSketchLine(points)
+	if err != nil {
+		return game.Sketch{}, err
+	}
+	return game.Sketch{ID: id, Team: team, Line: line, CreatedAt: row.CreatedAt.UTC()}, nil
 }
 
 func parsePosition(row positionRow) (game.Position, error) {

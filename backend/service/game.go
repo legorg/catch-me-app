@@ -23,8 +23,8 @@ type GameRepository interface {
 	// save atomically. A nil change only loads.
 	UpdateLobbyByJoinCode(context.Context, game.JoinCode, time.Time, func(*game.Lobby) error) (game.Lobby, error)
 	UpdateLobbyByToken(context.Context, game.TokenHash, time.Time, func(*game.Lobby) error) (game.Lobby, error)
-	// DeletePositionsBefore deletes the positions of games that started (or, if
-	// never started, were created) before cutoff.
+	// DeletePositionsBefore deletes the positions and sketches of games that
+	// started (or, if never started, were created) before cutoff.
 	DeletePositionsBefore(context.Context, time.Time) error
 }
 
@@ -165,6 +165,20 @@ func (s *GameService) UseJoker(ctx context.Context, token game.PlayerToken, kind
 	})
 }
 
+// AddSketch adds a line to the map of the player's hunter team.
+func (s *GameService) AddSketch(ctx context.Context, token game.PlayerToken, line game.SketchLine) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.AddSketch(me.ID, line, now)
+	})
+}
+
+// ClearSketches removes all lines of the player's hunter team.
+func (s *GameService) ClearSketches(ctx context.Context, token game.PlayerToken) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.ClearSketches(me.ID, now)
+	})
+}
+
 // UpdatePosition stores the player's latest location, timestamped with server time.
 func (s *GameService) UpdatePosition(ctx context.Context, token game.PlayerToken, coordinates game.Coordinates, accuracyMeters float64) (PlayerView, error) {
 	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
@@ -183,7 +197,7 @@ func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 	return err
 }
 
-// DeleteExpiredPositions enforces game.PositionRetention.
+// DeleteExpiredPositions enforces game.PositionRetention for positions and sketches.
 func (s *GameService) DeleteExpiredPositions(ctx context.Context) error {
 	return s.repository.DeletePositionsBefore(ctx, s.now().Add(-game.PositionRetention))
 }

@@ -42,6 +42,8 @@ type Lobby struct {
 	Reveals map[PlayerID][]Reveal
 	// Jokers are the jokers hunter teams used, in order of use.
 	Jokers []JokerUse
+	// Sketches are the lines all hunter teams drew, oldest first.
+	Sketches []Sketch
 }
 
 func (l Lobby) index(id PlayerID) int {

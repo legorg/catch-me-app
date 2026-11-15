@@ -83,7 +83,7 @@ The Go annotation `@ID` becomes `operationId` and determines each generated serv
 | `POST /api/me/route` | `regenerateRoute()` | Give the runner a new random route (2 times, while not ready) |
 | `PUT /api/me/position` | `updatePosition()` | Report the current position; the server applies the visibility rules |
 
-The `/api/me` endpoints require `Authorization: Bearer <playerToken>`. The game state contains only what the requesting player may see, for example only their own team's join code. Errors: 400 invalid input, 401 missing/unknown token, 404 unknown game or code, 409 rule violation (already started, full, name taken).
+The `/api/me` endpoints require `Authorization: Bearer <playerToken>`. The game state contains only what the requesting player may see, for example positions by team and visibility rules (both join codes are visible to every player). Errors: 400 invalid input, 401 missing/unknown token, 404 unknown game or code, 409 rule violation (already started, full, name taken).
 
 Create a game by posting a JSON center to `/api/games`:
 

@@ -13,8 +13,8 @@ const (
 	StartPositionMaxAge = 30 * time.Second
 	// StartRadiusMeters is how close to the route's start a runner must be to get ready.
 	StartRadiusMeters = 50
-	// PositionRetention is how long reported positions are kept after a game's
-	// start (or creation, if it never started), for a replay after the game.
+	// PositionRetention is how long reported positions and sketches are kept after
+	// a game's start (or creation, if it never started), for a replay after the game.
 	PositionRetention = 7 * 24 * time.Hour
 )
 

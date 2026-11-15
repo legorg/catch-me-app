@@ -121,10 +121,15 @@ Candidates:
 - **Query a zone:** ask whether any runner is currently inside a chosen cell.
 - Open: which team gets which jokers and how many, when they can be used, how long effects last, and how the server enforces them (it must stay the referee; fake positions may only ever be sent to the intended viewers).
 
-### Team map drawings and notes [planned]
+### Hunter team sketches [next: MVP]
 
-- Players of one team (runners, or one hunter team) draw on the map and add notes that only their team sees.
-- Open: drawing types (lines, areas, markers), editing and deleting, whether notes are kept for the replay. Visibility must be enforced by the server like positions.
+- Hunters of one hunter team draw freehand lines (**sketches**) on the map that only their team sees. Runners and other hunter teams never receive them; the server filters them like positions.
+- Drawing is possible **only while the game is running**, for hunters in a hunter team, in the fullscreen map. A line is sent when the finger is lifted; teammates see it with the next game state poll (no live drawing).
+- A sketch is a list of 2–500 points (latitude ±80°, longitude ±180°), in one color in the MVP. A hunter team has at most 200 sketches.
+- **Any team member can clear all** of the team's sketches at once. There is no undo or deleting single lines in the MVP.
+- Sketches belong to the hunter team, not to the drawing player: they stay when a player leaves. (Leaving is not possible while running, and hunter teams only change before the start, so a team cannot disappear while it has sketches.)
+- Sketches are kept for the later replay and deleted **7 days after the game's start**, like positions.
+- Later: colors, undo, deleting single lines, notes or markers, sketches for runners.
 
 ### Share link for a game [planned]
 
@@ -154,11 +159,13 @@ Candidates:
 | `PUT /api/me/hunter-team` | Bearer | Join or create the hunter team `{name}` (hunters, not ready, before the start). Returns the game state. |
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
 | `POST /api/me/jokers` | Bearer | Use the joker `{kind: "showRunners"}` of the player's hunter team (while running, once). Returns the game state. |
+| `POST /api/me/sketches` | Bearer | Add a sketch `{points: [{latitude, longitude}, …]}` for the player's hunter team (while running). Returns the game state. |
+| `DELETE /api/me/sketches` | Bearer | Clear all sketches of the player's hunter team (while running). Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), the `jokers` of the requester's own team (hunters in a hunter team; each with `available`, and once used `usedAt` and the `positions` it showed; runners have none yet), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt`). Runners never get reveals, and hunters never get a live runner position. Clients compute countdowns from the server time to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), the `jokers` of the requester's own team (hunters in a hunter team; each with `available`, and once used `usedAt` and the `positions` it showed; runners have none yet), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt`). Runners never get reveals, and hunters never get a live runner position. While running, hunters in a hunter team also get their team's `sketches` (oldest first, each with `id`, `createdAt`, and `points`); everyone else gets an empty list. Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
-Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team, joker not available: game not running, already used, or not a hunter in a team).
+Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team, joker not available: game not running, already used, or not a hunter in a team; sketch not allowed: game not running, not a hunter in a team, or the team's sketch limit reached).
 
 ## Tuning values
 
@@ -173,3 +180,5 @@ Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game 
 | Start cell position max age | 30 s |
 | Position send interval (app) | 5 s |
 | Time limit | 90 min |
+| Points per sketch | 2–500 |
+| Sketches per hunter team | 200 |

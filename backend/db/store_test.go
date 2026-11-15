@@ -340,6 +340,54 @@ func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
 	}
 }
 
+func TestSketchesPersistUntilClearedOrExpired(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	at := start.Add(time.Minute)
+	first, _ := game.ParseCoordinates(52.52, 13.405)
+	second, _ := game.ParseCoordinates(52.53, 13.415)
+	line, _ := game.NewSketchLine([]game.Coordinates{first, second})
+	update := func(change func(l *game.Lobby) error) error {
+		_, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), at, change)
+		return err
+	}
+	for range 2 {
+		if err := update(func(l *game.Lobby) error { return l.AddSketch(hunter.ID, line, at) }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sketches := load(t, store, saved.JoinCodes.Hunter, at).Sketches
+	if len(sketches) != 2 || sketches[0].ID == sketches[1].ID || sketches[0].Team != hunter.HunterTeam ||
+		!sketches[0].CreatedAt.Equal(at) || !reflect.DeepEqual(sketches[0].Line, line) {
+		t.Fatalf("sketches not stored: %+v", sketches)
+	}
+
+	if err := update(func(l *game.Lobby) error { return l.ClearSketches(hunter.ID, at) }); err != nil {
+		t.Fatal(err)
+	}
+	if got := load(t, store, saved.JoinCodes.Hunter, at).Sketches; len(got) != 0 {
+		t.Fatalf("cleared sketches still stored: %+v", got)
+	}
+
+	if err := update(func(l *game.Lobby) error { return l.AddSketch(hunter.ID, line, at) }); err != nil {
+		t.Fatal(err)
+	}
+	// Retention counts from the start, like positions.
+	if err := store.DeletePositionsBefore(ctx, start); err != nil || len(load(t, store, saved.JoinCodes.Hunter, at).Sketches) != 1 {
+		t.Fatalf("sketch deleted before its retention ended: %v", err)
+	}
+	if err := store.DeletePositionsBefore(ctx, start.Add(time.Nanosecond)); err != nil || len(load(t, store, saved.JoinCodes.Hunter, at).Sketches) != 0 {
+		t.Fatalf("expired sketch kept: %v", err)
+	}
+}
+
 func TestPositionsOfUnstartedGamesAndLeavingPlayers(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")
