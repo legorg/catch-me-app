@@ -4,6 +4,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -104,7 +105,12 @@ func playgroundResponse(p game.Playground) Playground {
 // decodeJSON reads exactly one JSON object of at most 1024 bytes, rejecting
 // unknown fields. On failure it writes the error response and returns false.
 func decodeJSON(w http.ResponseWriter, r *http.Request, body any, message string) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	return decodeJSONMax(w, r, body, message, 1024)
+}
+
+// decodeJSONMax is decodeJSON with a different size limit.
+func decodeJSONMax(w http.ResponseWriter, r *http.Request, body any, message string, maxBytes int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(body)
@@ -121,7 +127,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, body any, message string
 	if errors.As(err, &sizeErr) {
 		status = http.StatusRequestEntityTooLarge
 	}
-	WriteError(w, status, message+" (maximum 1024 bytes)")
+	WriteError(w, status, fmt.Sprintf("%s (maximum %d bytes)", message, maxBytes))
 	return false
 }
 

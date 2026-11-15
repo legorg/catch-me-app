@@ -486,6 +486,122 @@
                 }
             }
         },
+        "/api/me/sketches": {
+            "post": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Draw a line on the hunter team's map",
+                "operationId": "addSketch",
+                "parameters": [
+                    {
+                        "description": "2-500 points of a freehand line; only the hunter's own team sees it",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.AddSketchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated game state with the team's sketches",
+                        "schema": {
+                            "$ref": "#/definitions/controller.GameStateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid JSON, coordinates, or number of points",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Not a hunter in a team, game not running, or the team's sketch limit reached",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body exceeds 65536 bytes",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "PlayerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Clear the hunter team's map",
+                "operationId": "clearSketches",
+                "responses": {
+                    "200": {
+                        "description": "Updated game state without the team's sketches",
+                        "schema": {
+                            "$ref": "#/definitions/controller.GameStateResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or unknown player token",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Not a hunter in a team, or game not running",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not update game",
+                        "schema": {
+                            "$ref": "#/definitions/controller.APIError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/players": {
             "post": {
                 "consumes": [
@@ -581,6 +697,22 @@
                 "error": {
                     "type": "string",
                     "example": "cell size must be 100 to 5000 meters in steps of 100 meters"
+                }
+            }
+        },
+        "controller.AddSketchRequest": {
+            "type": "object",
+            "required": [
+                "points"
+            ],
+            "properties": {
+                "points": {
+                    "type": "array",
+                    "maxItems": 500,
+                    "minItems": 2,
+                    "items": {
+                        "$ref": "#/definitions/controller.SketchPointRequest"
+                    }
                 }
             }
         },
@@ -742,6 +874,7 @@
                 "playground",
                 "serverTime",
                 "sessionId",
+                "sketches",
                 "status",
                 "team"
             ],
@@ -793,6 +926,13 @@
                     "maxLength": 32,
                     "minLength": 32,
                     "example": "00112233445566778899aabbccddeeff"
+                },
+                "sketches": {
+                    "description": "The requesting hunter's team's sketches while running, oldest first; empty for everyone else.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controller.SketchResponse"
+                    }
                 },
                 "startPositionCheckDisabled": {
                     "description": "Explicit server-side development override; absent during normal play.",
@@ -1185,6 +1325,55 @@
                 "ready": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "controller.SketchPointRequest": {
+            "type": "object",
+            "required": [
+                "latitude",
+                "longitude"
+            ],
+            "properties": {
+                "latitude": {
+                    "type": "number",
+                    "maximum": 80,
+                    "minimum": -80,
+                    "example": 52.52
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 13.405
+                }
+            }
+        },
+        "controller.SketchResponse": {
+            "type": "object",
+            "required": [
+                "createdAt",
+                "points",
+                "sketchId"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string",
+                    "example": "2026-11-08T12:07:00Z"
+                },
+                "points": {
+                    "type": "array",
+                    "maxItems": 500,
+                    "minItems": 2,
+                    "items": {
+                        "$ref": "#/definitions/controller.Coordinates"
+                    }
+                },
+                "sketchId": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 32,
+                    "example": "0123456789abcdef0123456789abcdef"
                 }
             }
         },

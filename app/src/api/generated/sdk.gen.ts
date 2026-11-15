@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, CreateGameData, CreateGameErrors, CreateGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
+import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -107,6 +107,28 @@ export const regenerateRoute = <ThrowOnError extends boolean = false>(options?: 
     security: [{ name: 'Authorization', type: 'apiKey' }],
     url: '/api/me/route',
     ...options
+});
+
+/**
+ * Clear the hunter team's map
+ */
+export const clearSketches = <ThrowOnError extends boolean = false>(options?: Options<ClearSketchesData, ThrowOnError>) => (options?.client ?? client).delete<ClearSketchesResponses, ClearSketchesErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/sketches',
+    ...options
+});
+
+/**
+ * Draw a line on the hunter team's map
+ */
+export const addSketch = <ThrowOnError extends boolean = false>(options: Options<AddSketchData, ThrowOnError>) => (options.client ?? client).post<AddSketchResponses, AddSketchErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/sketches',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

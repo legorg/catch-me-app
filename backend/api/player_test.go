@@ -214,3 +214,41 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 		t.Fatalf("a hunter team has the joker, unavailable before the game runs: %+v", state.Jokers)
 	}
 }
+
+func TestSketchesRefuseWhatTheRulesForbid(t *testing.T) {
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
+	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
+	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
+	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Hunter+`","name":"Bob"}`), 201)
+	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
+	line := `{"points":[{"latitude":0,"longitude":0},{"latitude":0.001,"longitude":0.001}]}`
+	many := `{"points":[` + strings.Repeat(`{"latitude":0,"longitude":0},`, 500) + `{"latitude":0,"longitude":0}]}`
+	huge := `{"points":[` + strings.Repeat(`{"latitude":0,"longitude":0},`, 3000) + `{"latitude":0,"longitude":0}]}`
+	for _, tc := range []struct {
+		name, method, token, body string
+		status                    int
+	}{
+		{"without token", "POST", "", line, 401},
+		{"one point", "POST", hunter.PlayerToken, `{"points":[{"latitude":0,"longitude":0}]}`, 400},
+		{"too many points", "POST", hunter.PlayerToken, many, 400},
+		{"missing longitude", "POST", hunter.PlayerToken, `{"points":[{"latitude":0},{"latitude":1,"longitude":1}]}`, 400},
+		{"point out of range", "POST", hunter.PlayerToken, `{"points":[{"latitude":85,"longitude":0},{"latitude":0,"longitude":0}]}`, 400},
+		{"body too large", "POST", hunter.PlayerToken, huge, 413},
+		{"before the game runs", "POST", hunter.PlayerToken, line, 409},
+		{"runner draws", "POST", runner.PlayerToken, line, 409},
+		{"runner clears", "DELETE", runner.PlayerToken, "", 409},
+		{"clear before the game runs", "DELETE", hunter.PlayerToken, "", 409},
+		{"wrong method", "GET", hunter.PlayerToken, "", 405},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if body := decode[controller.APIError](t, send(t, handler, tc.method, "/api/me/sketches", tc.token, tc.body), tc.status); body.Error == "" {
+				t.Fatal("expected error message")
+			}
+		})
+	}
+	for _, token := range []string{runner.PlayerToken, hunter.PlayerToken} {
+		if state := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", token, ""), 200); state.Sketches == nil || len(state.Sketches) != 0 {
+			t.Fatalf("sketches must be an empty list: %+v", state.Sketches)
+		}
+	}
+}

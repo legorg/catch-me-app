@@ -269,6 +269,94 @@ func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
+// Sketches routes /api/me/sketches to AddSketch and ClearSketches.
+func (c *GameController) Sketches(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost, http.MethodDelete) {
+		return
+	}
+	if r.Method == http.MethodPost {
+		c.AddSketch(w, r)
+		return
+	}
+	c.ClearSketches(w, r)
+}
+
+// AddSketch adds a line to the map of the authenticated hunter's team.
+// @Summary Draw a line on the hunter team's map
+// @ID addSketch
+// @Accept json
+// @Produce json
+// @Security PlayerToken
+// @Param body body AddSketchRequest true "2-500 points of a freehand line; only the hunter's own team sees it"
+// @Success 200 {object} GameStateResponse "Updated game state with the team's sketches"
+// @Failure 400 {object} APIError "Invalid JSON, coordinates, or number of points"
+// @Failure 401 {object} APIError "Missing or unknown player token"
+// @Failure 405 {object} APIError "Method not allowed"
+// @Failure 409 {object} APIError "Not a hunter in a team, game not running, or the team's sketch limit reached"
+// @Failure 413 {object} APIError "Request body exceeds 65536 bytes"
+// @Failure 500 {object} APIError "Could not update game"
+// @Router /api/me/sketches [post]
+func (c *GameController) AddSketch(w http.ResponseWriter, r *http.Request) {
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	var body AddSketchRequest
+	if !decodeJSONMax(w, r, &body, "expected a JSON object with points", 64<<10) {
+		return
+	}
+	points := make([]game.Coordinates, 0, len(body.Points))
+	for _, p := range body.Points {
+		if p.Latitude == nil || p.Longitude == nil {
+			WriteError(w, http.StatusBadRequest, "every point needs latitude and longitude")
+			return
+		}
+		point, err := game.ParseCoordinates(*p.Latitude, *p.Longitude)
+		if err != nil {
+			writeGameError(w, err, "invalid point")
+			return
+		}
+		points = append(points, point)
+	}
+	line, err := game.NewSketchLine(points)
+	if err != nil {
+		writeGameError(w, err, "invalid sketch")
+		return
+	}
+	view, err := c.service.AddSketch(r.Context(), token, line)
+	if err != nil {
+		writeGameError(w, err, "could not update game")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
+// ClearSketches removes all lines of the authenticated hunter's team.
+// @Summary Clear the hunter team's map
+// @ID clearSketches
+// @Produce json
+// @Security PlayerToken
+// @Success 200 {object} GameStateResponse "Updated game state without the team's sketches"
+// @Failure 401 {object} APIError "Missing or unknown player token"
+// @Failure 405 {object} APIError "Method not allowed"
+// @Failure 409 {object} APIError "Not a hunter in a team, or game not running"
+// @Failure 500 {object} APIError "Could not update game"
+// @Router /api/me/sketches [delete]
+func (c *GameController) ClearSketches(w http.ResponseWriter, r *http.Request) {
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	view, err := c.service.ClearSketches(r.Context(), token)
+	if err != nil {
+		writeGameError(w, err, "could not update game")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
 // Leave removes the authenticated player before the game starts.
 // @Summary Leave the game before it starts
 // @ID leaveGame
@@ -338,6 +426,14 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 			})
 		}
 		response.Jokers = append(response.Jokers, joker)
+	}
+	response.Sketches = make([]SketchResponse, 0)
+	for _, s := range view.Lobby.SketchesFor(view.Me, view.Now) {
+		sketch := SketchResponse{SketchID: s.ID.String(), CreatedAt: s.CreatedAt}
+		for _, p := range s.Line.Points() {
+			sketch.Points = append(sketch.Points, Coordinates{Latitude: p.Latitude(), Longitude: p.Longitude()})
+		}
+		response.Sketches = append(response.Sketches, sketch)
 	}
 	if view.Me.Team == game.Runners {
 		route := gameRouteResponse(g.Route)

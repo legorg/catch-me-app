@@ -120,6 +120,21 @@ type UseJokerRequest struct {
 	Kind string `json:"kind" enums:"showRunners" example:"showRunners" validate:"required,oneof=showRunners"`
 }
 
+type AddSketchRequest struct {
+	Points []SketchPointRequest `json:"points" minLength:"2" maxLength:"500" validate:"required,min=2,max=500,dive"`
+}
+
+type SketchPointRequest struct {
+	Latitude  *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
+	Longitude *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
+}
+
+type SketchResponse struct {
+	SketchID  string        `json:"sketchId" minLength:"32" maxLength:"32" example:"0123456789abcdef0123456789abcdef" validate:"required,len=32"`
+	CreatedAt time.Time     `json:"createdAt" example:"2026-11-08T12:07:00Z" validate:"required"`
+	Points    []Coordinates `json:"points" minLength:"2" maxLength:"500" validate:"required,min=2,max=500,dive"`
+}
+
 // JokerResponse is one joker of the requesting player's team.
 type JokerResponse struct {
 	Kind string `json:"kind" enums:"showRunners" example:"showRunners" validate:"required,oneof=showRunners"`
@@ -157,6 +172,8 @@ type GameStateResponse struct {
 	Players      []PlayerResponse `json:"players" validate:"dive"`
 	// The requesting player's team's jokers; empty for runners (they have none yet) and hunters without a team.
 	Jokers []JokerResponse `json:"jokers" validate:"dive"`
+	// The requesting hunter's team's sketches while running, oldest first; empty for everyone else.
+	Sketches []SketchResponse `json:"sketches" validate:"dive"`
 	// The game's route between two landmarks; only runners get it, hunters have to find them.
 	Route *GameRoute `json:"route,omitempty"`
 }

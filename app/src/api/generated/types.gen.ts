@@ -8,6 +8,10 @@ export type ControllerApiError = {
     error: string;
 };
 
+export type ControllerAddSketchRequest = {
+    points: Array<ControllerSketchPointRequest>;
+};
+
 export type ControllerBounds = {
     east: number;
     north: number;
@@ -66,6 +70,10 @@ export type ControllerGameStateResponse = {
     route?: ControllerGameRoute;
     serverTime: string;
     sessionId: string;
+    /**
+     * The requesting hunter's team's sketches while running, oldest first; empty for everyone else.
+     */
+    sketches: Array<ControllerSketchResponse>;
     /**
      * Explicit server-side development override; absent during normal play.
      */
@@ -179,6 +187,17 @@ export type ControllerSetHunterTeamRequest = {
 
 export type ControllerSetReadyRequest = {
     ready: boolean;
+};
+
+export type ControllerSketchPointRequest = {
+    latitude: number;
+    longitude: number;
+};
+
+export type ControllerSketchResponse = {
+    createdAt: string;
+    points: Array<ControllerCoordinates>;
+    sketchId: string;
 };
 
 export type ControllerUpdatePositionRequest = {
@@ -531,6 +550,91 @@ export type RegenerateRouteResponses = {
 };
 
 export type RegenerateRouteResponse = RegenerateRouteResponses[keyof RegenerateRouteResponses];
+
+export type ClearSketchesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/sketches';
+};
+
+export type ClearSketchesErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a hunter in a team, or game not running
+     */
+    409: ControllerApiError;
+    /**
+     * Could not update game
+     */
+    500: ControllerApiError;
+};
+
+export type ClearSketchesError = ClearSketchesErrors[keyof ClearSketchesErrors];
+
+export type ClearSketchesResponses = {
+    /**
+     * Updated game state without the team's sketches
+     */
+    200: ControllerGameStateResponse;
+};
+
+export type ClearSketchesResponse = ClearSketchesResponses[keyof ClearSketchesResponses];
+
+export type AddSketchData = {
+    /**
+     * 2-500 points of a freehand line; only the hunter's own team sees it
+     */
+    body: ControllerAddSketchRequest;
+    path?: never;
+    query?: never;
+    url: '/api/me/sketches';
+};
+
+export type AddSketchErrors = {
+    /**
+     * Invalid JSON, coordinates, or number of points
+     */
+    400: ControllerApiError;
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a hunter in a team, game not running, or the team's sketch limit reached
+     */
+    409: ControllerApiError;
+    /**
+     * Request body exceeds 65536 bytes
+     */
+    413: ControllerApiError;
+    /**
+     * Could not update game
+     */
+    500: ControllerApiError;
+};
+
+export type AddSketchError = AddSketchErrors[keyof AddSketchErrors];
+
+export type AddSketchResponses = {
+    /**
+     * Updated game state with the team's sketches
+     */
+    200: ControllerGameStateResponse;
+};
+
+export type AddSketchResponse = AddSketchResponses[keyof AddSketchResponses];
 
 export type JoinGameData = {
     /**

@@ -159,6 +159,8 @@ func TestOpenAPIRoutes(t *testing.T) {
 		{"/api/me/route", "post", "regenerateRoute", "200", "controller.GameStateResponse"},
 		{"/api/me/hunter-team", "put", "setHunterTeam", "200", "controller.GameStateResponse"},
 		{"/api/me/position", "put", "updatePosition", "200", "controller.GameStateResponse"},
+		{"/api/me/sketches", "post", "addSketch", "200", "controller.GameStateResponse"},
+		{"/api/me/sketches", "delete", "clearSketches", "200", "controller.GameStateResponse"},
 	} {
 		operation := spec.Paths[tc.path][tc.method]
 		if operation.OperationID != tc.id || operation.Responses[tc.status].Schema.Ref != "#/definitions/"+tc.schema || len(spec.Definitions[tc.schema].Required) == 0 {

@@ -15,6 +15,7 @@ const state: GameStateResponse = {
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
   jokers: [],
+  sketches: [],
   players: [
     { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', ready: true },
     { playerId: 'b'.repeat(32), name: 'Bob', team: 'hunter', ready: true },
