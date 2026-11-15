@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { isBackgroundSharingAvailable, startBackgroundSharing, stopBackgroundSharing } from './background-location';
 import { translate } from './i18n';
@@ -20,7 +21,7 @@ export type Fix = { latitude: number; longitude: number; accuracyMeters: number 
  */
 export function useLocationSharing(active: boolean, background: boolean, send: (fix: Fix) => Promise<void>) {
   const [permission, requestPermission] = Location.useForegroundPermissions();
-  const [backgroundPermission, requestBackgroundPermission] = Location.useBackgroundPermissions();
+  const [backgroundPermission, requestBackgroundPermission, getBackgroundPermission] = Location.useBackgroundPermissions();
   const [backgroundAvailable, setBackgroundAvailable] = useState(false);
   const [error, setError] = useState('');
   const sendRef = useRef(send);
@@ -36,6 +37,14 @@ export function useLocationSharing(active: boolean, background: boolean, send: (
     void isBackgroundSharingAvailable().then((available) => { if (current) setBackgroundAvailable(available); });
     return () => { current = false; };
   }, []);
+
+  // "Always" is often granted in the system settings (Android 11+ opens them to ask): read it again on return.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void getBackgroundPermission();
+    });
+    return () => subscription.remove();
+  }, [getBackgroundPermission]);
 
   useEffect(() => {
     if (!inBackground) return;

@@ -14,4 +14,5 @@ export type {
   ControllerPlayerResponse as PlayerResponse,
   ControllerPlayground as Playground,
   ControllerPositionResponse as PositionResponse,
+  ControllerSketchResponse as SketchResponse,
 } from './generated/types.gen';

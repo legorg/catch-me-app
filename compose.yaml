@@ -6,6 +6,9 @@ services:
       context: ./backend
     ports:
       - "8080:8080"
+    environment:
+      # Google Places API key for the landmarks of game routes.
+      GOOGLE_MAPS_KEY: "${GOOGLE_MAPS_KEY:-}"
     command: ["-addr", ":8080", "-db", "/data/catch-me.sqlite", "-test-skip-start-position-check=${TEST_SKIP_START_POSITION_CHECK:-false}"]
     volumes:
       - game_data:/data

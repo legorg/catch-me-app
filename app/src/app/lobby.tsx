@@ -86,6 +86,11 @@ export default function LobbyScreen() {
     { id: 'route-stop', coordinate: route.stop.coordinates, title: route.stop.title || t('lobby.target'), description: t('lobby.target'), color: TARGET_COLOR },
   ] : [];
   const permission = location.permission;
+  const background = location.background;
+  // Installed builds need "Always"; Expo Go cannot share in the background, so foreground access must do there.
+  // ("Always" can only be granted on top of foreground access, so it covers both.)
+  const needsBackground = background.available && background.permission?.granted !== true;
+  const needsForeground = !background.available && permission?.granted !== true;
   const needsHunterTeam = state.team === 'hunter' && !me?.hunterTeam;
   const changeHunterTeam = (name: string) => void act(async () => {
     show(await setHunterTeam(token, name));
@@ -123,11 +128,20 @@ export default function LobbyScreen() {
           <Text style={styles.text}>
             {t(state.team === 'runner' && !skipStartPositionCheck ? 'lobby.shareRunnerStart' : 'lobby.shareHunterLobby')}
           </Text>
+          {needsForeground && <Text style={[styles.text, !me?.ready && styles.error]}>{t('lobby.locationRequired')}</Text>}
           {permission.canAskAgain
             ? <Button label={t('lobby.allowLocation')} onPress={() => void location.requestPermission()} />
             : <Text style={[styles.text, styles.error]}>{t('lobby.locationBlocked')}</Text>}
         </View>}
         {!!location.error && <Text style={[styles.text, styles.error]}>{location.error}</Text>}
+        {sharing && needsBackground && <View style={styles.card}>
+          <Text style={styles.heading}>{t('lobby.backgroundHeading')}</Text>
+          <Text style={[styles.text, !me?.ready && styles.error]}>{t('lobby.backgroundRequired')}</Text>
+          {/* "Always" can only be asked for once foreground access is granted (see the card above). */}
+          {permission?.granted && (background.permission?.canAskAgain !== false
+            ? <Button label={t('lobby.shareInBackground')} variant="secondary" onPress={() => void background.request()} />
+            : <Text style={[styles.text, styles.error]}>{t('lobby.backgroundRequiredBlocked')}</Text>)}
+        </View>}
         <View style={styles.card}>
           <Text style={styles.text}>
             {translateParts('lobby.youAre', {
@@ -200,7 +214,7 @@ export default function LobbyScreen() {
           <Button
             label={t(me.ready ? 'lobby.notReadyButton' : 'lobby.readyButton')}
             variant={me.ready ? 'secondary' : 'primary'}
-            disabled={busy || (!me.ready && needsHunterTeam) || (!skipStartPositionCheck && !me.ready && isRunner && !atStart)}
+            disabled={busy || (!me.ready && (needsHunterTeam || needsBackground || needsForeground)) || (!skipStartPositionCheck && !me.ready && isRunner && !atStart)}
             onPress={() => void act(async () => show(await setReady(token, !me.ready)))}
           />
           <Button label={t('lobby.leave')} variant="secondary" disabled={busy} onPress={() => void act(async () => {

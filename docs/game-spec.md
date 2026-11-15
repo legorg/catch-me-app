@@ -43,6 +43,7 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 ## Lobby and start [done: milestone 1]
 
 - Each player toggles **Ready**.
+- **Background location [app only]:** in installed builds, the app enables Ready only once "Always" location access is granted, so positions keep coming while the screen is off during the game. The server cannot verify the permission and does not check it; it can also be withdrawn later. Expo Go cannot share in the background, so there the app only requires foreground location access.
 - **Start condition:** every player is ready, and each team has at least one player (hunters: see hunter teams).
 - When the start condition becomes true, the server schedules the start **10 seconds** later (countdown).
 - Whenever the start condition stops holding during the countdown (someone joins, leaves, un-readies, or a ready runner leaves their start cell), the countdown is cancelled. It restarts from 10 seconds once the condition holds again.
@@ -121,10 +122,10 @@ Candidates:
 - **Query a zone:** ask whether any runner is currently inside a chosen cell.
 - Open: which team gets which jokers and how many, when they can be used, how long effects last, and how the server enforces them (it must stay the referee; fake positions may only ever be sent to the intended viewers).
 
-### Hunter team sketches [next: MVP]
+### Hunter team sketches [done: MVP]
 
 - Hunters of one hunter team draw freehand lines (**sketches**) on the map that only their team sees. Runners and other hunter teams never receive them; the server filters them like positions.
-- Drawing is possible **only while the game is running**, for hunters in a hunter team, in the fullscreen map. A line is sent when the finger is lifted; teammates see it with the next game state poll (no live drawing).
+- Drawing is possible **only while the game is running**, for hunters in a hunter team, on the game screen's map ("Draw" button; the map stops moving while drawing). A line is sent when the finger is lifted; teammates see it with the next game state poll (no live drawing). The app thins longer lines to 500 points.
 - A sketch is a list of 2–500 points (latitude ±80°, longitude ±180°), in one color in the MVP. A hunter team has at most 200 sketches.
 - **Any team member can clear all** of the team's sketches at once. There is no undo or deleting single lines in the MVP.
 - Sketches belong to the hunter team, not to the drawing player: they stay when a player leaves. (Leaving is not possible while running, and hunter teams only change before the start, so a team cannot disappear while it has sketches.)
@@ -159,7 +160,7 @@ Candidates:
 | `PUT /api/me/hunter-team` | Bearer | Join or create the hunter team `{name}` (hunters, not ready, before the start). Returns the game state. |
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
 | `POST /api/me/jokers` | Bearer | Use the joker `{kind: "showRunners"}` of the player's hunter team (while running, once). Returns the game state. |
-| `POST /api/me/sketches` | Bearer | Add a sketch `{points: [{latitude, longitude}, …]}` for the player's hunter team (while running). Returns the game state. |
+| `POST /api/me/sketches` | Bearer | Add a sketch `{points: [{latitude, longitude}, …]}` for the player's hunter team (while running; body up to 64 KiB, other endpoints 1024 bytes). Returns the game state. |
 | `DELETE /api/me/sketches` | Bearer | Clear all sketches of the player's hunter team (while running). Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 

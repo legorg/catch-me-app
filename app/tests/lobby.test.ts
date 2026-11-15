@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateResponse } from '../src/api/client';
-import { MARKER_COLORS, formatDuration, hunterTeams, jokerMarkers, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart } from '../src/lobby';
+import { MARKER_COLORS, SKETCH_COLOR, formatDuration, hunterTeams, jokerMarkers, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
 import { previewPlayground } from '../src/playground';
 
 const state: GameStateResponse = {
@@ -109,4 +109,28 @@ test('a used joker becomes one marker per runner it showed', () => {
   ]);
   assert.match(markers[0].description, /Joker/);
   assert.deepEqual(jokerMarkers({ ...state, jokers: [{ kind: 'showRunners', available: true }] }), []);
+});
+
+test('sketches become lines in the sketch color, in the order the server sent them', () => {
+  const points = [{ latitude: 52.5, longitude: 13.4 }, { latitude: 52.51, longitude: 13.41 }];
+  const sketches = [
+    { sketchId: '1'.repeat(32), createdAt: '2026-11-08T12:07:00Z', points },
+    { sketchId: '2'.repeat(32), createdAt: '2026-11-08T12:08:00Z', points: [...points].reverse() },
+  ];
+  assert.deepEqual(sketchLines({ ...state, team: 'hunter', sketches }), [
+    { id: '1'.repeat(32), coordinates: points, color: SKETCH_COLOR },
+    { id: '2'.repeat(32), coordinates: [...points].reverse(), color: SKETCH_COLOR },
+  ]);
+  assert.deepEqual(sketchLines(state), []);
+});
+
+test('long lines are thinned evenly, keeping their ends', () => {
+  const points = Array.from({ length: 1201 }, (_, i) => i);
+  const thinned = thinPoints(points, 500);
+  assert.equal(thinned.length, 500);
+  assert.equal(thinned[0], 0);
+  assert.equal(thinned[499], 1200);
+  assert.ok(thinned.every((p, i) => i === 0 || p > thinned[i - 1]), 'order kept, no duplicates');
+  assert.equal(thinPoints([1, 2, 3], 500).length, 3);
+  assert.deepEqual(thinPoints([1, 2, 3, 4, 5], 2), [1, 5]);
 });

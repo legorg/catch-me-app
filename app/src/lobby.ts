@@ -84,6 +84,19 @@ export function jokerMarkers(state: GameStateResponse): PlayerMarker[] {
   })));
 }
 
+export const SKETCH_COLOR = '#9b51e0';
+
+/** At most `max` points (at least 2), evenly spread over the line and always keeping its first and last point. */
+export function thinPoints<T>(points: T[], max: number): T[] {
+  if (points.length <= max) return points;
+  return Array.from({ length: max }, (_, i) => points[Math.round((i * (points.length - 1)) / (max - 1))]);
+}
+
+/** The lines the player's hunter team drew; the server sends them only to that team. */
+export function sketchLines(state: GameStateResponse): { id: string; coordinates: { latitude: number; longitude: number }[]; color: string }[] {
+  return state.sketches.map((sketch) => ({ id: sketch.sketchId, coordinates: sketch.points, color: SKETCH_COLOR }));
+}
+
 function clockTime(iso: string, seconds = false): string {
   return new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: seconds ? '2-digit' : undefined });
 }

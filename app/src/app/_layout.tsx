@@ -1,5 +1,6 @@
 import { getLocales } from 'expo-localization';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 // Registers the background location task before any screen renders.
 import '@/background-location';
@@ -14,32 +15,36 @@ if (deviceLanguage) setLanguage(deviceLanguage);
 export default function RootLayout() {
   const t = useT();
   return (
-    <Stack
-      screenOptions={{
-        statusBarStyle: 'light',
-        headerBlurEffect: 'dark',
-        headerTintColor: '#ffffff',
-        headerBackButtonDisplayMode: 'minimal',
-        headerTitleStyle: { fontWeight: '700' },
-        headerShadowVisible: false,
-        headerLargeTitle: true,
-        headerLargeTitleShadowVisible: false,
-        headerLargeTitleStyle: { color: '#ffffff' },
-        contentStyle: { backgroundColor: colors.background },
-       // headerRight: () => <LanguageSwitch />,
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: 'Catch me!' }} />
-      <Stack.Screen name="create" options={{ title: t('create.chooseTitle') }} />
-      {/* Joining replaces the previous screen, so there is nothing to go back to. */}
-      <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
-      {/* The map fills the screen under its own overlay, so no header; leaving goes through the exit button. */}
-      <Stack.Screen name="game" options={{ headerShown: false, gestureEnabled: false, statusBarStyle: 'dark' }} />
-      {/* A native sheet over the game screen: it brings its own slide, backdrop dimming and drag to dismiss. */}
-      <Stack.Screen name="jokers" options={{
-        presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [0.55, 1], sheetGrabberVisible: true,
-        contentStyle: { backgroundColor: colors.background },
-      }} />
-    </Stack>
+    <>
+      {/* Light text on the dark screens. Not the Stack's statusBarStyle: on iOS that needs
+          UIViewControllerBasedStatusBarAppearance, which Expo (and Expo Go) leave off. */}
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerBlurEffect: 'dark',
+          headerTintColor: '#ffffff',
+          headerBackButtonDisplayMode: 'minimal',
+          headerTitleStyle: { fontWeight: '700' },
+          headerShadowVisible: false,
+          headerLargeTitle: true,
+          headerLargeTitleShadowVisible: false,
+          headerLargeTitleStyle: { color: '#ffffff' },
+          contentStyle: { backgroundColor: colors.background },
+         // headerRight: () => <LanguageSwitch />,
+        }}
+      >
+        <Stack.Screen name="index" options={{ title: 'Catch me!' }} />
+        <Stack.Screen name="create" options={{ title: t('create.chooseTitle') }} />
+        {/* Joining replaces the previous screen, so there is nothing to go back to. */}
+        <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
+        {/* The map fills the screen under its own overlay, so no header; leaving goes through the exit button. */}
+        <Stack.Screen name="game" options={{ headerShown: false, gestureEnabled: false }} />
+        {/* A native sheet over the game screen: it brings its own slide, backdrop dimming and drag to dismiss. */}
+        <Stack.Screen name="jokers" options={{
+          presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [0.55, 1], sheetGrabberVisible: true,
+          contentStyle: { backgroundColor: colors.background },
+        }} />
+      </Stack>
+    </>
   );
 }

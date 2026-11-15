@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, activateJoker, checkBackend, createGame, getGameState, joinGame, leaveGame, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, getGameState, joinGame, leaveGame, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { previewPlayground } from '../src/playground';
 
@@ -26,6 +26,7 @@ const state = {
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
   jokers: [],
+  sketches: [],
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
   route,
 };
@@ -151,6 +152,36 @@ test('using a joker posts its kind with the token and returns the state', async 
   assert.deepEqual(await activateJoker(token, 'showRunners'), used);
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'your hunter team already used this joker' }, { status: 409 }));
   await assert.rejects(activateJoker(token, 'showRunners'), /already used/);
+});
+
+test('sketches are posted and cleared with the token, and only hunters may get them', async (t) => {
+  const { route: _route, ...withoutRoute } = state;
+  const sketch = { sketchId: '0123456789abcdef0123456789abcdef', createdAt: '2026-11-08T12:07:00Z', points: [center, { latitude: 52.53, longitude: 13.41 }] };
+  const hunterState = { ...withoutRoute, team: 'hunter', status: 'running', sketches: [sketch] };
+  const seen: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
+    seen.push(`${request.method} ${new URL(request.url).pathname}`);
+    if (request.method === 'POST') {
+      assert.deepEqual(await request.json(), { points: sketch.points });
+      return Response.json(hunterState);
+    }
+    return Response.json({ ...hunterState, sketches: [] });
+  });
+  // Extra fields of a point are not sent.
+  assert.deepEqual(await addSketch(token, sketch.points.map((p) => ({ ...p, extra: 1 }))), hunterState);
+  assert.equal((await clearSketches(token)).sketches.length, 0);
+  assert.deepEqual(seen, ['POST /api/me/sketches', 'DELETE /api/me/sketches']);
+
+  for (const points of [[], [center], Array(501).fill(center)]) {
+    await assert.rejects(addSketch(token, points), /sketch needs/);
+  }
+  for (const body of [{ ...state, sketches: undefined }, { ...state, sketches: [sketch] },
+    { ...hunterState, sketches: [{ ...sketch, sketchId: 'bad' }] }, { ...hunterState, sketches: [{ ...sketch, points: [center] }] },
+    { ...hunterState, sketches: [{ ...sketch, points: [center, { latitude: 95, longitude: 0 }] }] }]) {
+    t.mock.method(globalThis, 'fetch', async () => Response.json(body));
+    await assert.rejects(getGameState(token), /Unexpected game state/);
+  }
 });
 
 test('malformed successful responses are rejected at runtime', async (t) => {

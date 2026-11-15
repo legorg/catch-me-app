@@ -6,6 +6,7 @@ import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE, type LatLng, type 
 
 import type { Coordinates, Playground } from '../api/types';
 import { useT } from '../i18n';
+import { SKETCH_COLOR } from '../lobby';
 import { DEFAULT_CENTER, boundaryCoordinates, cellBounds, cellLabels, gridLines } from '../playground';
 
 // Apple Maps centers the pin on the coordinate; lift it by half its height so the tip lands there. Google Maps already does.
@@ -15,6 +16,9 @@ const PIN_OFFSET = Platform.OS === 'ios' ? { x: 0, y: -20 } : undefined;
 // is laid out, which leaves the tip too low, so it gets an explicit offset (half the height) instead.
 const NUMBERED_PIN_ANCHOR = Platform.OS === 'ios' ? undefined : { x: 0.5, y: 1 };
 const NUMBERED_PIN_OFFSET = Platform.OS === 'ios' ? { x: 0, y: -20 } : undefined;
+
+// A finger must move this far (in points) before the line gets a new point, which keeps lines small.
+const MIN_STROKE_STEP = 6;
 
 export type CellHighlight = { cell: string; title: string; color: string };
 
@@ -28,19 +32,28 @@ export type MapMarker = {
   label?: string;
 };
 
+export type MapLine = { id: string; coordinates: Coordinates[]; color: string };
+
 export type PlaygroundMapProps = {
   playground: Playground | null;
   editable: boolean;
   onSelect: (center: Coordinates) => void;
   highlights?: CellHighlight[];
   markers?: MapMarker[];
+  /** Lines drawn over the grid, e.g. the team's sketches. */
+  lines?: MapLine[];
+  /**
+   * While set, finger moves draw a line instead of moving the map. Called with the line (at least two points)
+   * when the finger lifts; the line stays visible until the returned promise settles.
+   */
+  onDraw?: (points: Coordinates[]) => Promise<void>;
   /** Fill the parent instead of using the default height. */
   fullscreen?: boolean;
   /** Extra space around the location button, e.g. safe-area insets under a fullscreen map. */
   controlsInset?: { bottom?: number; right?: number };
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], fullscreen = false, controlsInset }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], onDraw, fullscreen = false, controlsInset }: PlaygroundMapProps) {
   const t = useT();
   // Where the map's center (and so the grid) is on screen. Native maps shift it from the middle of the
   // view, e.g. by safe-area margins under the notch, so the crosshair is placed by asking the map.
@@ -90,6 +103,40 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
     mute.current(800);
     map.current?.animateCamera({ center: coordinate }, { duration: 300 });
   };
+  // Drawing: each finger position becomes a map coordinate (asynchronously, so they are collected by index).
+  const [stroke, setStroke] = useState<Coordinates[]>([]);
+  const currentStroke = useRef<{ pending: Promise<LatLng | null>[]; resolved: (LatLng | null)[]; last?: { x: number; y: number } } | null>(null);
+  const addPoint = (x: number, y: number) => {
+    const current = currentStroke.current;
+    if (!current || !map.current || (current.last && Math.hypot(x - current.last.x, y - current.last.y) < MIN_STROKE_STEP)) return;
+    current.last = { x, y };
+    const index = current.pending.length;
+    const point = map.current.coordinateForPoint({ x, y }).catch(() => null);
+    current.pending.push(point);
+    void point.then((coordinate) => {
+      current.resolved[index] = coordinate;
+      if (currentStroke.current === current) setStroke(current.resolved.filter((c): c is LatLng => !!c));
+    });
+  };
+  // Uses the onDraw of the moment the finger lifted, so switching drawing off right after still sends the line.
+  const finishStroke = async () => {
+    const send = onDraw;
+    const current = currentStroke.current;
+    currentStroke.current = null;
+    if (!current) return;
+    const points = (await Promise.all(current.pending)).filter((c): c is LatLng => !!c);
+    try {
+      if (points.length >= 2) await send?.(points.map(({ latitude, longitude }) => ({ latitude, longitude })));
+    } finally {
+      // A new line may have been started meanwhile; it shows its own preview.
+      if (!currentStroke.current) setStroke([]);
+    }
+  };
+  const startStroke = (x: number, y: number) => {
+    currentStroke.current = { pending: [], resolved: [] };
+    addPoint(x, y);
+  };
+  const drawing = !!onDraw;
   const locate = async () => {
     if (locating) return;
     setLocating(true);
@@ -128,6 +175,9 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         userInterfaceStyle="light"
         rotateEnabled={false}
         pitchEnabled={false}
+        // While drawing, the finger draws and the map stays where it is.
+        scrollEnabled={!drawing}
+        zoomEnabled={!drawing}
         // The blue dot, once the user has allowed location.
         showsUserLocation={permission?.granted === true}
         showsMyLocationButton={false}
@@ -150,6 +200,10 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
             </Marker>
           ))}
         </>}
+        {lines.map(({ id, coordinates, color }) => (
+          <Polyline key={id} coordinates={coordinates} strokeColor={color} strokeWidth={4} lineCap="round" lineJoin="round" />
+        ))}
+        {stroke.length >= 2 && <Polyline coordinates={stroke} strokeColor={SKETCH_COLOR} strokeWidth={4} lineCap="round" lineJoin="round" />}
         {markers.map(({ id, coordinate, title, description, color, label }) => (
           // The native pin cannot hold text, so a numbered marker is drawn: a round head with the number and a pointed tail.
           label === undefined
@@ -170,6 +224,16 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
       <View style={styles.crossH} />
       <View style={styles.crossV} />
     </View>}
+    {/* Over the map, under the location button: catches the finger while drawing. */}
+    {drawing && <View
+      style={StyleSheet.absoluteFill}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderGrant={(event) => startStroke(event.nativeEvent.locationX, event.nativeEvent.locationY)}
+      onResponderMove={(event) => addPoint(event.nativeEvent.locationX, event.nativeEvent.locationY)}
+      onResponderRelease={() => void finishStroke()}
+      onResponderTerminate={() => void finishStroke()}
+    />}
     <View style={[styles.locate, { right: 12 + (controlsInset?.right ?? 0), bottom: 12 + (controlsInset?.bottom ?? 0) }]}>
       {!!locateError && <Text style={styles.locateError}>{locateError}</Text>}
       <Pressable accessibilityRole="button" accessibilityLabel={t('map.myLocation')} disabled={locating} onPress={() => void locate()} style={[styles.locateButton, locating && styles.locating]}>

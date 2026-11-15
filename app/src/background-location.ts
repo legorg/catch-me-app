@@ -1,3 +1,4 @@
+import { isRunningInExpoGo } from 'expo';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
@@ -36,6 +37,8 @@ TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
 
 /** Background location needs a development or production build; Expo Go cannot run it. */
 export async function isBackgroundSharingAvailable(): Promise<boolean> {
+  // Expo Go reports background location as available on iOS, but cannot run it.
+  if (isRunningInExpoGo()) return false;
   try {
     return await TaskManager.isAvailableAsync() && await Location.isBackgroundLocationAvailableAsync();
   } catch {

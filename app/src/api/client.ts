@@ -1,5 +1,7 @@
 import {
   activateJoker as postJoker,
+  addSketch as postSketch,
+  clearSketches as deleteSketches,
   createGame as postGame,
   getGameState as fetchGameState,
   getHealth,
@@ -10,18 +12,17 @@ import {
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
-import type { CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Playground } from './types';
+import type { Coordinates, CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Playground } from './types';
 import { translate } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type {
   Coordinates, CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerPositionResponse,
-  JokerResponse, Landmark, PlayerResponse, Playground, PositionResponse,
+  JokerResponse, Landmark, PlayerResponse, Playground, PositionResponse, SketchResponse,
 } from './types';
 
 export const API_URL = (
-  // process.env.EXPO_PUBLIC_API_URL || 
-  'http://192.168.178.33:8080'
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
 ).trim().replace(/\/+$/, '');
 
 // Development aid: shows in the Metro terminal which URL every request goes to (__DEV__ is unset under node tests).
@@ -124,6 +125,27 @@ export async function activateJoker(token: string, kind: JokerKind): Promise<Gam
   return data;
 }
 
+export const MIN_SKETCH_POINTS = 2;
+export const MAX_SKETCH_POINTS = 500;
+
+/** Draws a line on the map of the player's hunter team (while the game runs). */
+export async function addSketch(token: string, points: Coordinates[]): Promise<GameStateResponse> {
+  if (points.length < MIN_SKETCH_POINTS || points.length > MAX_SKETCH_POINTS) {
+    throw new Error(translate('client.sketchPoints', { min: MIN_SKETCH_POINTS, max: MAX_SKETCH_POINTS }));
+  }
+  const body = { points: points.map(({ latitude, longitude }) => ({ latitude, longitude })) };
+  const data = await request((signal) => postSketch({ baseUrl: API_URL, auth: bearer(token), body, signal }));
+  assertGameState(data);
+  return data;
+}
+
+/** Removes all lines of the player's hunter team, whoever drew them. */
+export async function clearSketches(token: string): Promise<GameStateResponse> {
+  const data = await request((signal) => deleteSketches({ baseUrl: API_URL, auth: bearer(token), signal }));
+  assertGameState(data);
+  return data;
+}
+
 export async function updatePosition(
   token: string, position: { latitude: number; longitude: number; accuracyMeters: number },
 ): Promise<GameStateResponse> {
@@ -192,6 +214,12 @@ function isJoker(j: unknown): boolean {
     (j.positions === undefined || (Array.isArray(j.positions) && j.positions.every((p) => isRecord(p) && isHex(p.playerId, 32) && isPosition(p))));
 }
 
+function isSketch(s: unknown): boolean {
+  return isRecord(s) && isHex(s.sketchId, 32) && isDate(s.createdAt) && Array.isArray(s.points) &&
+    s.points.length >= MIN_SKETCH_POINTS && s.points.length <= MAX_SKETCH_POINTS &&
+    s.points.every((p) => isRecord(p) && finite(p.latitude) && Math.abs(p.latitude) <= 80 && finite(p.longitude) && Math.abs(p.longitude) <= 180);
+}
+
 function isPlayer(p: unknown): boolean {
   return isRecord(p) && isHex(p.playerId, 32) && typeof p.name === 'string' && isTeam(p.team) &&
     (p.hunterTeam === undefined || (p.team === 'hunter' && typeof p.hunterTeam === 'string')) &&
@@ -221,7 +249,9 @@ function assertGameState(body: unknown): asserts body is GameStateResponse {
       // Only runners get the route; hunters must not.
       (body.team === 'runner' ? !isGameRoute(body.route) : body.route !== undefined) ||
       !Array.isArray(body.players) || !body.players.every(isPlayer) ||
-      !Array.isArray(body.jokers) || !body.jokers.every(isJoker)) {
+      !Array.isArray(body.jokers) || !body.jokers.every(isJoker) ||
+      // Only hunters get their team's sketches; runners never.
+      !Array.isArray(body.sketches) || !body.sketches.every(isSketch) || (body.team === 'runner' && body.sketches.length > 0)) {
     throw new Error(translate('client.unexpectedState'));
   }
 }
