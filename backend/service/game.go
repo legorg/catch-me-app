@@ -159,9 +159,9 @@ func (s *GameService) SetHunterTeam(ctx context.Context, token game.PlayerToken,
 }
 
 // UseJoker spends a joker of the player's team.
-func (s *GameService) UseJoker(ctx context.Context, token game.PlayerToken, kind game.JokerKind) (PlayerView, error) {
+func (s *GameService) UseJoker(ctx context.Context, token game.PlayerToken, choice game.JokerChoice) (PlayerView, error) {
 	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
-		return l.UseJoker(me.ID, kind, now)
+		return l.UseJoker(me.ID, choice, now)
 	})
 }
 

@@ -234,9 +234,9 @@ func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) 
 // @Accept json
 // @Produce json
 // @Security PlayerToken
-// @Param body body UseJokerRequest true "The joker to use; each hunter team can use each joker once, while the game runs"
+// @Param body body UseJokerRequest true "The joker to use (with the cell for queryZone); each hunter team can use each joker once, while the game runs"
 // @Success 200 {object} GameStateResponse "Updated game state, with what the joker showed"
-// @Failure 400 {object} APIError "Invalid JSON or unknown joker"
+// @Failure 400 {object} APIError "Invalid JSON, unknown joker, or missing or unexpected cell"
 // @Failure 401 {object} APIError "Missing or unknown player token"
 // @Failure 405 {object} APIError "Method not allowed"
 // @Failure 409 {object} APIError "Not a hunter in a team, game not running, or joker already used"
@@ -253,15 +253,15 @@ func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body UseJokerRequest
-	if !decodeJSON(w, r, &body, "expected a JSON object with kind") {
+	if !decodeJSON(w, r, &body, "expected a JSON object with kind and, for queryZone, cell") {
 		return
 	}
-	kind, err := game.ParseJokerKind(body.Kind)
+	choice, err := game.ParseJokerChoice(body.Kind, body.Cell)
 	if err != nil {
 		writeGameError(w, err, "invalid joker")
 		return
 	}
-	view, err := c.service.UseJoker(r.Context(), token, kind)
+	view, err := c.service.UseJoker(r.Context(), token, choice)
 	if err != nil {
 		writeGameError(w, err, "could not update game")
 		return
@@ -418,6 +418,10 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 		if !j.UsedAt.IsZero() {
 			usedAt := j.UsedAt
 			joker.UsedAt = &usedAt
+			if j.Kind == game.JokerQueryZone {
+				found := j.Found
+				joker.Cell, joker.Found = j.Cell.String(), &found
+			}
 		}
 		for _, p := range j.Positions {
 			joker.Positions = append(joker.Positions, JokerPositionResponse{

@@ -18,6 +18,8 @@ export default function JokerList({ state, error, onUse }: {
   const t = useT();
   const [confirming, setConfirming] = useState<JokerKind | null>(null);
   const [busy, setBusy] = useState(false);
+  // queryZone needs a cell picker, which comes with the app step; until then only the known jokers.
+  const jokers = state.jokers.filter((j): j is JokerResponse & { kind: JokerKind } => j.kind === 'showRunners');
 
   const use = async (kind: JokerKind) => {
     if (busy) return;
@@ -33,8 +35,8 @@ export default function JokerList({ state, error, onUse }: {
   return (
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
       <Text style={styles.heading}>{t('joker.title')}</Text>
-      {state.jokers.length === 0 && <Text style={styles.hint}>{t('joker.none')}</Text>}
-      {state.jokers.map((joker) => (
+      {jokers.length === 0 && <Text style={styles.hint}>{t('joker.none')}</Text>}
+      {jokers.map((joker) => (
         <View key={joker.kind} style={styles.card}>
           <Text style={styles.heading}>{t(TITLE_KEYS[joker.kind])}</Text>
           <Text style={styles.text}>{t(TEXT_KEYS[joker.kind])}</Text>

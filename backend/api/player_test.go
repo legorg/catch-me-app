@@ -199,6 +199,9 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	body := `{"kind":"showRunners"}`
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", "", body), 401)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"teleport"}`), 400)
+	for _, invalid := range []string{`{"kind":"queryZone"}`, `{"kind":"queryZone","cell":"G1"}`, `{"kind":"showRunners","cell":"A1"}`} {
+		decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, invalid), 400)
+	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "GET", "/api/me/jokers", hunter.PlayerToken, ""), 405)
@@ -210,9 +213,11 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	}
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
 	state := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
-	if len(state.Jokers) != 1 || state.Jokers[0].Kind != "showRunners" || state.Jokers[0].Available || state.Jokers[0].UsedAt != nil {
-		t.Fatalf("a hunter team has the joker, unavailable before the game runs: %+v", state.Jokers)
+	if len(state.Jokers) != 2 || state.Jokers[0].Kind != "showRunners" || state.Jokers[1].Kind != "queryZone" ||
+		state.Jokers[0].Available || state.Jokers[1].Available || state.Jokers[0].UsedAt != nil || state.Jokers[1].Found != nil {
+		t.Fatalf("a hunter team has both jokers, unavailable before the game runs: %+v", state.Jokers)
 	}
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"queryZone","cell":"C4"}`), 409)
 }
 
 func TestSketchesRefuseWhatTheRulesForbid(t *testing.T) {

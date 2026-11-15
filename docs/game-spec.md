@@ -112,15 +112,16 @@ Agreed topics whose rules are still open. Each needs its rules settled here befo
 
 One-off special abilities on top of the periodic reveals. A joker belongs to a team: runners, or one hunter team (hunters of the same team share it). The app has a joker sheet (the "Jokers" button on the game screen) listing the team's jokers.
 
-**Show runners** (hunter teams): once per game and hunter team, while the game is running, any hunter of the team can use it. The team then sees where every runner was at that moment (each runner's last report at or before the use). The result stays on the map, in a different color than the reveals, and is visible only to that hunter team; other hunter teams still have their own joker, and runners are not told. The server stores only that the team used it (and when); the positions are derived from the stored position history, like reveals. Using it again is a `409`.
+**Show runners** (hunter teams) [implemented]: once per game and hunter team, while the game is running, any hunter of the team can use it. The team then sees where every runner was at that moment (each runner's last report at or before the use). The result stays on the map, in a different color than the reveals, and is visible only to that hunter team; other hunter teams still have their own joker, and runners are not told. The server stores only that the team used it (and when); the positions are derived from the stored position history, like reveals. Using it again is a `409`.
 
-Candidates:
+Every joker can be used once per game and team, only while the game is running; using it again is a `409`. The server enforces all of them.
 
-- **Show runners** *(implemented)*: a hunter team sees every runner's position as of now, once per game (see below).
-- **Show a fake position:** a runner makes hunters see a wrong position at the next reveal.
-- **Show only the zone:** a reveal shows only the runner's cell instead of the exact position.
-- **Query a zone:** ask whether any runner is currently inside a chosen cell.
-- Open: which team gets which jokers and how many, when they can be used, how long effects last, and how the server enforces them (it must stay the referee; fake positions may only ever be sent to the intended viewers).
+**Query a zone** (hunter teams) [backend done]: any hunter of the team picks one cell of the grid. The team gets a yes/no answer: was at least one runner inside that cell at that moment (each runner's last report at or before the use; a runner without a report counts as outside)? The answer does not say how many runners or which. The cell and the answer stay on the team's map; only that hunter team sees them, and runners are not told. The server stores the cell and the time; the answer is derived from the position history.
+
+**Runner jokers** belong to the runner team as a whole: each exists once per game, and when one runner uses it, it is used up for all runners. It affects only the runner who used it, and only that runner's **next reveal**. All runners see which runner team jokers were used, by whom and when. Hunters are never told that a joker was used; they only see its effect at the reveal. A runner can have at most one pending runner joker at a time (a second one before the next reveal is a `409`).
+
+- **Show only the zone** [planned]: at the next reveal, hunters see only the cell this runner was in (highlighted on the map), not the exact position.
+- **Fake position** [planned]: the runner picks any point inside the playground. At the next reveal, hunters see that point instead of the real position, looking like a normal reveal. The server never sends the real position of that reveal to hunters (before the game has ended); the faked reveal stays faked.
 
 ### Hunter team sketches [done: MVP]
 
@@ -159,12 +160,12 @@ Candidates:
 | `POST /api/me/route` | Bearer | Regenerate the runner's route. Returns the game state. |
 | `PUT /api/me/hunter-team` | Bearer | Join or create the hunter team `{name}` (hunters, not ready, before the start). Returns the game state. |
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
-| `POST /api/me/jokers` | Bearer | Use the joker `{kind: "showRunners"}` of the player's hunter team (while running, once). Returns the game state. |
+| `POST /api/me/jokers` | Bearer | Use a joker of the player's hunter team: `{kind: "showRunners"}` or `{kind: "queryZone", cell: "C4"}` (while running, once each). Returns the game state. |
 | `POST /api/me/sketches` | Bearer | Add a sketch `{points: [{latitude, longitude}, …]}` for the player's hunter team (while running; body up to 64 KiB, other endpoints 1024 bytes). Returns the game state. |
 | `DELETE /api/me/sketches` | Bearer | Clear all sketches of the player's hunter team (while running). Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), the `jokers` of the requester's own team (hunters in a hunter team; each with `available`, and once used `usedAt` and the `positions` it showed; runners have none yet), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt`). Runners never get reveals, and hunters never get a live runner position. While running, hunters in a hunter team also get their team's `sketches` (oldest first, each with `id`, `createdAt`, and `points`); everyone else gets an empty list. Clients compute countdowns from the server time to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), the `jokers` of the requester's own team (hunters in a hunter team; each with `available`, and once used `usedAt` and what it showed: the `positions` for showRunners, the `cell` and `found` for queryZone; runners have none yet), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt`). Runners never get reveals, and hunters never get a live runner position. While running, hunters in a hunter team also get their team's `sketches` (oldest first, each with `id`, `createdAt`, and `points`); everyone else gets an empty list. Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
 Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team, joker not available: game not running, already used, or not a hunter in a team; sketch not allowed: game not running, not a hunter in a team, or the team's sketch limit reached).
 

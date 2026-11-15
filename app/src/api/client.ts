@@ -209,9 +209,11 @@ function isReveal(value: unknown): boolean {
 }
 
 function isJoker(j: unknown): boolean {
-  return isRecord(j) && j.kind === 'showRunners' && typeof j.available === 'boolean' &&
+  return isRecord(j) && (j.kind === 'showRunners' || j.kind === 'queryZone') && typeof j.available === 'boolean' &&
     (j.usedAt === undefined || isDate(j.usedAt)) &&
-    (j.positions === undefined || (Array.isArray(j.positions) && j.positions.every((p) => isRecord(p) && isHex(p.playerId, 32) && isPosition(p))));
+    (j.positions === undefined || (Array.isArray(j.positions) && j.positions.every((p) => isRecord(p) && isHex(p.playerId, 32) && isPosition(p)))) &&
+    (j.cell === undefined || (typeof j.cell === 'string' && /^[A-F][1-6]$/.test(j.cell))) &&
+    (j.found === undefined || typeof j.found === 'boolean');
 }
 
 function isSketch(s: unknown): boolean {

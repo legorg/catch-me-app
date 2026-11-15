@@ -140,7 +140,7 @@ test('using a joker posts its kind with the token and returns the state', async 
     jokers: [{
       kind: 'showRunners', available: false, usedAt: '2026-11-08T12:07:00Z',
       positions: [{ playerId: state.playerId, latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' }],
-    }],
+    }, { kind: 'queryZone', available: false, usedAt: '2026-11-08T12:08:00Z', cell: 'C4', found: false }],
   };
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     assert.equal(new URL(request.url).pathname, '/api/me/jokers');
@@ -204,6 +204,8 @@ test('malformed successful responses are rejected at runtime', async (t) => {
     { ...state, jokers: undefined }, { ...state, jokers: [{ kind: 'teleport', available: true }] },
     { ...state, jokers: [{ kind: 'showRunners', available: 'yes' }] },
     { ...state, jokers: [{ kind: 'showRunners', available: false, usedAt: 'bad' }] },
+    { ...state, jokers: [{ kind: 'queryZone', available: false, usedAt: '2026-11-08T12:07:00Z', cell: 'G1', found: true }] },
+    { ...state, jokers: [{ kind: 'queryZone', available: false, usedAt: '2026-11-08T12:07:00Z', cell: 'C4', found: 'yes' }] },
     { ...state, team: 'gamemaster' }]) {
     t.mock.method(globalThis, 'fetch', async () => Response.json(body));
     await assert.rejects(getGameState(token), /Unexpected game state/);

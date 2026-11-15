@@ -34,3 +34,24 @@ func TestGameStateShowsSketchesToTheOwnHunterTeamOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	pack, _ := game.ParseHunterTeamName("Pack")
+	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
+	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute)}, Players: []game.Player{ada, bob}}
+	choice, _ := game.ParseJokerChoice("queryZone", "A1")
+	if err := lobby.UseJoker(bob.ID, choice, now); err != nil {
+		t.Fatal(err)
+	}
+
+	got := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Jokers
+	if len(got) != 2 || got[0].Kind != "showRunners" || got[0].Cell != "" || got[0].Found != nil {
+		t.Fatalf("an unused joker has no answer: %+v", got)
+	}
+	// "No" must be sent as false, not left out.
+	if got[1].Kind != "queryZone" || got[1].Available || got[1].Cell != "A1" || got[1].Found == nil || *got[1].Found || len(got[1].Positions) != 0 {
+		t.Fatalf("the query must show the cell and the answer, without positions: %+v", got[1])
+	}
+}

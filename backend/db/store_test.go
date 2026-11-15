@@ -314,7 +314,7 @@ func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
 	usedAt := start.Add(60 * time.Second)
 	use := func(at time.Time) error {
 		_, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), at, func(l *game.Lobby) error {
-			return l.UseJoker(hunter.ID, game.JokerShowRunners, at)
+			return l.UseJoker(hunter.ID, game.JokerChoice{Kind: game.JokerShowRunners}, at)
 		})
 		return err
 	}
@@ -337,6 +337,41 @@ func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
 	}
 	if count := load(t, store, saved.JoinCodes.Hunter, start.Add(100*time.Second)); len(count.Jokers) != 1 {
 		t.Fatal("a refused use was saved")
+	}
+}
+
+func TestQueriedZoneIsStoredAndAnsweredAtTheTimeOfUse(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	before, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 4, start.Add(10*time.Second))
+	after, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(70*time.Second))
+	move(t, store, runnerToken, before)
+	usedAt := start.Add(60 * time.Second)
+	choice, err := game.ParseJokerChoice("queryZone", runner.Route.Start.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), usedAt, func(l *game.Lobby) error {
+		return l.UseJoker(hunter.ID, choice, usedAt)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	move(t, store, runnerToken, after)
+
+	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(100*time.Second))
+	if len(lobby.Jokers) != 1 {
+		t.Fatalf("used joker not stored: %+v", lobby.Jokers)
+	}
+	got := lobby.Jokers[0]
+	if got.Kind != game.JokerQueryZone || got.Cell != runner.Route.Start || !got.Found || len(got.Positions) != 0 || !got.UsedAt.Equal(usedAt) {
+		t.Fatalf("the query must answer yes for where the runner was when it was used, without positions: %+v", got)
 	}
 }
 

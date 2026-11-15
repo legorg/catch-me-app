@@ -119,7 +119,12 @@ export type ControllerJokerResponse = {
      * True while the game runs and the team has not used it yet.
      */
     available: boolean;
-    kind: 'showRunners';
+    /**
+     * queryZone, once used: the queried cell and whether any runner was inside it at usedAt.
+     */
+    cell?: string;
+    found?: boolean;
+    kind: 'showRunners' | 'queryZone';
     /**
      * What the joker showed (showRunners: each runner's position at usedAt), once used.
      */
@@ -207,7 +212,11 @@ export type ControllerUpdatePositionRequest = {
 };
 
 export type ControllerUseJokerRequest = {
-    kind: 'showRunners';
+    /**
+     * The cell to query (queryZone only): column A-F, then row 1-6.
+     */
+    cell?: string;
+    kind: 'showRunners' | 'queryZone';
 };
 
 export type CreateGameData = {
@@ -376,7 +385,7 @@ export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamRe
 
 export type ActivateJokerData = {
     /**
-     * The joker to use; each hunter team can use each joker once, while the game runs
+     * The joker to use (with the cell for queryZone); each hunter team can use each joker once, while the game runs
      */
     body: ControllerUseJokerRequest;
     path?: never;
@@ -386,7 +395,7 @@ export type ActivateJokerData = {
 
 export type ActivateJokerErrors = {
     /**
-     * Invalid JSON or unknown joker
+     * Invalid JSON, unknown joker, or missing or unexpected cell
      */
     400: ControllerApiError;
     /**

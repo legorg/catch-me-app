@@ -247,7 +247,7 @@
                 "operationId": "activateJoker",
                 "parameters": [
                     {
-                        "description": "The joker to use; each hunter team can use each joker once, while the game runs",
+                        "description": "The joker to use (with the cell for queryZone); each hunter team can use each joker once, while the game runs",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -264,7 +264,7 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid JSON or unknown joker",
+                        "description": "Invalid JSON, unknown joker, or missing or unexpected cell",
                         "schema": {
                             "$ref": "#/definitions/controller.APIError"
                         }
@@ -1098,10 +1098,20 @@
                     "type": "boolean",
                     "example": true
                 },
+                "cell": {
+                    "description": "queryZone, once used: the queried cell and whether any runner was inside it at usedAt.",
+                    "type": "string",
+                    "example": "C4"
+                },
+                "found": {
+                    "type": "boolean",
+                    "example": true
+                },
                 "kind": {
                     "type": "string",
                     "enum": [
-                        "showRunners"
+                        "showRunners",
+                        "queryZone"
                     ],
                     "example": "showRunners"
                 },
@@ -1411,12 +1421,18 @@
                 "kind"
             ],
             "properties": {
+                "cell": {
+                    "description": "The cell to query (queryZone only): column A-F, then row 1-6.",
+                    "type": "string",
+                    "example": "C4"
+                },
                 "kind": {
                     "type": "string",
                     "enum": [
-                        "showRunners"
+                        "showRunners",
+                        "queryZone"
                     ],
-                    "example": "showRunners"
+                    "example": "queryZone"
                 }
             }
         }

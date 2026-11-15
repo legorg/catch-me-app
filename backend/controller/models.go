@@ -117,7 +117,9 @@ type UpdatePositionRequest struct {
 }
 
 type UseJokerRequest struct {
-	Kind string `json:"kind" enums:"showRunners" example:"showRunners" validate:"required,oneof=showRunners"`
+	Kind string `json:"kind" enums:"showRunners,queryZone" example:"queryZone" validate:"required,oneof=showRunners queryZone"`
+	// The cell to query (queryZone only): column A-F, then row 1-6.
+	Cell string `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
 }
 
 type AddSketchRequest struct {
@@ -137,13 +139,16 @@ type SketchResponse struct {
 
 // JokerResponse is one joker of the requesting player's team.
 type JokerResponse struct {
-	Kind string `json:"kind" enums:"showRunners" example:"showRunners" validate:"required,oneof=showRunners"`
+	Kind string `json:"kind" enums:"showRunners,queryZone" example:"showRunners" validate:"required,oneof=showRunners queryZone"`
 	// True while the game runs and the team has not used it yet.
 	Available bool `json:"available" example:"true"`
 	// Set once the team used it.
 	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z" validate:"omitempty"`
 	// What the joker showed (showRunners: each runner's position at usedAt), once used.
 	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,dive"`
+	// queryZone, once used: the queried cell and whether any runner was inside it at usedAt.
+	Cell  string `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
+	Found *bool  `json:"found,omitempty" example:"true"`
 }
 
 type JokerPositionResponse struct {
