@@ -667,7 +667,6 @@
                 "playerId",
                 "players",
                 "playground",
-                "route",
                 "serverTime",
                 "sessionId",
                 "status",
@@ -698,7 +697,7 @@
                     "$ref": "#/definitions/controller.Playground"
                 },
                 "route": {
-                    "description": "The game's route between two landmarks.",
+                    "description": "The game's route between two landmarks; only runners get it, hunters have to find them.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/controller.GameRoute"

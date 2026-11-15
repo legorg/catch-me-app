@@ -115,6 +115,15 @@ test('health check also uses the generated client', async (t) => {
   assert.deepEqual(await checkBackend(), { status: 'ok', service: 'catch-me-backend' });
 });
 
+test('hunters get a game state without a route, and it must stay that way', async (t) => {
+  const { route: _route, ...withoutRoute } = state;
+  const hunterState = { ...withoutRoute, team: 'hunter' };
+  t.mock.method(globalThis, 'fetch', async () => Response.json(hunterState));
+  assert.deepEqual(await getGameState(token), hunterState);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ ...hunterState, route }));
+  await assert.rejects(getGameState(token), /Unexpected game state/);
+});
+
 test('API errors keep the message and status', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'missing or invalid player token' }, { status: 401 }));
   await assert.rejects(getGameState(token), (err: unknown) =>
@@ -134,7 +143,7 @@ test('malformed successful responses are rejected at runtime', async (t) => {
   }
   for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCodes: { runner: 'bad', hunter: '071564' } }, { ...state, joinCodes: { runner: '482913', hunter: '482913' } }, { ...state, joinCodes: undefined },
     { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null },
-    { ...state, route: undefined }, { ...state, route: { ...route, distanceMeters: -1 } },
+    { ...state, route: undefined }, { ...state, team: 'hunter' }, { ...state, route: { ...route, distanceMeters: -1 } },
     { ...state, route: { ...route, stop: { ...route.stop, title: null } } },
     { ...state, route: { ...route, start: { ...route.start, coordinates: { latitude: 95, longitude: 0 } } } },
     { ...state, nextRevealAt: 'bad' }, { ...state, startPositionCheckDisabled: 'true' },

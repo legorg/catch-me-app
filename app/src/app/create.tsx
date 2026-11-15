@@ -111,7 +111,7 @@ export default function CreateScreen() {
           {!!sizeError && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{sizeError}</Text>}
         </View>}
         <View style={styles.mapContainer}>
-          <FullscreenMap key={created?.game.sessionId ?? 'draft'} playground={playground} editable={!created && !busy} locatable onSelect={selectCenter} />
+          <FullscreenMap key={created?.game.sessionId ?? 'draft'} playground={playground} editable={!created && !busy} onSelect={selectCenter} />
         </View>
         {playground && <Text style={styles.text}>
           {t('create.center', { latitude: playground.center.latitude.toFixed(6), longitude: playground.center.longitude.toFixed(6) })}

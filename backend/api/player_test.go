@@ -61,8 +61,14 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatalf("unexpected join response: %+v", runner)
 	}
 	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+codes.Hunter+`","name":"Bob"}`), 201)
-	if runner.State.Route != created.Game.Route || hunter.State.Route != created.Game.Route || created.Game.Route.DistanceMeters <= 0 {
-		t.Fatalf("every player sees the game route: %+v %+v %+v", runner.State.Route, hunter.State.Route, created.Game.Route)
+	if runner.State.Route == nil || *runner.State.Route != created.Game.Route || created.Game.Route.DistanceMeters <= 0 {
+		t.Fatalf("runner must get the game route: %+v %+v", runner.State.Route, created.Game.Route)
+	}
+	if hunter.State.Route != nil {
+		t.Fatalf("hunter must not get the route: %+v", hunter.State.Route)
+	}
+	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"route"`) {
+		t.Fatal("hunter state leaks the route")
 	}
 	decode[controller.GameStateResponse](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 200)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/route", hunter.PlayerToken, ""), 409)

@@ -124,8 +124,8 @@ type GameStateResponse struct {
 	Team         string           `json:"team" enums:"runner,hunter" example:"runner" validate:"required,oneof=runner hunter"`
 	JoinCodes    JoinCodes        `json:"joinCodes"`
 	Players      []PlayerResponse `json:"players" validate:"dive"`
-	// The game's route between two landmarks.
-	Route GameRoute `json:"route"`
+	// The game's route between two landmarks; only runners get it, hunters have to find them.
+	Route *GameRoute `json:"route,omitempty"`
 }
 
 type JoinGameResponse struct {

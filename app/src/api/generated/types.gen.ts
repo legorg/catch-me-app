@@ -57,9 +57,9 @@ export type ControllerGameStateResponse = {
     players: Array<ControllerPlayerResponse>;
     playground: ControllerPlayground;
     /**
-     * The game's route between two landmarks.
+     * The game's route between two landmarks; only runners get it, hunters have to find them.
      */
-    route: ControllerGameRoute;
+    route?: ControllerGameRoute;
     serverTime: string;
     sessionId: string;
     /**
@@ -168,10 +168,6 @@ export type CreateGameErrors = {
      */
     400: ControllerApiError;
     /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
-    /**
      * Method not allowed
      */
     405: ControllerApiError;
@@ -217,10 +213,6 @@ export type LeaveGameErrors = {
      */
     401: ControllerApiError;
     /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
-    /**
      * Method not allowed
      */
     405: ControllerApiError;
@@ -255,10 +247,6 @@ export type GetGameStateErrors = {
      * Missing or unknown player token
      */
     401: ControllerApiError;
-    /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
     /**
      * Method not allowed
      */
@@ -299,10 +287,6 @@ export type SetHunterTeamErrors = {
      * Missing or unknown player token
      */
     401: ControllerApiError;
-    /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
     /**
      * Method not allowed
      */
@@ -352,10 +336,6 @@ export type UpdatePositionErrors = {
      */
     401: ControllerApiError;
     /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
-    /**
      * Method not allowed
      */
     405: ControllerApiError;
@@ -400,10 +380,6 @@ export type SetReadyErrors = {
      */
     401: ControllerApiError;
     /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
-    /**
      * Method not allowed
      */
     405: ControllerApiError;
@@ -445,10 +421,6 @@ export type RegenerateRouteErrors = {
      */
     401: ControllerApiError;
     /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
-    /**
      * Method not allowed
      */
     405: ControllerApiError;
@@ -489,10 +461,6 @@ export type JoinGameErrors = {
      */
     400: ControllerApiError;
     /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
-    /**
      * No game with this join code
      */
     404: ControllerApiError;
@@ -531,15 +499,6 @@ export type GetHealthData = {
     query?: never;
     url: '/health';
 };
-
-export type GetHealthErrors = {
-    /**
-     * Browser origin is not allowed
-     */
-    403: ControllerApiError;
-};
-
-export type GetHealthError = GetHealthErrors[keyof GetHealthErrors];
 
 export type GetHealthResponses = {
     /**

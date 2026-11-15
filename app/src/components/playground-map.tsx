@@ -26,11 +26,9 @@ export type PlaygroundMapProps = {
   markers?: MapMarker[];
   /** Fill the parent instead of using the default height. */
   fullscreen?: boolean;
-  /** Show a button that moves the grid to the device location (editable maps only). */
-  locatable?: boolean;
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], fullscreen = false, locatable = false }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], fullscreen = false }: PlaygroundMapProps) {
   const t = useT();
   // Where the map's center (and so the grid) is on screen. Native maps shift it from the middle of the
   // view, e.g. by safe-area margins under the notch, so the crosshair is placed by asking the map.
@@ -91,7 +89,10 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         return;
       }
       const { coords } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      select({ latitude: coords.latitude, longitude: coords.longitude });
+      const here = { latitude: coords.latitude, longitude: coords.longitude };
+      // An editable map puts the grid there; any other map just shows where you are.
+      if (editable) select(here);
+      else map.current?.animateCamera({ center: here }, { duration: 300 });
     } catch {
       setLocateError(t('map.locationFailed'));
     } finally {
@@ -114,7 +115,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         rotateEnabled={false}
         pitchEnabled={false}
         // The blue dot, once the user has allowed location.
-        showsUserLocation={locatable && permission?.granted === true}
+        showsUserLocation={permission?.granted === true}
         showsMyLocationButton={false}
         toolbarEnabled={false}
         // Panning moves the grid: it stays centered on the map.
@@ -143,12 +144,12 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
       <View style={styles.crossH} />
       <View style={styles.crossV} />
     </View>}
-    {editable && locatable && <View style={styles.locate}>
+    <View style={styles.locate}>
       {!!locateError && <Text style={styles.locateError}>{locateError}</Text>}
       <Pressable accessibilityRole="button" accessibilityLabel={t('map.myLocation')} disabled={locating} onPress={() => void locate()} style={[styles.locateButton, locating && styles.locating]}>
         <Ionicons name="locate" size={22} color="#10251c" />
       </Pressable>
-    </View>}
+    </View>
     </View>
   );
 }

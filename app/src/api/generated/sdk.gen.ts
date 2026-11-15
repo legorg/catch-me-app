@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthErrors, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
+import type { CreateGameData, CreateGameErrors, CreateGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -111,4 +111,4 @@ export const joinGame = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * Check backend health
  */
-export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, GetHealthErrors, ThrowOnError>({ url: '/health', ...options });
+export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/health', ...options });

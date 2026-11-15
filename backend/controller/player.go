@@ -283,7 +283,10 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	if next := g.NextReveal(view.Now); !next.IsZero() {
 		response.NextRevealAt = &next
 	}
-	response.Route = gameRouteResponse(g.Route)
+	if view.Me.Team == game.Runners {
+		route := gameRouteResponse(g.Route)
+		response.Route = &route
+	}
 	// Visibility is decided by the domain; this only maps what it allows.
 	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
 		player := PlayerResponse{PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}

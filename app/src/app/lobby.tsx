@@ -13,7 +13,7 @@ import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
 import FullscreenMap from '@/components/fullscreen-map';
-import { type CellHighlight } from '@/components/playground-map';
+import { type CellHighlight, type MapMarker } from '@/components/playground-map';
 import { translate, translateParts, useT } from '@/i18n';
 import {
   formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart,
@@ -119,15 +119,20 @@ export default function LobbyScreen() {
   const route = state.route;
   const myCell = me?.position ? cellAt(state.playground, me.position) : undefined;
   const isRunner = state.team === 'runner';
-  const metersToStart = me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
+  // The server only sends the route to runners.
+  const metersToStart = route && me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
   const atStart = metersToStart !== null && metersToStart <= START_RADIUS_METERS;
   const nextReveal = secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
-  const startCell = cellAt(state.playground, route.start.coordinates);
-  const stopCell = cellAt(state.playground, route.stop.coordinates);
-  const highlights: CellHighlight[] = [
+  const startCell = route ? cellAt(state.playground, route.start.coordinates) : null;
+  const stopCell = route ? cellAt(state.playground, route.stop.coordinates) : null;
+  const highlights: CellHighlight[] = route ? [
     ...(startCell ? [{ cell: startCell, title: route.start.title || t('lobby.start'), color: START_COLOR }] : []),
     ...(stopCell ? [{ cell: stopCell, title: route.stop.title || t('lobby.target'), color: TARGET_COLOR }] : []),
-  ];
+  ] : [];
+  const routeMarkers: MapMarker[] = route ? [
+    { id: 'route-start', coordinate: route.start.coordinates, title: route.start.title || t('lobby.start'), description: t('lobby.start'), color: START_COLOR },
+    { id: 'route-stop', coordinate: route.stop.coordinates, title: route.stop.title || t('lobby.target'), description: t('lobby.target'), color: TARGET_COLOR },
+  ] : [];
   const permission = location.permission;
   const needsHunterTeam = state.team === 'hunter' && !me?.hunterTeam;
   const changeHunterTeam = (name: string) => void act(async () => {
@@ -160,7 +165,7 @@ export default function LobbyScreen() {
         </View>}
         {running && myCell === null && <Text style={[styles.heading, styles.error]}>{t('lobby.outside')}</Text>}
         <View style={styles.mapContainer}>
-          <FullscreenMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} markers={playerMarkers(state)} />
+          <FullscreenMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} markers={[...routeMarkers, ...playerMarkers(state).filter((marker) => marker.id !== state.playerId)]} />
         </View>
         {(running || state.team === 'hunter') && <Text style={styles.hint}>
           {t(state.team === 'runner' ? 'lobby.legendRunner' : 'lobby.legendHunter')}
@@ -201,7 +206,7 @@ export default function LobbyScreen() {
           </Text>
         </View>
         {!running && <JoinCodes codes={state.joinCodes} />}
-        <View style={styles.card}>
+        {route && <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
           <Text style={styles.text}>
             {translateParts('lobby.route', {
@@ -210,7 +215,7 @@ export default function LobbyScreen() {
               distance: (route.distanceMeters / 1000).toFixed(1),
             })}
           </Text>
-          {isRunner && !running && <Text style={[styles.text, !atStart && !skipStartPositionCheck && styles.error]}>
+          {!running && <Text style={[styles.text, !atStart && !skipStartPositionCheck && styles.error]}>
             {skipStartPositionCheck
               ? t('lobby.checkDisabled')
               : atStart
@@ -219,7 +224,7 @@ export default function LobbyScreen() {
                   ? t('lobby.goToStart', { meters: Math.round(metersToStart), radius: START_RADIUS_METERS })
                   : t('lobby.waitingForLocation')}
           </Text>}
-        </View>
+        </View>}
         {state.team === 'hunter' && !running && me && <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.hunterTeamHeading')}</Text>
           <Text style={[styles.text, needsHunterTeam && styles.error]}>

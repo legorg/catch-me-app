@@ -198,7 +198,8 @@ function assertGameState(body: unknown): asserts body is GameStateResponse {
       (body.startPositionCheckDisabled !== undefined && typeof body.startPositionCheckDisabled !== 'boolean') ||
       (body.nextRevealAt !== undefined && !isDate(body.nextRevealAt)) ||
       !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCodes(body.joinCodes) ||
-      !isGameRoute(body.route) ||
+      // Only runners get the route; hunters must not.
+      (body.team === 'runner' ? !isGameRoute(body.route) : body.route !== undefined) ||
       !Array.isArray(body.players) || !body.players.every(isPlayer)) {
     throw new Error(translate('client.unexpectedState'));
   }
