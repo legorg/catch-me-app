@@ -2,9 +2,10 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 
-import { JOIN_CODE_PATTERN, MAX_NAME_LENGTH, isValidPlayerName, joinGame, normalizeJoinCode } from '@/api/client';
+import { JOIN_CODE_PATTERN, isValidPlayerName, joinGame, normalizeJoinCode } from '@/api/client';
 import Button from '@/components/button';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
+import NameInput from '@/components/name-input';
 import { useT } from '@/i18n';
 import { playerSession } from '@/player-session';
 import { colors, styles } from '@/styles';
@@ -50,17 +51,7 @@ export default function HomeScreen() {
             maxLength={6}
             style={styles.input}
           />
-          <TextInput
-            accessibilityLabel={t('common.yourName')}
-            placeholder={t('common.yourName')}
-            placeholderTextColor={colors.placeholder}
-            value={name}
-            onChangeText={setName}
-            editable={!busy}
-            autoCorrect={false}
-            maxLength={MAX_NAME_LENGTH}
-            style={styles.input}
-          />
+          <NameInput value={name} onChange={setName} editable={!busy} />
           <Text style={styles.hint}>{t('home.codeHint')}</Text>
           {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
           {busy && <ActivityIndicator color={colors.accent} />}
