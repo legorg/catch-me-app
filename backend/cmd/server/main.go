@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -37,7 +38,8 @@ func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
 	dbPath := flag.String("db", "catch-me.sqlite", "SQLite database file (parent directory must exist)")
 	googlePlacesAPIKey := flag.String("google-places-api-key", os.Getenv("GOOGLE_MAPS_KEY"), "Google Places API (New) key used to find landmarks for game routes (env GOOGLE_MAPS_KEY); required")
-	skipStartPositionCheck := flag.Bool("test-skip-start-position-check", false, "Development only: bypass runner Ready position checks; keep real location updates")
+	skipDefault, _ := strconv.ParseBool(os.Getenv("TEST_SKIP_START_POSITION_CHECK"))
+	skipStartPositionCheck := flag.Bool("test-skip-start-position-check", skipDefault, "Development only: bypass runner Ready position checks; keep real location updates (env TEST_SKIP_START_POSITION_CHECK)")
 	flag.Parse()
 
 	// Colored logs that name the source file and line of every entry.

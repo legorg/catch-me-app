@@ -124,5 +124,7 @@
   "lobby.readyButton": "Ready",
   "lobby.notReadyButton": "Not ready",
   "lobby.leave": "Leave",
-  "lobby.exit": "Exit to home"
+  "lobby.exit": "Exit to home",
+  "lobby.countdownTitle": "Game starts in",
+  "lobby.countdownHint": "Get to your position. Anyone who un-readies or leaves cancels the countdown."
 }

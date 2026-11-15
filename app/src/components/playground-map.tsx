@@ -8,6 +8,9 @@ import type { Coordinates, Playground } from '../api/types';
 import { useT } from '../i18n';
 import { DEFAULT_CENTER, boundaryCoordinates, cellBounds, cellLabels, gridLines } from '../playground';
 
+// Apple Maps centers the pin on the coordinate; lift it by half its height so the tip lands there. Google Maps already does.
+const PIN_OFFSET = Platform.OS === 'ios' ? { x: 0, y: -20 } : undefined;
+
 export type CellHighlight = { cell: string; title: string; color: string };
 
 export type MapMarker = {
@@ -137,7 +140,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
           ))}
         </>}
         {markers.map(({ id, coordinate, title, description, color }) => (
-          <Marker key={id} coordinate={coordinate} title={title} description={description} pinColor={color} />
+          <Marker key={id} coordinate={coordinate} title={title} description={description} pinColor={color} centerOffset={PIN_OFFSET} />
         ))}
       </MapView>
     {editable && <View pointerEvents="none" style={[styles.crosshair, anchor && { left: anchor.x - 12, top: anchor.y - 12, right: undefined, bottom: undefined, width: 24, height: 24 }]}>

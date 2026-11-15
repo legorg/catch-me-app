@@ -33,6 +33,8 @@ export default function RootLayout() {
       <Stack.Screen name="create" options={{ title: t('create.chooseTitle') }} />
       {/* Joining replaces the previous screen, so there is nothing to go back to. */}
       <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
+      {/* The map needs the whole screen, so no large title; leaving goes through the exit button. */}
+      <Stack.Screen name="game" options={{ title: t('lobby.titleRunning'), headerLargeTitle: false, headerBackVisible: false, gestureEnabled: false }} />
     </Stack>
   );
 }

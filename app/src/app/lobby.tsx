@@ -1,86 +1,42 @@
-import { Stack, router, useFocusEffect, useIsFocused } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Text, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Text, TextInput, View } from 'react-native';
 
 import {
-  ApiError, MAX_NAME_LENGTH, getGameState, leaveGame, setHunterTeam, setReady, updatePosition,
-  type GameStateResponse,
+  MAX_NAME_LENGTH, leaveGame, setHunterTeam, setReady, updatePosition,
 } from '@/api/client';
 import Button from '@/components/button';
+import DebugAddPlayer from '@/components/debug-add-player';
 import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import FullscreenMap from '@/components/fullscreen-map';
 import { type CellHighlight, type MapMarker } from '@/components/playground-map';
-import { translate, translateParts, useT } from '@/i18n';
-import {
-  formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart,
-} from '@/lobby';
-import { playerSession } from '@/player-session';
+import { translateParts, useT } from '@/i18n';
+import { hunterTeams, playerMarkers, playersByTeam } from '@/lobby';
 import { cellAt, distanceMeters, START_RADIUS_METERS } from '@/playground';
 import { colors, styles } from '@/styles';
+import { goHome, useGameState } from '@/use-game-state';
 import { useLocationSharing, type Fix } from '@/use-location-sharing';
 
-const POLL_INTERVAL_MS = 2000;
 const START_COLOR = '#2f80ed';
 const TARGET_COLOR = '#eb5757';
 
-function goHome() {
-  playerSession.clear();
-  router.replace('/');
-}
-
 export default function LobbyScreen() {
   const t = useT();
-  const [snapshot, setSnapshot] = useState<{ state: GameStateResponse; receivedAt: number } | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const { token, snapshot, state, error, focused, show, fail, countdown, running } = useGameState();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
   const [newTeam, setNewTeam] = useState('');
-  const token = playerSession.get();
-  const focused = useIsFocused();
 
-  const show = useCallback((state: GameStateResponse) => {
-    setSnapshot({ state, receivedAt: Date.now() });
-    setError('');
-  }, []);
+  // The game has its own screen; joining it replaces the lobby.
+  useEffect(() => {
+    if (running) router.replace('/game');
+  }, [running]);
 
-  const fail = useCallback((err: unknown) => {
-    // The token is unknown (left, or the backend data was reset): start over.
-    if (err instanceof ApiError && err.status === 401) {
-      goHome();
-      return;
-    }
-    setError(err instanceof Error ? err.message : translate('common.backendUnreachable'));
-  }, []);
-
-  useFocusEffect(useCallback(() => {
-    if (!token) {
-      router.replace('/');
-      return;
-    }
-    let active = true;
-    const poll = () => getGameState(token).then(
-      (state) => { if (active) show(state); },
-      (err: unknown) => { if (active) fail(err); },
-    );
-    void poll();
-    const pollTimer = setInterval(() => void poll(), POLL_INTERVAL_MS);
-    const clock = setInterval(() => setNow(Date.now()), 250);
-    return () => {
-      active = false;
-      clearInterval(pollTimer);
-      clearInterval(clock);
-    };
-  }, [token, show, fail]));
-
-  const state = snapshot?.state;
-  const countdown = state && snapshot ? secondsUntilStart(state, snapshot.receivedAt, now) : null;
-  const running = state?.status === 'running' || countdown === 0;
   const skipStartPositionCheck = state?.startPositionCheckDisabled === true;
   // Everyone shares from joining: runners for the start cell check, hunters for their hunter team.
   const sharing = focused && !!token && !!state;
-  // Background sharing only while the game runs; the lobby stays foreground-only.
-  const location = useLocationSharing(sharing, running, useCallback(async (fix: Fix) => {
+  // The lobby shares in the foreground only; background sharing belongs to the game screen.
+  const location = useLocationSharing(sharing, false, useCallback(async (fix: Fix) => {
     if (!token) return;
     try {
       show(await updatePosition(token, fix));
@@ -115,12 +71,10 @@ export default function LobbyScreen() {
   const me = state.players.find((p) => p.playerId === state.playerId);
   const teams = playersByTeam(state.players);
   const route = state.route;
-  const myCell = me?.position ? cellAt(state.playground, me.position) : undefined;
   const isRunner = state.team === 'runner';
   // The server only sends the route to runners.
   const metersToStart = route && me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
   const atStart = metersToStart !== null && metersToStart <= START_RADIUS_METERS;
-  const nextReveal = secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
   const startCell = route ? cellAt(state.playground, route.start.coordinates) : null;
   const stopCell = route ? cellAt(state.playground, route.stop.coordinates) : null;
   const highlights: CellHighlight[] = route ? [
@@ -140,54 +94,38 @@ export default function LobbyScreen() {
 
   return (
     <>
+      {/* Covers everything until the game screen replaces the lobby; un-readying or leaving closes it. */}
+      <Modal visible={countdown !== null && countdown > 0} animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+        <View style={[styles.screen, { alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }]}>
+          <Text style={styles.heading}>{t('lobby.countdownTitle')}</Text>
+          <Text accessibilityLiveRegion="polite" style={{ color: colors.accent, fontSize: 160, fontWeight: '800' }}>{countdown}</Text>
+          <Text style={[styles.hint, { textAlign: 'center' }]}>{t('lobby.countdownHint')}</Text>
+        </View>
+      </Modal>
       <KeyboardScrollView>
         {skipStartPositionCheck && <View style={styles.card}>
           <Text style={[styles.heading, styles.error]}>{t('lobby.testMode')}</Text>
           <Text style={styles.text}>{t('lobby.testModeText')}</Text>
         </View>}
         <Text accessibilityLiveRegion="polite" style={styles.text}>
-          {running
-            ? t('lobby.runningInfo')
-            : countdown !== null
-              ? t(skipStartPositionCheck ? 'lobby.countdownInfoTest' : 'lobby.countdownInfo')
-              : t(skipStartPositionCheck ? 'lobby.startInfoTest' : 'lobby.startInfo')}
+          {countdown !== null
+            ? t(skipStartPositionCheck ? 'lobby.countdownInfoTest' : 'lobby.countdownInfo')
+            : t(skipStartPositionCheck ? 'lobby.startInfoTest' : 'lobby.startInfo')}
         </Text>
-        {running && nextReveal !== null && <View style={styles.card}>
-          <Text style={styles.heading}>{t('lobby.nextReveal', { time: formatDuration(nextReveal) })}</Text>
-          <Text style={styles.hint}>{t(state.team === 'hunter' ? 'lobby.revealHunter' : 'lobby.revealRunner')}</Text>
-        </View>}
-        {running && myCell === null && <Text style={[styles.heading, styles.error]}>{t('lobby.outside')}</Text>}
         <View style={styles.mapContainer}>
           <FullscreenMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} markers={[...routeMarkers, ...playerMarkers(state).filter((marker) => marker.id !== state.playerId)]} />
         </View>
-        {(running || state.team === 'hunter') && <Text style={styles.hint}>
-          {t(state.team === 'runner' ? 'lobby.legendRunner' : 'lobby.legendHunter')}
+        {state.team === 'hunter' && <Text style={styles.hint}>
+          {t('lobby.legendHunter')}
         </Text>}
         {sharing && permission && !permission.granted && <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.shareHeading')}</Text>
           <Text style={styles.text}>
-            {t(state.team === 'runner' && !running && !skipStartPositionCheck
-              ? 'lobby.shareRunnerStart'
-              : state.team === 'hunter' && !running
-                ? 'lobby.shareHunterLobby'
-                : location.background.available ? 'lobby.shareRunning' : 'lobby.shareRunningForeground')}
+            {t(state.team === 'runner' && !skipStartPositionCheck ? 'lobby.shareRunnerStart' : 'lobby.shareHunterLobby')}
           </Text>
           {permission.canAskAgain
             ? <Button label={t('lobby.allowLocation')} onPress={() => void location.requestPermission()} />
             : <Text style={[styles.text, styles.error]}>{t('lobby.locationBlocked')}</Text>}
-        </View>}
-        {running && permission?.granted && <View style={styles.card}>
-          <Text style={styles.heading}>{t(location.background.active ? 'lobby.sharingBackground' : 'lobby.sharingForeground')}</Text>
-          {location.background.active
-            ? <Text style={styles.text}>{t('lobby.sharingBackgroundText')}</Text>
-            : !location.background.available
-              ? <Text style={styles.hint}>{t('lobby.backgroundUnavailable')}</Text>
-              : location.background.permission?.canAskAgain !== false
-                ? <>
-                  <Text style={styles.text}>{t('lobby.allowAlways')}</Text>
-                  <Button label={t('lobby.shareInBackground')} variant="secondary" onPress={() => void location.background.request()} />
-                </>
-                : <Text style={styles.hint}>{t('lobby.backgroundBlocked')}</Text>}
         </View>}
         {!!location.error && <Text style={[styles.text, styles.error]}>{location.error}</Text>}
         <View style={styles.card}>
@@ -198,7 +136,8 @@ export default function LobbyScreen() {
             {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
           </Text>
         </View>
-        {!running && <JoinCodes codes={state.joinCodes} />}
+        <JoinCodes codes={state.joinCodes} />
+        {__DEV__ && <DebugAddPlayer codes={state.joinCodes} />}
         {route && <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
           <Text style={styles.text}>
@@ -208,7 +147,7 @@ export default function LobbyScreen() {
               distance: (route.distanceMeters / 1000).toFixed(1),
             })}
           </Text>
-          {!running && <Text style={[styles.text, !atStart && !skipStartPositionCheck && styles.error]}>
+          <Text style={[styles.text, !atStart && !skipStartPositionCheck && styles.error]}>
             {skipStartPositionCheck
               ? t('lobby.checkDisabled')
               : atStart
@@ -216,9 +155,9 @@ export default function LobbyScreen() {
                 : metersToStart !== null
                   ? t('lobby.goToStart', { meters: Math.round(metersToStart), radius: START_RADIUS_METERS })
                   : t('lobby.waitingForLocation')}
-          </Text>}
+          </Text>
         </View>}
-        {state.team === 'hunter' && !running && me && <View style={styles.card}>
+        {state.team === 'hunter' && me && <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.hunterTeamHeading')}</Text>
           <Text style={[styles.text, needsHunterTeam && styles.error]}>
             {needsHunterTeam ? t('lobby.needHunterTeam') : t('lobby.huntWith', { name: me.hunterTeam ?? '' })}
@@ -251,13 +190,13 @@ export default function LobbyScreen() {
               <Text key={p.playerId} style={styles.text}>
                 {p.ready ? '✓' : '○'} {p.playerId === state.playerId ? t('common.you', { name: p.name }) : p.name}
                 {team === 'hunter' ? ` · ${p.hunterTeam ? t('lobby.hunterTeam', { name: p.hunterTeam }) : t('lobby.noTeam')}` : ''}
-                {running ? '' : ` · ${t(p.ready ? 'lobby.ready' : 'lobby.notReady')}`}
+                {` · ${t(p.ready ? 'lobby.ready' : 'lobby.notReady')}`}
               </Text>
             ))}
           </View>
         ))}
         {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
-        {!running && me && <View style={styles.row}>
+        {me && <View style={styles.row}>
           <Button
             label={t(me.ready ? 'lobby.notReadyButton' : 'lobby.readyButton')}
             variant={me.ready ? 'secondary' : 'primary'}
@@ -269,7 +208,6 @@ export default function LobbyScreen() {
             goHome();
           })} />
         </View>}
-        {running && <Button label={t('lobby.exit')} variant="secondary" onPress={goHome} />}
       </KeyboardScrollView>
     </>
   );

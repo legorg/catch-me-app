@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
   error: { color: colors.error },
   mapContainer: { borderRadius: 16, overflow: 'hidden' },
   card: { backgroundColor: colors.card, borderRadius: 16, padding: 20, gap: 12 },
-  row: { flexDirection: 'row', gap: 12 },
+  row: { flexDirection: 'row', gap: 12, flexWrap: "wrap" },
   button: { backgroundColor: colors.accent, borderRadius: 12, padding: 16, minHeight: 52, flexGrow: 1 },
   secondaryButton: { borderColor: colors.accent, borderWidth: 2, borderRadius: 12, padding: 14, minHeight: 52, flexGrow: 1 },
   dimmed: { opacity: 0.65 },

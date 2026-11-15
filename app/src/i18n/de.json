@@ -124,5 +124,7 @@
   "lobby.readyButton": "Bereit",
   "lobby.notReadyButton": "Nicht bereit",
   "lobby.leave": "Verlassen",
-  "lobby.exit": "Zur Startseite"
+  "lobby.exit": "Zur Startseite",
+  "lobby.countdownTitle": "Spiel startet in",
+  "lobby.countdownHint": "Geh auf deine Position. Wer „Nicht bereit“ wählt oder geht, bricht den Countdown ab."
 }
