@@ -1,14 +1,11 @@
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MAX_NAME_LENGTH, createGame, isValidPlayerName, joinGame, type Coordinates, type CreateGameResponse } from '@/api/client';
 import Button from '@/components/button';
 import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
-import LanguageSwitch from '@/components/language-switch';
 import FullscreenMap from '@/components/fullscreen-map';
 import { formatNumber, useT, type MessageKey } from '@/i18n';
 import { playerSession } from '@/player-session';
@@ -85,11 +82,8 @@ export default function CreateScreen() {
   }, 'create.joining');
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar style="light" />
+    <>
       <KeyboardScrollView>
-        <LanguageSwitch />
-        <Text style={styles.heading}>{t(created ? 'create.createdTitle' : 'create.chooseTitle')}</Text>
         <Text style={styles.text}>
           {displayedSize !== null
             ? t('create.gridSized', { cell: formatNumber(displayedSize / 1000), total: formatNumber(displayedSize * 6 / 1000, { min: 1, max: 1 }) })
@@ -143,6 +137,6 @@ export default function CreateScreen() {
           </View>
         </>}
       </KeyboardScrollView>
-    </SafeAreaView>
+    </>
   );
 }

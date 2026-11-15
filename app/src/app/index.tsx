@@ -1,13 +1,10 @@
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { JOIN_CODE_PATTERN, MAX_NAME_LENGTH, isValidPlayerName, joinGame, normalizeJoinCode } from '@/api/client';
 import Button from '@/components/button';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
-import LanguageSwitch from '@/components/language-switch';
 import { useT } from '@/i18n';
 import { playerSession } from '@/player-session';
 import { colors, styles } from '@/styles';
@@ -36,11 +33,8 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar style="light" />
+    <>
       <KeyboardScrollView>
-        <LanguageSwitch />
-        <Text style={styles.title}>Catch me!</Text>
         <Text style={styles.text}>{t('home.intro')}</Text>
         <View style={styles.card}>
           <Text style={styles.heading}>{t('home.joinHeading')}</Text>
@@ -79,6 +73,6 @@ export default function HomeScreen() {
         </View>
         <Text style={styles.hint}>{t('home.devHint')}</Text>
       </KeyboardScrollView>
-    </SafeAreaView>
+    </>
   );
 }

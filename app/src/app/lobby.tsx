@@ -1,8 +1,6 @@
-import { router, useFocusEffect, useIsFocused } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { Stack, router, useFocusEffect, useIsFocused } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   ApiError, MAX_NAME_LENGTH, getGameState, leaveGame, setHunterTeam, setReady, updatePosition,
@@ -11,7 +9,6 @@ import {
 import Button from '@/components/button';
 import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
-import LanguageSwitch from '@/components/language-switch';
 import FullscreenMap from '@/components/fullscreen-map';
 import { type CellHighlight, type MapMarker } from '@/components/playground-map';
 import { translate, translateParts, useT } from '@/i18n';
@@ -105,12 +102,13 @@ export default function LobbyScreen() {
   }
 
   if (!token || !state || !snapshot) {
+    // A ScrollView must exist from the first render, or the large header never links to it.
     return (
-      <SafeAreaView style={styles.screen}>
-        <View style={styles.content}>
+      <>
+        <KeyboardScrollView>
           {error ? <Text style={[styles.text, styles.error]}>{error}</Text> : <ActivityIndicator color={colors.accent} />}
-        </View>
-      </SafeAreaView>
+        </KeyboardScrollView>
+      </>
     );
   }
 
@@ -141,13 +139,8 @@ export default function LobbyScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar style="light" />
+    <>
       <KeyboardScrollView>
-        <LanguageSwitch />
-        <Text style={styles.title}>
-          {running ? t('lobby.titleRunning') : countdown !== null ? t('lobby.titleCountdown', { seconds: countdown }) : t('lobby.title')}
-        </Text>
         {skipStartPositionCheck && <View style={styles.card}>
           <Text style={[styles.heading, styles.error]}>{t('lobby.testMode')}</Text>
           <Text style={styles.text}>{t('lobby.testModeText')}</Text>
@@ -278,6 +271,6 @@ export default function LobbyScreen() {
         </View>}
         {running && <Button label={t('lobby.exit')} variant="secondary" onPress={goHome} />}
       </KeyboardScrollView>
-    </SafeAreaView>
+    </>
   );
 }
