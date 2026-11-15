@@ -1,4 +1,4 @@
-import type { GameStateResponse, PlayerResponse } from './api/generated/types.gen';
+import type { GameStateResponse, PlayerResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
 
 /**

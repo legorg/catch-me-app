@@ -19,6 +19,11 @@ const state: GameStateResponse = {
     { playerId: 'b'.repeat(32), name: 'Bob', team: 'hunter', ready: true },
     { playerId: 'c'.repeat(32), name: 'Cy', team: 'runner', ready: false },
   ],
+  route: {
+    start: { title: 'Start', coordinates: { latitude: 52.47, longitude: 13.4 } },
+    stop: { title: 'Stop', coordinates: { latitude: 52.57, longitude: 13.4 } },
+    distanceMeters: 11119,
+  },
 };
 
 test('countdown uses server time plus local elapsed time', () => {

@@ -19,7 +19,7 @@ test('every language has every text with the same placeholders', () => {
 test('the language switches and placeholders are filled', () => {
   assert.equal(getLanguage(), 'en');
   assert.ok(isLanguage('de') && !isLanguage('xx') && !isLanguage('toString') && !isLanguage(null));
-  assert.equal(translate('map.savedGrid', { rows: 6, columns: 6 }), 'Saved grid: 6 × 6');
+  assert.equal(translate('lobby.goToStart', { meters: 120, radius: 50 }), 'You are 120 m from the start. Get within 50 m to get ready.');
   assert.equal(formatNumber(12, { min: 1, max: 1 }), '12.0');
   setLanguage('de');
   assert.equal(translate('home.join'), 'Beitreten');
@@ -30,7 +30,7 @@ test('the language switches and placeholders are filled', () => {
 });
 
 test('translateParts puts any value in place of placeholders', () => {
-  const start = { cell: 'B1' };
-  assert.deepEqual(translateParts('lobby.goToStart', { cell: 'C3', start }), ['You are in ', 'C3', '. Go to ', start, ' to get ready.']);
+  const radius = { meters: 50 };
+  assert.deepEqual(translateParts('lobby.goToStart', { meters: 120, radius }), ['You are ', 120, ' m from the start. Get within ', radius, ' m to get ready.']);
   assert.deepEqual(translateParts('lobby.youAre', {}), ['You are a ', '{team}']);
 });

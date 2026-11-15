@@ -32,7 +32,11 @@ func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, JoinCodes: game.NewJoinCodes()}
+	route := game.Route{
+		Start: game.Landmark{Title: "Start", Coordinates: p.CellBounds(p.SouthEdgeCells()[0]).Center()},
+		Stop:  game.Landmark{Title: "Stop", Coordinates: p.CellBounds(p.NorthEdgeCells()[0]).Center()},
+	}
+	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, JoinCodes: game.NewJoinCodes(), Route: route}
 }
 
 func open(t *testing.T, path string) *Store {
@@ -63,7 +67,7 @@ func load(t *testing.T, store *Store, code game.JoinCode, at time.Time) game.Lob
 	return lobby
 }
 
-// join adds a player; runners report a position in their start cell, and
+// join adds a player; runners report a position at the start, and
 // hunters join the hunter team "Pack".
 func join(t *testing.T, store *Store, code game.JoinCode, name string, at time.Time) (game.Player, game.PlayerToken) {
 	t.Helper()
@@ -79,10 +83,7 @@ func join(t *testing.T, store *Store, code game.JoinCode, name string, at time.T
 			player.HunterTeam, _ = game.ParseHunterTeamName("Pack")
 			return l.SetHunterTeam(player.ID, player.HunterTeam, at)
 		}
-		if player.Route.IsZero() {
-			return nil
-		}
-		player.Position, _ = game.NewPosition(l.Game.Playground.CellCenter(player.Route.Start), 5, at)
+		player.Position, _ = game.NewPosition(l.Game.Route.Start.Coordinates, 5, at)
 		return l.UpdatePosition(player.ID, player.Position, at, false)
 	})
 	if err != nil {

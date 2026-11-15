@@ -4,10 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
+	"sync"
 	"time"
 
 	"catch-me/backend/internal/game"
 )
+
+// landmarkTimeout bounds all lookups for one edge; it stays below the server write timeout.
+const landmarkTimeout = 8 * time.Second
 
 // GameRepository is the small persistence boundary used by this service.
 // It exposes domain values, not database rows or SQL errors.
@@ -22,16 +27,60 @@ type GameRepository interface {
 	DeletePositionsBefore(context.Context, time.Time) error
 }
 
+// LandmarkFinder lists landmarks located inside bounds (one grid cell).
+type LandmarkFinder interface {
+	Landmarks(context.Context, game.Bounds) ([]game.Landmark, error)
+}
+
 type GameService struct {
 	repository             GameRepository
+	landmarks              LandmarkFinder
 	now                    func() time.Time
 	skipStartPositionCheck bool
 }
 
 // NewGameService creates the service. skipStartPositionCheck is the
 // development test override and must be false for real games.
-func NewGameService(repository GameRepository, skipStartPositionCheck bool) *GameService {
-	return &GameService{repository: repository, now: func() time.Time { return time.Now().UTC() }, skipStartPositionCheck: skipStartPositionCheck}
+func NewGameService(repository GameRepository, landmarks LandmarkFinder, skipStartPositionCheck bool) *GameService {
+	return &GameService{repository: repository, landmarks: landmarks, now: func() time.Time { return time.Now().UTC() }, skipStartPositionCheck: skipStartPositionCheck}
+}
+
+// route finds a landmark on the south edge and one on the north edge, in parallel.
+func (s *GameService) route(ctx context.Context, playground game.Playground) (game.Route, error) {
+	var route game.Route
+	var startErr, stopErr error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		route.Start, startErr = s.edgeLandmark(ctx, playground, playground.SouthEdgeCells())
+	}()
+	go func() {
+		defer wg.Done()
+		route.Stop, stopErr = s.edgeLandmark(ctx, playground, playground.NorthEdgeCells())
+	}()
+	wg.Wait()
+	if err := errors.Join(startErr, stopErr); err != nil {
+		return game.Route{}, err
+	}
+	return route, nil
+}
+
+// edgeLandmark picks a random landmark inside one of the cells, trying them in random order.
+func (s *GameService) edgeLandmark(ctx context.Context, playground game.Playground, cells []game.Cell) (game.Landmark, error) {
+	rand.Shuffle(len(cells), func(i, j int) { cells[i], cells[j] = cells[j], cells[i] })
+	ctx, cancel := context.WithTimeout(ctx, landmarkTimeout)
+	defer cancel()
+	for _, cell := range cells {
+		found, err := s.landmarks.Landmarks(ctx, playground.CellBounds(cell))
+		if err != nil {
+			return game.Landmark{}, fmt.Errorf("%w: cell %s: %v", game.ErrLandmarksUnavailable, cell, err)
+		}
+		if len(found) > 0 {
+			return found[rand.IntN(len(found))], nil
+		}
+	}
+	return game.Landmark{}, game.ErrNoLandmark
 }
 
 // PlayerView is a lobby as seen by one of its players.
@@ -47,9 +96,13 @@ func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellS
 	if err != nil {
 		return game.Game{}, err
 	}
+	route, err := s.route(ctx, playground)
+	if err != nil {
+		return game.Game{}, err
+	}
 	// Collisions are extremely unlikely; retry a few times rather than fail.
 	for attempt := 0; ; attempt++ {
-		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, JoinCodes: game.NewJoinCodes()}
+		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, JoinCodes: game.NewJoinCodes(), Route: route}
 		err := s.repository.Create(ctx, saved)
 		if errors.Is(err, game.ErrJoinCodeTaken) && attempt < 3 {
 			continue

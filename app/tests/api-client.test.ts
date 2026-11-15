@@ -2,13 +2,18 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, checkBackend, createGame, getGameState, joinGame, leaveGame, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { previewPlayground } from '../src/playground';
 
 const center = { latitude: 52.52, longitude: 13.405 };
+const route = {
+  start: { title: 'Siegessäule', coordinates: { latitude: 52.4741, longitude: 13.3302 } },
+  stop: { title: 'Brandenburger Tor', coordinates: { latitude: 52.5163, longitude: 13.3777 } },
+  distanceMeters: 5873.4,
+};
 const created = {
-  game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center) },
+  game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center), route },
   joinCodes: { runner: '482913', hunter: '071564' },
 };
 const token = 'ab'.repeat(32);
@@ -21,7 +26,7 @@ const state = {
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
-  route: { start: 'B1', end: 'E6', regenerationsLeft: 2 },
+  route,
 };
 
 test('create posts the center and cell size as JSON', async (t) => {
@@ -93,12 +98,11 @@ test('player requests send the bearer token', async (t) => {
   });
   assert.deepEqual(await getGameState(token), state);
   assert.deepEqual(await setReady(token, true), state);
-  assert.deepEqual(await regenerateRoute(token), state);
   assert.deepEqual(await setHunterTeam(token, ' Wolves '), state);
   assert.deepEqual(await updatePosition(token, { latitude: 52.5, longitude: 13.4, accuracyMeters: 8 }), state);
   await leaveGame(token);
   assert.deepEqual(seen, [
-    'GET /api/me/game', 'PUT /api/me/ready', 'POST /api/me/route', 'PUT /api/me/hunter-team', 'PUT /api/me/position', 'DELETE /api/me',
+    'GET /api/me/game', 'PUT /api/me/ready', 'PUT /api/me/hunter-team', 'PUT /api/me/position', 'DELETE /api/me',
   ]);
   await assert.rejects(setHunterTeam(token, '  '), /team name/);
 });
@@ -121,7 +125,7 @@ test('API errors keep the message and status', async (t) => {
 
 test('malformed successful responses are rejected at runtime', async (t) => {
   for (const body of [null, {}, { ...created, joinCodes: { runner: 'bad', hunter: '071564' } },
-    { ...created, game: { ...created.game, sessionId: 'bad' } },
+    { ...created, game: { ...created.game, sessionId: 'bad' } }, { ...created, game: { ...created.game, route: undefined } },
     { ...created, game: { ...created.game, playground: { ...created.game.playground, rows: 8 } } },
     { ...created, game: { ...created.game, playground: { ...created.game.playground, bounds: { ...created.game.playground.bounds, north: 0 } } } },
   ]) {
@@ -130,12 +134,13 @@ test('malformed successful responses are rejected at runtime', async (t) => {
   }
   for (const body of [{ ...state, status: 'ended' }, { ...state, team: 'gamemaster' }, { ...state, joinCodes: { runner: 'bad', hunter: '071564' } }, { ...state, joinCodes: { runner: '482913', hunter: '482913' } }, { ...state, joinCodes: undefined },
     { ...state, startsAt: 'bad' }, { ...state, players: [{ ...state.players[0], ready: 'yes' }] }, { ...state, players: null },
-    { ...state, route: { start: 'G1', end: 'E6', regenerationsLeft: 2 } }, { ...state, route: { ...state.route, regenerationsLeft: 3 } },
-    { ...state, route: { ...state.route, end: null } }, { ...state, team: 'hunter' },
+    { ...state, route: undefined }, { ...state, route: { ...route, distanceMeters: -1 } },
+    { ...state, route: { ...route, stop: { ...route.stop, title: null } } },
+    { ...state, route: { ...route, start: { ...route.start, coordinates: { latitude: 95, longitude: 0 } } } },
     { ...state, nextRevealAt: 'bad' }, { ...state, startPositionCheckDisabled: 'true' },
     { ...state, players: [{ ...state.players[0], position: { latitude: 95, longitude: 0, accuracyMeters: 5, recordedAt: state.serverTime } }] },
     { ...state, players: [{ ...state.players[0], position: { latitude: 0, longitude: 0, accuracyMeters: -1, recordedAt: state.serverTime } }] },
-    { ...state, players: [{ ...state.players[0], route: { start: 'Z9', end: 'A6', regenerationsLeft: 0 } }] }]) {
+    { ...state, team: 'gamemaster' }]) {
     t.mock.method(globalThis, 'fetch', async () => Response.json(body));
     await assert.rejects(getGameState(token), /Unexpected game state/);
   }

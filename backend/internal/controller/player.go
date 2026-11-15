@@ -3,7 +3,6 @@ package controller
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"catch-me/backend/internal/game"
 	"catch-me/backend/internal/service"
@@ -277,7 +276,7 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 		StartPositionCheckDisabled: view.StartPositionCheckDisabled,
 		SessionID:                  g.SessionID.String(),
 		Status:                     string(g.Status(view.Now)),
-		ServerTime:                 view.Now.Format(time.RFC3339Nano),
+		ServerTime:                 view.Now,
 		Playground:                 playgroundResponse(g.Playground),
 		PlayerID:                   view.Me.ID.String(),
 		Team:                       string(view.Me.Team),
@@ -286,34 +285,25 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 		Players:   make([]PlayerResponse, 0, len(view.Lobby.Players)),
 	}
 	if !g.StartsAt.IsZero() {
-		response.StartsAt = g.StartsAt.Format(time.RFC3339Nano)
+		response.StartsAt = &g.StartsAt
 	}
 	if next := g.NextReveal(view.Now); !next.IsZero() {
-		response.NextRevealAt = next.Format(time.RFC3339Nano)
+		response.NextRevealAt = &next
 	}
-	if !view.Me.Route.IsZero() {
-		response.Route = routeResponse(view.Me.Route)
-	}
+	response.Route = gameRouteResponse(g.Route)
 	// Visibility is decided by the domain; this only maps what it allows.
 	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
 		player := PlayerResponse{PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}
-		if !p.Route.IsZero() {
-			player.Route = routeResponse(p.Route)
-		}
 		if !p.Position.IsZero() {
 			player.Position = &PositionResponse{
 				Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
-				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt.Format(time.RFC3339Nano),
+				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt,
 			}
 			if !p.RevealedAt.IsZero() {
-				player.Position.RevealedAt = p.RevealedAt.Format(time.RFC3339Nano)
+				player.Position.RevealedAt = &p.RevealedAt
 			}
 		}
 		response.Players = append(response.Players, player)
 	}
 	return response
-}
-
-func routeResponse(route game.RunnerRoute) *RouteResponse {
-	return &RouteResponse{Start: route.Start.String(), End: route.End.String(), RegenerationsLeft: route.RegenerationsLeft}
 }

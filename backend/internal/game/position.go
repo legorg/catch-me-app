@@ -8,9 +8,11 @@ const (
 	MaxAccuracyMeters = 10000
 	// RevealInterval is how often hunters receive the runners' positions.
 	RevealInterval = 5 * time.Minute
-	// StartCellMaxAge is how recent a runner's position must be to prove they
-	// stand in their start cell.
-	StartCellMaxAge = 30 * time.Second
+	// StartPositionMaxAge is how recent a runner's position must be to prove they
+	// are at the start of the route.
+	StartPositionMaxAge = 30 * time.Second
+	// StartRadiusMeters is how close to the route's start a runner must be to get ready.
+	StartRadiusMeters = 50
 	// PositionRetention is how long reported positions are kept after a game's
 	// start (or creation, if it never started), for a replay after the game.
 	PositionRetention = 7 * 24 * time.Hour

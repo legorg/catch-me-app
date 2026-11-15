@@ -4,26 +4,24 @@ import {
   getHealth,
   joinGame as postPlayer,
   leaveGame as deletePlayer,
-  regenerateRoute as postRoute,
   setHunterTeam as putHunterTeam,
   setReady as putReady,
   updatePosition as putPosition,
 } from './generated/sdk.gen';
-import type { CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Playground } from './generated/types.gen';
+import type { CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Playground } from './types';
 import { translate } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type {
-  Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, PlayerResponse, Playground,
-  PositionResponse, RouteResponse,
-} from './generated/types.gen';
+  Coordinates, CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Landmark,
+  PlayerResponse, Playground, PositionResponse,
+} from './types';
 
 export const API_URL = (
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
 ).trim().replace(/\/+$/, '');
 
 export const JOIN_CODE_PATTERN = /^[0-9]{6}$/;
-const CELL_PATTERN = /^[A-F][1-6]$/;
 export const MAX_NAME_LENGTH = 20;
 
 /** An error response from the backend, with its HTTP status (e.g. 401 for an unknown player token). */
@@ -59,7 +57,7 @@ export async function createGame(center: { latitude: number; longitude: number }
   const game = isRecord(data) ? data.game : undefined;
   const codes = isRecord(data) ? data.joinCodes : undefined;
   if (!isRecord(game) || !isHex(game.sessionId, 32) || !isDate(game.createdAt) || !isPlayground(game.playground) ||
-      !isJoinCodes(codes)) {
+      !isGameRoute(game.route) || !isJoinCodes(codes)) {
     throw new Error(translate('client.unexpectedGame'));
   }
   return data as CreateGameResponse;
@@ -95,12 +93,6 @@ export async function setReady(token: string, ready: boolean): Promise<GameState
 
 export async function leaveGame(token: string): Promise<void> {
   await request((signal) => deletePlayer({ baseUrl: API_URL, auth: bearer(token), signal }));
-}
-
-export async function regenerateRoute(token: string): Promise<GameStateResponse> {
-  const data = await request((signal) => postRoute({ baseUrl: API_URL, auth: bearer(token), signal }));
-  assertGameState(data);
-  return data;
 }
 
 export async function setHunterTeam(token: string, name: string): Promise<GameStateResponse> {
@@ -153,10 +145,15 @@ function isTeam(value: unknown): value is 'runner' | 'hunter' {
   return value === 'runner' || value === 'hunter';
 }
 
-function isRoute(value: unknown): boolean {
-  return isRecord(value) && typeof value.start === 'string' && CELL_PATTERN.test(value.start) &&
-    typeof value.end === 'string' && CELL_PATTERN.test(value.end) &&
-    Number.isInteger(value.regenerationsLeft) && (value.regenerationsLeft as number) >= 0 && (value.regenerationsLeft as number) <= 2;
+function isLandmark(value: unknown): boolean {
+  const c = isRecord(value) ? value.coordinates : undefined;
+  return isRecord(value) && typeof value.title === 'string' &&
+    isRecord(c) && finite(c.latitude) && Math.abs(c.latitude) <= 80 && finite(c.longitude) && Math.abs(c.longitude) <= 180;
+}
+
+function isGameRoute(value: unknown): value is GameRoute {
+  return isRecord(value) && isLandmark(value.start) && isLandmark(value.stop) &&
+    finite(value.distanceMeters) && value.distanceMeters >= 0;
 }
 
 function isPosition(value: unknown): boolean {
@@ -169,7 +166,7 @@ function isPosition(value: unknown): boolean {
 function isPlayer(p: unknown): boolean {
   return isRecord(p) && isHex(p.playerId, 32) && typeof p.name === 'string' && isTeam(p.team) &&
     (p.hunterTeam === undefined || (p.team === 'hunter' && typeof p.hunterTeam === 'string')) &&
-    typeof p.ready === 'boolean' && (p.route === undefined || isRoute(p.route)) &&
+    typeof p.ready === 'boolean' &&
     (p.position === undefined || isPosition(p.position));
 }
 
@@ -191,7 +188,7 @@ function assertGameState(body: unknown): asserts body is GameStateResponse {
       (body.startPositionCheckDisabled !== undefined && typeof body.startPositionCheckDisabled !== 'boolean') ||
       (body.nextRevealAt !== undefined && !isDate(body.nextRevealAt)) ||
       !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCodes(body.joinCodes) ||
-      (body.route !== undefined && (body.team !== 'runner' || !isRoute(body.route))) ||
+      !isGameRoute(body.route) ||
       !Array.isArray(body.players) || !body.players.every(isPlayer)) {
     throw new Error(translate('client.unexpectedState'));
   }

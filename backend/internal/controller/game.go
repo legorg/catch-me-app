@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"catch-me/backend/internal/game"
 	"catch-me/backend/internal/service"
@@ -31,7 +30,9 @@ func NewGameController(service *service.GameService) *GameController {
 // @Failure 403 {object} APIError "Browser origin is not allowed"
 // @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
 // @Failure 405 {object} APIError "Method not allowed"
+// @Failure 422 {object} APIError "No landmark found at the edges of the playground"
 // @Failure 500 {object} APIError "Could not save game"
+// @Failure 503 {object} APIError "Landmark lookup failed"
 // @Router /api/games [post]
 func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
@@ -73,10 +74,23 @@ func (body CreateGameRequest) parse() (game.Coordinates, game.CellSize, error) {
 }
 
 func gameResponse(saved game.Game) GameResponse {
-	return GameResponse{
-		SessionID: saved.SessionID.String(), CreatedAt: saved.CreatedAt.Format(time.RFC3339Nano),
+	response := GameResponse{
+		SessionID: saved.SessionID.String(), CreatedAt: saved.CreatedAt,
 		Playground: playgroundResponse(saved.Playground),
 	}
+	response.Route = gameRouteResponse(saved.Route)
+	return response
+}
+
+func gameRouteResponse(route game.Route) GameRoute {
+	return GameRoute{
+		Start: landmarkResponse(route.Start), Stop: landmarkResponse(route.Stop),
+		DistanceMeters: route.DistanceMeters(),
+	}
+}
+
+func landmarkResponse(l game.Landmark) Landmark {
+	return Landmark{Title: l.Title, Coordinates: Coordinates{Latitude: l.Coordinates.Latitude(), Longitude: l.Coordinates.Longitude()}}
 }
 
 func playgroundResponse(p game.Playground) Playground {
@@ -121,6 +135,11 @@ func writeGameError(w http.ResponseWriter, err error, message string) {
 	case errors.Is(err, game.ErrUnauthorized):
 		w.Header().Set("WWW-Authenticate", "Bearer")
 		WriteError(w, http.StatusUnauthorized, game.ErrUnauthorized.Error())
+	case errors.Is(err, game.ErrNoLandmark):
+		WriteError(w, http.StatusUnprocessableEntity, game.ErrNoLandmark.Error())
+	case errors.Is(err, game.ErrLandmarksUnavailable):
+		log.Printf("%s: %v", message, err)
+		WriteError(w, http.StatusServiceUnavailable, game.ErrLandmarksUnavailable.Error())
 	case errors.Is(err, game.ErrNotFound):
 		WriteError(w, http.StatusNotFound, game.ErrNotFound.Error())
 	case errors.As(err, &rule):

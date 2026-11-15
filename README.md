@@ -328,7 +328,7 @@ For Android Google Maps with our own key, use a native build:
 
 1. Create a Google Cloud project, configure billing, and enable **Maps SDK for Android**. Check current Google pricing and configure budget alerts.
 2. Create a key restricted to package `com.catchme.app` plus the build's signing SHA-1, and to **Maps SDK for Android**. This is an initial app identifier; choose your final unique identifier before publishing and update key restrictions accordingly.
-3. Set `GOOGLE_MAPS_ANDROID_API_KEY` in `app/.env.local` for local work, or in the root `.env` for Docker Expo. `app/app.config.js` passes it to the maps config plugin. Never commit real keys. Native SDK keys are embedded in binaries and must be protected with application/API restrictions, not treated as secret server credentials.
+3. Set `GOOGLE_MAPS_KEY` in `app/.env.local` for local work, or in the root `.env` for Docker Expo. `app/app.config.js` passes it to the maps config plugin. Never commit real keys. Native SDK keys are embedded in binaries and must be protected with application/API restrictions, not treated as secret server credentials.
 4. Build locally with `npx expo run:android`. This generates the native project from Expo config; do not hand-edit generated native directories. Alternatively configure EAS and supply the key through its build environment (EAS credentials/project setup is not included in this milestone).
 5. Rebuild the native binary after changing keys or native configuration. Metro reloads and JavaScript exports do not update native configuration.
 

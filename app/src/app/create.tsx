@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MAX_NAME_LENGTH, createGame, isValidPlayerName, joinGame, type Coordinates, type CreateGameResponse } from '@/api/client';
@@ -9,10 +9,10 @@ import Button from '@/components/button';
 import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
-import PlaygroundMap from '@/components/playground-map';
+import FullscreenMap from '@/components/fullscreen-map';
 import { formatNumber, useT, type MessageKey } from '@/i18n';
 import { playerSession } from '@/player-session';
-import { DEFAULT_CELL_SIZE_METERS, parseCellSizeKm, previewPlayground } from '@/playground';
+import { DEFAULT_CELL_SIZE_METERS, DEFAULT_CENTER, parseCellSizeKm, previewPlayground } from '@/playground';
 import { colors, styles } from '@/styles';
 
 // Own messages are kept as keys, so they follow a language switch; error texts are shown as received.
@@ -30,15 +30,16 @@ export default function CreateScreen() {
   const cellSize = parseCellSizeKm(cellSizeText);
   let playground = created?.game.playground ?? null;
   let sizeError = !created && cellSize === null ? t('create.cellSizeInvalid') : '';
-  if (!created && selected && cellSize !== null) {
+  // The grid starts at a default spot; the user drags it, and can only create once they have.
+  if (!created && cellSize !== null) {
     try {
-      playground = previewPlayground(selected, cellSize);
+      playground = previewPlayground(selected ?? DEFAULT_CENTER, cellSize);
     } catch (err) {
       sizeError = err instanceof Error ? err.message : t('create.sizeInvalid');
     }
   }
   const displayedSize = created?.game.playground.cellSizeMeters ?? cellSize;
-  const cannotCreate = !playground || !!sizeError || Platform.OS === 'web';
+  const cannotCreate = !selected || !playground || !!sizeError;
 
   function fail(err: unknown, fallback: MessageKey) {
     setError(true);
@@ -110,7 +111,7 @@ export default function CreateScreen() {
           {!!sizeError && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{sizeError}</Text>}
         </View>}
         <View style={styles.mapContainer}>
-          <PlaygroundMap key={created?.game.sessionId ?? 'draft'} playground={playground} editable={!created && !busy} onSelect={selectCenter} />
+          <FullscreenMap key={created?.game.sessionId ?? 'draft'} playground={playground} editable={!created && !busy} locatable onSelect={selectCenter} />
         </View>
         {playground && <Text style={styles.text}>
           {t('create.center', { latitude: playground.center.latitude.toFixed(6), longitude: playground.center.longitude.toFixed(6) })}

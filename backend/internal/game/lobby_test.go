@@ -12,23 +12,20 @@ var start = time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 func newLobby() Lobby {
 	center, _ := ParseCoordinates(52.52, 13.405)
 	playground, _ := NewPlayground(center, DefaultCellSize())
-	return Lobby{Game: Game{SessionID: NewSessionID(), JoinCodes: NewJoinCodes(), Playground: playground}}
+	route := Route{Start: Landmark{Coordinates: playground.CellBounds(Cell{column: 2, row: GridSize - 1}).Center()}, Stop: Landmark{Coordinates: playground.CellBounds(Cell{column: 3}).Center()}}
+	return Lobby{Game: Game{SessionID: NewSessionID(), JoinCodes: NewJoinCodes(), Playground: playground, Route: route}}
 }
 
-// moveToStart reports a position in the runner's start cell.
+// moveToStart reports a position at the start of the route.
 func moveToStart(t *testing.T, l *Lobby, id PlayerID, now time.Time) {
 	t.Helper()
-	p, _ := l.Player(id)
-	if p.Route.IsZero() {
-		return
-	}
-	position, _ := NewPosition(l.Game.Playground.CellCenter(p.Route.Start), 5, now)
+	position, _ := NewPosition(l.Game.Route.Start.Coordinates, 5, now)
 	if err := l.UpdatePosition(id, position, now, false); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// join adds a player; runners immediately stand in their start cell, and
+// join adds a player; runners immediately stand at the start, and
 // hunters join the hunter team "Pack".
 func join(t *testing.T, l *Lobby, team Team, name string, now time.Time) Player {
 	t.Helper()

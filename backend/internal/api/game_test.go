@@ -26,7 +26,7 @@ func testStore(t *testing.T) *db.Store {
 }
 
 func TestCreateGame(t *testing.T) {
-	handler := NewHandler("http://localhost:8081", controller.NewGameController(service.NewGameService(testStore(t), false)))
+	handler := NewHandler("http://localhost:8081", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
 	request := httptest.NewRequest(http.MethodPost, "/api/games", strings.NewReader(`{"latitude":52.52,"longitude":13.405}`))
 	request.Header.Set("Origin", "http://localhost:8081")
 	request.Header.Set("Content-Type", "application/json")
@@ -40,7 +40,7 @@ func TestCreateGame(t *testing.T) {
 		t.Fatal(err)
 	}
 	game := createdGame.Game
-	if _, err := domain.ParseSessionID(game.SessionID); err != nil || game.CreatedAt == "" {
+	if _, err := domain.ParseSessionID(game.SessionID); err != nil || game.CreatedAt.IsZero() {
 		t.Fatalf("invalid game metadata: %+v", game)
 	}
 	runnerCode, runnerErr := domain.ParseJoinCode(createdGame.JoinCodes.Runner)
@@ -67,7 +67,7 @@ func TestCreateGame(t *testing.T) {
 
 func TestGameErrors(t *testing.T) {
 	store := testStore(t)
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(store, false)))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(store, centerLandmarks{}, false)))
 	for _, tc := range []struct {
 		name, method, path, body string
 		status                   int
@@ -115,7 +115,7 @@ func TestGameErrors(t *testing.T) {
 }
 
 func TestCreateGameCellSizes(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), false)))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
 	for _, tc := range []struct {
 		body string
 		size int
@@ -161,14 +161,14 @@ func TestOpenAPIRoutes(t *testing.T) {
 		t.Fatal("expected Swagger 2.0")
 	}
 	for _, tc := range []struct{ path, method, id, status, schema string }{
-		{"/health", "get", "getHealth", "200", "HealthResponse"},
-		{"/api/games", "post", "createGame", "201", "CreateGameResponse"},
-		{"/api/players", "post", "joinGame", "201", "JoinGameResponse"},
-		{"/api/me/game", "get", "getGameState", "200", "GameStateResponse"},
-		{"/api/me/ready", "put", "setReady", "200", "GameStateResponse"},
-		{"/api/me/route", "post", "regenerateRoute", "200", "GameStateResponse"},
-		{"/api/me/hunter-team", "put", "setHunterTeam", "200", "GameStateResponse"},
-		{"/api/me/position", "put", "updatePosition", "200", "GameStateResponse"},
+		{"/health", "get", "getHealth", "200", "controller.HealthResponse"},
+		{"/api/games", "post", "createGame", "201", "controller.CreateGameResponse"},
+		{"/api/players", "post", "joinGame", "201", "controller.JoinGameResponse"},
+		{"/api/me/game", "get", "getGameState", "200", "controller.GameStateResponse"},
+		{"/api/me/ready", "put", "setReady", "200", "controller.GameStateResponse"},
+		{"/api/me/route", "post", "regenerateRoute", "200", "controller.GameStateResponse"},
+		{"/api/me/hunter-team", "put", "setHunterTeam", "200", "controller.GameStateResponse"},
+		{"/api/me/position", "put", "updatePosition", "200", "controller.GameStateResponse"},
 	} {
 		operation := spec.Paths[tc.path][tc.method]
 		if operation.OperationID != tc.id || operation.Responses[tc.status].Schema.Ref != "#/definitions/"+tc.schema || len(spec.Definitions[tc.schema].Required) == 0 {

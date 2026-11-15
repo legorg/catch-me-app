@@ -26,7 +26,11 @@ var (
 	ErrNotFound     = errors.New("game not found")
 	ErrUnauthorized = errors.New("missing or invalid player token")
 	// ErrJoinCodeTaken is returned by persistence when generated codes collide.
-	ErrJoinCodeTaken = errors.New("join code already in use")
+	// ErrLandmarksUnavailable means the landmark lookup failed, ErrNoLandmark
+	// that it succeeded but found nothing on an edge of the playground.
+	ErrLandmarksUnavailable = errors.New("could not look up landmarks, try again")
+	ErrNoLandmark           = errors.New("no landmark found at the edge of this playground, choose another location")
+	ErrJoinCodeTaken        = errors.New("join code already in use")
 )
 
 var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
@@ -68,6 +72,7 @@ type Game struct {
 	CreatedAt  time.Time
 	Playground Playground
 	JoinCodes  JoinCodes
+	Route      Route
 	// StartsAt is zero while the lobby is open, otherwise the scheduled start.
 	StartsAt time.Time
 }

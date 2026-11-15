@@ -4,52 +4,62 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type ApiError = {
+export type ControllerApiError = {
     error: string;
 };
 
-export type Bounds = {
+export type ControllerBounds = {
     east: number;
     north: number;
     south: number;
     west: number;
 };
 
-export type Coordinates = {
+export type ControllerCoordinates = {
     latitude: number;
     longitude: number;
 };
 
-export type CreateGameRequest = {
+export type ControllerCreateGameRequest = {
     cellSizeMeters?: number;
     latitude: number;
     longitude: number;
 };
 
-export type CreateGameResponse = {
-    game: GameResponse;
-    joinCodes: JoinCodes;
+export type ControllerCreateGameResponse = {
+    game: ControllerGameResponse;
+    joinCodes: ControllerJoinCodes;
 };
 
-export type GameResponse = {
+export type ControllerGameResponse = {
     createdAt: string;
-    playground: Playground;
+    playground: ControllerPlayground;
+    route: ControllerGameRoute;
     sessionId: string;
 };
 
-export type GameStateResponse = {
-    joinCodes: JoinCodes;
+export type ControllerGameRoute = {
+    /**
+     * Straight-line (great-circle) distance between start and stop.
+     */
+    distanceMeters: number;
+    start: ControllerLandmark;
+    stop: ControllerLandmark;
+};
+
+export type ControllerGameStateResponse = {
+    joinCodes: ControllerJoinCodes;
     /**
      * Next time hunters receive the runners' positions, present while running.
      */
     nextRevealAt?: string;
     playerId: string;
-    players: Array<PlayerResponse>;
-    playground: Playground;
+    players: Array<ControllerPlayerResponse>;
+    playground: ControllerPlayground;
     /**
-     * The requesting runner's own route; absent for hunters.
+     * The game's route between two landmarks.
      */
-    route?: RouteResponse;
+    route: ControllerGameRoute;
     serverTime: string;
     sessionId: string;
     /**
@@ -64,27 +74,35 @@ export type GameStateResponse = {
     team: 'runner' | 'hunter';
 };
 
-export type HealthResponse = {
+export type ControllerHealthResponse = {
     service: 'catch-me-backend';
     status: 'ok';
 };
 
-export type JoinCodes = {
+export type ControllerJoinCodes = {
     hunter: string;
     runner: string;
 };
 
-export type JoinGameRequest = {
+export type ControllerJoinGameRequest = {
     code: string;
     name: string;
 };
 
-export type JoinGameResponse = {
+export type ControllerJoinGameResponse = {
     playerToken: string;
-    state: GameStateResponse;
+    state: ControllerGameStateResponse;
 };
 
-export type PlayerResponse = {
+export type ControllerLandmark = {
+    coordinates: ControllerCoordinates;
+    /**
+     * Name of the place, e.g. a landmark.
+     */
+    title: string;
+};
+
+export type ControllerPlayerResponse = {
     /**
      * Present for hunters who have chosen a hunter team.
      */
@@ -96,24 +114,20 @@ export type PlayerResponse = {
      * teammates' positions while running; runners' revealed positions for
      * hunters while running.
      */
-    position?: PositionResponse;
+    position?: ControllerPositionResponse;
     ready: boolean;
-    /**
-     * Present only for runners when the requester is a runner.
-     */
-    route?: RouteResponse;
     team: 'runner' | 'hunter';
 };
 
-export type Playground = {
-    bounds: Bounds;
+export type ControllerPlayground = {
+    bounds: ControllerBounds;
     cellSizeMeters: number;
-    center: Coordinates;
+    center: ControllerCoordinates;
     columns: 6;
     rows: 6;
 };
 
-export type PositionResponse = {
+export type ControllerPositionResponse = {
     accuracyMeters: number;
     latitude: number;
     longitude: number;
@@ -124,21 +138,15 @@ export type PositionResponse = {
     revealedAt?: string;
 };
 
-export type RouteResponse = {
-    end: string;
-    regenerationsLeft: number;
-    start: string;
-};
-
-export type SetHunterTeamRequest = {
+export type ControllerSetHunterTeamRequest = {
     name: string;
 };
 
-export type SetReadyRequest = {
+export type ControllerSetReadyRequest = {
     ready: boolean;
 };
 
-export type UpdatePositionRequest = {
+export type ControllerUpdatePositionRequest = {
     accuracyMeters: number;
     latitude: number;
     longitude: number;
@@ -148,7 +156,7 @@ export type CreateGameData = {
     /**
      * Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings
      */
-    body: CreateGameRequest;
+    body: ControllerCreateGameRequest;
     path?: never;
     query?: never;
     url: '/api/games';
@@ -158,23 +166,31 @@ export type CreateGameErrors = {
     /**
      * Invalid JSON, coordinates, or cell size
      */
-    400: ApiError;
+    400: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Request body exceeds 1024 bytes
      */
-    413: ApiError;
+    413: ControllerApiError;
+    /**
+     * No landmark found at the edges of the playground
+     */
+    422: ControllerApiError;
     /**
      * Could not save game
      */
-    500: ApiError;
+    500: ControllerApiError;
+    /**
+     * Landmark lookup failed
+     */
+    503: ControllerApiError;
 };
 
 export type CreateGameError = CreateGameErrors[keyof CreateGameErrors];
@@ -183,10 +199,10 @@ export type CreateGameResponses = {
     /**
      * Game saved, with one join code per team
      */
-    201: CreateGameResponse;
+    201: ControllerCreateGameResponse;
 };
 
-export type CreateGameResponse2 = CreateGameResponses[keyof CreateGameResponses];
+export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
 
 export type LeaveGameData = {
     body?: never;
@@ -199,23 +215,23 @@ export type LeaveGameErrors = {
     /**
      * Missing or unknown player token
      */
-    401: ApiError;
+    401: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Game has already started
      */
-    409: ApiError;
+    409: ControllerApiError;
     /**
      * Could not update game
      */
-    500: ApiError;
+    500: ControllerApiError;
 };
 
 export type LeaveGameError = LeaveGameErrors[keyof LeaveGameErrors];
@@ -238,19 +254,19 @@ export type GetGameStateErrors = {
     /**
      * Missing or unknown player token
      */
-    401: ApiError;
+    401: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Could not load game
      */
-    500: ApiError;
+    500: ControllerApiError;
 };
 
 export type GetGameStateError = GetGameStateErrors[keyof GetGameStateErrors];
@@ -259,7 +275,7 @@ export type GetGameStateResponses = {
     /**
      * Current game state
      */
-    200: GameStateResponse;
+    200: ControllerGameStateResponse;
 };
 
 export type GetGameStateResponse = GetGameStateResponses[keyof GetGameStateResponses];
@@ -268,7 +284,7 @@ export type SetHunterTeamData = {
     /**
      * Team name (1-20 characters); an existing team with this name (ignoring case) is joined, otherwise a new team is created
      */
-    body: SetHunterTeamRequest;
+    body: ControllerSetHunterTeamRequest;
     path?: never;
     query?: never;
     url: '/api/me/hunter-team';
@@ -278,31 +294,31 @@ export type SetHunterTeamErrors = {
     /**
      * Invalid JSON or team name
      */
-    400: ApiError;
+    400: ControllerApiError;
     /**
      * Missing or unknown player token
      */
-    401: ApiError;
+    401: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Not a hunter, ready, or game started
      */
-    409: ApiError;
+    409: ControllerApiError;
     /**
      * Request body exceeds 1024 bytes
      */
-    413: ApiError;
+    413: ControllerApiError;
     /**
      * Could not update game
      */
-    500: ApiError;
+    500: ControllerApiError;
 };
 
 export type SetHunterTeamError = SetHunterTeamErrors[keyof SetHunterTeamErrors];
@@ -311,7 +327,7 @@ export type SetHunterTeamResponses = {
     /**
      * Updated game state
      */
-    200: GameStateResponse;
+    200: ControllerGameStateResponse;
 };
 
 export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamResponses];
@@ -320,7 +336,7 @@ export type UpdatePositionData = {
     /**
      * Current coordinates and accuracy radius; the server records its own time
      */
-    body: UpdatePositionRequest;
+    body: ControllerUpdatePositionRequest;
     path?: never;
     query?: never;
     url: '/api/me/position';
@@ -330,27 +346,27 @@ export type UpdatePositionErrors = {
     /**
      * Invalid JSON, coordinates, or accuracy
      */
-    400: ApiError;
+    400: ControllerApiError;
     /**
      * Missing or unknown player token
      */
-    401: ApiError;
+    401: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Request body exceeds 1024 bytes
      */
-    413: ApiError;
+    413: ControllerApiError;
     /**
      * Could not update game
      */
-    500: ApiError;
+    500: ControllerApiError;
 };
 
 export type UpdatePositionError = UpdatePositionErrors[keyof UpdatePositionErrors];
@@ -359,7 +375,7 @@ export type UpdatePositionResponses = {
     /**
      * Updated game state
      */
-    200: GameStateResponse;
+    200: ControllerGameStateResponse;
 };
 
 export type UpdatePositionResponse = UpdatePositionResponses[keyof UpdatePositionResponses];
@@ -368,7 +384,7 @@ export type SetReadyData = {
     /**
      * Ready state; the game starts 10 seconds after all players are ready and both teams have players
      */
-    body: SetReadyRequest;
+    body: ControllerSetReadyRequest;
     path?: never;
     query?: never;
     url: '/api/me/ready';
@@ -378,31 +394,31 @@ export type SetReadyErrors = {
     /**
      * Invalid JSON or missing ready value
      */
-    400: ApiError;
+    400: ControllerApiError;
     /**
      * Missing or unknown player token
      */
-    401: ApiError;
+    401: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Game has already started, or the runner is not in their start cell
      */
-    409: ApiError;
+    409: ControllerApiError;
     /**
      * Request body exceeds 1024 bytes
      */
-    413: ApiError;
+    413: ControllerApiError;
     /**
      * Could not update game
      */
-    500: ApiError;
+    500: ControllerApiError;
 };
 
 export type SetReadyError = SetReadyErrors[keyof SetReadyErrors];
@@ -411,7 +427,7 @@ export type SetReadyResponses = {
     /**
      * Updated game state
      */
-    200: GameStateResponse;
+    200: ControllerGameStateResponse;
 };
 
 export type SetReadyResponse = SetReadyResponses[keyof SetReadyResponses];
@@ -427,23 +443,23 @@ export type RegenerateRouteErrors = {
     /**
      * Missing or unknown player token
      */
-    401: ApiError;
+    401: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Not a runner, ready, no changes left, or game started
      */
-    409: ApiError;
+    409: ControllerApiError;
     /**
      * Could not update game
      */
-    500: ApiError;
+    500: ControllerApiError;
 };
 
 export type RegenerateRouteError = RegenerateRouteErrors[keyof RegenerateRouteErrors];
@@ -452,7 +468,7 @@ export type RegenerateRouteResponses = {
     /**
      * Updated game state with the new route
      */
-    200: GameStateResponse;
+    200: ControllerGameStateResponse;
 };
 
 export type RegenerateRouteResponse = RegenerateRouteResponses[keyof RegenerateRouteResponses];
@@ -461,7 +477,7 @@ export type JoinGameData = {
     /**
      * Join code (6 digits) and display name (1-20 characters, unique per game)
      */
-    body: JoinGameRequest;
+    body: ControllerJoinGameRequest;
     path?: never;
     query?: never;
     url: '/api/players';
@@ -471,31 +487,31 @@ export type JoinGameErrors = {
     /**
      * Invalid JSON, join code, or name
      */
-    400: ApiError;
+    400: ControllerApiError;
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
     /**
      * No game with this join code
      */
-    404: ApiError;
+    404: ControllerApiError;
     /**
      * Method not allowed
      */
-    405: ApiError;
+    405: ControllerApiError;
     /**
      * Game started, full, or name taken
      */
-    409: ApiError;
+    409: ControllerApiError;
     /**
      * Request body exceeds 1024 bytes
      */
-    413: ApiError;
+    413: ControllerApiError;
     /**
      * Could not join game
      */
-    500: ApiError;
+    500: ControllerApiError;
 };
 
 export type JoinGameError = JoinGameErrors[keyof JoinGameErrors];
@@ -504,10 +520,10 @@ export type JoinGameResponses = {
     /**
      * Joined; keep the player token secret
      */
-    201: JoinGameResponse;
+    201: ControllerJoinGameResponse;
 };
 
-export type JoinGameResponse2 = JoinGameResponses[keyof JoinGameResponses];
+export type JoinGameResponse = JoinGameResponses[keyof JoinGameResponses];
 
 export type GetHealthData = {
     body?: never;
@@ -520,7 +536,7 @@ export type GetHealthErrors = {
     /**
      * Browser origin is not allowed
      */
-    403: ApiError;
+    403: ControllerApiError;
 };
 
 export type GetHealthError = GetHealthErrors[keyof GetHealthErrors];
@@ -529,7 +545,7 @@ export type GetHealthResponses = {
     /**
      * Backend is running
      */
-    200: HealthResponse;
+    200: ControllerHealthResponse;
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];

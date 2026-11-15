@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  boundaryCoordinates, cellAt, cellBounds, cellLabels, edgeName, gridLines, parseCellSizeKm, previewPlayground,
+  boundaryCoordinates, cellAt, cellBounds, cellLabels, distanceMeters, edgeName, gridLines, parseCellSizeKm, previewPlayground,
 } from '../src/playground';
 
 test('cellAt finds the labeled cell and rejects outside positions', () => {
@@ -96,4 +96,11 @@ test('invalid centers and date-line crossings cannot be previewed', () => {
     { latitude: NaN, longitude: 0 }, { latitude: 0, longitude: Infinity },
     { latitude: 0, longitude: 180 }, { latitude: 0, longitude: -180 },
   ]) assert.throws(() => previewPlayground(center));
+});
+
+test('distanceMeters is the haversine distance', () => {
+  const berlin = { latitude: 52.52, longitude: 13.405 };
+  const paris = { latitude: 48.8566, longitude: 2.3522 };
+  assert.ok(Math.abs(distanceMeters(berlin, paris) - 877_000) < 3_000);
+  assert.equal(distanceMeters(berlin, berlin), 0);
 });

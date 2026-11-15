@@ -1,0 +1,15 @@
+// Readable names for the generated schema types.
+export type {
+  ControllerBounds as Bounds,
+  ControllerCoordinates as Coordinates,
+  ControllerCreateGameResponse as CreateGameResponse,
+  ControllerGameRoute as GameRoute,
+  ControllerGameStateResponse as GameStateResponse,
+  ControllerHealthResponse as HealthResponse,
+  ControllerJoinCodes as JoinCodes,
+  ControllerJoinGameResponse as JoinGameResponse,
+  ControllerLandmark as Landmark,
+  ControllerPlayerResponse as PlayerResponse,
+  ControllerPlayground as Playground,
+  ControllerPositionResponse as PositionResponse,
+} from './generated/types.gen';

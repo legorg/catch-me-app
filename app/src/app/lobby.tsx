@@ -5,20 +5,21 @@ import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  ApiError, MAX_NAME_LENGTH, getGameState, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition,
+  ApiError, MAX_NAME_LENGTH, getGameState, leaveGame, setHunterTeam, setReady, updatePosition,
   type GameStateResponse,
 } from '@/api/client';
 import Button from '@/components/button';
 import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
-import PlaygroundMap, { type CellHighlight } from '@/components/playground-map';
+import FullscreenMap from '@/components/fullscreen-map';
+import { type CellHighlight } from '@/components/playground-map';
 import { translate, translateParts, useT } from '@/i18n';
 import {
   formatDuration, hunterTeams, playerMarkers, playersByTeam, secondsUntil, secondsUntilStart,
 } from '@/lobby';
 import { playerSession } from '@/player-session';
-import { cellAt, edgeName } from '@/playground';
+import { cellAt, distanceMeters, START_RADIUS_METERS } from '@/playground';
 import { colors, styles } from '@/styles';
 import { useLocationSharing, type Fix } from '@/use-location-sharing';
 
@@ -117,11 +118,16 @@ export default function LobbyScreen() {
   const teams = playersByTeam(state.players);
   const route = state.route;
   const myCell = me?.position ? cellAt(state.playground, me.position) : undefined;
-  const inStartCell = !!route && myCell === route.start;
+  const isRunner = state.team === 'runner';
+  const metersToStart = me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
+  const atStart = metersToStart !== null && metersToStart <= START_RADIUS_METERS;
   const nextReveal = secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
-  const highlights: CellHighlight[] = route
-    ? [{ cell: route.start, title: t('lobby.start'), color: START_COLOR }, { cell: route.end, title: t('lobby.target'), color: TARGET_COLOR }]
-    : [];
+  const startCell = cellAt(state.playground, route.start.coordinates);
+  const stopCell = cellAt(state.playground, route.stop.coordinates);
+  const highlights: CellHighlight[] = [
+    ...(startCell ? [{ cell: startCell, title: route.start.title || t('lobby.start'), color: START_COLOR }] : []),
+    ...(stopCell ? [{ cell: stopCell, title: route.stop.title || t('lobby.target'), color: TARGET_COLOR }] : []),
+  ];
   const permission = location.permission;
   const needsHunterTeam = state.team === 'hunter' && !me?.hunterTeam;
   const changeHunterTeam = (name: string) => void act(async () => {
@@ -154,7 +160,7 @@ export default function LobbyScreen() {
         </View>}
         {running && myCell === null && <Text style={[styles.heading, styles.error]}>{t('lobby.outside')}</Text>}
         <View style={styles.mapContainer}>
-          <PlaygroundMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} markers={playerMarkers(state)} />
+          <FullscreenMap playground={state.playground} editable={false} onSelect={() => {}} highlights={highlights} markers={playerMarkers(state)} />
         </View>
         {(running || state.team === 'hunter') && <Text style={styles.hint}>
           {t(state.team === 'runner' ? 'lobby.legendRunner' : 'lobby.legendHunter')}
@@ -195,34 +201,25 @@ export default function LobbyScreen() {
           </Text>
         </View>
         {!running && <JoinCodes codes={state.joinCodes} />}
-        {route && <View style={styles.card}>
+        <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
           <Text style={styles.text}>
             {translateParts('lobby.route', {
-              start: <Text key="start" style={[styles.heading, { color: START_COLOR }]}>{route.start}</Text>,
-              startEdge: edgeName(route.start),
-              end: <Text key="end" style={[styles.heading, { color: TARGET_COLOR }]}>{route.end}</Text>,
-              endEdge: edgeName(route.end),
+              start: <Text key="start" style={[styles.heading, { color: START_COLOR }]}>{route.start.title || t('lobby.start')}</Text>,
+              stop: <Text key="stop" style={[styles.heading, { color: TARGET_COLOR }]}>{route.stop.title || t('lobby.target')}</Text>,
+              distance: (route.distanceMeters / 1000).toFixed(1),
             })}
           </Text>
-          {!running && <Text style={[styles.text, !inStartCell && !skipStartPositionCheck && styles.error]}>
+          {isRunner && !running && <Text style={[styles.text, !atStart && !skipStartPositionCheck && styles.error]}>
             {skipStartPositionCheck
-              ? myCell ? t('lobby.inCellCheckDisabled', { cell: myCell }) : t('lobby.checkDisabled')
-              : inStartCell
-                ? t('lobby.inStartCell')
-                : myCell
-                  ? t('lobby.goToStart', { cell: myCell, start: route.start })
-                  : t(me?.position ? 'lobby.outside' : 'lobby.waitingForLocation')}
+              ? t('lobby.checkDisabled')
+              : atStart
+                ? t('lobby.atStart')
+                : metersToStart !== null
+                  ? t('lobby.goToStart', { meters: Math.round(metersToStart), radius: START_RADIUS_METERS })
+                  : t('lobby.waitingForLocation')}
           </Text>}
-          <Text style={styles.hint}>{t('lobby.routesHint')}</Text>
-          {!running && <Button
-            label={t('lobby.newRoute', { left: route.regenerationsLeft })}
-            variant="secondary"
-            disabled={busy || me?.ready || route.regenerationsLeft === 0}
-            onPress={() => void act(async () => show(await regenerateRoute(token)))}
-          />}
-          {!running && me?.ready && route.regenerationsLeft > 0 && <Text style={styles.hint}>{t('lobby.unreadyForRoute')}</Text>}
-        </View>}
+        </View>
         {state.team === 'hunter' && !running && me && <View style={styles.card}>
           <Text style={styles.heading}>{t('lobby.hunterTeamHeading')}</Text>
           <Text style={[styles.text, needsHunterTeam && styles.error]}>
@@ -257,7 +254,6 @@ export default function LobbyScreen() {
                 {p.ready ? '✓' : '○'} {p.playerId === state.playerId ? t('common.you', { name: p.name }) : p.name}
                 {team === 'hunter' ? ` · ${p.hunterTeam ? t('lobby.hunterTeam', { name: p.hunterTeam }) : t('lobby.noTeam')}` : ''}
                 {running ? '' : ` · ${t(p.ready ? 'lobby.ready' : 'lobby.notReady')}`}
-                {p.route && p.playerId !== state.playerId ? ` · ${p.route.start} → ${p.route.end}` : ''}
               </Text>
             ))}
           </View>
@@ -267,7 +263,7 @@ export default function LobbyScreen() {
           <Button
             label={t(me.ready ? 'lobby.notReadyButton' : 'lobby.readyButton')}
             variant={me.ready ? 'secondary' : 'primary'}
-            disabled={busy || (!me.ready && needsHunterTeam) || (!skipStartPositionCheck && !me.ready && !!route && !inStartCell)}
+            disabled={busy || (!me.ready && needsHunterTeam) || (!skipStartPositionCheck && !me.ready && isRunner && !atStart)}
             onPress={() => void act(async () => show(await setReady(token, !me.ready)))}
           />
           <Button label={t('lobby.leave')} variant="secondary" disabled={busy} onPress={() => void act(async () => {

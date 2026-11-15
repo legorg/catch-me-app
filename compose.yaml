@@ -23,7 +23,7 @@ services:
       REACT_NATIVE_PACKAGER_HOSTNAME: "${EXPO_HOST:-localhost}"
       EXPO_NO_DOTENV: "1"
       EXPO_NO_TELEMETRY: "1"
-      GOOGLE_MAPS_ANDROID_API_KEY: "${GOOGLE_MAPS_ANDROID_API_KEY:-}"
+      GOOGLE_MAPS_KEY: "${GOOGLE_MAPS_KEY:-}"
       BROWSER: none
     volumes:
       - ./app/src:/app/src

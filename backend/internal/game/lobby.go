@@ -149,7 +149,7 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 		return &RuleError{Message: "choose a hunter team to get ready"}
 	}
 	if ready && !skipStartCheck {
-		if err := l.requireInStartCell(l.Players[i], now); err != nil {
+		if err := l.requireAtStart(l.Players[i], now); err != nil {
 			return err
 		}
 	}
@@ -159,7 +159,7 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 }
 
 // UpdatePosition stores a player's latest location. Before the start, a ready
-// runner who leaves their start cell becomes not ready (unless skipStartCheck).
+// runner who moves away from the start becomes not ready (unless skipStartCheck).
 func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, skipStartCheck bool) error {
 	i := l.index(id)
 	if i < 0 {
@@ -167,24 +167,24 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 	}
 	player := &l.Players[i]
 	player.Position = position
-	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireInStartCell(*player, now) != nil {
+	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireAtStart(*player, now) != nil {
 		player.Ready = false
 		l.reschedule(now)
 	}
 	return nil
 }
 
-// requireInStartCell checks that a runner recently reported a position inside
-// their start cell. Hunters always pass.
-func (l Lobby) requireInStartCell(p Player, now time.Time) error {
+// requireAtStart checks that a runner recently reported a position within
+// StartRadiusMeters of the route's start. Hunters always pass.
+func (l Lobby) requireAtStart(p Player, now time.Time) error {
 	if p.Team != Runners {
 		return nil
 	}
-	if p.Position.IsZero() || now.Sub(p.Position.RecordedAt) > StartCellMaxAge {
+	if p.Position.IsZero() || now.Sub(p.Position.RecordedAt) > StartPositionMaxAge {
 		return &RuleError{Message: "share your location to get ready"}
 	}
-	if cell, ok := l.Game.Playground.CellAt(p.Position.Coordinates); !ok || cell != p.Route.Start {
-		return &RuleError{Message: fmt.Sprintf("go to your start cell %s to get ready", p.Route.Start)}
+	if p.Position.Coordinates.DistanceMeters(l.Game.Route.Start.Coordinates) > StartRadiusMeters {
+		return &RuleError{Message: fmt.Sprintf("go to within %d meters of the start to get ready", StartRadiusMeters)}
 	}
 	return nil
 }

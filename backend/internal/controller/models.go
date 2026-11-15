@@ -1,129 +1,138 @@
 package controller
 
+import "time"
+
 type HealthResponse struct {
-	Status  string `json:"status" enums:"ok" example:"ok"`
-	Service string `json:"service" enums:"catch-me-backend" example:"catch-me-backend"`
-} // @name HealthResponse
+	Status  string `json:"status" enums:"ok" example:"ok" validate:"required,oneof=ok"`
+	Service string `json:"service" enums:"catch-me-backend" example:"catch-me-backend" validate:"required,oneof=catch-me-backend"`
+}
 
 type Coordinates struct {
-	Latitude  float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
-	Longitude float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
-} // @name Coordinates
+	Latitude  float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"gte=-80,lte=80"`
+	Longitude float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"gte=-180,lte=180"`
+}
 
 type Bounds struct {
-	North float64 `json:"north" example:"52.57395922182347"`
-	South float64 `json:"south" example:"52.466040778176534"`
-	East  float64 `json:"east" example:"13.493678060701022"`
-	West  float64 `json:"west" example:"13.316321939298977"`
-} // @name Bounds
+	North float64 `json:"north" example:"52.57395922182347" validate:"gte=-90,lte=90"`
+	South float64 `json:"south" example:"52.466040778176534" validate:"gte=-90,lte=90"`
+	East  float64 `json:"east" example:"13.493678060701022" validate:"gte=-180,lte=180"`
+	West  float64 `json:"west" example:"13.316321939298977" validate:"gte=-180,lte=180"`
+}
 
 // Pointer fields distinguish missing/null coordinates from a valid zero.
 type CreateGameRequest struct {
-	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
-	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
-	CellSizeMeters *int     `json:"cellSizeMeters,omitempty" minimum:"100" maximum:"5000" default:"2000" example:"2000"`
-} // @name CreateGameRequest
+	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
+	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
+	CellSizeMeters *int     `json:"cellSizeMeters,omitempty" minimum:"100" maximum:"5000" default:"2000" example:"2000" validate:"omitempty,gte=100,lte=5000"`
+}
 
 type Playground struct {
 	Center         Coordinates `json:"center"`
 	Bounds         Bounds      `json:"bounds"`
-	Rows           int         `json:"rows" enums:"6" example:"6"`
-	Columns        int         `json:"columns" enums:"6" example:"6"`
-	CellSizeMeters int         `json:"cellSizeMeters" minimum:"100" maximum:"5000" example:"2000"`
-} // @name Playground
+	Rows           int         `json:"rows" enums:"6" example:"6" validate:"eq=6"`
+	Columns        int         `json:"columns" enums:"6" example:"6" validate:"eq=6"`
+	CellSizeMeters int         `json:"cellSizeMeters" minimum:"100" maximum:"5000" example:"2000" validate:"gte=100,lte=5000"`
+}
+
+type Landmark struct {
+	// Name of the place, e.g. a landmark.
+	Title       string      `json:"title" example:"Brandenburger Tor" validate:"max=255"`
+	Coordinates Coordinates `json:"coordinates"`
+}
+
+// GameRoute leads from a landmark in the bottom row of the grid to one in the top row.
+type GameRoute struct {
+	Start Landmark `json:"start"`
+	Stop  Landmark `json:"stop"`
+	// Straight-line (great-circle) distance between start and stop.
+	DistanceMeters float64 `json:"distanceMeters" example:"10432.7" validate:"gte=0"`
+}
 
 type GameResponse struct {
-	SessionID  string     `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff"`
-	CreatedAt  string     `json:"createdAt" format:"date-time" example:"2026-11-08T12:00:00Z"`
+	SessionID  string     `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
+	CreatedAt  time.Time  `json:"createdAt" example:"2026-11-08T12:00:00Z" validate:"required"`
 	Playground Playground `json:"playground"`
-} // @name GameResponse
+	Route      GameRoute  `json:"route"`
+}
 
 type JoinCodes struct {
-	Runner string `json:"runner" minLength:"6" maxLength:"6" example:"482913"`
-	Hunter string `json:"hunter" minLength:"6" maxLength:"6" example:"071564"`
-} // @name JoinCodes
+	Runner string `json:"runner" minLength:"6" maxLength:"6" example:"482913" validate:"required,len=6,numeric"`
+	Hunter string `json:"hunter" minLength:"6" maxLength:"6" example:"071564" validate:"required,len=6,numeric"`
+}
 
 type CreateGameResponse struct {
 	Game      GameResponse `json:"game"`
 	JoinCodes JoinCodes    `json:"joinCodes"`
-} // @name CreateGameResponse
+}
 
 type JoinGameRequest struct {
-	Code string `json:"code" minLength:"6" maxLength:"6" example:"482913"`
-	Name string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
-} // @name JoinGameRequest
+	Code string `json:"code" minLength:"6" maxLength:"6" example:"482913" validate:"required,len=6,numeric"`
+	Name string `json:"name" minLength:"1" maxLength:"20" example:"Ada" validate:"required,min=1,max=20"`
+}
 
 // Pointer field distinguishes a missing value from false.
 type SetReadyRequest struct {
-	Ready *bool `json:"ready" example:"true"`
-} // @name SetReadyRequest
+	Ready *bool `json:"ready" example:"true" validate:"required"`
+}
 
 type SetHunterTeamRequest struct {
-	Name string `json:"name" minLength:"1" maxLength:"20" example:"Wolves"`
-} // @name SetHunterTeamRequest
+	Name string `json:"name" minLength:"1" maxLength:"20" example:"Wolves" validate:"required,min=1,max=20"`
+}
 
 type PlayerResponse struct {
-	PlayerID string `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
-	Name     string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
-	Team     string `json:"team" enums:"runner,hunter" example:"runner"`
+	PlayerID string `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
+	Name     string `json:"name" minLength:"1" maxLength:"20" example:"Ada" validate:"required,min=1,max=20"`
+	Team     string `json:"team" enums:"runner,hunter" example:"runner" validate:"required,oneof=runner hunter"`
 	// Present for hunters who have chosen a hunter team.
-	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves"`
+	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves" validate:"omitempty,max=20"`
 	Ready      bool   `json:"ready" example:"false"`
-	// Present only for runners when the requester is a runner.
-	Route *RouteResponse `json:"route,omitempty"`
 	// Own position always; hunter teammates' positions always; runner
 	// teammates' positions while running; runners' revealed positions for
 	// hunters while running.
-	Position *PositionResponse `json:"position,omitempty"`
-} // @name PlayerResponse
+	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
+}
 
 type PositionResponse struct {
-	Latitude       float64 `json:"latitude" example:"52.52"`
-	Longitude      float64 `json:"longitude" example:"13.405"`
-	AccuracyMeters float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8"`
-	RecordedAt     string  `json:"recordedAt" format:"date-time" example:"2026-11-08T12:04:58Z"`
+	Latitude       float64   `json:"latitude" example:"52.52" validate:"gte=-80,lte=80"`
+	Longitude      float64   `json:"longitude" example:"13.405" validate:"gte=-180,lte=180"`
+	AccuracyMeters float64   `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"gte=0,lte=10000"`
+	RecordedAt     time.Time `json:"recordedAt" example:"2026-11-08T12:04:58Z" validate:"required"`
 	// Set when this is a runner position revealed to hunters.
-	RevealedAt string `json:"revealedAt,omitempty" format:"date-time" example:"2026-11-08T12:05:00Z"`
-} // @name PositionResponse
+	RevealedAt *time.Time `json:"revealedAt,omitempty" example:"2026-11-08T12:05:00Z" validate:"omitempty"`
+}
 
 // Pointer fields distinguish missing values from zero.
 type UpdatePositionRequest struct {
-	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
-	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
-	AccuracyMeters *float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8"`
-} // @name UpdatePositionRequest
+	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
+	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
+	AccuracyMeters *float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"required,gte=0,lte=10000"`
+}
 
 // GameStateResponse is the game as seen by the requesting player.
 type GameStateResponse struct {
 	// Explicit server-side development override; absent during normal play.
-	StartPositionCheckDisabled bool   `json:"startPositionCheckDisabled,omitempty" example:"false"`
-	SessionID                  string `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff"`
-	Status                     string `json:"status" enums:"lobby,countdown,running" example:"lobby"`
-	ServerTime                 string `json:"serverTime" format:"date-time" example:"2026-11-08T12:00:00Z"`
+	StartPositionCheckDisabled bool      `json:"startPositionCheckDisabled,omitempty" example:"false" validate:"omitempty"`
+	SessionID                  string    `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
+	Status                     string    `json:"status" enums:"lobby,countdown,running" example:"lobby" validate:"required,oneof=lobby countdown running"`
+	ServerTime                 time.Time `json:"serverTime" example:"2026-11-08T12:00:00Z" validate:"required"`
 	// Scheduled start, present during the countdown and once running.
-	StartsAt string `json:"startsAt,omitempty" format:"date-time" example:"2026-11-08T12:00:10Z"`
+	StartsAt *time.Time `json:"startsAt,omitempty" example:"2026-11-08T12:00:10Z" validate:"omitempty"`
 	// Next time hunters receive the runners' positions, present while running.
-	NextRevealAt string           `json:"nextRevealAt,omitempty" format:"date-time" example:"2026-11-08T12:05:10Z"`
+	NextRevealAt *time.Time       `json:"nextRevealAt,omitempty" example:"2026-11-08T12:05:10Z" validate:"omitempty"`
 	Playground   Playground       `json:"playground"`
-	PlayerID     string           `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
-	Team         string           `json:"team" enums:"runner,hunter" example:"runner"`
+	PlayerID     string           `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
+	Team         string           `json:"team" enums:"runner,hunter" example:"runner" validate:"required,oneof=runner hunter"`
 	JoinCodes    JoinCodes        `json:"joinCodes"`
-	Players      []PlayerResponse `json:"players"`
-	// The requesting runner's own route; absent for hunters.
-	Route *RouteResponse `json:"route,omitempty"`
-} // @name GameStateResponse
-
-type RouteResponse struct {
-	Start             string `json:"start" minLength:"2" maxLength:"2" example:"B1"`
-	End               string `json:"end" minLength:"2" maxLength:"2" example:"E6"`
-	RegenerationsLeft int    `json:"regenerationsLeft" minimum:"0" maximum:"2" example:"2"`
-} // @name RouteResponse
+	Players      []PlayerResponse `json:"players" validate:"dive"`
+	// The game's route between two landmarks.
+	Route GameRoute `json:"route"`
+}
 
 type JoinGameResponse struct {
-	PlayerToken string            `json:"playerToken" minLength:"64" maxLength:"64" example:"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"`
+	PlayerToken string            `json:"playerToken" minLength:"64" maxLength:"64" example:"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff" validate:"required,len=64"`
 	State       GameStateResponse `json:"state"`
-} // @name JoinGameResponse
+}
 
 type APIError struct {
-	Error string `json:"error" example:"cell size must be 100 to 5000 meters in steps of 100 meters"`
-} // @name ApiError
+	Error string `json:"error" example:"cell size must be 100 to 5000 meters in steps of 100 meters" validate:"required"`
+}

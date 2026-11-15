@@ -1,8 +1,21 @@
-import type { Bounds, Coordinates, Playground } from './api/generated/types.gen';
+import type { Bounds, Coordinates, Playground } from './api/types';
 import { translate } from './i18n';
 
 const EARTH_RADIUS_METERS = 6371008.8;
 export const DEFAULT_CELL_SIZE_METERS = 2000;
+/** Where the draft playground starts before the user drags it (Cologne). */
+export const DEFAULT_CENTER: Coordinates = { latitude: 50.9375, longitude: 6.9603 };
+/** How close to the route's start a runner must be to get ready; the backend enforces the same radius. */
+export const START_RADIUS_METERS = 50;
+
+/** Great-circle (haversine) distance in meters. */
+export function distanceMeters(a: Coordinates, b: Coordinates): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.latitude - a.latitude) * rad;
+  const dLon = (b.longitude - a.longitude) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(h));
+}
 
 export function isValidCellSize(size: unknown): size is number {
   return typeof size === 'number' && Number.isInteger(size) && size >= 100 && size <= 5000 && size % 100 === 0;

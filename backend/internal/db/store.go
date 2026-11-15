@@ -24,6 +24,10 @@ type gameRow struct {
 	RunnerCode          string `gorm:"uniqueIndex;not null"`
 	HunterCode          string `gorm:"uniqueIndex;not null"`
 	StartsAt            time.Time
+	StartTitle          string
+	StartLat, StartLon  float64
+	StopTitle           string
+	StopLat, StopLon    float64
 	Players             []playerRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 }
 
@@ -101,6 +105,8 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 		row := gameRow{
 			ID: g.SessionID.String(), CreatedAt: g.CreatedAt, Latitude: center.Latitude(), Longitude: center.Longitude(),
 			CellSizeMeters: g.Playground.CellSize().Meters(), RunnerCode: codes[0], HunterCode: codes[1], StartsAt: g.StartsAt,
+			StartTitle: g.Route.Start.Title, StartLat: g.Route.Start.Coordinates.Latitude(), StartLon: g.Route.Start.Coordinates.Longitude(),
+			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
 		}
 		if err := tx.Create(&row).Error; err != nil {
 			return fmt.Errorf("insert game: %w", err)
@@ -293,6 +299,15 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 		SessionID: id, CreatedAt: row.CreatedAt.UTC(), Playground: playground,
 		JoinCodes: game.JoinCodes{Runner: runner, Hunter: hunter}, StartsAt: row.StartsAt.UTC(),
 	}}
+	start, err1 := game.ParseCoordinates(row.StartLat, row.StartLon)
+	stop, err2 := game.ParseCoordinates(row.StopLat, row.StopLon)
+	if err := errors.Join(err1, err2); err != nil {
+		return game.Lobby{}, err
+	}
+	lobby.Game.Route = game.Route{
+		Start: game.Landmark{Title: row.StartTitle, Coordinates: start},
+		Stop:  game.Landmark{Title: row.StopTitle, Coordinates: stop},
+	}
 	for _, p := range row.Players {
 		player, err := parsePlayer(p)
 		if err != nil {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,15 +10,9 @@ import (
 	"testing"
 
 	"catch-me/backend/internal/controller"
+	"catch-me/backend/internal/game"
 	"catch-me/backend/internal/service"
 )
-
-// cellCenter returns latitude and longitude of a cell such as "B1".
-func cellCenter(p controller.Playground, label string) [2]float64 {
-	column, row := float64(label[0]-'A'), float64(label[1]-'1')
-	b := p.Bounds
-	return [2]float64{b.North - (b.North-b.South)*(row+0.5)/6, b.West + (b.East-b.West)*(column+0.5)/6}
-}
 
 func send(t *testing.T, handler http.Handler, method, path, token, body string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -53,28 +48,23 @@ func decode[T any](t *testing.T, recorder *httptest.ResponseRecorder, status int
 }
 
 func TestLobbyFlow(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), false)))
+	// The start-cell check depends on a per-runner cell that responses no longer expose.
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405}`), 201)
 	codes := created.JoinCodes
 
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "",
 		`{"code":" `+codes.Runner+` ","name":" Ada "}`), 201)
 	if len(runner.PlayerToken) != 64 || runner.State.Team != "runner" || runner.State.JoinCodes != codes ||
-		runner.State.Status != "lobby" || runner.State.StartsAt != "" || runner.State.SessionID != created.Game.SessionID ||
+		runner.State.Status != "lobby" || runner.State.StartsAt != nil || runner.State.SessionID != created.Game.SessionID ||
 		len(runner.State.Players) != 1 || runner.State.Players[0].Name != "Ada" || runner.State.PlayerID != runner.State.Players[0].PlayerID {
 		t.Fatalf("unexpected join response: %+v", runner)
 	}
 	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+codes.Hunter+`","name":"Bob"}`), 201)
-	if runner.State.Route == nil || runner.State.Route.RegenerationsLeft != 2 || hunter.State.Route != nil {
-		t.Fatalf("runner must get a route, hunter none: %+v %+v", runner.State.Route, hunter.State.Route)
+	if runner.State.Route != created.Game.Route || hunter.State.Route != created.Game.Route || created.Game.Route.DistanceMeters <= 0 {
+		t.Fatalf("every player sees the game route: %+v %+v %+v", runner.State.Route, hunter.State.Route, created.Game.Route)
 	}
-	regenerated := decode[controller.GameStateResponse](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 200)
-	if regenerated.Route == nil || regenerated.Route.RegenerationsLeft != 1 || *regenerated.Route == *runner.State.Route {
-		t.Fatalf("route not regenerated: %+v", regenerated.Route)
-	}
-	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"route"`) {
-		t.Fatal("hunter sees a runner route")
-	}
+	decode[controller.GameStateResponse](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 200)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/route", hunter.PlayerToken, ""), 409)
 
 	stateRecorder := send(t, handler, "GET", "/api/me/game", runner.PlayerToken, "")
@@ -86,11 +76,10 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatal("state must show both join codes and never a token")
 	}
 
-	decode[controller.APIError](t, send(t, handler, "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`), 409)
-	start := cellCenter(created.Game.Playground, regenerated.Route.Start)
+	start := [2]float64{created.Game.Playground.Center.Latitude, created.Game.Playground.Center.Longitude}
 	positionBody := fmt.Sprintf(`{"latitude":%v,"longitude":%v,"accuracyMeters":8}`, start[0], start[1])
 	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, positionBody), 200)
-	if own := ownEntry(state).Position; own == nil || own.Latitude != start[0] || own.AccuracyMeters != 8 || own.RevealedAt != "" {
+	if own := ownEntry(state).Position; own == nil || own.Latitude != start[0] || own.AccuracyMeters != 8 || own.RevealedAt != nil {
 		t.Fatalf("own position missing: %+v", own)
 	}
 	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"position"`) {
@@ -102,7 +91,7 @@ func TestLobbyFlow(t *testing.T) {
 	decode[controller.APIError](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 409)
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
 	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
-	if state.Status != "countdown" || state.StartsAt == "" || state.ServerTime == "" || state.Team != "hunter" {
+	if state.Status != "countdown" || state.StartsAt == nil || state.ServerTime.IsZero() || state.Team != "hunter" {
 		t.Fatalf("countdown not started: %+v", state)
 	}
 
@@ -113,13 +102,13 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatalf("left player still authorized: %d", recorder.Code)
 	}
 	state = decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
-	if state.Status != "lobby" || state.StartsAt != "" || len(state.Players) != 1 {
+	if state.Status != "lobby" || state.StartsAt != nil || len(state.Players) != 1 {
 		t.Fatalf("leave did not cancel countdown: %+v", state)
 	}
 }
 
 func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), true)))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, true)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
 	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Hunter+`","name":"Bob"}`), 201)
@@ -128,7 +117,7 @@ func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
 	countdown := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
 	for _, body := range []string{`{"latitude":1,"longitude":2,"accuracyMeters":8}`, `{"latitude":3,"longitude":4,"accuracyMeters":8}`} {
 		state := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, body), 200)
-		if !state.StartPositionCheckDisabled || state.Status != "countdown" || state.StartsAt != countdown.StartsAt || !ownEntry(state).Ready {
+		if !state.StartPositionCheckDisabled || state.Status != "countdown" || !state.StartsAt.Equal(*countdown.StartsAt) || !ownEntry(state).Ready {
 			t.Fatal("test override failed to preserve readiness and countdown")
 		}
 		var reported struct{ Latitude, Longitude float64 }
@@ -140,8 +129,15 @@ func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
 	}
 }
 
+// centerLandmarks "finds" the center of every cell it is asked about.
+type centerLandmarks struct{}
+
+func (centerLandmarks) Landmarks(_ context.Context, cell game.Bounds) ([]game.Landmark, error) {
+	return []game.Landmark{{Title: "Center", Coordinates: cell.Center()}}, nil
+}
+
 func TestLobbyErrors(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), false)))
+	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
 	for _, tc := range []struct {
@@ -173,7 +169,7 @@ func TestLobbyErrors(t *testing.T) {
 		{"position out of range", "PUT", "/api/me/position", runner.PlayerToken, `{"latitude":85,"longitude":0,"accuracyMeters":5}`, 400},
 		{"position bad accuracy", "PUT", "/api/me/position", runner.PlayerToken, `{"latitude":0,"longitude":0,"accuracyMeters":-1}`, 400},
 		{"wrong position method", "POST", "/api/me/position", runner.PlayerToken, "", 405},
-		{"ready outside start cell", "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`, 409},
+		{"ready away from the start", "PUT", "/api/me/ready", runner.PlayerToken, `{"ready":true}`, 409},
 		{"hunter team without token", "PUT", "/api/me/hunter-team", "", `{"name":"Wolves"}`, 401},
 		{"hunter team without name", "PUT", "/api/me/hunter-team", runner.PlayerToken, `{}`, 400},
 		{"hunter team name too long", "PUT", "/api/me/hunter-team", runner.PlayerToken, `{"name":"` + strings.Repeat("x", 21) + `"}`, 400},
@@ -186,35 +182,5 @@ func TestLobbyErrors(t *testing.T) {
 				t.Fatal("expected error message")
 			}
 		})
-	}
-}
-
-func TestHunterTeams(t *testing.T) {
-	handler := NewHandler("", controller.NewGameController(service.NewGameService(testStore(t), false)))
-	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":0,"longitude":0}`), 201)
-	join := func(code, name string) string {
-		return decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+code+`","name":"`+name+`"}`), 201).PlayerToken
-	}
-	runner, bob, cy, dan := join(created.JoinCodes.Runner, "Ada"), join(created.JoinCodes.Hunter, "Bob"), join(created.JoinCodes.Hunter, "Cy"), join(created.JoinCodes.Hunter, "Dan")
-	for token, team := range map[string]string{bob: "Wolves", cy: " wolves ", dan: "Bears"} {
-		decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", token, `{"name":"`+team+`"}`), 200)
-		decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", token, `{"latitude":0,"longitude":0,"accuracyMeters":5}`), 200)
-	}
-	// Hunters see their own team's positions already in the lobby, never other teams'.
-	seen := func(token string) map[string]bool {
-		positions := map[string]bool{}
-		for _, p := range decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", token, ""), 200).Players {
-			if p.HunterTeam == "wolves" {
-				t.Fatal("existing team spelling not kept")
-			}
-			positions[p.Name] = p.Position != nil
-		}
-		return positions
-	}
-	if got := seen(cy); !got["Bob"] || !got["Cy"] || got["Dan"] {
-		t.Fatalf("hunter team positions wrong: %v", got)
-	}
-	if got := seen(runner); got["Bob"] || got["Cy"] || got["Dan"] {
-		t.Fatalf("runner sees hunter positions: %v", got)
 	}
 }

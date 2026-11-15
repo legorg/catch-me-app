@@ -43,7 +43,7 @@ func TestCellAtMatchesCellCenter(t *testing.T) {
 	}
 }
 
-func TestRunnerMustBeInStartCellToGetReady(t *testing.T) {
+func TestRunnerMustBeNearStartToGetReady(t *testing.T) {
 	l := newLobby()
 	name, _ := ParsePlayerName("Ada")
 	runner, _ := l.Join(l.Game.JoinCodes.Runner, name, NewPlayerToken(), start)
@@ -51,15 +51,24 @@ func TestRunnerMustBeInStartCellToGetReady(t *testing.T) {
 	if err := l.SetReady(runner.ID, true, start, false); !errors.As(err, &rule) {
 		t.Fatal("ready without position accepted")
 	}
-	wrong := "A3"
-	if err := l.UpdatePosition(runner.ID, position(t, l, wrong, start), start, false); err != nil {
+	startAt := l.Game.Route.Start.Coordinates
+	nearby := func(latOffset float64) Position {
+		c, _ := ParseCoordinates(startAt.Latitude()+latOffset, startAt.Longitude())
+		p, err := NewPosition(c, 5, start)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	// 0.0006 degrees of latitude are about 67 m, 0.0003 about 33 m.
+	if err := l.UpdatePosition(runner.ID, nearby(0.0006), start, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := l.SetReady(runner.ID, true, start, false); !errors.As(err, &rule) {
-		t.Fatal("ready outside start cell accepted")
+		t.Fatal("ready more than 50 m from the start accepted")
 	}
-	_ = l.UpdatePosition(runner.ID, position(t, l, runner.Route.Start.String(), start), start, false)
-	if err := l.SetReady(runner.ID, true, start.Add(StartCellMaxAge+time.Second), false); !errors.As(err, &rule) {
+	_ = l.UpdatePosition(runner.ID, nearby(0.0003), start, false)
+	if err := l.SetReady(runner.ID, true, start.Add(StartPositionMaxAge+time.Second), false); !errors.As(err, &rule) {
 		t.Fatal("stale position accepted")
 	}
 	if err := l.SetReady(runner.ID, true, start, false); err != nil {
@@ -70,7 +79,7 @@ func TestRunnerMustBeInStartCellToGetReady(t *testing.T) {
 	}
 }
 
-func TestLeavingStartCellCancelsReady(t *testing.T) {
+func TestLeavingStartCancelsReady(t *testing.T) {
 	l := newLobby()
 	runner := join(t, &l, Runners, "Ada", start)
 	hunter := join(t, &l, Hunters, "Bob", start)
@@ -83,7 +92,7 @@ func TestLeavingStartCellCancelsReady(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p, _ := l.Player(runner.ID); p.Ready || l.Game.Status(start.Add(time.Second)) != StatusLobby {
-		t.Fatal("leaving the start cell must cancel ready and the countdown")
+		t.Fatal("moving away from the start must cancel ready and the countdown")
 	}
 	moveToStart(t, &l, runner.ID, start.Add(2*time.Second))
 	_ = l.SetReady(runner.ID, true, start.Add(2*time.Second), false)
