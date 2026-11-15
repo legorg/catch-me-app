@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -137,14 +137,14 @@ func writeGameError(w http.ResponseWriter, err error, message string) {
 	case errors.Is(err, game.ErrNoLandmark):
 		WriteError(w, http.StatusUnprocessableEntity, game.ErrNoLandmark.Error())
 	case errors.Is(err, game.ErrLandmarksUnavailable):
-		log.Printf("%s: %v", message, err)
+		slog.Warn(message, "err", err)
 		WriteError(w, http.StatusServiceUnavailable, game.ErrLandmarksUnavailable.Error())
 	case errors.Is(err, game.ErrNotFound):
 		WriteError(w, http.StatusNotFound, game.ErrNotFound.Error())
 	case errors.As(err, &rule):
 		WriteError(w, http.StatusConflict, rule.Error())
 	default:
-		log.Printf("%s: %v", message, err)
+		slog.Error(message, "err", err)
 		WriteError(w, http.StatusInternalServerError, message)
 	}
 }

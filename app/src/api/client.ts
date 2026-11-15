@@ -8,6 +8,7 @@ import {
   setReady as putReady,
   updatePosition as putPosition,
 } from './generated/sdk.gen';
+import { client } from './generated/client.gen';
 import type { CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Playground } from './types';
 import { translate } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
@@ -18,8 +19,17 @@ export type {
 } from './types';
 
 export const API_URL = (
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
+  // process.env.EXPO_PUBLIC_API_URL || 
+  'http://192.168.178.33:8080'
 ).trim().replace(/\/+$/, '');
+
+// Development aid: shows in the Metro terminal which URL every request goes to (__DEV__ is unset under node tests).
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  client.interceptors.request.use((request) => {
+    console.log(`[api] ${request.method} ${request.url}`);
+    return request;
+  });
+}
 
 export const JOIN_CODE_PATTERN = /^[0-9]{6}$/;
 export const MAX_NAME_LENGTH = 20;
@@ -216,6 +226,7 @@ async function request<R extends Result>(call: (signal: AbortSignal) => Promise<
     }
     return result.data as NonNullable<R['data']>;
   } catch (error) {
+    console.log(error)
     if (controller.signal.aborted) {
       throw new Error(translate('client.timeout'));
     }

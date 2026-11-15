@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"sync"
 	"time"
@@ -100,6 +101,10 @@ func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellS
 	if err != nil {
 		return game.Game{}, err
 	}
+	slog.Info("route created",
+		"start", route.Start.Title, "startLat", route.Start.Coordinates.Latitude(), "startLon", route.Start.Coordinates.Longitude(),
+		"stop", route.Stop.Title, "stopLat", route.Stop.Coordinates.Latitude(), "stopLon", route.Stop.Coordinates.Longitude(),
+		"distanceMeters", route.DistanceMeters())
 	// Collisions are extremely unlikely; retry a few times rather than fail.
 	for attempt := 0; ; attempt++ {
 		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, JoinCodes: game.NewJoinCodes(), Route: route}

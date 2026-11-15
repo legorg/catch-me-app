@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -19,6 +19,7 @@ import (
 	"catch-me/backend/service"
 
 	"github.com/joho/godotenv"
+	"github.com/lmittmann/tint"
 )
 
 //go:generate go tool swag init -g main.go -d .,../../controller --requiredByDefault --outputTypes json --output ../../api
@@ -39,11 +40,14 @@ func main() {
 	skipStartPositionCheck := flag.Bool("test-skip-start-position-check", false, "Development only: bypass runner Ready position checks; keep real location updates")
 	flag.Parse()
 
+	// Colored logs that name the source file and line of every entry.
+	slog.SetDefault(slog.New(tint.NewTextHandler(os.Stderr, &tint.Options{AddSource: true, TimeFormat: time.DateTime})))
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	if err := run(ctx, *addr, *dbPath, *googlePlacesAPIKey, *skipStartPositionCheck); err != nil {
-		log.Printf("server failed: %v", err)
+		slog.Error("server failed", "err", err)
 		os.Exit(1)
 	}
 }
@@ -58,7 +62,7 @@ func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStart
 	}
 	defer store.Close()
 	if skipStartPositionCheck {
-		log.Print("TEST MODE: runner start-position check disabled; real position updates remain enabled")
+		slog.Warn("TEST MODE: runner start-position check disabled; real position updates remain enabled")
 	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -79,7 +83,7 @@ func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStart
 	go func() {
 		serverErrors <- server.Serve(listener)
 	}()
-	log.Printf("Catch me! API listening on %s", listener.Addr())
+	slog.Info("Catch me! API listening", "addr", listener.Addr().String())
 
 	select {
 	case err := <-serverErrors:
@@ -88,7 +92,7 @@ func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStart
 		}
 		return err
 	case <-ctx.Done():
-		log.Print("shutting down")
+		slog.Info("shutting down")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
@@ -104,7 +108,7 @@ func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStart
 func deleteExpiredPositions(ctx context.Context, games *service.GameService) {
 	for {
 		if err := games.DeleteExpiredPositions(ctx); err != nil && ctx.Err() == nil {
-			log.Print(err)
+			slog.Error("delete expired positions", "err", err)
 		}
 		select {
 		case <-ctx.Done():
