@@ -7,10 +7,16 @@ import NameInput from '@/components/name-input';
 import { useT } from '@/i18n';
 import { colors, styles } from '@/styles';
 import { useJoinGame } from '@/use-join-game';
+import { useResumeGame } from '@/use-resume-game';
 
 export default function HomeScreen() {
   const t = useT();
   const { code, setCode, name, setName, busy, error, canJoin, join } = useJoinGame();
+  const resuming = useResumeGame();
+
+  if (resuming) {
+    return <View style={styles.screen}><ActivityIndicator color={colors.accent} /></View>;
+  }
 
   return (
     <>

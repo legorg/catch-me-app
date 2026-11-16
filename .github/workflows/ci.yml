@@ -114,7 +114,7 @@ jobs:
       contents: read
     uses: l3montree-dev/devguard-ci-components/.github/workflows/code-scanning.yml@0afeae23b8443e4495b88cd0a25723dc469003d4 # v1.18.0
     with:
-      devguard-asset-name: catch-me-app/catch-me/catch-me-app
+      devguard-asset-name: catch-me-app/projects/catch-me/assets/catch-me-app
       path: /github/workspace/app
     secrets:
       devguard-token: ${{ secrets.DEVGUARD_TOKEN }}
@@ -127,6 +127,6 @@ jobs:
       security-events: write
     uses: l3montree-dev/devguard-ci-components/.github/workflows/zizmor-scanning.yml@0afeae23b8443e4495b88cd0a25723dc469003d4 # v1.18.0
     with:
-      devguard-asset-name: catch-me-app/catch-me/catch-me-server
+      devguard-asset-name: catch-me-app/projects/catch-me/assets/catch-me-server
     secrets:
       devguard-token: ${{ secrets.DEVGUARD_TOKEN }}
