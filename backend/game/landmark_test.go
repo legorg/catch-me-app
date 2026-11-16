@@ -23,14 +23,14 @@ func TestEdgeCells(t *testing.T) {
 		t.Fatal(err)
 	}
 	south, north := p.SouthEdgeCells(), p.NorthEdgeCells()
-	if len(south) != GridSize || len(north) != GridSize {
+	if len(south) != gridSize || len(north) != gridSize {
 		t.Fatal("expected one cell per column")
 	}
-	bottom, top := p.CellBounds(south[0]), p.CellBounds(north[GridSize-1])
+	bottom, top := p.CellBounds(south[0]), p.CellBounds(north[gridSize-1])
 	if bottom.South != p.Bounds().South || top.North != p.Bounds().North || top.East != p.Bounds().East || bottom.West != p.Bounds().West {
 		t.Fatalf("cells do not touch the playground edges: %+v %+v", bottom, top)
 	}
-	if !bottom.Contains(bottom.Center()) || bottom.Contains(top.Center()) {
+	if !bottom.Contains(boundsCenter(bottom)) || bottom.Contains(boundsCenter(top)) {
 		t.Fatal("cell containment is wrong")
 	}
 }

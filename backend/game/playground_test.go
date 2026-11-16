@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math"
 	"testing"
+
+	"catch-me/backend/geo"
 )
 
 func TestPlaygroundGeometry(t *testing.T) {
@@ -22,15 +24,15 @@ func TestPlaygroundGeometry(t *testing.T) {
 				t.Fatal(err)
 			}
 			b := p.Bounds()
-			height := (b.North - b.South) * math.Pi / 180 * earthRadiusMeters
-			width := (b.East - b.West) * math.Pi / 180 * earthRadiusMeters * math.Cos(lat*math.Pi/180)
+			height := (b.North - b.South) * math.Pi / 180 * geo.EarthRadiusMeters
+			width := (b.East - b.West) * math.Pi / 180 * geo.EarthRadiusMeters * math.Cos(lat*math.Pi/180)
 			want := float64(6 * meters)
 			if math.Abs(height-want) > 1e-6 || math.Abs(width-want) > 1e-6 || p.Rows() != 6 || p.Columns() != 6 {
 				t.Fatalf("not a local %g m square: %+v", want, p)
 			}
 			for _, edgeLat := range []float64{b.North, b.South} {
 				a := math.Pow(math.Cos(edgeLat*math.Pi/180)*math.Sin((b.East-b.West)*math.Pi/360), 2)
-				distance := 2 * earthRadiusMeters * math.Asin(math.Sqrt(a))
+				distance := 2 * geo.EarthRadiusMeters * math.Asin(math.Sqrt(a))
 				if math.Abs(distance/want-1) > 0.015 {
 					t.Fatalf("edge approximation too distorted: %g", distance)
 				}

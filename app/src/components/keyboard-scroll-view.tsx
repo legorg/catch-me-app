@@ -16,7 +16,7 @@ export default function KeyboardScrollView({ children }: { children: ReactNode }
   if (Platform.OS === 'ios') {
     return (
       <ScrollView
-        style={{ flex: 1 }}
+        style={styles.flex}
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.content}
@@ -27,7 +27,7 @@ export default function KeyboardScrollView({ children }: { children: ReactNode }
     );
   }
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior="padding" style={styles.flex}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: styles.content.padding + insets.bottom }]}
         keyboardShouldPersistTaps="handled"

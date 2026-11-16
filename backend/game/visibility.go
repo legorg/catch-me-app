@@ -2,8 +2,8 @@ package game
 
 import "time"
 
-// VisiblePlayer is what one player may see of another. Hidden fields are zero.
-type VisiblePlayer struct {
+// visiblePlayer is what one player may see of another. Hidden fields are zero.
+type visiblePlayer struct {
 	ID         PlayerID
 	Name       PlayerName
 	Team       Team
@@ -25,11 +25,11 @@ type VisiblePlayer struct {
 //   - While running, runners see each other's latest positions.
 //   - While running, hunters see all reveals of each runner.
 //   - Runners never see hunters' positions.
-func (l Lobby) VisibleTo(viewer Player, now time.Time) []VisiblePlayer {
+func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 	running := l.Game.Status(now) == StatusRunning
-	visible := make([]VisiblePlayer, 0, len(l.Players))
+	visible := make([]visiblePlayer, 0, len(l.Players))
 	for _, p := range l.Players {
-		v := VisiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready}
+		v := visiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready}
 		if viewer.Team == Runners {
 			v.Route = p.Route // Hunters have none.
 		}

@@ -21,12 +21,12 @@ func sketchLine(t *testing.T, points int) SketchLine {
 
 func TestNewSketchLine(t *testing.T) {
 	var validation *ValidationError
-	for _, n := range []int{0, 1, MaxSketchPoints + 1} {
+	for _, n := range []int{0, 1, maxSketchPoints + 1} {
 		if _, err := NewSketchLine(make([]Coordinates, n)); !errors.As(err, &validation) {
 			t.Fatalf("%d points accepted: %v", n, err)
 		}
 	}
-	if got := sketchLine(t, MaxSketchPoints).Points(); len(got) != MaxSketchPoints {
+	if got := sketchLine(t, maxSketchPoints).Points(); len(got) != maxSketchPoints {
 		t.Fatalf("points lost: %d", len(got))
 	}
 }
@@ -47,7 +47,7 @@ func TestSketchRules(t *testing.T) {
 	if err := l.AddSketch(PlayerID{}, line, running); !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("unknown player: %v", err)
 	}
-	for range MaxSketchesPerTeam {
+	for range maxSketchesPerTeam {
 		if err := l.AddSketch(bob.ID, line, running); err != nil {
 			t.Fatal(err)
 		}

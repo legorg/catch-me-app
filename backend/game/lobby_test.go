@@ -12,8 +12,23 @@ var start = time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 func newLobby() Lobby {
 	center, _ := ParseCoordinates(52.52, 13.405)
 	playground, _ := NewPlayground(center, DefaultCellSize())
-	route := Route{Start: Landmark{Coordinates: playground.CellBounds(Cell{column: 2, row: GridSize - 1}).Center()}, Stop: Landmark{Coordinates: playground.CellBounds(Cell{column: 3}).Center()}}
+	route := Route{Start: Landmark{Coordinates: boundsCenter(playground.CellBounds(Cell{column: 2, row: gridSize - 1}))}, Stop: Landmark{Coordinates: boundsCenter(playground.CellBounds(Cell{column: 3}))}}
 	return Lobby{Game: Game{SessionID: NewSessionID(), JoinCodes: NewJoinCodes(), Playground: playground, Route: route}}
+}
+
+// boundsCenter is the middle of the bounds.
+func boundsCenter(b Bounds) Coordinates {
+	return Coordinates{latitude: (b.North + b.South) / 2, longitude: (b.East + b.West) / 2}
+}
+
+// cellCenter is the center of a grid cell.
+func cellCenter(p Playground, c Cell) Coordinates { return boundsCenter(p.CellBounds(c)) }
+
+func joinCodeFor(codes JoinCodes, team Team) JoinCode {
+	if team == Hunters {
+		return codes.Hunter
+	}
+	return codes.Runner
 }
 
 // moveToStart reports a position at the start of the route.
@@ -33,7 +48,7 @@ func join(t *testing.T, l *Lobby, team Team, name string, now time.Time) Player 
 	if err != nil {
 		t.Fatal(err)
 	}
-	player, err := l.Join(l.Game.JoinCodes.For(team), parsed, NewPlayerToken(), now)
+	player, err := l.Join(joinCodeFor(l.Game.JoinCodes, team), parsed, NewPlayerToken(), now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +163,7 @@ func TestJoinRules(t *testing.T) {
 	if _, err := l.Join(unknown, duplicate, NewPlayerToken(), start); !errors.Is(err, ErrNotFound) {
 		t.Fatal("unknown code accepted")
 	}
-	for i := len(l.Players); i < MaxPlayers; i++ {
+	for i := len(l.Players); i < maxPlayers; i++ {
 		join(t, &l, Hunters, "P"+strings.Repeat("x", i%10)+string(rune('a'+i)), start)
 	}
 	extra, _ := ParsePlayerName("Extra")

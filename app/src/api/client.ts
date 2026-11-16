@@ -12,14 +12,11 @@ import {
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
-import type { Coordinates, CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, Playground } from './types';
+import type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse } from './types';
 import { translate } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
-export type {
-  Coordinates, CreateGameResponse, GameRoute, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerPositionResponse,
-  JokerResponse, Landmark, PlayerResponse, Playground, PositionResponse, SketchResponse,
-} from './types';
+export type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerResponse } from './types';
 
 export const API_URL = (
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
@@ -54,25 +51,14 @@ export function isValidPlayerName(name: string): boolean {
 }
 
 export async function checkBackend(): Promise<HealthResponse> {
-  const data = await request((signal) => getHealth({ baseUrl: API_URL, signal }));
-  if (!isRecord(data) || data.status !== 'ok' || data.service !== 'catch-me-backend') {
-    throw new Error(translate('client.unexpectedHealth'));
-  }
-  return data;
+  return request((signal) => getHealth({ baseUrl: API_URL, signal }));
 }
 
 export async function createGame(center: { latitude: number; longitude: number }, cellSizeMeters = DEFAULT_CELL_SIZE_METERS): Promise<CreateGameResponse> {
   if (!isValidCellSize(cellSizeMeters)) {
     throw new Error(translate('playground.cellSizeInvalid'));
   }
-  const data = await request((signal) => postGame({ baseUrl: API_URL, body: { ...center, cellSizeMeters }, signal }));
-  const game = isRecord(data) ? data.game : undefined;
-  const codes = isRecord(data) ? data.joinCodes : undefined;
-  if (!isRecord(game) || !isHex(game.sessionId, 32) || !isDate(game.createdAt) || !isPlayground(game.playground) ||
-      !isGameRoute(game.route) || !isJoinCodes(codes)) {
-    throw new Error(translate('client.unexpectedGame'));
-  }
-  return data as CreateGameResponse;
+  return request((signal) => postGame({ baseUrl: API_URL, body: { ...center, cellSizeMeters }, signal }));
 }
 
 export async function joinGame(code: string, name: string): Promise<JoinGameResponse> {
@@ -83,24 +69,15 @@ export async function joinGame(code: string, name: string): Promise<JoinGameResp
   if (!isValidPlayerName(name)) {
     throw new Error(translate('client.name', { max: MAX_NAME_LENGTH }));
   }
-  const data = await request((signal) => postPlayer({ baseUrl: API_URL, body: { code: normalized, name: name.trim() }, signal }));
-  if (!isRecord(data) || !isHex(data.playerToken, 64)) {
-    throw new Error(translate('client.unexpectedJoin'));
-  }
-  assertGameState(data.state);
-  return data as JoinGameResponse;
+  return request((signal) => postPlayer({ baseUrl: API_URL, body: { code: normalized, name: name.trim() }, signal }));
 }
 
 export async function getGameState(token: string): Promise<GameStateResponse> {
-  const data = await request((signal) => fetchGameState({ baseUrl: API_URL, auth: bearer(token), signal }));
-  assertGameState(data);
-  return data;
+  return request((signal) => fetchGameState({ baseUrl: API_URL, auth: bearer(token), signal }));
 }
 
 export async function setReady(token: string, ready: boolean): Promise<GameStateResponse> {
-  const data = await request((signal) => putReady({ baseUrl: API_URL, auth: bearer(token), body: { ready }, signal }));
-  assertGameState(data);
-  return data;
+  return request((signal) => putReady({ baseUrl: API_URL, auth: bearer(token), body: { ready }, signal }));
 }
 
 export async function leaveGame(token: string): Promise<void> {
@@ -111,21 +88,17 @@ export async function setHunterTeam(token: string, name: string): Promise<GameSt
   if (!isValidPlayerName(name)) {
     throw new Error(translate('client.teamName', { max: MAX_NAME_LENGTH }));
   }
-  const data = await request((signal) => putHunterTeam({ baseUrl: API_URL, auth: bearer(token), body: { name: name.trim() }, signal }));
-  assertGameState(data);
-  return data;
+  return request((signal) => putHunterTeam({ baseUrl: API_URL, auth: bearer(token), body: { name: name.trim() }, signal }));
 }
 
 export type JokerKind = 'showRunners' | 'queryZone';
 
 /** Spends a joker of the player's hunter team (once per game, while it runs); queryZone needs the cell, such as "C4". */
 export async function activateJoker(token: string, kind: JokerKind, cell?: string): Promise<GameStateResponse> {
-  const data = await request((signal) => postJoker({ baseUrl: API_URL, auth: bearer(token), body: cell ? { kind, cell } : { kind }, signal }));
-  assertGameState(data);
-  return data;
+  return request((signal) => postJoker({ baseUrl: API_URL, auth: bearer(token), body: cell ? { kind, cell } : { kind }, signal }));
 }
 
-export const MIN_SKETCH_POINTS = 2;
+const MIN_SKETCH_POINTS = 2;
 export const MAX_SKETCH_POINTS = 500;
 
 /** Draws a line on the map of the player's hunter team (while the game runs). */
@@ -134,128 +107,23 @@ export async function addSketch(token: string, points: Coordinates[]): Promise<G
     throw new Error(translate('client.sketchPoints', { min: MIN_SKETCH_POINTS, max: MAX_SKETCH_POINTS }));
   }
   const body = { points: points.map(({ latitude, longitude }) => ({ latitude, longitude })) };
-  const data = await request((signal) => postSketch({ baseUrl: API_URL, auth: bearer(token), body, signal }));
-  assertGameState(data);
-  return data;
+  return request((signal) => postSketch({ baseUrl: API_URL, auth: bearer(token), body, signal }));
 }
 
 /** Removes all lines of the player's hunter team, whoever drew them. */
 export async function clearSketches(token: string): Promise<GameStateResponse> {
-  const data = await request((signal) => deleteSketches({ baseUrl: API_URL, auth: bearer(token), signal }));
-  assertGameState(data);
-  return data;
+  return request((signal) => deleteSketches({ baseUrl: API_URL, auth: bearer(token), signal }));
 }
 
 export async function updatePosition(
   token: string, position: { latitude: number; longitude: number; accuracyMeters: number },
 ): Promise<GameStateResponse> {
-  const data = await request((signal) => putPosition({ baseUrl: API_URL, auth: bearer(token), body: position, signal }));
-  assertGameState(data);
-  return data;
+  return request((signal) => putPosition({ baseUrl: API_URL, auth: bearer(token), body: position, signal }));
 }
 
 // The API declares an apiKey scheme, so the generated client sends this value unchanged.
 function bearer(token: string) {
   return `Bearer ${token}`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isHex(value: unknown, length: number): value is string {
-  return typeof value === 'string' && value.length === length && /^[a-f0-9]+$/.test(value);
-}
-
-function isDate(value: unknown): value is string {
-  return typeof value === 'string' && Number.isFinite(Date.parse(value));
-}
-
-function isJoinCode(value: unknown): value is string {
-  return typeof value === 'string' && JOIN_CODE_PATTERN.test(value);
-}
-
-function isJoinCodes(value: unknown): value is JoinCodes {
-  return isRecord(value) && isJoinCode(value.runner) && isJoinCode(value.hunter) && value.runner !== value.hunter;
-}
-
-function isTeam(value: unknown): value is 'runner' | 'hunter' {
-  return value === 'runner' || value === 'hunter';
-}
-
-function isLandmark(value: unknown): boolean {
-  const c = isRecord(value) ? value.coordinates : undefined;
-  return isRecord(value) && typeof value.title === 'string' &&
-    isRecord(c) && finite(c.latitude) && Math.abs(c.latitude) <= 80 && finite(c.longitude) && Math.abs(c.longitude) <= 180;
-}
-
-function isGameRoute(value: unknown): value is GameRoute {
-  return isRecord(value) && isLandmark(value.start) && isLandmark(value.stop) &&
-    finite(value.distanceMeters) && value.distanceMeters >= 0;
-}
-
-function isPosition(value: unknown): boolean {
-  return isRecord(value) && finite(value.latitude) && Math.abs(value.latitude) <= 90 &&
-    finite(value.longitude) && Math.abs(value.longitude) <= 180 &&
-    finite(value.accuracyMeters) && value.accuracyMeters >= 0 && isDate(value.recordedAt);
-}
-
-function isReveal(value: unknown): boolean {
-  return isPosition(value) && isDate((value as Record<string, unknown>).revealedAt);
-}
-
-function isJoker(j: unknown): boolean {
-  return isRecord(j) && (j.kind === 'showRunners' || j.kind === 'queryZone') && typeof j.available === 'boolean' &&
-    (j.usedAt === undefined || isDate(j.usedAt)) &&
-    (j.positions === undefined || (Array.isArray(j.positions) && j.positions.every((p) => isRecord(p) && isHex(p.playerId, 32) && isPosition(p)))) &&
-    (j.cell === undefined || (typeof j.cell === 'string' && /^[A-F][1-6]$/.test(j.cell))) &&
-    (j.found === undefined || typeof j.found === 'boolean');
-}
-
-function isSketch(s: unknown): boolean {
-  return isRecord(s) && isHex(s.sketchId, 32) && isDate(s.createdAt) && Array.isArray(s.points) &&
-    s.points.length >= MIN_SKETCH_POINTS && s.points.length <= MAX_SKETCH_POINTS &&
-    s.points.every((p) => isRecord(p) && finite(p.latitude) && Math.abs(p.latitude) <= 80 && finite(p.longitude) && Math.abs(p.longitude) <= 180);
-}
-
-function isPlayer(p: unknown): boolean {
-  return isRecord(p) && isHex(p.playerId, 32) && typeof p.name === 'string' && isTeam(p.team) &&
-    (p.hunterTeam === undefined || (p.team === 'hunter' && typeof p.hunterTeam === 'string')) &&
-    typeof p.ready === 'boolean' &&
-    (p.position === undefined || isPosition(p.position)) &&
-    (p.reveals === undefined || (Array.isArray(p.reveals) && p.reveals.every(isReveal)));
-}
-
-function isPlayground(p: unknown): p is Playground {
-  const c = isRecord(p) ? p.center : undefined;
-  const b = isRecord(p) ? p.bounds : undefined;
-  return isRecord(p) && p.rows === 6 && p.columns === 6 && isValidCellSize(p.cellSizeMeters) &&
-    isRecord(c) && finite(c.latitude) && Math.abs(c.latitude) <= 80 &&
-    finite(c.longitude) && Math.abs(c.longitude) <= 180 &&
-    isRecord(b) && finite(b.north) && finite(b.south) && finite(b.east) && finite(b.west) &&
-    b.north <= 90 && b.south >= -90 && b.east <= 180 && b.west >= -180 &&
-    b.south < c.latitude && b.north > c.latitude && b.west < c.longitude && b.east > c.longitude;
-}
-
-// Generated TypeScript types are not runtime validation of remote JSON.
-function assertGameState(body: unknown): asserts body is GameStateResponse {
-  if (!isRecord(body) || !isHex(body.sessionId, 32) || !['lobby', 'countdown', 'running'].includes(body.status as string) ||
-      !isDate(body.serverTime) || (body.startsAt !== undefined && !isDate(body.startsAt)) ||
-      (body.startPositionCheckDisabled !== undefined && typeof body.startPositionCheckDisabled !== 'boolean') ||
-      (body.nextRevealAt !== undefined && !isDate(body.nextRevealAt)) ||
-      !isPlayground(body.playground) || !isHex(body.playerId, 32) || !isTeam(body.team) || !isJoinCodes(body.joinCodes) ||
-      // Only runners get the route; hunters must not.
-      (body.team === 'runner' ? !isGameRoute(body.route) : body.route !== undefined) ||
-      !Array.isArray(body.players) || !body.players.every(isPlayer) ||
-      !Array.isArray(body.jokers) || !body.jokers.every(isJoker) ||
-      // Only hunters get their team's sketches; runners never.
-      !Array.isArray(body.sketches) || !body.sketches.every(isSketch) || (body.team === 'runner' && body.sketches.length > 0)) {
-    throw new Error(translate('client.unexpectedState'));
-  }
 }
 
 type Result = { data?: unknown; error?: unknown; response?: Response };
@@ -273,8 +141,9 @@ async function request<R extends Result>(call: (signal: AbortSignal) => Promise<
     }
     const status = result.response?.status ?? 0;
     if (result.error !== undefined || status < 200 || status > 299) {
-      const message = isRecord(result.error) && typeof result.error.error === 'string'
-        ? result.error.error
+      const body = result.error as { error?: unknown } | null;
+      const message = typeof body?.error === 'string'
+        ? body.error
         : translate('client.status', { status });
       throw new ApiError(message, status);
     }

@@ -1,0 +1,1888 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Catch me! API",
+    "description": "API generated from the request and response structs of the Go controllers.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/games": {
+      "post": {
+        "summary": "Create a 6 by 6 playground with adjustable cell size (default 2000 meters)",
+        "operationId": "createGame",
+        "requestBody": {
+          "description": "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerCreateGameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Game saved, with one join code per team",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerCreateGameResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON, coordinates, or cell size",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No landmark found at the edges of the playground",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not save game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Landmark lookup failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "delete": {
+        "summary": "Leave the game before it starts",
+        "operationId": "leaveGame",
+        "responses": {
+          "204": {
+            "description": "Left the game; the token is no longer valid"
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Game has already started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/me/game": {
+      "get": {
+        "summary": "Get the game state for the authenticated player",
+        "operationId": "getGameState",
+        "responses": {
+          "200": {
+            "description": "Current game state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not load game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/me/hunter-team": {
+      "put": {
+        "summary": "Join or create a hunter team",
+        "operationId": "setHunterTeam",
+        "requestBody": {
+          "description": "Team name (1-20 characters); an existing team with this name (ignoring case) is joined, otherwise a new team is created",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerSetHunterTeamRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated game state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON or team name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a hunter, ready, or game started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/me/jokers": {
+      "post": {
+        "summary": "Use a joker",
+        "operationId": "activateJoker",
+        "requestBody": {
+          "description": "The joker to use (with the cell for queryZone); each hunter team can use each joker once, while the game runs",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerUseJokerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated game state, with what the joker showed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON, unknown joker, or missing or unexpected cell",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a hunter in a team, game not running, or joker already used",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/me/position": {
+      "put": {
+        "summary": "Report the authenticated player's current position",
+        "operationId": "updatePosition",
+        "requestBody": {
+          "description": "Current coordinates and accuracy radius; the server records its own time",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerUpdatePositionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated game state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON, coordinates, or accuracy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/me/ready": {
+      "put": {
+        "summary": "Set the authenticated player's ready state",
+        "operationId": "setReady",
+        "requestBody": {
+          "description": "Ready state; the game starts 10 seconds after all players are ready and both teams have players",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerSetReadyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated game state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON or missing ready value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Game has already started, or the runner is not in their start cell",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/me/route": {
+      "post": {
+        "summary": "Regenerate the authenticated runner's route",
+        "operationId": "regenerateRoute",
+        "responses": {
+          "200": {
+            "description": "Updated game state with the new route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a runner, ready, no changes left, or game started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/me/sketches": {
+      "post": {
+        "summary": "Draw a line on the hunter team's map",
+        "operationId": "addSketch",
+        "requestBody": {
+          "description": "2-500 points of a freehand line; only the hunter's own team sees it",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerAddSketchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated game state with the team's sketches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON, coordinates, or number of points",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a hunter in a team, game not running, or the team's sketch limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 65536 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Clear the hunter team's map",
+        "operationId": "clearSketches",
+        "responses": {
+          "200": {
+            "description": "Updated game state without the team's sketches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a hunter in a team, or game not running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
+    "/api/players": {
+      "post": {
+        "summary": "Join a game with a team join code",
+        "operationId": "joinGame",
+        "requestBody": {
+          "description": "Join code (6 digits) and display name (1-20 characters, unique per game)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControllerJoinGameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Joined; keep the player token secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerJoinGameResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON, join code, or name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No game with this join code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Game started, full, or name taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 1024 bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not join game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Check backend health",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Backend is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ControllerAPIError": {
+        "properties": {
+          "error": {
+            "examples": [
+              "cell size must be 100 to 5000 meters in steps of 100 meters"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "ControllerAddSketchRequest": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerSketchPointRequest"
+            },
+            "maxItems": 500,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "type": "object"
+      },
+      "ControllerBounds": {
+        "properties": {
+          "east": {
+            "examples": [
+              13.493678060701022
+            ],
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "north": {
+            "examples": [
+              52.57395922182347
+            ],
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "south": {
+            "examples": [
+              52.466040778176534
+            ],
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "west": {
+            "examples": [
+              13.316321939298977
+            ],
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "north",
+          "south",
+          "east",
+          "west"
+        ],
+        "type": "object"
+      },
+      "ControllerCoordinates": {
+        "properties": {
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "format": "double",
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
+      "ControllerCreateGameRequest": {
+        "properties": {
+          "cellSizeMeters": {
+            "default": 2000,
+            "examples": [
+              2000
+            ],
+            "maximum": 5000,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
+      "ControllerCreateGameResponse": {
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/ControllerGameResponse"
+          },
+          "joinCodes": {
+            "$ref": "#/components/schemas/ControllerJoinCodes"
+          }
+        },
+        "required": [
+          "game",
+          "joinCodes"
+        ],
+        "type": "object"
+      },
+      "ControllerGameResponse": {
+        "properties": {
+          "createdAt": {
+            "examples": [
+              "2026-11-08T12:00:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "playground": {
+            "$ref": "#/components/schemas/ControllerPlayground"
+          },
+          "route": {
+            "$ref": "#/components/schemas/ControllerGameRoute"
+          },
+          "sessionId": {
+            "examples": [
+              "00112233445566778899aabbccddeeff"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "createdAt",
+          "playground",
+          "route"
+        ],
+        "type": "object"
+      },
+      "ControllerGameRoute": {
+        "properties": {
+          "distanceMeters": {
+            "examples": [
+              10432.7
+            ],
+            "format": "double",
+            "minimum": 0,
+            "type": "number"
+          },
+          "start": {
+            "$ref": "#/components/schemas/ControllerLandmark"
+          },
+          "stop": {
+            "$ref": "#/components/schemas/ControllerLandmark"
+          }
+        },
+        "required": [
+          "start",
+          "stop",
+          "distanceMeters"
+        ],
+        "type": "object"
+      },
+      "ControllerGameStateHunterResponse": {
+        "properties": {
+          "joinCodes": {
+            "$ref": "#/components/schemas/ControllerJoinCodes"
+          },
+          "jokers": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerJokerResponse"
+            },
+            "type": "array"
+          },
+          "nextRevealAt": {
+            "examples": [
+              "2026-11-08T12:05:10Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "playerId": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerPlayerResponse"
+            },
+            "type": "array"
+          },
+          "playground": {
+            "$ref": "#/components/schemas/ControllerPlayground"
+          },
+          "serverTime": {
+            "examples": [
+              "2026-11-08T12:00:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "sessionId": {
+            "examples": [
+              "00112233445566778899aabbccddeeff"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "sketches": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerSketchResponse"
+            },
+            "type": "array"
+          },
+          "startPositionCheckDisabled": {
+            "examples": [
+              false
+            ],
+            "type": "boolean"
+          },
+          "startsAt": {
+            "examples": [
+              "2026-11-08T12:00:10Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ControllerGameStatus"
+          },
+          "team": {
+            "enum": [
+              "hunter"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "status",
+          "serverTime",
+          "playground",
+          "playerId",
+          "joinCodes",
+          "players",
+          "team",
+          "jokers",
+          "sketches"
+        ],
+        "type": "object"
+      },
+      "ControllerGameStateResponse": {
+        "discriminator": {
+          "mapping": {
+            "hunter": "#/components/schemas/ControllerGameStateHunterResponse",
+            "runner": "#/components/schemas/ControllerGameStateRunnerResponse"
+          },
+          "propertyName": "team"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ControllerGameStateRunnerResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerGameStateHunterResponse"
+          }
+        ],
+        "type": "object"
+      },
+      "ControllerGameStateRunnerResponse": {
+        "properties": {
+          "joinCodes": {
+            "$ref": "#/components/schemas/ControllerJoinCodes"
+          },
+          "nextRevealAt": {
+            "examples": [
+              "2026-11-08T12:05:10Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "playerId": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerPlayerResponse"
+            },
+            "type": "array"
+          },
+          "playground": {
+            "$ref": "#/components/schemas/ControllerPlayground"
+          },
+          "route": {
+            "$ref": "#/components/schemas/ControllerGameRoute"
+          },
+          "serverTime": {
+            "examples": [
+              "2026-11-08T12:00:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "sessionId": {
+            "examples": [
+              "00112233445566778899aabbccddeeff"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "startPositionCheckDisabled": {
+            "examples": [
+              false
+            ],
+            "type": "boolean"
+          },
+          "startsAt": {
+            "examples": [
+              "2026-11-08T12:00:10Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ControllerGameStatus"
+          },
+          "team": {
+            "enum": [
+              "runner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "status",
+          "serverTime",
+          "playground",
+          "playerId",
+          "joinCodes",
+          "players",
+          "team",
+          "route"
+        ],
+        "type": "object"
+      },
+      "ControllerGameStatus": {
+        "enum": [
+          "lobby",
+          "countdown",
+          "running"
+        ],
+        "type": "string"
+      },
+      "ControllerHealthResponse": {
+        "properties": {
+          "service": {
+            "enum": [
+              "catch-me-backend"
+            ],
+            "examples": [
+              "catch-me-backend"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok"
+            ],
+            "examples": [
+              "ok"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service"
+        ],
+        "type": "object"
+      },
+      "ControllerJoinCodes": {
+        "properties": {
+          "hunter": {
+            "examples": [
+              "071564"
+            ],
+            "maxLength": 6,
+            "minLength": 6,
+            "type": "string"
+          },
+          "runner": {
+            "examples": [
+              "482913"
+            ],
+            "maxLength": 6,
+            "minLength": 6,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runner",
+          "hunter"
+        ],
+        "type": "object"
+      },
+      "ControllerJoinGameRequest": {
+        "properties": {
+          "code": {
+            "examples": [
+              "482913"
+            ],
+            "maxLength": 6,
+            "minLength": 6,
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Ada"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ControllerJoinGameResponse": {
+        "properties": {
+          "playerToken": {
+            "examples": [
+              "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+            ],
+            "maxLength": 64,
+            "minLength": 64,
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ControllerGameStateResponse"
+          }
+        },
+        "required": [
+          "playerToken",
+          "state"
+        ],
+        "type": "object"
+      },
+      "ControllerJokerKind": {
+        "enum": [
+          "showRunners",
+          "queryZone"
+        ],
+        "type": "string"
+      },
+      "ControllerJokerPositionResponse": {
+        "properties": {
+          "accuracyMeters": {
+            "examples": [
+              8
+            ],
+            "format": "double",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "format": "double",
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "playerId": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "recordedAt": {
+            "examples": [
+              "2026-11-08T12:04:58Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "playerId",
+          "latitude",
+          "longitude",
+          "accuracyMeters",
+          "recordedAt"
+        ],
+        "type": "object"
+      },
+      "ControllerJokerResponse": {
+        "properties": {
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "cell": {
+            "examples": [
+              "C4"
+            ],
+            "maxLength": 2,
+            "minLength": 2,
+            "pattern": "^[A-F][1-6]$",
+            "type": "string"
+          },
+          "found": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ControllerJokerKind"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerJokerPositionResponse"
+            },
+            "type": "array"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
+        ],
+        "type": "object"
+      },
+      "ControllerLandmark": {
+        "properties": {
+          "coordinates": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "title": {
+            "examples": [
+              "Brandenburger Tor"
+            ],
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "coordinates"
+        ],
+        "type": "object"
+      },
+      "ControllerPlayerResponse": {
+        "properties": {
+          "hunterTeam": {
+            "examples": [
+              "Wolves"
+            ],
+            "maxLength": 20,
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Ada"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          },
+          "playerId": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/ControllerPositionResponse"
+          },
+          "ready": {
+            "examples": [
+              false
+            ],
+            "type": "boolean"
+          },
+          "reveals": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerRevealResponse"
+            },
+            "type": "array"
+          },
+          "team": {
+            "$ref": "#/components/schemas/ControllerTeam"
+          }
+        },
+        "required": [
+          "playerId",
+          "name",
+          "team",
+          "ready"
+        ],
+        "type": "object"
+      },
+      "ControllerPlayground": {
+        "properties": {
+          "bounds": {
+            "$ref": "#/components/schemas/ControllerBounds"
+          },
+          "cellSizeMeters": {
+            "examples": [
+              2000
+            ],
+            "maximum": 5000,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "center": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "columns": {
+            "enum": [
+              6
+            ],
+            "examples": [
+              6
+            ],
+            "type": "integer"
+          },
+          "rows": {
+            "enum": [
+              6
+            ],
+            "examples": [
+              6
+            ],
+            "type": "integer"
+          }
+        },
+        "required": [
+          "center",
+          "bounds",
+          "rows",
+          "columns",
+          "cellSizeMeters"
+        ],
+        "type": "object"
+      },
+      "ControllerPositionResponse": {
+        "properties": {
+          "accuracyMeters": {
+            "examples": [
+              8
+            ],
+            "format": "double",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "format": "double",
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "recordedAt": {
+            "examples": [
+              "2026-11-08T12:04:58Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "accuracyMeters",
+          "recordedAt"
+        ],
+        "type": "object"
+      },
+      "ControllerRevealResponse": {
+        "properties": {
+          "accuracyMeters": {
+            "examples": [
+              8
+            ],
+            "format": "double",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "format": "double",
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "recordedAt": {
+            "examples": [
+              "2026-11-08T12:04:58Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "revealedAt": {
+            "examples": [
+              "2026-11-08T12:05:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "accuracyMeters",
+          "recordedAt",
+          "revealedAt"
+        ],
+        "type": "object"
+      },
+      "ControllerSetHunterTeamRequest": {
+        "properties": {
+          "name": {
+            "examples": [
+              "Wolves"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "ControllerSetReadyRequest": {
+        "properties": {
+          "ready": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ready"
+        ],
+        "type": "object"
+      },
+      "ControllerSketchPointRequest": {
+        "properties": {
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
+      "ControllerSketchResponse": {
+        "properties": {
+          "createdAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerCoordinates"
+            },
+            "maxItems": 500,
+            "minItems": 2,
+            "type": "array"
+          },
+          "sketchId": {
+            "examples": [
+              "0123456789abcdef0123456789abcdef"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sketchId",
+          "createdAt",
+          "points"
+        ],
+        "type": "object"
+      },
+      "ControllerTeam": {
+        "enum": [
+          "runner",
+          "hunter"
+        ],
+        "type": "string"
+      },
+      "ControllerUpdatePositionRequest": {
+        "properties": {
+          "accuracyMeters": {
+            "examples": [
+              8
+            ],
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "accuracyMeters"
+        ],
+        "type": "object"
+      },
+      "ControllerUseJokerRequest": {
+        "properties": {
+          "cell": {
+            "examples": [
+              "C4"
+            ],
+            "maxLength": 2,
+            "minLength": 2,
+            "pattern": "^[A-F][1-6]$",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ControllerJokerKind"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "PlayerToken": {
+        "description": "\"Bearer \" followed by the playerToken returned when joining a game.",
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header"
+      }
+    }
+  }
+}

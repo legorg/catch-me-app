@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import type { GameStateResponse, JokerKind, JokerResponse } from '@/api/client';
+import type { JokerKind, JokerResponse } from '@/api/client';
+import type { GameStateHunterResponse } from '@/api/types';
 import Button from '@/components/button';
 import { getLanguage, translate, useT } from '@/i18n';
-import { colors, styles } from '@/styles';
+import { picker, styles } from '@/styles';
 
 const TITLE_KEYS = { showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title' } as const;
 const TEXT_KEYS = { showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text' } as const;
@@ -13,7 +14,7 @@ const ROWS = ['1', '2', '3', '4', '5', '6'];
 
 /** The jokers of the player's team, each with a two-step button to use it. */
 export default function JokerList({ state, error, onUse }: {
-  state: GameStateResponse;
+  state: GameStateHunterResponse;
   error: string;
   onUse: (kind: JokerKind, cell?: string) => Promise<void>;
 }) {
@@ -73,7 +74,7 @@ export default function JokerList({ state, error, onUse }: {
 function CellPicker({ selected, onSelect, disabled }: { selected: string | null; onSelect: (cell: string) => void; disabled: boolean }) {
   const t = useT();
   return (
-    <View style={{ gap: 6 }}>
+    <View style={picker.list}>
       <Text style={styles.hint}>{t('joker.chooseCell')}</Text>
       {ROWS.map((row) => (
         <View key={row} style={picker.row}>
@@ -99,13 +100,13 @@ function CellPicker({ selected, onSelect, disabled }: { selected: string | null;
   );
 }
 
-function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse }) {
+function Used({ joker, state }: { joker: JokerResponse; state: GameStateHunterResponse }) {
   const t = useT();
   const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const positions = joker.positions ?? [];
   return (
-    <View style={{ gap: 4 }}>
-      <Text style={[styles.text, { color: colors.accent }]}>{translate('joker.usedAt', { time: time(joker.usedAt ?? '') })}</Text>
+    <View style={styles.gapTiny}>
+      <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: time(joker.usedAt ?? '') })}</Text>
       {joker.kind === 'queryZone'
         ? !!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>
         : <>
@@ -120,10 +121,3 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
   );
 }
 
-const picker = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 6 },
-  cell: { flex: 1, aspectRatio: 1, maxWidth: 56, minHeight: 40, borderRadius: 8, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  selected: { backgroundColor: colors.accent },
-  label: { color: colors.accent, fontSize: 14, fontWeight: '700' },
-  selectedLabel: { color: colors.background },
-});

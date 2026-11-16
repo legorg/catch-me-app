@@ -23,16 +23,8 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-//go:generate go tool swag init -g main.go -d .,../../controller --requiredByDefault --outputTypes json --output ../../api
+//go:generate go run ../openapi -out ../../api/openapi.json
 
-// @title Catch me! API
-// @version 0.1.0
-// @description API generated from Go handler annotations and response structs.
-// @BasePath /
-// @securityDefinitions.apikey PlayerToken
-// @in header
-// @name Authorization
-// @description "Bearer " followed by the playerToken returned when joining a game.
 func main() {
 	godotenv.Load("../.env")
 	addr := flag.String("addr", ":8080", "HTTP listen address")

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { GameStateResponse } from '../src/api/client';
-import { MARKER_COLORS, SKETCH_COLOR, ZONE_COLORS, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
+import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
 import { cellBounds, previewPlayground } from '../src/playground';
 
-const state: GameStateResponse = {
+const state: GameStateRunnerResponse = {
   sessionId: '00112233445566778899aabbccddeeff',
   status: 'countdown',
   serverTime: '2026-11-08T12:00:00Z',
@@ -14,8 +14,6 @@ const state: GameStateResponse = {
   playerId: 'a'.repeat(32),
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
-  jokers: [],
-  sketches: [],
   players: [
     { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', ready: true },
     { playerId: 'b'.repeat(32), name: 'Bob', team: 'hunter', ready: true },
@@ -27,6 +25,9 @@ const state: GameStateResponse = {
     distanceMeters: 11119,
   },
 };
+
+const { route: _route, ...hunterBase } = state;
+const hunterState: GameStateHunterResponse = { ...hunterBase, team: 'hunter', jokers: [], sketches: [] };
 
 test('countdown uses server time plus local elapsed time', () => {
   // The phone clock is far off; only the difference since receipt matters.
@@ -100,7 +101,7 @@ test('every reveal is a numbered marker per runner, oldest first', () => {
 test('a used joker becomes one marker per runner it showed', () => {
   const position = (playerId: string, latitude: number) => ({ playerId, latitude, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' });
   const markers = jokerMarkers({
-    ...state,
+    ...hunterState,
     jokers: [{ kind: 'showRunners', available: false, usedAt: '2026-11-08T12:07:00Z', positions: [position(state.players[0].playerId, 52.5), position(state.players[2].playerId, 52.6)] }],
   });
   assert.deepEqual(markers.map((m) => [m.title, m.coordinate.latitude, m.color]), [
@@ -108,7 +109,7 @@ test('a used joker becomes one marker per runner it showed', () => {
     ['Cy', 52.6, MARKER_COLORS.joker],
   ]);
   assert.match(markers[0].description, /Joker/);
-  assert.deepEqual(jokerMarkers({ ...state, jokers: [{ kind: 'showRunners', available: true }] }), []);
+  assert.deepEqual(jokerMarkers({ ...hunterState, jokers: [{ kind: 'showRunners', available: true }] }), []);
 });
 
 test('a queried zone is highlighted and marked in its center, colored by the answer', () => {
@@ -116,15 +117,15 @@ test('a queried zone is highlighted and marked in its center, colored by the ans
     { kind: 'queryZone' as const, available: false, usedAt: '2026-11-08T12:07:00Z', cell: 'A1', found: true },
     { kind: 'queryZone' as const, available: false, usedAt: '2026-11-08T12:08:00Z', cell: 'F6', found: false },
   ];
-  const zones = jokerZones({ ...state, jokers });
+  const zones = jokerZones({ ...hunterState, jokers });
   assert.deepEqual(zones.map((z) => [z.cell, z.color]), [['A1', ZONE_COLORS.found], ['F6', ZONE_COLORS.empty]]);
   assert.match(zones[0].title, /at least one runner/);
   assert.match(zones[1].title, /no runner/);
-  const [marker] = jokerMarkers({ ...state, jokers: [jokers[0]] });
+  const [marker] = jokerMarkers({ ...hunterState, jokers: [jokers[0]] });
   const b = cellBounds(state.playground, 'A1');
   assert.deepEqual(marker.coordinate, { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 });
   assert.equal(marker.color, ZONE_COLORS.found);
-  assert.deepEqual(jokerZones({ ...state, jokers: [{ kind: 'queryZone', available: true }] }), []);
+  assert.deepEqual(jokerZones({ ...hunterState, jokers: [{ kind: 'queryZone', available: true }] }), []);
 });
 
 test('sketches become lines in the sketch color, in the order the server sent them', () => {
@@ -133,11 +134,11 @@ test('sketches become lines in the sketch color, in the order the server sent th
     { sketchId: '1'.repeat(32), createdAt: '2026-11-08T12:07:00Z', points },
     { sketchId: '2'.repeat(32), createdAt: '2026-11-08T12:08:00Z', points: [...points].reverse() },
   ];
-  assert.deepEqual(sketchLines({ ...state, team: 'hunter', sketches }), [
+  assert.deepEqual(sketchLines({ ...hunterState, sketches }), [
     { id: '1'.repeat(32), coordinates: points, color: SKETCH_COLOR },
     { id: '2'.repeat(32), coordinates: [...points].reverse(), color: SKETCH_COLOR },
   ]);
-  assert.deepEqual(sketchLines(state), []);
+  assert.deepEqual(sketchLines(hunterState), []);
 });
 
 test('long lines are thinned evenly, keeping their ends', () => {
@@ -149,4 +150,22 @@ test('long lines are thinned evenly, keeping their ends', () => {
   assert.ok(thinned.every((p, i) => i === 0 || p > thinned[i - 1]), 'order kept, no duplicates');
   assert.equal(thinPoints([1, 2, 3], 500).length, 3);
   assert.deepEqual(thinPoints([1, 2, 3, 4, 5], 2), [1, 5]);
+});
+
+test('the route shows as start and target cells and markers, with generic names for untitled stops', () => {
+  const route = { ...state.route, stop: { ...state.route.stop, title: '' } };
+  const highlights = routeHighlights(state.playground, route);
+  assert.deepEqual(highlights.map((h) => h.color), [ROUTE_COLORS.start, ROUTE_COLORS.target]);
+  assert.equal(highlights[0].title, 'Start');
+  assert.notEqual(highlights[1].title, '');
+  assert.deepEqual(routeMarkers(route).map((m) => [m.id, m.color]), [['route-start', ROUTE_COLORS.start], ['route-stop', ROUTE_COLORS.target]]);
+  const outside = { ...state.route, start: { ...state.route.start, coordinates: { latitude: 0, longitude: 0 } } };
+  assert.deepEqual(routeHighlights(state.playground, outside).map((h) => h.color), [ROUTE_COLORS.target]);
+});
+
+test('runners see the route, hunters the queried zones, and nobody sees their own position as a marker', () => {
+  assert.equal(gameHighlights(state).length, 2);
+  assert.deepEqual(gameHighlights(hunterState), []);
+  assert.deepEqual(gameMarkers(state).map((m) => m.id).slice(0, 2), ['route-start', 'route-stop']);
+  assert.ok(!gameMarkers(hunterState).some((m) => m.id === hunterState.playerId));
 });

@@ -4,9 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { activateJoker, type JokerKind } from '@/api/client';
 import Button from '@/components/button';
+import { isGameStateHunterResponse } from '@/api/types';
 import JokerList from '@/components/joker-list';
 import { useT } from '@/i18n';
-import { colors, styles } from '@/styles';
+import { colors, dynamicStyles, styles } from '@/styles';
 import { useGameState } from '@/use-game-state';
 
 // Presented as a modal over the game screen (see _layout.tsx).
@@ -28,18 +29,18 @@ export default function JokersScreen() {
 
   if (!token || !state) {
     return (
-      <View style={[styles.screen, { justifyContent: 'center', padding: 20 }]}>
+      <View style={[styles.screen, styles.centeredScreen]}>
         <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
   return (
     <View style={styles.screen}>
-      <View style={{ flex: 1 }}>
-        <JokerList state={state} error={error} onUse={use} />
+      <View style={styles.flex}>
+        {isGameStateHunterResponse(state) && <JokerList state={state} error={error} onUse={use} />}
       </View>
       {/* Android cannot swipe a modal away, and iOS shows no grabber: an explicit way out. */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 16) }}>
+      <View style={[styles.jokersFooterBase, dynamicStyles.jokersFooter(insets.bottom)]}>
         <Button label={t('joker.close')} variant="secondary" onPress={() => router.back()} />
       </View>
     </View>

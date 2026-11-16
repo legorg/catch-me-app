@@ -9,19 +9,6 @@ import (
 )
 
 // Join adds a player to the team of the join code.
-// @Summary Join a game with a team join code
-// @ID joinGame
-// @Accept json
-// @Produce json
-// @Param body body JoinGameRequest true "Join code (6 digits) and display name (1-20 characters, unique per game)"
-// @Success 201 {object} JoinGameResponse "Joined; keep the player token secret"
-// @Failure 400 {object} APIError "Invalid JSON, join code, or name"
-// @Failure 404 {object} APIError "No game with this join code"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Game started, full, or name taken"
-// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
-// @Failure 500 {object} APIError "Could not join game"
-// @Router /api/players [post]
 func (c *GameController) Join(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
@@ -49,15 +36,6 @@ func (c *GameController) Join(w http.ResponseWriter, r *http.Request) {
 }
 
 // State returns the game as seen by the authenticated player.
-// @Summary Get the game state for the authenticated player
-// @ID getGameState
-// @Produce json
-// @Security PlayerToken
-// @Success 200 {object} GameStateResponse "Current game state"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 500 {object} APIError "Could not load game"
-// @Router /api/me/game [get]
 func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodGet, http.MethodHead) {
 		return
@@ -76,20 +54,6 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 }
 
 // SetReady marks the authenticated player as ready or not ready.
-// @Summary Set the authenticated player's ready state
-// @ID setReady
-// @Accept json
-// @Produce json
-// @Security PlayerToken
-// @Param body body SetReadyRequest true "Ready state; the game starts 10 seconds after all players are ready and both teams have players"
-// @Success 200 {object} GameStateResponse "Updated game state"
-// @Failure 400 {object} APIError "Invalid JSON or missing ready value"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Game has already started, or the runner is not in their start cell"
-// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me/ready [put]
 func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
 		return
@@ -116,16 +80,6 @@ func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 }
 
 // RegenerateRoute gives the authenticated runner a different random route.
-// @Summary Regenerate the authenticated runner's route
-// @ID regenerateRoute
-// @Produce json
-// @Security PlayerToken
-// @Success 200 {object} GameStateResponse "Updated game state with the new route"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Not a runner, ready, no changes left, or game started"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me/route [post]
 func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
@@ -144,20 +98,6 @@ func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request)
 }
 
 // SetHunterTeam puts the authenticated hunter into a hunter team.
-// @Summary Join or create a hunter team
-// @ID setHunterTeam
-// @Accept json
-// @Produce json
-// @Security PlayerToken
-// @Param body body SetHunterTeamRequest true "Team name (1-20 characters); an existing team with this name (ignoring case) is joined, otherwise a new team is created"
-// @Success 200 {object} GameStateResponse "Updated game state"
-// @Failure 400 {object} APIError "Invalid JSON or team name"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Not a hunter, ready, or game started"
-// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me/hunter-team [put]
 func (c *GameController) SetHunterTeam(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
 		return
@@ -185,19 +125,6 @@ func (c *GameController) SetHunterTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdatePosition stores the authenticated player's latest location.
-// @Summary Report the authenticated player's current position
-// @ID updatePosition
-// @Accept json
-// @Produce json
-// @Security PlayerToken
-// @Param body body UpdatePositionRequest true "Current coordinates and accuracy radius; the server records its own time"
-// @Success 200 {object} GameStateResponse "Updated game state"
-// @Failure 400 {object} APIError "Invalid JSON, coordinates, or accuracy"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me/position [put]
 func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
 		return
@@ -229,20 +156,6 @@ func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) 
 }
 
 // UseJoker spends a joker of the authenticated hunter's team.
-// @Summary Use a joker
-// @ID activateJoker
-// @Accept json
-// @Produce json
-// @Security PlayerToken
-// @Param body body UseJokerRequest true "The joker to use (with the cell for queryZone); each hunter team can use each joker once, while the game runs"
-// @Success 200 {object} GameStateResponse "Updated game state, with what the joker showed"
-// @Failure 400 {object} APIError "Invalid JSON, unknown joker, or missing or unexpected cell"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Not a hunter in a team, game not running, or joker already used"
-// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me/jokers [post]
 func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
@@ -282,20 +195,6 @@ func (c *GameController) Sketches(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddSketch adds a line to the map of the authenticated hunter's team.
-// @Summary Draw a line on the hunter team's map
-// @ID addSketch
-// @Accept json
-// @Produce json
-// @Security PlayerToken
-// @Param body body AddSketchRequest true "2-500 points of a freehand line; only the hunter's own team sees it"
-// @Success 200 {object} GameStateResponse "Updated game state with the team's sketches"
-// @Failure 400 {object} APIError "Invalid JSON, coordinates, or number of points"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Not a hunter in a team, game not running, or the team's sketch limit reached"
-// @Failure 413 {object} APIError "Request body exceeds 65536 bytes"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me/sketches [post]
 func (c *GameController) AddSketch(w http.ResponseWriter, r *http.Request) {
 	token, err := playerToken(r)
 	if err != nil {
@@ -333,16 +232,6 @@ func (c *GameController) AddSketch(w http.ResponseWriter, r *http.Request) {
 }
 
 // ClearSketches removes all lines of the authenticated hunter's team.
-// @Summary Clear the hunter team's map
-// @ID clearSketches
-// @Produce json
-// @Security PlayerToken
-// @Success 200 {object} GameStateResponse "Updated game state without the team's sketches"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Not a hunter in a team, or game not running"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me/sketches [delete]
 func (c *GameController) ClearSketches(w http.ResponseWriter, r *http.Request) {
 	token, err := playerToken(r)
 	if err != nil {
@@ -358,16 +247,6 @@ func (c *GameController) ClearSketches(w http.ResponseWriter, r *http.Request) {
 }
 
 // Leave removes the authenticated player before the game starts.
-// @Summary Leave the game before it starts
-// @ID leaveGame
-// @Produce json
-// @Security PlayerToken
-// @Success 204 "Left the game; the token is no longer valid"
-// @Failure 401 {object} APIError "Missing or unknown player token"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 409 {object} APIError "Game has already started"
-// @Failure 500 {object} APIError "Could not update game"
-// @Router /api/me [delete]
 func (c *GameController) Leave(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodDelete) {
 		return
@@ -393,15 +272,25 @@ func playerToken(r *http.Request) (game.PlayerToken, error) {
 }
 
 func gameStateResponse(view service.PlayerView) GameStateResponse {
+	base := gameStateBase(view)
+	if view.Me.Team == game.Runners {
+		return NewRunnerState(GameStateRunnerResponse{GameStateBase: base, Team: TeamRunner, Route: gameRouteResponse(view.Lobby.Game.Route)})
+	}
+	return NewHunterState(GameStateHunterResponse{
+		GameStateBase: base, Team: TeamHunter,
+		Jokers: jokerResponses(view), Sketches: sketchResponses(view),
+	})
+}
+
+func gameStateBase(view service.PlayerView) GameStateBase {
 	g := view.Lobby.Game
-	response := GameStateResponse{
+	response := GameStateBase{
 		StartPositionCheckDisabled: view.StartPositionCheckDisabled,
-		SessionID:                  g.SessionID.String(),
-		Status:                     string(g.Status(view.Now)),
+		SessionID:                  SessionID(g.SessionID.String()),
+		Status:                     GameStatus(g.Status(view.Now)),
 		ServerTime:                 view.Now,
 		Playground:                 playgroundResponse(g.Playground),
-		PlayerID:                   view.Me.ID.String(),
-		Team:                       string(view.Me.Team),
+		PlayerID:                   PlayerID(view.Me.ID.String()),
 		// Both codes, so any player (e.g. the creator after joining) can invite to either team.
 		JoinCodes: JoinCodes{Runner: g.JoinCodes.Runner.String(), Hunter: g.JoinCodes.Hunter.String()},
 		Players:   make([]PlayerResponse, 0, len(view.Lobby.Players)),
@@ -412,53 +301,49 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	if next := g.NextReveal(view.Now); !next.IsZero() {
 		response.NextRevealAt = &next
 	}
-	response.Jokers = make([]JokerResponse, 0)
+	// Visibility is decided by the domain; this only maps what it allows.
+	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
+		player := PlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}
+		if !p.Position.IsZero() {
+			position := positionResponse(p.Position)
+			player.Position = &position
+		}
+		for _, r := range p.Reveals {
+			player.Reveals = append(player.Reveals, RevealResponse{PositionResponse: positionResponse(r.Position), RevealedAt: r.At})
+		}
+		response.Players = append(response.Players, player)
+	}
+	return response
+}
+
+func jokerResponses(view service.PlayerView) []JokerResponse {
+	jokers := make([]JokerResponse, 0)
 	for _, j := range view.Lobby.JokersFor(view.Me, view.Now) {
-		joker := JokerResponse{Kind: string(j.Kind), Available: j.Available}
+		joker := JokerResponse{Kind: JokerKind(j.Kind), Available: j.Available}
 		if !j.UsedAt.IsZero() {
 			usedAt := j.UsedAt
 			joker.UsedAt = &usedAt
 			if j.Kind == game.JokerQueryZone {
 				found := j.Found
-				joker.Cell, joker.Found = j.Cell.String(), &found
+				joker.Cell, joker.Found = Cell(j.Cell.String()), &found
 			}
 		}
 		for _, p := range j.Positions {
-			joker.Positions = append(joker.Positions, JokerPositionResponse{
-				PlayerID: p.PlayerID.String(), Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
-				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt,
-			})
+			joker.Positions = append(joker.Positions, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
 		}
-		response.Jokers = append(response.Jokers, joker)
+		jokers = append(jokers, joker)
 	}
-	response.Sketches = make([]SketchResponse, 0)
+	return jokers
+}
+
+func sketchResponses(view service.PlayerView) []SketchResponse {
+	sketches := make([]SketchResponse, 0)
 	for _, s := range view.Lobby.SketchesFor(view.Me, view.Now) {
-		sketch := SketchResponse{SketchID: s.ID.String(), CreatedAt: s.CreatedAt}
+		sketch := SketchResponse{SketchID: SketchID(s.ID.String()), CreatedAt: s.CreatedAt}
 		for _, p := range s.Line.Points() {
 			sketch.Points = append(sketch.Points, Coordinates{Latitude: p.Latitude(), Longitude: p.Longitude()})
 		}
-		response.Sketches = append(response.Sketches, sketch)
+		sketches = append(sketches, sketch)
 	}
-	if view.Me.Team == game.Runners {
-		route := gameRouteResponse(g.Route)
-		response.Route = &route
-	}
-	// Visibility is decided by the domain; this only maps what it allows.
-	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
-		player := PlayerResponse{PlayerID: p.ID.String(), Name: p.Name.String(), Team: string(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}
-		if !p.Position.IsZero() {
-			player.Position = &PositionResponse{
-				Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
-				AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt,
-			}
-		}
-		for _, r := range p.Reveals {
-			player.Reveals = append(player.Reveals, RevealResponse{
-				Latitude: r.Position.Coordinates.Latitude(), Longitude: r.Position.Coordinates.Longitude(),
-				AccuracyMeters: r.Position.AccuracyMeters, RecordedAt: r.Position.RecordedAt, RevealedAt: r.At,
-			})
-		}
-		response.Players = append(response.Players, player)
-	}
-	return response
+	return sketches
 }

@@ -224,7 +224,7 @@ func TestRepositoryErrorsRemainInspectable(t *testing.T) {
 type centerLandmarks struct{}
 
 func (centerLandmarks) Landmarks(_ context.Context, cell game.Bounds) ([]game.Landmark, error) {
-	return []game.Landmark{{Coordinates: cell.Center()}}, nil
+	return []game.Landmark{{Coordinates: boundsCenter(cell)}}, nil
 }
 
 type fakeLandmarks struct {
@@ -270,4 +270,10 @@ func TestCreateRouteNeedsLandmarks(t *testing.T) {
 	if !errors.Is(err, game.ErrNoLandmark) {
 		t.Fatalf("no landmark: %v", err)
 	}
+}
+
+// boundsCenter is the middle of the bounds.
+func boundsCenter(b game.Bounds) game.Coordinates {
+	c, _ := game.ParseCoordinates((b.North+b.South)/2, (b.East+b.West)/2)
+	return c
 }

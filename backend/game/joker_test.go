@@ -67,7 +67,7 @@ func TestShowRunnersJokerRules(t *testing.T) {
 func TestJokersAreVisibleToTheirTeamOnly(t *testing.T) {
 	l, runner, bob, dan, eve, running := jokerLobby(t)
 	at := running.Add(time.Minute)
-	only := func(states []JokerState) JokerState {
+	only := func(states []jokerState) jokerState {
 		t.Helper()
 		if len(states) != 2 || states[0].Kind != JokerShowRunners || states[1].Kind != JokerQueryZone {
 			t.Fatalf("expected both hunter jokers: %+v", states)
@@ -113,7 +113,7 @@ func TestParseJokerChoice(t *testing.T) {
 func TestQueryZoneAnswersOnlyYesOrNo(t *testing.T) {
 	l, runner, bob, dan, eve, running := jokerLobby(t)
 	at := running.Add(time.Minute)
-	query := func(states []JokerState) JokerState {
+	query := func(states []jokerState) jokerState {
 		t.Helper()
 		if len(states) != 2 || states[1].Kind != JokerQueryZone {
 			t.Fatalf("expected the query-zone joker: %+v", states)

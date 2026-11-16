@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@6.44.2/schema.json",
+  "entry": ["src/app/**/*.{ts,tsx}", "tests/**/*.test.ts"],
+  "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
+  "ignore": ["src/api/generated/**"],
+  "ignoreDependencies": ["expo-updates", "expo-system-ui", "@typescript-eslint/parser"]
+}

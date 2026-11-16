@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import PlaygroundMap, { type PlaygroundMapProps } from './playground-map';
 import { useT } from '../i18n';
-import { colors } from '../styles';
+import { colors, dynamicStyles, fullscreenStyles as styles } from '../styles';
 
 /** The playground map with a button that opens it fullscreen. */
 export default function FullscreenMap(props: PlaygroundMapProps) {
@@ -21,7 +21,7 @@ export default function FullscreenMap(props: PlaygroundMapProps) {
     <>
       <View>
         <PlaygroundMap key={inlineKey} {...props} />
-        <Pressable accessibilityRole="button" accessibilityLabel={t('map.fullscreen')} onPress={() => setOpen(true)} style={[styles.toggle, { top: 12, right: 12 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('map.fullscreen')} onPress={() => setOpen(true)} style={[styles.toggle, dynamicStyles.fullscreenToggle()]}>
           <Ionicons name="expand" size={22} color={colors.accent} />
         </Pressable>
       </View>
@@ -45,7 +45,7 @@ function FullscreenContent({ onClose, ...props }: PlaygroundMapProps & { onClose
         accessibilityRole="button"
         accessibilityLabel={t('map.close')}
         onPress={onClose}
-        style={[styles.toggle, { top: insets.top + 12, right: insets.right + 12 }]}
+        style={[styles.toggle, dynamicStyles.fullscreenToggle(insets)]}
       >
         <Ionicons name="contract" size={22} color={colors.accent} />
       </Pressable>
@@ -53,7 +53,3 @@ function FullscreenContent({ onClose, ...props }: PlaygroundMapProps & { onClose
   );
 }
 
-const styles = StyleSheet.create({
-  full: { flex: 1, backgroundColor: colors.background },
-  toggle: { position: 'absolute', backgroundColor: colors.background, borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: 0.92 },
-});

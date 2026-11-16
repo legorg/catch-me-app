@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	JoinCodeLength = 6
-	MaxNameLength  = 20
+	joinCodeLength = 6
+	maxNameLength  = 20
 )
 
 type Team string
@@ -38,13 +38,13 @@ type JoinCode struct{ value string }
 // NewJoinCode returns 6 random digits; leading zeros are kept.
 func NewJoinCode() JoinCode {
 	n, _ := rand.Int(rand.Reader, big.NewInt(1_000_000)) // Never fails since Go 1.24; crashes the program instead.
-	return JoinCode{value: fmt.Sprintf("%0*d", JoinCodeLength, n.Int64())}
+	return JoinCode{value: fmt.Sprintf("%0*d", joinCodeLength, n.Int64())}
 }
 
 // ParseJoinCode accepts surrounding spaces.
 func ParseJoinCode(code string) (JoinCode, error) {
 	normalized := strings.TrimSpace(code)
-	if len(normalized) != JoinCodeLength || strings.Trim(normalized, "0123456789") != "" {
+	if len(normalized) != joinCodeLength || strings.Trim(normalized, "0123456789") != "" {
 		return JoinCode{}, &ValidationError{Message: "join code must contain 6 digits"}
 	}
 	return JoinCode{value: normalized}, nil
@@ -62,13 +62,6 @@ func NewJoinCodes() JoinCodes {
 	return codes
 }
 
-func (c JoinCodes) For(team Team) JoinCode {
-	if team == Hunters {
-		return c.Hunter
-	}
-	return c.Runner
-}
-
 func (c JoinCodes) TeamFor(code JoinCode) (Team, bool) {
 	switch code {
 	case c.Runner:
@@ -83,7 +76,7 @@ func (c JoinCodes) TeamFor(code JoinCode) (Team, bool) {
 func parseName(name, what string) (string, error) {
 	trimmed := strings.TrimSpace(name)
 	length := utf8.RuneCountInString(trimmed)
-	if length == 0 || length > MaxNameLength || !utf8.ValidString(trimmed) || strings.ContainsFunc(trimmed, unicode.IsControl) {
+	if length == 0 || length > maxNameLength || !utf8.ValidString(trimmed) || strings.ContainsFunc(trimmed, unicode.IsControl) {
 		return "", &ValidationError{Message: what + " must contain 1 to 20 characters"}
 	}
 	return trimmed, nil
@@ -98,8 +91,8 @@ func ParsePlayerName(name string) (PlayerName, error) {
 
 func (n PlayerName) String() string { return n.value }
 
-// SameAs compares names ignoring case, so players remain distinguishable.
-func (n PlayerName) SameAs(other PlayerName) bool { return strings.EqualFold(n.value, other.value) }
+// sameAs compares names ignoring case, so players remain distinguishable.
+func (n PlayerName) sameAs(other PlayerName) bool { return strings.EqualFold(n.value, other.value) }
 
 // HunterTeamName names a group of hunters who see each other's positions. A
 // hunter team exists exactly while at least one hunter belongs to it.
@@ -113,8 +106,8 @@ func ParseHunterTeamName(name string) (HunterTeamName, error) {
 func (n HunterTeamName) String() string { return n.value }
 func (n HunterTeamName) IsZero() bool   { return n.value == "" }
 
-// SameAs compares team names ignoring case.
-func (n HunterTeamName) SameAs(other HunterTeamName) bool {
+// sameAs compares team names ignoring case.
+func (n HunterTeamName) sameAs(other HunterTeamName) bool {
 	return strings.EqualFold(n.value, other.value)
 }
 

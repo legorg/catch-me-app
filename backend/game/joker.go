@@ -18,7 +18,8 @@ const (
 // hunterJokers are the jokers every hunter team has, in display order.
 var hunterJokers = []JokerKind{JokerShowRunners, JokerQueryZone}
 
-func ParseJokerKind(value string) (JokerKind, error) {
+// ParseJokerKind accepts any string-based type, e.g. a wire-format kind.
+func ParseJokerKind[S ~string](value S) (JokerKind, error) {
 	kind := JokerKind(value)
 	for _, known := range hunterJokers {
 		if kind == known {
@@ -35,7 +36,7 @@ type JokerChoice struct {
 }
 
 // ParseJokerChoice checks that the kind is known and that a cell is given exactly when the joker needs one.
-func ParseJokerChoice(kind, cell string) (JokerChoice, error) {
+func ParseJokerChoice[K, C ~string](kind K, cell C) (JokerChoice, error) {
 	parsed, err := ParseJokerKind(kind)
 	if err != nil {
 		return JokerChoice{}, err
@@ -74,8 +75,8 @@ type JokerUse struct {
 	Found bool
 }
 
-// JokerState is one joker as one player sees it.
-type JokerState struct {
+// jokerState is one joker as one player sees it.
+type jokerState struct {
 	Kind      JokerKind
 	Available bool
 	// UsedAt and the result (Positions, or Cell and Found) are set once the
@@ -133,14 +134,14 @@ func (l *Lobby) UseJoker(id PlayerID, choice JokerChoice, now time.Time) error {
 
 // JokersFor lists the jokers of the viewer's team and what they showed.
 // Runners have none yet; other hunter teams' jokers are never visible.
-func (l Lobby) JokersFor(viewer Player, now time.Time) []JokerState {
+func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
 	if viewer.Team != Hunters || viewer.HunterTeam.IsZero() {
 		return nil
 	}
 	running := l.Game.Status(now) == StatusRunning
-	states := make([]JokerState, 0, len(hunterJokers))
+	states := make([]jokerState, 0, len(hunterJokers))
 	for _, kind := range hunterJokers {
-		state := JokerState{Kind: kind, Available: running}
+		state := jokerState{Kind: kind, Available: running}
 		if use := l.jokerUse(viewer.HunterTeam, kind); use != nil {
 			state.Available, state.UsedAt, state.Positions = false, use.UsedAt, use.Positions
 			state.Cell, state.Found = use.Cell, use.Found

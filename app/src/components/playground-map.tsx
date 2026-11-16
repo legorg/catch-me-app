@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { dynamicStyles, mapStyles as styles } from '../styles';
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE, type LatLng, type Region } from 'react-native-maps';
 
 import type { Coordinates, Playground } from '../api/types';
@@ -32,7 +33,7 @@ export type MapMarker = {
   label?: string;
 };
 
-export type MapLine = { id: string; coordinates: Coordinates[]; color: string };
+type MapLine = { id: string; coordinates: Coordinates[]; color: string };
 
 export type PlaygroundMapProps = {
   playground: Playground | null;
@@ -212,15 +213,15 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
               <View style={styles.numberedPin}>
                 {/* White triangle behind, colored one in front and over the head's border: together a bordered tail. */}
                 <View style={styles.pinTailBorder} />
-                <View style={[styles.pinHead, { backgroundColor: color }]}>
+                <View style={[styles.pinHead, dynamicStyles.pinHead(color)]}>
                   <Text style={styles.pinNumber}>{label}</Text>
                 </View>
-                <View style={[styles.pinTail, { borderTopColor: color }]} />
+                <View style={[styles.pinTail, dynamicStyles.pinTail(color)]} />
               </View>
             </Marker>
         ))}
       </MapView>
-    {editable && <View pointerEvents="none" style={[styles.crosshair, anchor && { left: anchor.x - 12, top: anchor.y - 12, right: undefined, bottom: undefined, width: 24, height: 24 }]}>
+    {editable && <View pointerEvents="none" style={[styles.crosshair, anchor && dynamicStyles.crosshairAt(anchor)]}>
       <View style={styles.crossH} />
       <View style={styles.crossV} />
     </View>}
@@ -234,7 +235,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
       onResponderRelease={() => void finishStroke()}
       onResponderTerminate={() => void finishStroke()}
     />}
-    <View style={[styles.locate, { right: 12 + (controlsInset?.right ?? 0), bottom: 12 + (controlsInset?.bottom ?? 0) }]}>
+    <View style={[styles.locate, dynamicStyles.locate(controlsInset)]}>
       {!!locateError && <Text style={styles.locateError}>{locateError}</Text>}
       <Pressable accessibilityRole="button" accessibilityLabel={t('map.myLocation')} disabled={locating} onPress={() => void locate()} style={[styles.locateButton, locating && styles.locating]}>
         <Ionicons name="locate" size={22} color="#10251c" />
@@ -244,21 +245,3 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
   );
 }
 
-const styles = StyleSheet.create({
-  map: { height: 360, width: '100%' },
-  fullscreen: { flex: 1, width: '100%' },
-  // Marks where the grid lands when the map comes to rest.
-  crosshair: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  crossH: { position: 'absolute', width: 24, height: 2, backgroundColor: '#2f80ed' },
-  crossV: { position: 'absolute', width: 2, height: 24, backgroundColor: '#2f80ed' },
-  locate: { position: 'absolute', right: 12, bottom: 12, alignItems: 'flex-end', gap: 6 },
-  locateButton: { backgroundColor: '#ffffff', borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  locating: { opacity: 0.6 },
-  locateError: { color: '#ffffff', backgroundColor: '#eb5757', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12 },
-  numberedPin: { width: 32, height: 40 },
-  pinHead: { position: 'absolute', top: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
-  pinTailBorder: { position: 'absolute', top: 26, left: 8, width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#ffffff' },
-  pinTail: { position: 'absolute', top: 28, left: 11, width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 10, borderLeftColor: 'transparent', borderRightColor: 'transparent' },
-  pinNumber: { fontSize: 14, fontWeight: '800', color: '#ffffff' },
-  label: { fontSize: 11, color: '#10251c', backgroundColor: '#ffffff', padding: 2, borderRadius: 3, fontWeight: '700' },
-});

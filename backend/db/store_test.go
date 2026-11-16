@@ -33,8 +33,8 @@ func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 		t.Fatal(err)
 	}
 	route := game.Route{
-		Start: game.Landmark{Title: "Start", Coordinates: p.CellBounds(p.SouthEdgeCells()[0]).Center()},
-		Stop:  game.Landmark{Title: "Stop", Coordinates: p.CellBounds(p.NorthEdgeCells()[0]).Center()},
+		Start: game.Landmark{Title: "Start", Coordinates: boundsCenter(p.CellBounds(p.SouthEdgeCells()[0]))},
+		Stop:  game.Landmark{Title: "Stop", Coordinates: boundsCenter(p.CellBounds(p.NorthEdgeCells()[0]))},
 	}
 	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, JoinCodes: game.NewJoinCodes(), Route: route}
 }
@@ -233,7 +233,7 @@ func TestPositionsAndReveals(t *testing.T) {
 		t.Fatal(err)
 	}
 	reveal := start.Add(game.RevealInterval)
-	first, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 12.5, reveal.Add(-time.Second))
+	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 12.5, reveal.Add(-time.Second))
 	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal)
 	move(t, store, token, first)
 	if before := load(t, store, saved.JoinCodes.Runner, reveal.Add(-time.Second)); before.Players[0].Position != first || len(before.Reveals) != 0 {
@@ -278,7 +278,7 @@ func TestRevealsKeepEveryReveal(t *testing.T) {
 		t.Fatal(err)
 	}
 	reveal := func(n time.Duration) time.Time { return start.Add(n * game.RevealInterval) }
-	first, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 4, reveal(1).Add(time.Second))
+	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 4, reveal(1).Add(time.Second))
 	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal(3).Add(-time.Second))
 	move(t, store, token, first)
 	move(t, store, token, second)
@@ -308,7 +308,7 @@ func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
 	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
 		t.Fatal(err)
 	}
-	before, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 4, start.Add(10*time.Second))
+	before, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 4, start.Add(10*time.Second))
 	after, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(70*time.Second))
 	move(t, store, runnerToken, before)
 	usedAt := start.Add(60 * time.Second)
@@ -350,7 +350,7 @@ func TestQueriedZoneIsStoredAndAnsweredAtTheTimeOfUse(t *testing.T) {
 	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
 		t.Fatal(err)
 	}
-	before, _ := game.NewPosition(saved.Playground.CellCenter(runner.Route.Start), 4, start.Add(10*time.Second))
+	before, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 4, start.Add(10*time.Second))
 	after, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(70*time.Second))
 	move(t, store, runnerToken, before)
 	usedAt := start.Add(60 * time.Second)
@@ -439,4 +439,10 @@ func TestPositionsOfUnstartedGamesAndLeavingPlayers(t *testing.T) {
 	if err := store.DeletePositionsBefore(ctx, now.Add(time.Nanosecond)); err != nil || count(t, store) != 0 {
 		t.Fatalf("positions of an unstarted game kept: %v", err)
 	}
+}
+
+// boundsCenter is the middle of the bounds.
+func boundsCenter(b game.Bounds) game.Coordinates {
+	c, _ := game.ParseCoordinates((b.North+b.South)/2, (b.East+b.West)/2)
+	return c
 }

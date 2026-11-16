@@ -7,15 +7,15 @@ import (
 )
 
 const (
-	MinSketchPoints = 2
-	MaxSketchPoints = 500
-	// MaxSketchesPerTeam limits how many sketches one hunter team keeps.
-	MaxSketchesPerTeam = 200
+	minSketchPoints = 2
+	maxSketchPoints = 500
+	// maxSketchesPerTeam limits how many sketches one hunter team keeps.
+	maxSketchesPerTeam = 200
 )
 
 type SketchID struct{ value string }
 
-func NewSketchID() SketchID { return SketchID{value: randomHex(16)} }
+func newSketchID() SketchID { return SketchID{value: randomHex(16)} }
 
 func ParseSketchID(id string) (SketchID, error) {
 	if !idPattern.MatchString(id) {
@@ -26,11 +26,11 @@ func ParseSketchID(id string) (SketchID, error) {
 
 func (id SketchID) String() string { return id.value }
 
-// SketchLine is a freehand line of MinSketchPoints to MaxSketchPoints points.
+// SketchLine is a freehand line of minSketchPoints to maxSketchPoints points.
 type SketchLine struct{ points []Coordinates }
 
 func NewSketchLine(points []Coordinates) (SketchLine, error) {
-	if len(points) < MinSketchPoints || len(points) > MaxSketchPoints {
+	if len(points) < minSketchPoints || len(points) > maxSketchPoints {
 		return SketchLine{}, &ValidationError{Message: "a sketch must have 2 to 500 points"}
 	}
 	return SketchLine{points: slices.Clone(points)}, nil
@@ -53,10 +53,10 @@ func (l *Lobby) AddSketch(id PlayerID, line SketchLine, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	if len(l.teamSketches(me.HunterTeam)) >= MaxSketchesPerTeam {
+	if len(l.teamSketches(me.HunterTeam)) >= maxSketchesPerTeam {
 		return &RuleError{Message: "your hunter team has reached the sketch limit, clear the map first"}
 	}
-	l.Sketches = append(l.Sketches, Sketch{ID: NewSketchID(), Team: me.HunterTeam, Line: line, CreatedAt: now})
+	l.Sketches = append(l.Sketches, Sketch{ID: newSketchID(), Team: me.HunterTeam, Line: line, CreatedAt: now})
 	return nil
 }
 

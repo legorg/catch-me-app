@@ -15,7 +15,7 @@ func TestRandomRoutesConnectOppositeEdges(t *testing.T) {
 		}
 		starts[route.Start.row] = true
 	}
-	if !starts[0] || !starts[GridSize-1] || len(starts) != 2 {
+	if !starts[0] || !starts[gridSize-1] || len(starts) != 2 {
 		t.Fatalf("routes must start on both edges and only there: %v", starts)
 	}
 }

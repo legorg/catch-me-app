@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useIsFocused } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { ApiError, getGameState, type GameStateResponse } from '@/api/client';
 import { translate } from '@/i18n';
@@ -63,4 +63,11 @@ export function useGameState() {
   const running = state?.status === 'running' || countdown === 0;
 
   return { token, snapshot, state, now, error, focused, show, fail, countdown, running };
+}
+
+/** Back in the lobby if the game is not running (e.g. a countdown that was cancelled). */
+export function useLobbyUnlessRunning(state: GameStateResponse | undefined, running: boolean) {
+  useEffect(() => {
+    if (state && !running) router.replace('/lobby');
+  }, [state, running]);
 }

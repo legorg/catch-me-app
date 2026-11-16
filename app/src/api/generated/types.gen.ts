@@ -43,48 +43,49 @@ export type ControllerGameResponse = {
 };
 
 export type ControllerGameRoute = {
-    /**
-     * Straight-line (great-circle) distance between start and stop.
-     */
     distanceMeters: number;
     start: ControllerLandmark;
     stop: ControllerLandmark;
 };
 
-export type ControllerGameStateResponse = {
+export type ControllerGameStateHunterResponse = {
     joinCodes: ControllerJoinCodes;
-    /**
-     * The requesting player's team's jokers; empty for runners (they have none yet) and hunters without a team.
-     */
     jokers: Array<ControllerJokerResponse>;
-    /**
-     * Next time hunters receive the runners' positions, present while running.
-     */
     nextRevealAt?: string;
     playerId: string;
     players: Array<ControllerPlayerResponse>;
     playground: ControllerPlayground;
-    /**
-     * The game's route between two landmarks; only runners get it, hunters have to find them.
-     */
-    route?: ControllerGameRoute;
     serverTime: string;
     sessionId: string;
-    /**
-     * The requesting hunter's team's sketches while running, oldest first; empty for everyone else.
-     */
     sketches: Array<ControllerSketchResponse>;
-    /**
-     * Explicit server-side development override; absent during normal play.
-     */
     startPositionCheckDisabled?: boolean;
-    /**
-     * Scheduled start, present during the countdown and once running.
-     */
     startsAt?: string;
-    status: 'lobby' | 'countdown' | 'running';
-    team: 'runner' | 'hunter';
+    status: ControllerGameStatus;
+    team: 'hunter';
 };
+
+export type ControllerGameStateResponse = ({
+    team: 'runner';
+} & ControllerGameStateRunnerResponse) | ({
+    team: 'hunter';
+} & ControllerGameStateHunterResponse);
+
+export type ControllerGameStateRunnerResponse = {
+    joinCodes: ControllerJoinCodes;
+    nextRevealAt?: string;
+    playerId: string;
+    players: Array<ControllerPlayerResponse>;
+    playground: ControllerPlayground;
+    route: ControllerGameRoute;
+    serverTime: string;
+    sessionId: string;
+    startPositionCheckDisabled?: boolean;
+    startsAt?: string;
+    status: ControllerGameStatus;
+    team: 'runner';
+};
+
+export type ControllerGameStatus = 'lobby' | 'countdown' | 'running';
 
 export type ControllerHealthResponse = {
     service: 'catch-me-backend';
@@ -106,6 +107,8 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
+export type ControllerJokerKind = 'showRunners' | 'queryZone';
+
 export type ControllerJokerPositionResponse = {
     accuracyMeters: number;
     latitude: number;
@@ -115,52 +118,27 @@ export type ControllerJokerPositionResponse = {
 };
 
 export type ControllerJokerResponse = {
-    /**
-     * True while the game runs and the team has not used it yet.
-     */
     available: boolean;
-    /**
-     * queryZone, once used: the queried cell and whether any runner was inside it at usedAt.
-     */
     cell?: string;
     found?: boolean;
-    kind: 'showRunners' | 'queryZone';
-    /**
-     * What the joker showed (showRunners: each runner's position at usedAt), once used.
-     */
+    kind: ControllerJokerKind;
     positions?: Array<ControllerJokerPositionResponse>;
-    /**
-     * Set once the team used it.
-     */
     usedAt?: string;
 };
 
 export type ControllerLandmark = {
     coordinates: ControllerCoordinates;
-    /**
-     * Name of the place, e.g. a landmark.
-     */
     title: string;
 };
 
 export type ControllerPlayerResponse = {
-    /**
-     * Present for hunters who have chosen a hunter team.
-     */
     hunterTeam?: string;
     name: string;
     playerId: string;
-    /**
-     * Live position: own always; hunter teammates' always; runner teammates'
-     * while running. Hunters see runners through reveals instead.
-     */
     position?: ControllerPositionResponse;
     ready: boolean;
-    /**
-     * Hunters only, for runners while running: every reveal so far, oldest first.
-     */
     reveals?: Array<ControllerRevealResponse>;
-    team: 'runner' | 'hunter';
+    team: ControllerTeam;
 };
 
 export type ControllerPlayground = {
@@ -205,6 +183,8 @@ export type ControllerSketchResponse = {
     sketchId: string;
 };
 
+export type ControllerTeam = 'runner' | 'hunter';
+
 export type ControllerUpdatePositionRequest = {
     accuracyMeters: number;
     latitude: number;
@@ -212,11 +192,8 @@ export type ControllerUpdatePositionRequest = {
 };
 
 export type ControllerUseJokerRequest = {
-    /**
-     * The cell to query (queryZone only): column A-F, then row 1-6.
-     */
     cell?: string;
-    kind: 'showRunners' | 'queryZone';
+    kind: ControllerJokerKind;
 };
 
 export type CreateGameData = {
@@ -299,8 +276,10 @@ export type LeaveGameResponses = {
     /**
      * Left the game; the token is no longer valid
      */
-    204: unknown;
+    204: void;
 };
+
+export type LeaveGameResponse = LeaveGameResponses[keyof LeaveGameResponses];
 
 export type GetGameStateData = {
     body?: never;

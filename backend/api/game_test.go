@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -128,43 +129,81 @@ func TestCreateGameCellSizes(t *testing.T) {
 
 // Smoke test only: ensure the generated contract describes the real routes.
 func TestOpenAPIRoutes(t *testing.T) {
-	data, err := os.ReadFile("swagger.json")
+	data, err := os.ReadFile("openapi.json")
 	if err != nil {
 		t.Fatal(err)
 	}
+	type schema struct {
+		Ref           string `json:"$ref"`
+		Required      []string
+		OneOf         []schema `json:"oneOf"`
+		Enum          []any
+		Properties    map[string]schema
+		Discriminator struct {
+			PropertyName string `json:"propertyName"`
+		}
+	}
 	var spec struct {
-		Swagger string
+		OpenAPI string
 		Paths   map[string]map[string]struct {
 			OperationID string `json:"operationId"`
+			Security    []map[string][]string
 			Responses   map[string]struct {
-				Schema struct {
-					Ref string `json:"$ref"`
-				}
+				Content map[string]struct{ Schema schema }
 			}
 		}
-		Definitions map[string]struct{ Required []string }
+		Components struct {
+			Schemas         map[string]schema
+			SecuritySchemes map[string]struct{ Type, Name, In string }
+		}
 	}
 	if err := json.Unmarshal(data, &spec); err != nil {
 		t.Fatal(err)
 	}
-	if spec.Swagger != "2.0" {
-		t.Fatal("expected Swagger 2.0")
+	if !strings.HasPrefix(spec.OpenAPI, "3.1") {
+		t.Fatalf("expected OpenAPI 3.1, got %q", spec.OpenAPI)
 	}
+	if scheme := spec.Components.SecuritySchemes["PlayerToken"]; scheme.Type != "apiKey" || scheme.In != "header" || scheme.Name != "Authorization" {
+		t.Fatalf("unexpected player token scheme: %+v", scheme)
+	}
+	const union = "ControllerGameStateResponse"
 	for _, tc := range []struct{ path, method, id, status, schema string }{
-		{"/health", "get", "getHealth", "200", "controller.HealthResponse"},
-		{"/api/games", "post", "createGame", "201", "controller.CreateGameResponse"},
-		{"/api/players", "post", "joinGame", "201", "controller.JoinGameResponse"},
-		{"/api/me/game", "get", "getGameState", "200", "controller.GameStateResponse"},
-		{"/api/me/ready", "put", "setReady", "200", "controller.GameStateResponse"},
-		{"/api/me/route", "post", "regenerateRoute", "200", "controller.GameStateResponse"},
-		{"/api/me/hunter-team", "put", "setHunterTeam", "200", "controller.GameStateResponse"},
-		{"/api/me/position", "put", "updatePosition", "200", "controller.GameStateResponse"},
-		{"/api/me/sketches", "post", "addSketch", "200", "controller.GameStateResponse"},
-		{"/api/me/sketches", "delete", "clearSketches", "200", "controller.GameStateResponse"},
+		{"/health", "get", "getHealth", "200", "ControllerHealthResponse"},
+		{"/api/games", "post", "createGame", "201", "ControllerCreateGameResponse"},
+		{"/api/players", "post", "joinGame", "201", "ControllerJoinGameResponse"},
+		{"/api/me/game", "get", "getGameState", "200", union},
+		{"/api/me/ready", "put", "setReady", "200", union},
+		{"/api/me/route", "post", "regenerateRoute", "200", union},
+		{"/api/me/hunter-team", "put", "setHunterTeam", "200", union},
+		{"/api/me/position", "put", "updatePosition", "200", union},
+		{"/api/me/jokers", "post", "activateJoker", "200", union},
+		{"/api/me/sketches", "post", "addSketch", "200", union},
+		{"/api/me/sketches", "delete", "clearSketches", "200", union},
 	} {
 		operation := spec.Paths[tc.path][tc.method]
-		if operation.OperationID != tc.id || operation.Responses[tc.status].Schema.Ref != "#/definitions/"+tc.schema || len(spec.Definitions[tc.schema].Required) == 0 {
+		ref := operation.Responses[tc.status].Content["application/json"].Schema.Ref
+		defined := spec.Components.Schemas[tc.schema]
+		if operation.OperationID != tc.id || ref != "#/components/schemas/"+tc.schema ||
+			(tc.schema != union && len(defined.Required) == 0) {
 			t.Fatalf("missing operation/schema: %s %s", tc.method, tc.path)
+		}
+		if secured := strings.HasPrefix(tc.path, "/api/me"); secured != (len(operation.Security) > 0) {
+			t.Fatalf("wrong security requirement: %s %s", tc.method, tc.path)
+		}
+	}
+	if _, ok := spec.Paths["/api/me"]["delete"].Responses["204"]; !ok {
+		t.Fatal("leaving the game must respond 204")
+	}
+
+	state := spec.Components.Schemas[union]
+	if len(state.OneOf) != 2 || state.Discriminator.PropertyName != "team" {
+		t.Fatalf("the game state must be a oneOf discriminated by team: %+v", state)
+	}
+	for i, team := range []string{"runner", "hunter"} {
+		name := strings.TrimPrefix(state.OneOf[i].Ref, "#/components/schemas/")
+		variant := spec.Components.Schemas[name]
+		if got := variant.Properties["team"].Enum; len(got) != 1 || got[0] != team || !slices.Contains(variant.Required, "team") {
+			t.Fatalf("%s must have team %q only: %+v", name, team, variant.Properties["team"])
 		}
 	}
 }

@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   ApiError, MAX_NAME_LENGTH, isValidPlayerName, joinGame, setHunterTeam, setReady, updatePosition, type JoinCodes,
 } from '@/api/client';
-import type { Bounds, Coordinates } from '@/api/types';
+import { isGameStateRunnerResponse, type Bounds, type Coordinates } from '@/api/types';
 import Button from '@/components/button';
 import { colors, styles } from '@/styles';
 
@@ -78,7 +78,7 @@ export default function DebugAddPlayer({ codes }: { codes: JoinCodes }) {
       if (team === 'hunter') await setHunterTeam(playerToken, hunterTeam);
       if (ready) await setReady(playerToken, true);
       const { bounds } = state.playground;
-      addBot(name.trim(), { token: playerToken, bounds, position: state.route?.start.coordinates ?? randomIn(bounds), heading: Math.random() * 2 * Math.PI });
+      addBot(name.trim(), { token: playerToken, bounds, position: (isGameStateRunnerResponse(state) ? state.route.start.coordinates : randomIn(bounds)), heading: Math.random() * 2 * Math.PI });
       setMessage(`Added ${name.trim()}; it reports a position every 5 seconds.`);
       setName(nextName(name));
     } catch (err) {
@@ -93,7 +93,7 @@ export default function DebugAddPlayer({ codes }: { codes: JoinCodes }) {
       <Button label="Debug: add player" variant="secondary" onPress={() => setOpen(true)} />
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <SafeAreaProvider>
-          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 }} onPress={() => setOpen(false)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
             <Pressable style={styles.card} onPress={() => {}}>
               <Text style={styles.heading}>Debug: add player</Text>
               <TextInput value={name} onChangeText={setName} maxLength={MAX_NAME_LENGTH} autoCorrect={false} placeholder="Name" placeholderTextColor={colors.placeholder} style={styles.input} />

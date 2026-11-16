@@ -24,6 +24,7 @@
     "@types/react": "~19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
+    "knip": "6.44.2",
     "tsx": "4.23.15",
     "typescript": "~6.0.3"
   },
@@ -33,8 +34,10 @@
     "ios": "expo run:ios",
     "lint": "eslint src tests openapi-ts.config.mjs app.config.js",
     "typecheck": "tsc --noEmit",
+    "knip": "knip",
     "api:generate": "openapi-ts",
-    "test:api": "tsx --test tests/api-client.test.ts tests/playground.test.ts tests/lobby.test.ts tests/i18n.test.ts"
+    "test:api": "tsx --test tests/api-client.test.ts tests/playground.test.ts tests/lobby.test.ts tests/i18n.test.ts",
+    "test:lint-rules": "node --test eslint-rules/*.test.js"
   },
   "private": true,
   "engines": {

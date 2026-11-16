@@ -9,17 +9,7 @@ import (
 
 func NewHandler(games *controller.GameController) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", controller.Health)
-	mux.HandleFunc("/api/games", games.Create)
-	mux.HandleFunc("/api/players", games.Join)
-	mux.HandleFunc("/api/me", games.Leave)
-	mux.HandleFunc("/api/me/game", games.State)
-	mux.HandleFunc("/api/me/ready", games.SetReady)
-	mux.HandleFunc("/api/me/route", games.RegenerateRoute)
-	mux.HandleFunc("/api/me/hunter-team", games.SetHunterTeam)
-	mux.HandleFunc("/api/me/position", games.UpdatePosition)
-	mux.HandleFunc("/api/me/jokers", games.UseJoker)
-	mux.HandleFunc("/api/me/sketches", games.Sketches)
+	mount(mux, operations(games))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		controller.WriteError(w, http.StatusNotFound, "not found")
 	})

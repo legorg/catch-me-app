@@ -8,7 +8,7 @@ import { DEFAULT_CELL_SIZE_METERS, DEFAULT_CENTER, parseCellSizeKm, previewPlayg
 import { useCurrentPosition } from '@/use-current-position';
 
 // Own messages are kept as keys, so they follow a language switch; error texts are shown as received.
-export type Message = { key: MessageKey } | { text: string };
+type Message = { key: MessageKey } | { text: string };
 type Status = { message: Message; error: boolean; busy: boolean };
 
 /** State and actions of the create-game screen: choosing the grid, creating the game, and joining it. */

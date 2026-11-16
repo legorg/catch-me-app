@@ -23,15 +23,21 @@ func TestGameStateShowsSketchesToTheOwnHunterTeamOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Sketches
+	bobState, ok := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
+	if !ok {
+		t.Fatal("a hunter must get the hunter state")
+	}
+	got := bobState.Sketches
 	if len(got) != 1 || len(got[0].SketchID) != 32 || !got[0].CreatedAt.Equal(now) ||
 		len(got[0].Points) != 2 || got[0].Points[1] != (Coordinates{Latitude: 52.53, Longitude: 13.415}) {
 		t.Fatalf("the team's sketch is missing: %+v", got)
 	}
-	for _, viewer := range []game.Player{ada, eve} {
-		if got := gameStateResponse(service.PlayerView{Lobby: lobby, Me: viewer, Now: now}).Sketches; got == nil || len(got) != 0 {
-			t.Fatalf("%s must get an empty list: %+v", viewer.Team, got)
-		}
+	if _, ok := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Hunter(); ok {
+		t.Fatal("a runner must not get the hunter state")
+	}
+	eveState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: eve, Now: now}).Hunter()
+	if eveState.Sketches == nil || len(eveState.Sketches) != 0 {
+		t.Fatalf("another hunter team must get an empty list: %+v", eveState.Sketches)
 	}
 }
 
@@ -46,7 +52,8 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Jokers
+	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
+	got := bobState.Jokers
 	if len(got) != 2 || got[0].Kind != "showRunners" || got[0].Cell != "" || got[0].Found != nil {
 		t.Fatalf("an unused joker has no answer: %+v", got)
 	}

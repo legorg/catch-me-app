@@ -8,7 +8,7 @@ import (
 
 const (
 	CountdownDuration = 10 * time.Second
-	MaxPlayers        = 30
+	maxPlayers        = 30
 )
 
 type Status string
@@ -73,10 +73,10 @@ func (l *Lobby) Join(code JoinCode, name PlayerName, token PlayerToken, now time
 	if err := l.requireNotStarted(now); err != nil {
 		return Player{}, err
 	}
-	if len(l.Players) >= MaxPlayers {
+	if len(l.Players) >= maxPlayers {
 		return Player{}, &RuleError{Message: "game is full"}
 	}
-	if slices.ContainsFunc(l.Players, func(p Player) bool { return p.Name.SameAs(name) }) {
+	if slices.ContainsFunc(l.Players, func(p Player) bool { return p.Name.sameAs(name) }) {
 		return Player{}, &RuleError{Message: "name is already taken in this game"}
 	}
 	player := Player{ID: NewPlayerID(), Name: name, Team: team, TokenHash: token.Hash(), JoinedAt: now}
@@ -134,7 +134,7 @@ func (l *Lobby) SetHunterTeam(id PlayerID, name HunterTeamName, now time.Time) e
 		return &RuleError{Message: "set yourself not ready before changing your team"}
 	}
 	for _, p := range l.Players {
-		if p.HunterTeam.SameAs(name) {
+		if p.HunterTeam.sameAs(name) {
 			name = p.HunterTeam // Keep the existing spelling.
 			break
 		}
@@ -183,16 +183,16 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 }
 
 // requireAtStart checks that a runner recently reported a position within
-// StartRadiusMeters of the route's start. Hunters always pass.
+// startRadiusMeters of the route's start. Hunters always pass.
 func (l Lobby) requireAtStart(p Player, now time.Time) error {
 	if p.Team != Runners {
 		return nil
 	}
-	if p.Position.IsZero() || now.Sub(p.Position.RecordedAt) > StartPositionMaxAge {
+	if p.Position.IsZero() || now.Sub(p.Position.RecordedAt) > startPositionMaxAge {
 		return &RuleError{Message: "share your location to get ready"}
 	}
-	if p.Position.Coordinates.DistanceMeters(l.Game.Route.Start.Coordinates) > StartRadiusMeters {
-		return &RuleError{Message: fmt.Sprintf("go to within %d meters of the start to get ready", StartRadiusMeters)}
+	if p.Position.Coordinates.DistanceMeters(l.Game.Route.Start.Coordinates) > startRadiusMeters {
+		return &RuleError{Message: fmt.Sprintf("go to within %d meters of the start to get ready", startRadiusMeters)}
 	}
 	return nil
 }

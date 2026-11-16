@@ -27,8 +27,9 @@ func send(t *testing.T, handler http.Handler, method, path, token, body string) 
 
 // ownEntry is the requester's player entry. Joins can share a timestamp, so the order is not fixed.
 func ownEntry(state controller.GameStateResponse) controller.PlayerResponse {
-	for _, p := range state.Players {
-		if p.PlayerID == state.PlayerID {
+	base := state.Base()
+	for _, p := range base.Players {
+		if p.PlayerID == base.PlayerID {
 			return p
 		}
 	}
@@ -55,17 +56,19 @@ func TestLobbyFlow(t *testing.T) {
 
 	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "",
 		`{"code":" `+codes.Runner+` ","name":" Ada "}`), 201)
-	if len(runner.PlayerToken) != 64 || runner.State.Team != "runner" || runner.State.JoinCodes != codes ||
-		runner.State.Status != "lobby" || runner.State.StartsAt != nil || runner.State.SessionID != created.Game.SessionID ||
-		len(runner.State.Players) != 1 || runner.State.Players[0].Name != "Ada" || runner.State.PlayerID != runner.State.Players[0].PlayerID {
+	runnerState, isRunner := runner.State.Runner()
+	runnerBase := runner.State.Base()
+	if len(runner.PlayerToken) != 64 || !isRunner || runnerState.Team != "runner" || runnerBase.JoinCodes != codes ||
+		runnerBase.Status != "lobby" || runnerBase.StartsAt != nil || runnerBase.SessionID != created.Game.SessionID ||
+		len(runnerBase.Players) != 1 || runnerBase.Players[0].Name != "Ada" || runnerBase.PlayerID != runnerBase.Players[0].PlayerID {
 		t.Fatalf("unexpected join response: %+v", runner)
 	}
 	hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+codes.Hunter+`","name":"Bob"}`), 201)
-	if runner.State.Route == nil || *runner.State.Route != created.Game.Route || created.Game.Route.DistanceMeters <= 0 {
-		t.Fatalf("runner must get the game route: %+v %+v", runner.State.Route, created.Game.Route)
+	if runnerState.Route != created.Game.Route || created.Game.Route.DistanceMeters <= 0 {
+		t.Fatalf("runner must get the game route: %+v %+v", runnerState.Route, created.Game.Route)
 	}
-	if hunter.State.Route != nil {
-		t.Fatalf("hunter must not get the route: %+v", hunter.State.Route)
+	if _, isRunner := hunter.State.Runner(); isRunner {
+		t.Fatalf("hunter must not get the runner state: %+v", hunter.State)
 	}
 	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"route"`) {
 		t.Fatal("hunter state leaks the route")
@@ -75,10 +78,10 @@ func TestLobbyFlow(t *testing.T) {
 
 	stateRecorder := send(t, handler, "GET", "/api/me/game", runner.PlayerToken, "")
 	state := decode[controller.GameStateResponse](t, stateRecorder, 200)
-	if len(state.Players) != 2 || state.Playground != created.Game.Playground {
+	if len(state.Base().Players) != 2 || state.Base().Playground != created.Game.Playground {
 		t.Fatalf("unexpected state: %+v", state)
 	}
-	if state.JoinCodes != codes || strings.Contains(stateRecorder.Body.String(), runner.PlayerToken) {
+	if state.Base().JoinCodes != codes || strings.Contains(stateRecorder.Body.String(), runner.PlayerToken) {
 		t.Fatal("state must show both join codes and never a token")
 	}
 
@@ -97,7 +100,8 @@ func TestLobbyFlow(t *testing.T) {
 	decode[controller.APIError](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 409)
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
 	state = decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
-	if state.Status != "countdown" || state.StartsAt == nil || state.ServerTime.IsZero() || state.Team != "hunter" {
+	_, isHunter := state.Hunter()
+	if state.Base().Status != "countdown" || state.Base().StartsAt == nil || state.Base().ServerTime.IsZero() || !isHunter {
 		t.Fatalf("countdown not started: %+v", state)
 	}
 
@@ -108,7 +112,7 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatalf("left player still authorized: %d", recorder.Code)
 	}
 	state = decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
-	if state.Status != "lobby" || state.StartsAt != nil || len(state.Players) != 1 {
+	if state.Base().Status != "lobby" || state.Base().StartsAt != nil || len(state.Base().Players) != 1 {
 		t.Fatalf("leave did not cancel countdown: %+v", state)
 	}
 }
@@ -123,7 +127,7 @@ func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
 	countdown := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/ready", hunter.PlayerToken, `{"ready":true}`), 200)
 	for _, body := range []string{`{"latitude":1,"longitude":2,"accuracyMeters":8}`, `{"latitude":3,"longitude":4,"accuracyMeters":8}`} {
 		state := decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/position", runner.PlayerToken, body), 200)
-		if !state.StartPositionCheckDisabled || state.Status != "countdown" || !state.StartsAt.Equal(*countdown.StartsAt) || !ownEntry(state).Ready {
+		if !state.Base().StartPositionCheckDisabled || state.Base().Status != "countdown" || !state.Base().StartsAt.Equal(*countdown.Base().StartsAt) || !ownEntry(state).Ready {
 			t.Fatal("test override failed to preserve readiness and countdown")
 		}
 		var reported struct{ Latitude, Longitude float64 }
@@ -139,7 +143,7 @@ func TestStartPositionOverrideKeepsRealLocationUpdates(t *testing.T) {
 type centerLandmarks struct{}
 
 func (centerLandmarks) Landmarks(_ context.Context, cell game.Bounds) ([]game.Landmark, error) {
-	return []game.Landmark{{Title: "Center", Coordinates: cell.Center()}}, nil
+	return []game.Landmark{{Title: "Center", Coordinates: boundsCenter(cell)}}, nil
 }
 
 func TestLobbyErrors(t *testing.T) {
@@ -205,17 +209,20 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "GET", "/api/me/jokers", hunter.PlayerToken, ""), 405)
-	for _, token := range []string{runner.PlayerToken, hunter.PlayerToken} {
-		state := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", token, ""), 200)
-		if state.Jokers == nil || len(state.Jokers) != 0 {
-			t.Fatalf("a player without a hunter team has no jokers: %+v", state.Jokers)
-		}
+	runnerGame := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
+	if _, isHunter := runnerGame.Hunter(); isHunter {
+		t.Fatalf("a runner has no jokers: %+v", runnerGame)
+	}
+	teamless := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
+	if h, _ := teamless.Hunter(); h.Jokers == nil || len(h.Jokers) != 0 {
+		t.Fatalf("a hunter without a team has no jokers: %+v", h.Jokers)
 	}
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
-	state := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
-	if len(state.Jokers) != 2 || state.Jokers[0].Kind != "showRunners" || state.Jokers[1].Kind != "queryZone" ||
-		state.Jokers[0].Available || state.Jokers[1].Available || state.Jokers[0].UsedAt != nil || state.Jokers[1].Found != nil {
-		t.Fatalf("a hunter team has both jokers, unavailable before the game runs: %+v", state.Jokers)
+	hunterGame := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
+	jokers := func() []controller.JokerResponse { h, _ := hunterGame.Hunter(); return h.Jokers }()
+	if len(jokers) != 2 || jokers[0].Kind != "showRunners" || jokers[1].Kind != "queryZone" ||
+		jokers[0].Available || jokers[1].Available || jokers[0].UsedAt != nil || jokers[1].Found != nil {
+		t.Fatalf("a hunter team has both jokers, unavailable before the game runs: %+v", jokers)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"queryZone","cell":"C4"}`), 409)
 }
@@ -251,9 +258,18 @@ func TestSketchesRefuseWhatTheRulesForbid(t *testing.T) {
 			}
 		})
 	}
-	for _, token := range []string{runner.PlayerToken, hunter.PlayerToken} {
-		if state := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", token, ""), 200); state.Sketches == nil || len(state.Sketches) != 0 {
-			t.Fatalf("sketches must be an empty list: %+v", state.Sketches)
-		}
+	runnerGame := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
+	if _, isHunter := runnerGame.Hunter(); isHunter {
+		t.Fatalf("a runner has no sketches: %+v", runnerGame)
 	}
+	hunterGame := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
+	if h, _ := hunterGame.Hunter(); h.Sketches == nil || len(h.Sketches) != 0 {
+		t.Fatalf("sketches must be an empty list: %+v", h.Sketches)
+	}
+}
+
+// boundsCenter is the middle of the bounds.
+func boundsCenter(b game.Bounds) game.Coordinates {
+	c, _ := game.ParseCoordinates((b.North+b.South)/2, (b.East+b.West)/2)
+	return c
 }

@@ -21,19 +21,6 @@ func NewGameController(service *service.GameService) *GameController {
 }
 
 // Create saves a playground and returns its session ID and join codes.
-// @Summary Create a 6 by 6 playground with adjustable cell size (default 2000 meters)
-// @ID createGame
-// @Accept json
-// @Produce json
-// @Param body body CreateGameRequest true "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings"
-// @Success 201 {object} CreateGameResponse "Game saved, with one join code per team"
-// @Failure 400 {object} APIError "Invalid JSON, coordinates, or cell size"
-// @Failure 413 {object} APIError "Request body exceeds 1024 bytes"
-// @Failure 405 {object} APIError "Method not allowed"
-// @Failure 422 {object} APIError "No landmark found at the edges of the playground"
-// @Failure 500 {object} APIError "Could not save game"
-// @Failure 503 {object} APIError "Landmark lookup failed"
-// @Router /api/games [post]
 func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
@@ -75,7 +62,7 @@ func (body CreateGameRequest) parse() (game.Coordinates, game.CellSize, error) {
 
 func gameResponse(saved game.Game) GameResponse {
 	response := GameResponse{
-		SessionID: saved.SessionID.String(), CreatedAt: saved.CreatedAt,
+		SessionID: SessionID(saved.SessionID.String()), CreatedAt: saved.CreatedAt,
 		Playground: playgroundResponse(saved.Playground),
 	}
 	response.Route = gameRouteResponse(saved.Route)
@@ -164,4 +151,11 @@ func allowMethods(w http.ResponseWriter, r *http.Request, methods ...string) boo
 	w.Header().Set("Allow", strings.Join(methods, ", "))
 	WriteError(w, http.StatusMethodNotAllowed, "method not allowed")
 	return false
+}
+
+func positionResponse(p game.Position) PositionResponse {
+	return PositionResponse{
+		Coordinates:    Coordinates{Latitude: p.Coordinates.Latitude(), Longitude: p.Coordinates.Longitude()},
+		AccuracyMeters: p.AccuracyMeters, RecordedAt: p.RecordedAt,
+	}
 }

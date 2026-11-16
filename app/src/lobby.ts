@@ -1,6 +1,6 @@
-import type { GameStateResponse, PlayerResponse } from './api/types';
+import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type PlayerResponse, type Playground } from './api/types';
 import { getLanguage, translate } from './i18n';
-import { cellBounds } from './playground';
+import { cellAt, cellBounds } from './playground';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -75,7 +75,7 @@ export function revealMarkers(state: GameStateResponse): (PlayerMarker & { label
 }
 
 /** Markers for what the team's used jokers showed: each runner where they were when it was used, and the queried zone with its answer. */
-export function jokerMarkers(state: GameStateResponse): PlayerMarker[] {
+export function jokerMarkers(state: GameStateHunterResponse): PlayerMarker[] {
   return state.jokers.flatMap((joker) => [
     ...(joker.positions ?? []).map((position) => ({
       id: `joker-${joker.kind}-${position.playerId}`,
@@ -98,11 +98,11 @@ export function jokerMarkers(state: GameStateResponse): PlayerMarker[] {
 }
 
 /** The cells the team queried, colored by the answer: green with a runner inside, red without. */
-export function jokerZones(state: GameStateResponse): { cell: string; title: string; color: string }[] {
+export function jokerZones(state: GameStateHunterResponse): { cell: string; title: string; color: string }[] {
   return queriedZones(state.jokers);
 }
 
-function queriedZones(jokers: GameStateResponse['jokers']) {
+function queriedZones(jokers: GameStateHunterResponse['jokers']) {
   return jokers.flatMap((joker) => joker.cell && joker.found !== undefined ? [{
     cell: joker.cell,
     title: translate(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell }),
@@ -121,8 +121,53 @@ export function thinPoints<T>(points: T[], max: number): T[] {
 }
 
 /** The lines the player's hunter team drew; the server sends them only to that team. */
-export function sketchLines(state: GameStateResponse): { id: string; coordinates: { latitude: number; longitude: number }[]; color: string }[] {
+export function sketchLines(state: GameStateHunterResponse): { id: string; coordinates: { latitude: number; longitude: number }[]; color: string }[] {
   return state.sketches.map((sketch) => ({ id: sketch.sketchId, coordinates: sketch.points, color: SKETCH_COLOR }));
+}
+
+/** Start and target colors on the map; the same values as colors.start / colors.target (styles.ts cannot be loaded by the node tests). */
+export const ROUTE_COLORS = { start: '#2f80ed', target: '#eb5757' } as const;
+
+/** The route's start and stop names, falling back to the generic labels. */
+export function routeTitles(route: GameRoute): { start: string; stop: string } {
+  return { start: route.start.title || translate('lobby.start'), stop: route.stop.title || translate('lobby.target') };
+}
+
+/** The grid cells of the route's start and stop (each left out when it lies outside the playground). */
+export function routeHighlights(playground: Playground, route: GameRoute): { cell: string; title: string; color: string }[] {
+  const titles = routeTitles(route);
+  const start = cellAt(playground, route.start.coordinates);
+  const stop = cellAt(playground, route.stop.coordinates);
+  return [
+    ...(start ? [{ cell: start, title: titles.start, color: ROUTE_COLORS.start }] : []),
+    ...(stop ? [{ cell: stop, title: titles.stop, color: ROUTE_COLORS.target }] : []),
+  ];
+}
+
+/** Map markers for the route's start and stop. */
+export function routeMarkers(route: GameRoute): PlayerMarker[] {
+  const titles = routeTitles(route);
+  return [
+    { id: 'route-start', coordinate: route.start.coordinates, title: titles.start, description: translate('lobby.start'), color: ROUTE_COLORS.start },
+    { id: 'route-stop', coordinate: route.stop.coordinates, title: titles.stop, description: translate('lobby.target'), color: ROUTE_COLORS.target },
+  ];
+}
+
+/** Every highlighted cell the player's team may see: the route (runners) or the queried zones (hunters). */
+export function gameHighlights(state: GameStateResponse) {
+  if (isGameStateRunnerResponse(state)) return routeHighlights(state.playground, state.route);
+  if (isGameStateHunterResponse(state)) return jokerZones(state);
+  return [];
+}
+
+/** Every marker the player's team may see, other players' live positions last (the player's own position is the device's). */
+export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
+  return [
+    ...(isGameStateRunnerResponse(state) ? routeMarkers(state.route) : []),
+    ...revealMarkers(state),
+    ...(isGameStateHunterResponse(state) ? jokerMarkers(state) : []),
+    ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),
+  ];
 }
 
 function clockTime(iso: string, seconds = false): string {

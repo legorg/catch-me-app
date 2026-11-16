@@ -12,14 +12,15 @@ import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import FullscreenMap from '@/components/fullscreen-map';
 import { type CellHighlight, type MapMarker } from '@/components/playground-map';
 import { translateParts, useT } from '@/i18n';
+import { isGameStateRunnerResponse } from '@/api/types';
 import { hunterTeams, playerMarkers, playersByTeam } from '@/lobby';
 import { cellAt, distanceMeters, START_RADIUS_METERS } from '@/playground';
 import { colors, styles } from '@/styles';
 import { goHome, useGameState } from '@/use-game-state';
 import { useLocationSharing, type Fix } from '@/use-location-sharing';
 
-const START_COLOR = '#2f80ed';
-const TARGET_COLOR = '#eb5757';
+const START_COLOR = colors.start;
+const TARGET_COLOR = colors.target;
 
 export default function LobbyScreen() {
   const t = useT();
@@ -70,8 +71,8 @@ export default function LobbyScreen() {
 
   const me = state.players.find((p) => p.playerId === state.playerId);
   const teams = playersByTeam(state.players);
-  const route = state.route;
-  const isRunner = state.team === 'runner';
+  const route = isGameStateRunnerResponse(state) ? state.route : undefined;
+  const isRunner = isGameStateRunnerResponse(state);
   // The server only sends the route to runners.
   const metersToStart = route && me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
   const atStart = metersToStart !== null && metersToStart <= START_RADIUS_METERS;
@@ -101,10 +102,10 @@ export default function LobbyScreen() {
     <>
       {/* Covers everything until the game screen replaces the lobby; un-readying or leaving closes it. */}
       <Modal visible={countdown !== null && countdown > 0} animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
-        <View style={[styles.screen, { alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }]}>
+        <View style={[styles.screen, styles.countdownScreen]}>
           <Text style={styles.heading}>{t('lobby.countdownTitle')}</Text>
-          <Text accessibilityLiveRegion="polite" style={{ color: colors.accent, fontSize: 160, fontWeight: '800' }}>{countdown}</Text>
-          <Text style={[styles.hint, { textAlign: 'center' }]}>{t('lobby.countdownHint')}</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.countdown}>{countdown}</Text>
+          <Text style={[styles.hint, styles.centerText]}>{t('lobby.countdownHint')}</Text>
         </View>
       </Modal>
       <KeyboardScrollView>
@@ -156,8 +157,8 @@ export default function LobbyScreen() {
           <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
           <Text style={styles.text}>
             {translateParts('lobby.route', {
-              start: <Text key="start" style={[styles.heading, { color: START_COLOR }]}>{route.start.title || t('lobby.start')}</Text>,
-              stop: <Text key="stop" style={[styles.heading, { color: TARGET_COLOR }]}>{route.stop.title || t('lobby.target')}</Text>,
+              start: <Text key="start" style={[styles.heading, styles.startText]}>{route.start.title || t('lobby.start')}</Text>,
+              stop: <Text key="stop" style={[styles.heading, styles.targetText]}>{route.stop.title || t('lobby.target')}</Text>,
               distance: (route.distanceMeters / 1000).toFixed(1),
             })}
           </Text>

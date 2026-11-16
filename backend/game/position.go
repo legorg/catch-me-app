@@ -2,17 +2,19 @@ package game
 
 import (
 	"time"
+
+	"catch-me/backend/geo"
 )
 
 const (
-	MaxAccuracyMeters = 10000
+	maxAccuracyMeters = 10000
 	// RevealInterval is how often hunters receive the runners' positions.
 	RevealInterval = 30 * time.Second
-	// StartPositionMaxAge is how recent a runner's position must be to prove they
+	// startPositionMaxAge is how recent a runner's position must be to prove they
 	// are at the start of the route.
-	StartPositionMaxAge = 30 * time.Second
-	// StartRadiusMeters is how close to the route's start a runner must be to get ready.
-	StartRadiusMeters = 50
+	startPositionMaxAge = 30 * time.Second
+	// startRadiusMeters is how close to the route's start a runner must be to get ready.
+	startRadiusMeters = 50
 	// PositionRetention is how long reported positions and sketches are kept after
 	// a game's start (or creation, if it never started), for a replay after the game.
 	PositionRetention = 7 * 24 * time.Hour
@@ -27,7 +29,7 @@ type Position struct {
 }
 
 func NewPosition(coordinates Coordinates, accuracyMeters float64, recordedAt time.Time) (Position, error) {
-	if !(accuracyMeters >= 0 && accuracyMeters <= MaxAccuracyMeters) {
+	if !(accuracyMeters >= 0 && accuracyMeters <= maxAccuracyMeters) {
 		return Position{}, &ValidationError{Message: "accuracy must be between 0 and 10000 meters"}
 	}
 	return Position{Coordinates: coordinates, AccuracyMeters: accuracyMeters, RecordedAt: recordedAt}, nil
@@ -45,27 +47,13 @@ func (r Reveal) IsZero() bool { return r.At.IsZero() }
 
 // CellAt returns the grid cell containing the coordinates, if inside the playground.
 func (p Playground) CellAt(c Coordinates) (Cell, bool) {
-	b := p.bounds
-	if !(c.latitude <= b.North && c.latitude >= b.South && c.longitude >= b.West && c.longitude <= b.East) {
-		return Cell{}, false
-	}
-	row := int((b.North - c.latitude) / (b.North - b.South) * GridSize)
-	column := int((c.longitude - b.West) / (b.East - b.West) * GridSize)
-	return Cell{column: min(column, GridSize-1), row: min(row, GridSize-1)}, true
+	row, column, ok := geo.Bounds(p.bounds).CellAt(gridSize, c.latitude, c.longitude)
+	return Cell{column: column, row: row}, ok
 }
 
-// CellCenter is the center of a grid cell.
-func (p Playground) CellCenter(c Cell) Coordinates {
-	b := p.bounds
-	return Coordinates{
-		latitude:  b.North - (b.North-b.South)*(float64(c.row)+0.5)/GridSize,
-		longitude: b.West + (b.East-b.West)*(float64(c.column)+0.5)/GridSize,
-	}
-}
-
-// LatestReveal is the most recent reveal time, or zero before the first one.
+// latestReveal is the most recent reveal time, or zero before the first one.
 // Reveals happen every RevealInterval after the start.
-func (g Game) LatestReveal(now time.Time) time.Time {
+func (g Game) latestReveal(now time.Time) time.Time {
 	if g.Status(now) != StatusRunning {
 		return time.Time{}
 	}
@@ -78,7 +66,7 @@ func (g Game) LatestReveal(now time.Time) time.Time {
 
 // RevealTimes are all reveal times up to now, oldest first; empty before the first one.
 func (g Game) RevealTimes(now time.Time) []time.Time {
-	latest := g.LatestReveal(now)
+	latest := g.latestReveal(now)
 	if latest.IsZero() {
 		return nil
 	}

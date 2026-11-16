@@ -9,6 +9,8 @@ const SEND_INTERVAL_MS = 5000;
 // A fix without accuracy is treated as poor rather than precise.
 const UNKNOWN_ACCURACY_METERS = 1000;
 
+export type LocationSharing = ReturnType<typeof useLocationSharing>;
+
 export type Fix = { latitude: number; longitude: number; accuracyMeters: number };
 
 /**

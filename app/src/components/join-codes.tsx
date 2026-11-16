@@ -11,11 +11,11 @@ export default function JoinCodes({ codes }: { codes: Codes }) {
     <View style={styles.card}>
       <Text style={styles.heading}>{t('joinCodes.heading')}</Text>
       <View style={styles.row}>
-        <View style={{ flex: 1 }}>
+        <View style={styles.flex}>
           <Text style={styles.text}>{t('team.runners')}</Text>
           <Text selectable style={styles.code}>{codes.runner}</Text>
         </View>
-        <View style={{ flex: 1 }}>
+        <View style={styles.flex}>
           <Text style={styles.text}>{t('team.hunters')}</Text>
           <Text selectable style={styles.code}>{codes.hunter}</Text>
         </View>

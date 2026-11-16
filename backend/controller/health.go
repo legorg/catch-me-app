@@ -5,11 +5,6 @@ import (
 )
 
 // Health reports whether the backend is running.
-// @Summary Check backend health
-// @ID getHealth
-// @Produce json
-// @Success 200 {object} HealthResponse "Backend is running"
-// @Router /health [get]
 func Health(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodGet, http.MethodHead) {
 		return

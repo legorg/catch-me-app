@@ -45,11 +45,12 @@ type SessionID struct{ value string }
 
 func NewSessionID() SessionID { return SessionID{value: randomHex(16)} }
 
-func ParseSessionID(id string) (SessionID, error) {
-	if !idPattern.MatchString(id) {
+// ParseSessionID accepts any string-based type, e.g. a wire-format ID.
+func ParseSessionID[S ~string](id S) (SessionID, error) {
+	if !idPattern.MatchString(string(id)) {
 		return SessionID{}, &ValidationError{Message: "session ID must contain 32 lowercase hexadecimal characters"}
 	}
-	return SessionID{value: id}, nil
+	return SessionID{value: string(id)}, nil
 }
 
 func (id SessionID) String() string { return id.value }
@@ -58,11 +59,12 @@ type PlayerID struct{ value string }
 
 func NewPlayerID() PlayerID { return PlayerID{value: randomHex(16)} }
 
-func ParsePlayerID(id string) (PlayerID, error) {
-	if !idPattern.MatchString(id) {
+// ParsePlayerID accepts any string-based type, e.g. a wire-format ID.
+func ParsePlayerID[S ~string](id S) (PlayerID, error) {
+	if !idPattern.MatchString(string(id)) {
 		return PlayerID{}, &ValidationError{Message: "player ID must contain 32 lowercase hexadecimal characters"}
 	}
-	return PlayerID{value: id}, nil
+	return PlayerID{value: string(id)}, nil
 }
 
 func (id PlayerID) String() string { return id.value }
