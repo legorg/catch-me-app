@@ -102,7 +102,7 @@ jobs:
       id-token: write
     uses: l3montree-dev/devguard-ci-components/.github/workflows/full.yml@0afeae23b8443e4495b88cd0a25723dc469003d4 # v1.18.0
     with:
-      devguard-asset-name: catch-me-app/catch-me/catch-me-server
+      devguard-asset-name: catch-me-app/projects/catch-me/assets/catch-me-server
       path: /github/workspace/backend
     secrets:
       devguard-token: ${{ secrets.DEVGUARD_TOKEN }}
