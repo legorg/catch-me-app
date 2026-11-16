@@ -187,7 +187,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 			(tc.schema != union && len(defined.Required) == 0) {
 			t.Fatalf("missing operation/schema: %s %s", tc.method, tc.path)
 		}
-		if secured := strings.HasPrefix(tc.path, "/api/me"); secured != (len(operation.Security) > 0) {
+		if secured := strings.HasPrefix(tc.path, "/api/me"); secured != (len(operation.Security) == 1 && len(operation.Security[0]) == 1) {
 			t.Fatalf("wrong security requirement: %s %s", tc.method, tc.path)
 		}
 	}

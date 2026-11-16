@@ -9,5 +9,6 @@ FROM registry.opencode.de/oci-community/images/zendis/static:1.0.0-minimal@sha25
 WORKDIR /app
 COPY --from=build /out/server ./server
 USER 53111:53111
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/app/server", "-healthcheck"]
 ENTRYPOINT ["/app/server"]
 CMD ["-db", "/data/catch-me.sqlite"]

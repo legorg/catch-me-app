@@ -28,6 +28,8 @@ func OpenAPI() ([]byte, error) {
 	spec.SetVersion("0.1.0")
 	spec.SetDescription("API generated from the request and response structs of the Go controllers.")
 	spec.SetAPIKeySecurity(playerToken, "Authorization", openapi.InHeader, `"Bearer " followed by the playerToken returned when joining a game.`)
+	// The token is an API key, so the documented server must use TLS.
+	spec.WithServers(openapi31.Server{URL: "https://catch-me.example.com", Description: ptr("Production server behind TLS; clients configure their own base URL")})
 
 	for _, o := range operations(nil) {
 		if err := o.register(reflector); err != nil {
@@ -35,6 +37,7 @@ func OpenAPI() ([]byte, error) {
 		}
 	}
 	requireBodies(spec)
+	requireSecurity(spec)
 	return json.MarshalIndent(spec, "", "  ")
 }
 
@@ -50,6 +53,21 @@ func requireBodies(spec *openapi31.Spec) {
 		}
 	}
 }
+
+// requireSecurity makes the player token the default requirement of every
+// operation and lifts it again, explicitly, on the public ones.
+func requireSecurity(spec *openapi31.Spec) {
+	spec.Security = []map[string][]string{{playerToken: {}}}
+	for _, item := range spec.Paths.MapOfPathItemValues {
+		for _, op := range []*openapi31.Operation{item.Get, item.Put, item.Post, item.Delete} {
+			if op != nil && len(op.Security) == 0 {
+				op.Security = []map[string][]string{{}}
+			}
+		}
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
 
 const playerToken = "PlayerToken"
 

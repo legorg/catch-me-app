@@ -5,6 +5,12 @@
     "description": "API generated from the request and response structs of the Go controllers.",
     "version": "0.1.0"
   },
+  "servers": [
+    {
+      "url": "https://catch-me.example.com",
+      "description": "Production server behind TLS; clients configure their own base URL"
+    }
+  ],
   "paths": {
     "/api/games": {
       "post": {
@@ -92,7 +98,10 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {}
+        ]
       }
     },
     "/api/me": {
@@ -874,7 +883,10 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {}
+        ]
       }
     },
     "/health": {
@@ -892,7 +904,10 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {}
+        ]
       }
     }
   },
@@ -1116,6 +1131,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerJokerResponse"
             },
+            "maxItems": 2,
             "type": "array"
           },
           "nextRevealAt": {
@@ -1137,6 +1153,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerPlayerResponse"
             },
+            "maxItems": 100,
             "type": "array"
           },
           "playground": {
@@ -1161,6 +1178,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerSketchResponse"
             },
+            "maxItems": 1000,
             "type": "array"
           },
           "startPositionCheckDisabled": {
@@ -1242,6 +1260,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerPlayerResponse"
             },
+            "maxItems": 100,
             "type": "array"
           },
           "playground": {
@@ -1497,6 +1516,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerJokerPositionResponse"
             },
+            "maxItems": 100,
             "type": "array"
           },
           "usedAt": {
@@ -1570,6 +1590,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerRevealResponse"
             },
+            "maxItems": 1000,
             "type": "array"
           },
           "team": {
@@ -1884,5 +1905,10 @@
         "in": "header"
       }
     }
-  }
+  },
+  "security": [
+    {
+      "PlayerToken": []
+    }
+  ]
 }

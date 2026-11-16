@@ -32,7 +32,12 @@ func main() {
 	googlePlacesAPIKey := flag.String("google-places-api-key", os.Getenv("GOOGLE_MAPS_KEY"), "Google Places API (New) key used to find landmarks for game routes (env GOOGLE_MAPS_KEY); required")
 	skipDefault, _ := strconv.ParseBool(os.Getenv("TEST_SKIP_START_POSITION_CHECK"))
 	skipStartPositionCheck := flag.Bool("test-skip-start-position-check", skipDefault, "Development only: bypass runner Ready position checks; keep real location updates (env TEST_SKIP_START_POSITION_CHECK)")
+	healthcheck := flag.Bool("healthcheck", false, "Probe GET /health on -addr and exit 0 if healthy (container HEALTHCHECK; the runtime image has no shell or curl)")
 	flag.Parse()
+
+	if *healthcheck {
+		os.Exit(probeHealth(*addr))
+	}
 
 	// Colored logs that name the source file and line of every entry.
 	slog.SetDefault(slog.New(tint.NewTextHandler(os.Stderr, &tint.Options{AddSource: true, TimeFormat: time.DateTime})))
@@ -44,6 +49,24 @@ func main() {
 		slog.Error("server failed", "err", err)
 		os.Exit(1)
 	}
+}
+
+// probeHealth returns the process exit code of a request to the local /health endpoint.
+func probeHealth(addr string) int {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 1
+	}
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get("http://" + net.JoinHostPort("127.0.0.1", port) + "/health")
+	if err != nil {
+		return 1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 1
+	}
+	return 0
 }
 
 func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStartPositionCheck bool) error {

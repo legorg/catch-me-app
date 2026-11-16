@@ -138,7 +138,7 @@ type PlayerResponse struct {
 	// while running. Hunters see runners through reveals instead.
 	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
 	// Hunters only, for runners while running: every reveal so far, oldest first.
-	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,dive"`
+	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
 }
 
 // RevealResponse is where a runner was at a reveal time.
@@ -189,7 +189,7 @@ type JokerResponse struct {
 	// Set once the team used it.
 	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z" validate:"omitempty"`
 	// What the joker showed (showRunners: each runner's position at usedAt), once used.
-	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,dive"`
+	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,max=100,dive"`
 	// queryZone, once used: the queried cell and whether any runner was inside it at usedAt.
 	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
 	Found *bool `json:"found,omitempty" example:"true"`
@@ -214,7 +214,7 @@ type GameStateBase struct {
 	Playground   Playground       `json:"playground"`
 	PlayerID     PlayerID         `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
 	JoinCodes    JoinCodes        `json:"joinCodes"`
-	Players      []PlayerResponse `json:"players" validate:"dive"`
+	Players      []PlayerResponse `json:"players" validate:"max=100,dive"`
 }
 
 // GameStateRunnerResponse is the game as seen by a runner.
@@ -230,9 +230,9 @@ type GameStateHunterResponse struct {
 	GameStateBase
 	Team Team `json:"team" enum:"hunter" validate:"required,eq=hunter"`
 	// The hunter team's jokers; empty for hunters without a team.
-	Jokers []JokerResponse `json:"jokers" validate:"dive"`
+	Jokers []JokerResponse `json:"jokers" validate:"max=2,dive"`
 	// The hunter team's sketches while running, oldest first.
-	Sketches []SketchResponse `json:"sketches" validate:"dive"`
+	Sketches []SketchResponse `json:"sketches" validate:"max=1000,dive"`
 }
 
 // GameStateResponse is the game as seen by the requesting player: exactly one
