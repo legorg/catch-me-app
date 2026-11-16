@@ -5,8 +5,10 @@ import * as SecureStore from 'expo-secure-store';
 const STORAGE_KEY = 'playerToken';
 let token: string | null = null;
 
-// Storage can fail (e.g. a locked keychain): the in-memory token still works for this app run.
-const persist = (action: () => Promise<void>) => { action().catch(() => undefined); };
+// Storage can fail (e.g. a locked keychain, or a build without the native module): the in-memory token
+// still works for this app run, but the game cannot be resumed after a restart.
+const warn = (err: unknown) => { console.warn('[session] token storage failed:', err instanceof Error ? err.message : err); };
+const persist = (action: () => Promise<void>) => { action().catch(warn); };
 
 export const playerSession = {
   get: () => token,
@@ -22,8 +24,8 @@ export const playerSession = {
   restore: async () => {
     try {
       token ??= await SecureStore.getItemAsync(STORAGE_KEY);
-    } catch {
-      // Nothing saved or unreadable: start fresh.
+    } catch (err) {
+      warn(err);
     }
     return token;
   },
