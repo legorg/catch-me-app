@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { Modal, Pressable, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -34,6 +35,8 @@ function FullscreenContent({ onClose, ...props }: PlaygroundMapProps & { onClose
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.full}>
+      {/* Dark text over the light map; the layout's light style returns when the modal closes. */}
+      <StatusBar style="dark" />
       <PlaygroundMap {...props} fullscreen />
       <Pressable
         accessibilityRole="button"
