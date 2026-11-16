@@ -2,6 +2,10 @@ import { Pressable, Text } from 'react-native';
 
 import { styles } from '../styles';
 
+/** Pressable style: the variant's look, dimmed while pressed or disabled. */
+const buttonStyle = (primary: boolean, disabled: boolean) => ({ pressed }: { pressed: boolean }) =>
+  [primary ? styles.button : styles.secondaryButton, (pressed || disabled) && styles.dimmed];
+
 type ButtonProps = {
   label: string;
   onPress: () => void;
@@ -17,7 +21,7 @@ export default function Button({ label, onPress, disabled = false, variant = 'pr
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [primary ? styles.button : styles.secondaryButton, (pressed || disabled) && styles.dimmed]}
+      style={buttonStyle(primary, disabled)}
     >
       <Text style={primary ? styles.buttonText : styles.secondaryButtonText}>{label}</Text>
     </Pressable>

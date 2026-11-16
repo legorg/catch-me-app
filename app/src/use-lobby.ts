@@ -1,0 +1,90 @@
+import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+
+import { leaveGame, setHunterTeam, setReady, updatePosition } from '@/api/client';
+import { goHome, useGameState } from '@/use-game-state';
+import { useLocationSharing, type Fix } from '@/use-location-sharing';
+
+/** State and actions of the lobby screen: the game state, location sharing, readiness and the hunter team. */
+export function useLobby() {
+  const game = useGameState();
+  const { token, state, focused, show, fail, running } = game;
+  const [busy, setBusy] = useState(false);
+  const [newTeam, setNewTeam] = useState('');
+
+  // The game has its own screen; joining it replaces the lobby.
+  useEffect(() => {
+    if (running) router.replace('/game');
+  }, [running]);
+
+  // Everyone shares from joining: runners for the start cell check, hunters for their hunter team.
+  const sharing = focused && !!token && !!state;
+  // The lobby shares in the foreground only; background sharing belongs to the game screen.
+  const location = useLocationSharing(sharing, false, useCallback(async (fix: Fix) => {
+    if (!token) return;
+    try {
+      show(await updatePosition(token, fix));
+    } catch (err) {
+      fail(err);
+    }
+  }, [token, show, fail]));
+
+  async function act(action: () => Promise<void>) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await action();
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const me = state?.players.find((p) => p.playerId === state.playerId);
+  const { permission, background } = location;
+  // Installed builds need "Always"; Expo Go cannot share in the background, so foreground access must do there.
+  // ("Always" can only be granted on top of foreground access, so it covers both.)
+  const needsBackground = background.available && background.permission?.granted !== true;
+  const needsForeground = !background.available && permission?.granted !== true;
+  const needsHunterTeam = state?.team === 'hunter' && !me?.hunterTeam;
+
+  const changeHunterTeam = (name: string) => {
+    void act(async () => {
+      if (!token) return;
+      show(await setHunterTeam(token, name));
+      setNewTeam('');
+    });
+  };
+
+  const createTeam = () => changeHunterTeam(newTeam);
+
+  const toggleReady = () => {
+    void act(async () => {
+      if (!token || !me) return;
+      show(await setReady(token, !me.ready));
+    });
+  };
+
+  const leave = () => {
+    void act(async () => {
+      if (!token) return;
+      await leaveGame(token);
+      goHome();
+    });
+  };
+
+  const requestLocation = () => {
+    void location.requestPermission();
+  };
+
+  const requestBackground = () => {
+    void background.request();
+  };
+
+  return {
+    ...game, busy, newTeam, setNewTeam, sharing, location, me,
+    needsBackground, needsForeground, needsHunterTeam,
+    changeHunterTeam, createTeam, toggleReady, leave, requestLocation, requestBackground,
+  };
+}

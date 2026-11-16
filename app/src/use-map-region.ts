@@ -1,0 +1,65 @@
+import { useEffect, useRef, useState } from 'react';
+import type MapView from 'react-native-maps';
+import type { LatLng, MapPressEvent, Region } from 'react-native-maps';
+
+import type { Coordinates, Playground } from './api/types';
+import { boundaryCoordinates } from './playground';
+
+type Options = {
+  playground: Playground | null;
+  editable: boolean;
+  onSelect: (center: Coordinates) => void;
+};
+
+/** The map's camera: refits it to the grid, keeps the grid centered on pan/tap and measures where the center is on screen. */
+export function useMapRegion({ playground, editable, onSelect }: Options) {
+  // Where the map's center (and so the grid) is on screen. Native maps shift it from the middle of the
+  // view, e.g. by safe-area margins under the notch, so the crosshair is placed by asking the map.
+  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+  const map = useRef<MapView>(null);
+  const [ready, setReady] = useState(false);
+  const bounds = playground?.bounds;
+  const boundsRef = useRef(bounds);
+  useEffect(() => { boundsRef.current = bounds; });
+  // Apple Maps (iOS) does not report isGesture reliably, so moves we cause ourselves (initial fit, refit, tap)
+  // are muted for a moment instead.
+  const muted = useRef(false);
+  const mute = useRef((ms: number) => {
+    muted.current = true;
+    setTimeout(() => { muted.current = false; }, ms);
+  });
+  // Refit when the grid size changes, not while it is dragged: its span stays the same.
+  const span = bounds ? bounds.north - bounds.south : undefined;
+  useEffect(() => {
+    if (ready && boundsRef.current) {
+      mute.current(1200);
+      map.current?.fitToCoordinates(boundaryCoordinates(boundsRef.current), {
+        edgePadding: { top: 24, bottom: 24, left: 24, right: 24 }, animated: true,
+      });
+    }
+  }, [ready, span]);
+  const measureAnchor = async () => {
+    try {
+      const camera = await map.current?.getCamera();
+      if (camera) setAnchor(await map.current!.pointForCoordinate(camera.center));
+    } catch {
+      // keep the middle of the view
+    }
+  };
+  // Panning moves the grid: it stays centered on the map.
+  const onRegionChangeComplete = (region: Region) => {
+    if (!editable || muted.current) return;
+    onSelect({ latitude: region.latitude, longitude: region.longitude });
+  };
+  // A tap places the grid there and scrolls the map to it, so a following pan does not jump.
+  const select = (coordinate: LatLng) => {
+    if (!editable) return;
+    onSelect(coordinate);
+    mute.current(800);
+    map.current?.animateCamera({ center: coordinate }, { duration: 300 });
+  };
+  const onPress = (event: MapPressEvent) => select(event.nativeEvent.coordinate);
+  const onLayout = () => setTimeout(() => void measureAnchor(), 300);
+  const onMapReady = () => { setReady(true); void measureAnchor(); };
+  return { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete };
+}

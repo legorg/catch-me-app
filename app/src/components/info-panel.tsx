@@ -3,11 +3,10 @@ import { ScrollView, Text } from 'react-native';
 import { isGameStateRunnerResponse, type GameStateResponse, type PlayerResponse } from '@/api/types';
 import Button from '@/components/button';
 import LocationSharingInfo from '@/components/location-sharing-info';
-import { confirm } from '@/confirm';
 import { translateParts, useT } from '@/i18n';
 import { routeTitles } from '@/lobby';
 import { overlay, styles } from '@/styles';
-import { goHome } from '@/use-game-state';
+import { useConfirmExit } from '@/use-confirm-exit';
 import type { LocationSharing } from '@/use-location-sharing';
 
 // Team-specific texts, so no branching on the team is needed in the markup.
@@ -42,7 +41,7 @@ type InfoPanelProps = {
 export default function InfoPanel({ state, me, revealScheduled, location }: InfoPanelProps) {
   const t = useT();
   const texts = TEAM_TEXTS[state.team];
-  const confirmExit = () => confirm(t('game.exitTitle'), t('game.exitText'), t('game.exitYes'), goHome);
+  const confirmExit = useConfirmExit();
   return (
     <ScrollView style={overlay.info} contentContainerStyle={styles.gapMedium}>
       <Text style={styles.text}>

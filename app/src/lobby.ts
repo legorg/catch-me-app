@@ -1,6 +1,6 @@
 import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type PlayerResponse, type Playground } from './api/types';
 import { getLanguage, translate } from './i18n';
-import { cellAt, cellBounds } from './playground';
+import { cellAt, cellBounds, START_RADIUS_METERS } from './playground';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -15,6 +15,23 @@ export function secondsUntil(target: string | undefined, state: GameStateRespons
 
 export function secondsUntilStart(state: GameStateResponse, receivedAt: number, now: number): number | null {
   return secondsUntil(state.startsAt, state, receivedAt, now);
+}
+
+/** For callbacks that must be passed but have nothing to do. */
+export function noop() {}
+
+/** The lobby's explanation of how the game starts (or, once counting down, what is happening). */
+export function lobbyInfo(counting: boolean, testMode: boolean): string {
+  if (counting) return translate(testMode ? 'lobby.countdownInfoTest' : 'lobby.countdownInfo');
+  return translate(testMode ? 'lobby.startInfoTest' : 'lobby.startInfo');
+}
+
+/** Where the runner stands relative to the start cell check. */
+export function startCheckMessage(testMode: boolean, atStart: boolean, metersToStart: number | null): string {
+  if (testMode) return translate('lobby.checkDisabled');
+  if (atStart) return translate('lobby.atStart');
+  if (metersToStart !== null) return translate('lobby.goToStart', { meters: Math.round(metersToStart), radius: START_RADIUS_METERS });
+  return translate('lobby.waitingForLocation');
 }
 
 export function formatDuration(seconds: number): string {

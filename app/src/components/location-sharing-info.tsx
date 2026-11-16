@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 
 import Button from '@/components/button';
 import { useT } from '@/i18n';
+import { fireAndForget } from '@/press';
 import { styles } from '@/styles';
 import type { LocationSharing } from '@/use-location-sharing';
 
@@ -16,7 +17,7 @@ function BackgroundDetails({ location }: Props) {
   return (
     <>
       <Text style={styles.text}>{t('lobby.allowAlways')}</Text>
-      <Button label={t('lobby.shareInBackground')} variant="secondary" onPress={() => void background.request()} />
+      <Button label={t('lobby.shareInBackground')} variant="secondary" onPress={fireAndForget(background.request)} />
     </>
   );
 }
@@ -37,7 +38,7 @@ function AskForLocation({ location }: Props) {
     <View style={styles.gapSmall}>
       <Text style={styles.heading}>{t('lobby.shareHeading')}</Text>
       <Text style={styles.text}>{t(location.background.available ? 'lobby.shareRunning' : 'lobby.shareRunningForeground')}</Text>
-      {location.permission?.canAskAgain && <Button label={t('lobby.allowLocation')} onPress={() => void location.requestPermission()} />}
+      {location.permission?.canAskAgain && <Button label={t('lobby.allowLocation')} onPress={fireAndForget(location.requestPermission)} />}
       {!location.permission?.canAskAgain && <Text style={[styles.text, styles.error]}>{t('lobby.locationBlocked')}</Text>}
     </View>
   );

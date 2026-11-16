@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { JokerKind, JokerResponse } from '@/api/client';
@@ -6,6 +5,7 @@ import type { GameStateHunterResponse } from '@/api/types';
 import Button from '@/components/button';
 import { getLanguage, translate, useT } from '@/i18n';
 import { picker, styles } from '@/styles';
+import { useJokerUse } from '@/use-joker-use';
 
 const TITLE_KEYS = { showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title' } as const;
 const TEXT_KEYS = { showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text' } as const;
@@ -19,25 +19,7 @@ export default function JokerList({ state, error, onUse }: {
   onUse: (kind: JokerKind, cell?: string) => Promise<void>;
 }) {
   const t = useT();
-  const [confirming, setConfirming] = useState<JokerKind | null>(null);
-  const [cell, setCell] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const use = async (kind: JokerKind) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await onUse(kind, kind === 'queryZone' ? cell ?? undefined : undefined);
-    } finally {
-      setBusy(false);
-      setConfirming(null);
-      setCell(null);
-    }
-  };
-  const cancel = () => {
-    setConfirming(null);
-    setCell(null);
-  };
+  const { confirming, cell, setCell, busy, use, cancel, start } = useJokerUse(onUse);
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
@@ -57,11 +39,11 @@ export default function JokerList({ state, error, onUse }: {
                     {joker.kind === 'queryZone' && cell ? t('joker.confirmCell', { cell }) : t('joker.confirm')}
                   </Text>
                   <View style={styles.row}>
-                    <Button label={t('joker.confirmYes')} disabled={busy || (joker.kind === 'queryZone' && !cell)} onPress={() => void use(joker.kind)} />
+                    <Button label={t('joker.confirmYes')} disabled={busy || (joker.kind === 'queryZone' && !cell)} onPress={() => use(joker.kind)} />
                     <Button label={t('joker.cancel')} variant="secondary" disabled={busy} onPress={cancel} />
                   </View>
                 </>
-                : <Button label={t('joker.use')} onPress={() => { setConfirming(joker.kind); setCell(null); }} />
+                : <Button label={t('joker.use')} onPress={() => start(joker.kind)} />
               : <Text style={styles.hint}>{t('joker.waitForStart')}</Text>}
         </View>
       ))}
@@ -100,9 +82,10 @@ function CellPicker({ selected, onSelect, disabled }: { selected: string | null;
   );
 }
 
+const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
 function Used({ joker, state }: { joker: JokerResponse; state: GameStateHunterResponse }) {
   const t = useT();
-  const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const positions = joker.positions ?? [];
   return (
     <View style={styles.gapTiny}>

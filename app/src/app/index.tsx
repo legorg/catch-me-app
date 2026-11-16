@@ -1,37 +1,16 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 
-import { JOIN_CODE_PATTERN, isValidPlayerName, joinGame, normalizeJoinCode } from '@/api/client';
 import Button from '@/components/button';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import NameInput from '@/components/name-input';
 import { useT } from '@/i18n';
-import { playerSession } from '@/player-session';
 import { colors, styles } from '@/styles';
+import { useJoinGame } from '@/use-join-game';
 
 export default function HomeScreen() {
   const t = useT();
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const canJoin = JOIN_CODE_PATTERN.test(normalizeJoinCode(code)) && isValidPlayerName(name);
-
-  async function join() {
-    if (busy || !canJoin) return;
-    setBusy(true);
-    setError('');
-    try {
-      const joined = await joinGame(code, name);
-      playerSession.set(joined.playerToken);
-      router.replace('/lobby');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('home.joinFailed'));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { code, setCode, name, setName, busy, error, canJoin, join } = useJoinGame();
 
   return (
     <>
@@ -55,7 +34,7 @@ export default function HomeScreen() {
           <Text style={styles.hint}>{t('home.codeHint')}</Text>
           {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
           {busy && <ActivityIndicator color={colors.accent} />}
-          <Button label={t('home.join')} onPress={() => void join()} disabled={busy || !canJoin} />
+          <Button label={t('home.join')} onPress={join} disabled={busy || !canJoin} />
         </View>
         <View style={styles.card}>
           <Text style={styles.heading}>{t('home.createHeading')}</Text>

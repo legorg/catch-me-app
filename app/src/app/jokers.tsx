@@ -2,12 +2,12 @@ import { router } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { activateJoker, type JokerKind } from '@/api/client';
 import Button from '@/components/button';
 import { isGameStateHunterResponse } from '@/api/types';
 import JokerList from '@/components/joker-list';
 import { useT } from '@/i18n';
 import { colors, dynamicStyles, styles } from '@/styles';
+import { useActivateJoker } from '@/use-activate-joker';
 import { useGameState } from '@/use-game-state';
 
 // Presented as a modal over the game screen (see _layout.tsx).
@@ -16,16 +16,7 @@ export default function JokersScreen() {
   const insets = useSafeAreaInsets();
   const { token, state, error, show, fail } = useGameState();
 
-  const use = async (kind: JokerKind, cell?: string) => {
-    if (!token) return;
-    try {
-      show(await activateJoker(token, kind, cell));
-      // The map behind shows the result: the game screen reloads the state when the sheet closes.
-      router.back();
-    } catch (err) {
-      fail(err);
-    }
-  };
+  const use = useActivateJoker(token, show, fail);
 
   if (!token || !state) {
     return (

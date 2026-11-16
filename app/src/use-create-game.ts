@@ -66,17 +66,21 @@ export function useCreateGame() {
     }
   }
 
-  const create = () => run(async () => {
-    if (!selected || cellSize === null || cannotCreate) return;
-    setCreated(await createGame(selected, cellSize));
-    setStatus((s) => ({ ...s, message: { key: 'create.created' } }));
-  }, 'create.creating');
+  const create = () => {
+    void run(async () => {
+      if (!selected || cellSize === null || cannotCreate) return;
+      setCreated(await createGame(selected, cellSize));
+      setStatus((s) => ({ ...s, message: { key: 'create.created' } }));
+    }, 'create.creating');
+  };
 
-  const joinAs = (code: string) => run(async () => {
-    const joined = await joinGame(code, name);
-    playerSession.set(joined.playerToken);
-    router.replace('/lobby');
-  }, 'create.joining');
+  const joinAs = (code: string) => {
+    void run(async () => {
+      const joined = await joinGame(code, name);
+      playerSession.set(joined.playerToken);
+      router.replace('/lobby');
+    }, 'create.joining');
+  };
 
   return {
     created, playground, displayedSize, hasPosition: !!here,

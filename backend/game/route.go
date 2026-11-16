@@ -2,7 +2,7 @@ package game
 
 import (
 	"fmt"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used -- non-security gameplay randomness
 )
 
 // MaxRouteRegenerations is how often a runner may replace their route.
