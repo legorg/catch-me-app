@@ -24,6 +24,7 @@ const state: GameStateRunnerResponse = {
     stop: { title: 'Stop', coordinates: { latitude: 52.57, longitude: 13.4 } },
     distanceMeters: 11119,
   },
+  jokers: [],
 };
 
 const { route: _route, ...hunterBase } = state;
@@ -82,7 +83,7 @@ test('markers cover only live positions the server sent, colored by kind', () =>
 
 test('every reveal is a numbered marker per runner, oldest first', () => {
   const at = (n: number) => `2026-11-08T12:0${n}:00Z`;
-  const reveal = (n: number) => ({ latitude: 50 + n, longitude: 6, accuracyMeters: 5, recordedAt: at(n), revealedAt: at(n + 1) });
+  const reveal = (n: number) => ({ position: { latitude: 50 + n, longitude: 6, accuracyMeters: 5, recordedAt: at(n) }, revealedAt: at(n + 1) });
   const markers = revealMarkers({
     ...state,
     players: [
@@ -96,6 +97,24 @@ test('every reveal is a numbered marker per runner, oldest first', () => {
   assert.equal(new Set(markers.map((m) => m.id)).size, 5);
   assert.match(markers[2].description, /Revealed at/);
   assert.deepEqual(revealMarkers(state), []);
+});
+
+test('a zone-only reveal is highlighted and marked in the middle of its cell', () => {
+  const at = (n: number) => `2026-11-08T12:0${n}:00Z`;
+  const exact = { position: { latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: at(1) }, revealedAt: at(2) };
+  const zone = { zoneOnly: true, cell: 'C4', revealedAt: at(3) };
+  const outside = { zoneOnly: true, revealedAt: at(4) };
+  const running = {
+    ...hunterState,
+    players: [{ ...state.players[0], reveals: [exact, zone, outside, { ...exact, revealedAt: at(5) }] }, state.players[1]],
+  };
+  const markers = revealMarkers(running);
+  // The reveal outside the playground has no marker but keeps its number.
+  assert.deepEqual(markers.map((m) => m.label), ['1', '2', '4']);
+  const b = cellBounds(state.playground, 'C4');
+  assert.deepEqual(markers[1].coordinate, { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 });
+  assert.match(markers[1].description, /Only cell C4/);
+  assert.deepEqual(gameHighlights(running).map((h) => [h.cell, h.title, h.color]), [['C4', 'Ada', ZONE_COLORS.revealed]]);
 });
 
 test('a used joker becomes one marker per runner it showed', () => {

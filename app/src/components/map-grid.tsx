@@ -17,8 +17,8 @@ export default function MapGrid({ playground, highlights, onSelect }: Props) {
   return (
     <>
       <Polygon coordinates={boundaryCoordinates(playground.bounds)} strokeColor="#10251c" strokeWidth={3} fillColor="rgba(167,233,189,0.15)" />
-      {highlights.map(({ cell, color }) => (
-        <Polygon key={cell + color} coordinates={boundaryCoordinates(cellBounds(playground, cell))} strokeColor={color} strokeWidth={3} fillColor={`${color}55`} tappable={false} />
+      {highlights.map(({ cell, color }, index) => (
+        <Polygon key={`${index}-${cell}`} coordinates={boundaryCoordinates(cellBounds(playground, cell))} strokeColor={color} strokeWidth={3} fillColor={`${color}55`} tappable={false} />
       ))}
       {gridLines(playground).map((coordinates, index) => (
         <Polyline key={index} coordinates={coordinates} strokeColor="#10251c" strokeWidth={1} />

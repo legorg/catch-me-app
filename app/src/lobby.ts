@@ -78,17 +78,35 @@ export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
 
 /**
  * Markers for every reveal the server sent (hunters only), numbered per runner from 1 (the oldest)
- * up to the newest, which the server sends last.
+ * up to the newest, which the server sends last. A zone-only reveal sits in the middle of its cell;
+ * one outside the playground has no marker but keeps its number.
  */
 export function revealMarkers(state: GameStateResponse): (PlayerMarker & { label: string })[] {
-  return state.players.flatMap((p) => (p.reveals ?? []).map((reveal, index) => ({
-    id: `reveal-${p.playerId}-${reveal.revealedAt}`,
-    coordinate: { latitude: reveal.latitude, longitude: reveal.longitude },
-    title: p.name,
-    description: translate('marker.revealedAt', { time: clockTime(reveal.revealedAt, true) }),
-    color: MARKER_COLORS.revealed,
-    label: String(index + 1),
-  })));
+  return state.players.flatMap((p) => (p.reveals ?? []).flatMap(({ position, cell, revealedAt }, index) => {
+    const coordinate = position ? { latitude: position.latitude, longitude: position.longitude } : cell ? cellCenter(state.playground, cell) : null;
+    if (!coordinate) return [];
+    const time = clockTime(revealedAt, true);
+    return [{
+      id: `reveal-${p.playerId}-${revealedAt}`,
+      coordinate,
+      title: p.name,
+      description: position ? translate('marker.revealedAt', { time }) : translate('marker.zoneRevealedAt', { cell: cell ?? '', time }),
+      color: MARKER_COLORS.revealed,
+      label: String(index + 1),
+    }];
+  }));
+}
+
+/** The cells of zone-only reveals (runner joker), where hunters saw only the cell and not the position. */
+export function revealZones(state: GameStateResponse): { cell: string; title: string; color: string }[] {
+  return state.players.flatMap((p) => (p.reveals ?? []).flatMap((reveal) => reveal.zoneOnly && reveal.cell
+    ? [{ cell: reveal.cell, title: p.name, color: ZONE_COLORS.revealed }]
+    : []));
+}
+
+function cellCenter(playground: Playground, cell: string) {
+  const b = cellBounds(playground, cell);
+  return { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 };
 }
 
 /** Markers for what the team's used jokers showed: each runner where they were when it was used, and the queried zone with its answer. */
@@ -101,16 +119,13 @@ export function jokerMarkers(state: GameStateHunterResponse): PlayerMarker[] {
       description: translate('joker.marker', { time: clockTime(joker.usedAt ?? position.recordedAt, true) }),
       color: MARKER_COLORS.joker,
     })),
-    ...queriedZones([joker]).map((zone) => {
-      const b = cellBounds(state.playground, zone.cell);
-      return {
-        id: `joker-${joker.kind}-${zone.cell}`,
-        coordinate: { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 },
-        title: zone.title,
-        description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
-        color: zone.color,
-      };
-    }),
+    ...queriedZones([joker]).map((zone) => ({
+      id: `joker-${joker.kind}-${zone.cell}`,
+      coordinate: cellCenter(state.playground, zone.cell),
+      title: zone.title,
+      description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
+      color: zone.color,
+    })),
   ]);
 }
 
@@ -127,7 +142,7 @@ function queriedZones(jokers: GameStateHunterResponse['jokers']) {
   }] : []);
 }
 
-export const ZONE_COLORS = { found: '#27ae60', empty: '#eb5757' } as const;
+export const ZONE_COLORS = { found: '#27ae60', empty: '#eb5757', revealed: '#f2c94c' } as const;
 
 export const SKETCH_COLOR = '#9b51e0';
 
@@ -170,10 +185,10 @@ export function routeMarkers(route: GameRoute): PlayerMarker[] {
   ];
 }
 
-/** Every highlighted cell the player's team may see: the route (runners) or the queried zones (hunters). */
+/** Every highlighted cell the player's team may see: the route (runners) or the queried zones and zone-only reveals (hunters). */
 export function gameHighlights(state: GameStateResponse) {
   if (isGameStateRunnerResponse(state)) return routeHighlights(state.playground, state.route);
-  if (isGameStateHunterResponse(state)) return jokerZones(state);
+  if (isGameStateHunterResponse(state)) return [...jokerZones(state), ...revealZones(state)];
   return [];
 }
 

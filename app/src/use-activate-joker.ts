@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 
 import { activateJoker, type GameStateResponse, type JokerKind } from '@/api/client';
 
-/** Activates a joker of the player's hunter team and closes the jokers sheet; failures go to `fail`. */
+/** Activates a joker of the player's team and closes the jokers sheet; failures go to `fail`. */
 export function useActivateJoker(
   token: string | null,
   show: (state: GameStateResponse) => void,

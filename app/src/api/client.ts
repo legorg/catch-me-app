@@ -91,9 +91,9 @@ export async function setHunterTeam(token: string, name: string): Promise<GameSt
   return request((signal) => putHunterTeam({ baseUrl: API_URL, auth: bearer(token), body: { name: name.trim() }, signal }));
 }
 
-export type JokerKind = 'showRunners' | 'queryZone';
+export type JokerKind = 'showRunners' | 'queryZone' | 'zoneOnly';
 
-/** Spends a joker of the player's hunter team (once per game, while it runs); queryZone needs the cell, such as "C4". */
+/** Spends a joker of the player's team (once per game and team, while it runs); queryZone needs the cell, such as "C4". */
 export async function activateJoker(token: string, kind: JokerKind, cell?: string): Promise<GameStateResponse> {
   return request((signal) => postJoker({ baseUrl: API_URL, auth: bearer(token), body: cell ? { kind, cell } : { kind }, signal }));
 }

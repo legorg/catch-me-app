@@ -28,6 +28,7 @@ const state = {
   joinCodes: { runner: '482913', hunter: '071564' },
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
   route,
+  jokers: [],
 };
 const { route: _route, ...withoutRoute } = state;
 const hunterState = { ...withoutRoute, team: 'hunter', jokers: [], sketches: [] };

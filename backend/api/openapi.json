@@ -312,7 +312,7 @@
         "summary": "Use a joker",
         "operationId": "activateJoker",
         "requestBody": {
-          "description": "The joker to use (with the cell for queryZone); each hunter team can use each joker once, while the game runs",
+          "description": "The joker to use (with the cell for queryZone); each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs",
           "content": {
             "application/json": {
               "schema": {
@@ -364,7 +364,7 @@
             }
           },
           "409": {
-            "description": "Not a hunter in a team, game not running, or joker already used",
+            "description": "Not a joker of the player's team, hunter without a team, game not running, or joker already used",
             "content": {
               "application/json": {
                 "schema": {
@@ -1241,6 +1241,13 @@
           "joinCodes": {
             "$ref": "#/components/schemas/ControllerJoinCodes"
           },
+          "jokers": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerJokerResponse"
+            },
+            "maxItems": 2,
+            "type": "array"
+          },
           "nextRevealAt": {
             "examples": [
               "2026-11-08T12:05:10Z"
@@ -1316,7 +1323,8 @@
           "joinCodes",
           "players",
           "team",
-          "route"
+          "route",
+          "jokers"
         ],
         "type": "object"
       },
@@ -1428,7 +1436,8 @@
       "ControllerJokerKind": {
         "enum": [
           "showRunners",
-          "queryZone"
+          "queryZone",
+          "zoneOnly"
         ],
         "type": "string"
       },
@@ -1524,6 +1533,14 @@
               "2026-11-08T12:07:00Z"
             ],
             "format": "date-time",
+            "type": "string"
+          },
+          "usedBy": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
             "type": "string"
           }
         },
@@ -1696,39 +1713,17 @@
       },
       "ControllerRevealResponse": {
         "properties": {
-          "accuracyMeters": {
+          "cell": {
             "examples": [
-              8
+              "C4"
             ],
-            "format": "double",
-            "maximum": 10000,
-            "minimum": 0,
-            "type": "number"
-          },
-          "latitude": {
-            "examples": [
-              52.52
-            ],
-            "format": "double",
-            "maximum": 80,
-            "minimum": -80,
-            "type": "number"
-          },
-          "longitude": {
-            "examples": [
-              13.405
-            ],
-            "format": "double",
-            "maximum": 180,
-            "minimum": -180,
-            "type": "number"
-          },
-          "recordedAt": {
-            "examples": [
-              "2026-11-08T12:04:58Z"
-            ],
-            "format": "date-time",
+            "maxLength": 2,
+            "minLength": 2,
+            "pattern": "^[A-F][1-6]$",
             "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/ControllerPositionResponse"
           },
           "revealedAt": {
             "examples": [
@@ -1736,13 +1731,15 @@
             ],
             "format": "date-time",
             "type": "string"
+          },
+          "zoneOnly": {
+            "examples": [
+              false
+            ],
+            "type": "boolean"
           }
         },
         "required": [
-          "latitude",
-          "longitude",
-          "accuracyMeters",
-          "recordedAt",
           "revealedAt"
         ],
         "type": "object"

@@ -1,25 +1,26 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { JokerKind, JokerResponse } from '@/api/client';
-import type { GameStateHunterResponse } from '@/api/types';
+import type { GameStateResponse } from '@/api/types';
 import Button from '@/components/button';
 import { getLanguage, translate, useT } from '@/i18n';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
 
-const TITLE_KEYS = { showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title' } as const;
-const TEXT_KEYS = { showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text' } as const;
+const TITLE_KEYS = { showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title' } as const;
+const TEXT_KEYS = { showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text' } as const;
 const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const ROWS = ['1', '2', '3', '4', '5', '6'];
 
-/** The jokers of the player's team, each with a two-step button to use it. */
+/** The jokers of the player's team (a hunter team, or all runners), each with a two-step button to use it. */
 export default function JokerList({ state, error, onUse }: {
-  state: GameStateHunterResponse;
+  state: GameStateResponse;
   error: string;
   onUse: (kind: JokerKind, cell?: string) => Promise<void>;
 }) {
   const t = useT();
   const { confirming, cell, setCell, busy, use, cancel, start } = useJokerUse(onUse);
+  const confirmKey = state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
@@ -36,7 +37,7 @@ export default function JokerList({ state, error, onUse }: {
                 ? <>
                   {joker.kind === 'queryZone' && <CellPicker selected={cell} onSelect={setCell} disabled={busy} />}
                   <Text style={[styles.text, styles.error]}>
-                    {joker.kind === 'queryZone' && cell ? t('joker.confirmCell', { cell }) : t('joker.confirm')}
+                    {joker.kind === 'queryZone' && cell ? t('joker.confirmCell', { cell }) : t(confirmKey)}
                   </Text>
                   <View style={styles.row}>
                     <Button label={t('joker.confirmYes')} disabled={busy || (joker.kind === 'queryZone' && !cell)} onPress={() => use(joker.kind)} />
@@ -84,12 +85,22 @@ function CellPicker({ selected, onSelect, disabled }: { selected: string | null;
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-function Used({ joker, state }: { joker: JokerResponse; state: GameStateHunterResponse }) {
+function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse }) {
   const t = useT();
   const positions = joker.positions ?? [];
+  const usedAt = time(joker.usedAt ?? '');
+  if (joker.kind === 'zoneOnly') {
+    const name = state.players.find((player) => player.playerId === joker.usedBy)?.name ?? '';
+    return (
+      <View style={styles.gapTiny}>
+        <Text style={[styles.text, styles.accentText]}>{t('joker.usedBy', { name, time: usedAt })}</Text>
+        <Text style={styles.hint}>{t('joker.zoneOnly.used', { name })}</Text>
+      </View>
+    );
+  }
   return (
     <View style={styles.gapTiny}>
-      <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: time(joker.usedAt ?? '') })}</Text>
+      <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
       {joker.kind === 'queryZone'
         ? !!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>
         : <>

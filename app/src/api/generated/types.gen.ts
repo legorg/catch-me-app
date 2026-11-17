@@ -72,6 +72,7 @@ export type ControllerGameStateResponse = ({
 
 export type ControllerGameStateRunnerResponse = {
     joinCodes: ControllerJoinCodes;
+    jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
     playerId: string;
     players: Array<ControllerPlayerResponse>;
@@ -107,7 +108,7 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
-export type ControllerJokerKind = 'showRunners' | 'queryZone';
+export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly';
 
 export type ControllerJokerPositionResponse = {
     accuracyMeters: number;
@@ -124,6 +125,7 @@ export type ControllerJokerResponse = {
     kind: ControllerJokerKind;
     positions?: Array<ControllerJokerPositionResponse>;
     usedAt?: string;
+    usedBy?: string;
 };
 
 export type ControllerLandmark = {
@@ -157,11 +159,10 @@ export type ControllerPositionResponse = {
 };
 
 export type ControllerRevealResponse = {
-    accuracyMeters: number;
-    latitude: number;
-    longitude: number;
-    recordedAt: string;
+    cell?: string;
+    position?: ControllerPositionResponse;
     revealedAt: string;
+    zoneOnly?: boolean;
 };
 
 export type ControllerSetHunterTeamRequest = {
@@ -364,7 +365,7 @@ export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamRe
 
 export type ActivateJokerData = {
     /**
-     * The joker to use (with the cell for queryZone); each hunter team can use each joker once, while the game runs
+     * The joker to use (with the cell for queryZone); each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs
      */
     body: ControllerUseJokerRequest;
     path?: never;
@@ -386,7 +387,7 @@ export type ActivateJokerErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a hunter in a team, game not running, or joker already used
+     * Not a joker of the player's team, hunter without a team, game not running, or joker already used
      */
     409: ControllerApiError;
     /**

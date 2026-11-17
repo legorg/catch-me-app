@@ -3,7 +3,6 @@ import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/button';
-import { isGameStateHunterResponse } from '@/api/types';
 import JokerList from '@/components/joker-list';
 import { useT } from '@/i18n';
 import { colors, dynamicStyles, styles } from '@/styles';
@@ -28,7 +27,7 @@ export default function JokersScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.flex}>
-        {isGameStateHunterResponse(state) && <JokerList state={state} error={error} onUse={use} />}
+        <JokerList state={state} error={error} onUse={use} />
       </View>
       {/* Android cannot swipe a modal away, and iOS shows no grabber: an explicit way out. */}
       <View style={[styles.jokersFooterBase, dynamicStyles.jokersFooter(insets.bottom)]}>
