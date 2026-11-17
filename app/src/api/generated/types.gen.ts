@@ -128,7 +128,7 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
-export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition';
+export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters';
 
 export type ControllerJokerPositionResponse = {
     accuracyMeters: number;
@@ -146,7 +146,9 @@ export type ControllerJokerResponse = ({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyJokerResponse) | ({
     kind: 'fakePosition';
-} & ControllerFakePositionJokerResponse);
+} & ControllerFakePositionJokerResponse) | ({
+    kind: 'showHunters';
+} & ControllerShowHuntersJokerResponse);
 
 export type ControllerLandmark = {
     coordinates: ControllerCoordinates;
@@ -220,6 +222,18 @@ export type ControllerSetReadyRequest = {
     ready: boolean;
 };
 
+export type ControllerShowHuntersJokerResponse = {
+    available: boolean;
+    kind: 'showHunters';
+    positions?: Array<ControllerJokerPositionResponse>;
+    usedAt?: string;
+    usedBy?: string;
+};
+
+export type ControllerShowHuntersRequest = {
+    kind: 'showHunters';
+};
+
 export type ControllerShowRunnersJokerResponse = {
     available: boolean;
     kind: 'showRunners';
@@ -258,7 +272,9 @@ export type ControllerUseJokerRequest = (({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyRequest) | ({
     kind: 'fakePosition';
-} & ControllerFakePositionRequest)) & {
+} & ControllerFakePositionRequest) | ({
+    kind: 'showHunters';
+} & ControllerShowHuntersRequest)) & {
     kind: ControllerJokerKind;
 };
 
@@ -469,7 +485,7 @@ export type ActivateJokerErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last joker has not acted yet
+     * Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last reveal joker has not acted yet
      */
     409: ControllerApiError;
     /**

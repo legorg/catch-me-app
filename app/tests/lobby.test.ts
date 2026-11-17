@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, thinPoints } from '../src/lobby';
 import { cellBounds, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
@@ -171,6 +171,18 @@ test('the fake position is a marker for every runner, once used', () => {
   assert.equal(marker.color, MARKER_COLORS.joker);
   assert.match(marker.title, /Ada/);
   assert.deepEqual(fakePositionMarkers({ ...state, jokers: [{ kind: 'fakePosition', available: true }] }), []);
+});
+
+test('the shown hunters are markers in their own color for every runner, once used', () => {
+  const position = { playerId: state.players[1].playerId, latitude: 52.51, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' };
+  const running = {
+    ...state,
+    jokers: [{ kind: 'showHunters' as const, available: false, usedAt: '2026-11-08T12:07:00Z', usedBy: state.players[0].playerId, positions: [position] }],
+  };
+  assert.deepEqual(shownHunterMarkers(running).map((m) => [m.title, m.coordinate.latitude, m.color]), [['Bob', 52.51, MARKER_COLORS.shownHunter]]);
+  assert.notEqual(MARKER_COLORS.shownHunter, MARKER_COLORS.joker);
+  assert.ok(gameMarkers(running).some((m) => m.id === `joker-showHunters-${position.playerId}`));
+  assert.deepEqual(shownHunterMarkers({ ...state, jokers: [{ kind: 'showHunters', available: true }] }), []);
 });
 
 test('sketches become lines in the sketch color, in the order the server sent them', () => {

@@ -11,9 +11,11 @@ import { useJokerUse } from '@/use-joker-use';
 
 const TITLE_KEYS = {
   showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title', fakePosition: 'joker.fakePosition.title',
+  showHunters: 'joker.showHunters.title',
 } as const;
 const TEXT_KEYS = {
   showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text', fakePosition: 'joker.fakePosition.text',
+  showHunters: 'joker.showHunters.text',
 } as const;
 
 /** The jokers of the player's team (a hunter team, or all runners), each with a two-step button to use it. */
@@ -141,12 +143,17 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
           {!!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>}
         </View>
       );
-    case 'showRunners': {
+    case 'showRunners':
+    case 'showHunters': {
       const positions = joker.positions ?? [];
       return (
         <View style={styles.gapTiny}>
-          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
-          {positions.length === 0 && <Text style={styles.hint}>{t('joker.noPositions')}</Text>}
+          <Text style={[styles.text, styles.accentText]}>
+            {joker.kind === 'showHunters'
+              ? t('joker.usedBy', { name: nameOf(state, joker.usedBy), time: usedAt })
+              : translate('joker.usedAt', { time: usedAt })}
+          </Text>
+          {positions.length === 0 && <Text style={styles.hint}>{t(joker.kind === 'showHunters' ? 'joker.showHunters.noPositions' : 'joker.noPositions')}</Text>}
           {positions.map((p) => (
             <Text key={p.playerId} style={styles.hint}>
               {nameOf(state, p.playerId)} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}

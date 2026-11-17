@@ -50,7 +50,7 @@ export function hunterTeams(players: PlayerResponse[]): string[] {
   return [...new Set(players.flatMap((p) => (p.hunterTeam ? [p.hunterTeam] : [])))];
 }
 
-export const MARKER_COLORS = { me: '#27ae60', teammate: '#2f80ed', revealed: '#eb5757', joker: '#f2994a' } as const;
+export const MARKER_COLORS = { me: '#27ae60', teammate: '#2f80ed', revealed: '#eb5757', joker: '#f2994a', shownHunter: '#6d4c41' } as const;
 
 export type PlayerMarker = {
   id: string;
@@ -216,6 +216,16 @@ export function fakePositionMarkers(state: GameStateRunnerResponse): PlayerMarke
   }] : []);
 }
 
+export function shownHunterMarkers(state: GameStateRunnerResponse): PlayerMarker[] {
+  return state.jokers.flatMap((joker) => (joker.kind === 'showHunters' ? joker.positions ?? [] : []).map((position) => ({
+    id: `joker-${joker.kind}-${position.playerId}`,
+    coordinate: { latitude: position.latitude, longitude: position.longitude },
+    title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
+    description: translate('joker.showHunters.marker', { time: clockTime(joker.usedAt ?? position.recordedAt, true) }),
+    color: MARKER_COLORS.shownHunter,
+  })));
+}
+
 /** Every highlighted cell the player's team may see: the route (runners) or the queried zones and zone-only reveals (hunters). */
 export function gameHighlights(state: GameStateResponse) {
   if (isGameStateRunnerResponse(state)) return routeHighlights(state.playground, state.route);
@@ -226,7 +236,7 @@ export function gameHighlights(state: GameStateResponse) {
 /** Every marker the player's team may see, other players' live positions last (the player's own position is the device's). */
 export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
   return [
-    ...(isGameStateRunnerResponse(state) ? [...routeMarkers(state.route), ...fakePositionMarkers(state)] : []),
+    ...(isGameStateRunnerResponse(state) ? [...routeMarkers(state.route), ...fakePositionMarkers(state), ...shownHunterMarkers(state)] : []),
     ...revealMarkers(state),
     ...(isGameStateHunterResponse(state) ? jokerMarkers(state) : []),
     ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),
