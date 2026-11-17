@@ -16,7 +16,7 @@ func TestGameStateShowsSketchesToTheOwnHunterTeamOnly(t *testing.T) {
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	eve := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: wolves}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute)}, Players: []game.Player{ada, bob, eve}}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob, eve}}
 	first, _ := game.ParseCoordinates(52.52, 13.405)
 	second, _ := game.ParseCoordinates(52.53, 13.415)
 	line, _ := game.NewSketchLine([]game.Coordinates{first, second})
@@ -47,7 +47,9 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 	pack, _ := game.ParseHunterTeamName("Pack")
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute)}, Players: []game.Player{ada, bob}}
+	center, _ := game.ParseCoordinates(52.52, 13.405)
+	playground, _ := game.NewPlayground(center, game.DefaultCellSize(), game.DefaultGridSize())
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), Playground: playground, RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
 	a1, _ := game.ParseCell("A1")
 	choice := game.QueryZone{Cell: a1}
 	if err := lobby.UseJoker(bob.ID, choice, now); err != nil {
@@ -62,6 +64,9 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 	}
 }
 
+// everyMinute keeps the expected reveal times short.
+var everyMinute, _ = game.ParseRevealInterval(1)
+
 // jsonOf is v as the client receives it.
 func jsonOf(t *testing.T, v any) string {
 	t.Helper()
@@ -75,13 +80,13 @@ func jsonOf(t *testing.T, v any) string {
 func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	start := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 	center, _ := game.ParseCoordinates(52.52, 13.405)
-	playground, _ := game.NewPlayground(center, game.DefaultCellSize())
+	playground, _ := game.NewPlayground(center, game.DefaultCellSize(), game.DefaultGridSize())
 	pack, _ := game.ParseHunterTeamName("Pack")
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
 	cy := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground}, Players: []game.Player{ada, cy, bob}}
-	first, second := start.Add(game.RevealInterval), start.Add(2*game.RevealInterval)
+	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, cy, bob}}
+	first, second := start.Add(time.Minute), start.Add(2*time.Minute)
 	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}, {Position: position, At: second}}}
 	if err := lobby.UseJoker(ada.ID, game.ZoneOnly{}, first.Add(time.Second)); err != nil {
@@ -95,13 +100,13 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	}
 	reveals := bobState.Players[0].Reveals
 	cell, _ := playground.CellAt(center)
-	want := `[{"kind":"position","revealedAt":"2026-11-08T12:00:30Z","position":{"latitude":52.52,"longitude":13.405,"accuracyMeters":5,"recordedAt":"2026-11-08T12:00:29Z"}},` +
-		`{"kind":"zone","revealedAt":"2026-11-08T12:01:00Z","cell":"` + cell.String() + `"}]`
+	want := `[{"kind":"position","revealedAt":"2026-11-08T12:01:00Z","position":{"latitude":52.52,"longitude":13.405,"accuracyMeters":5,"recordedAt":"2026-11-08T12:00:59Z"}},` +
+		`{"kind":"zone","revealedAt":"2026-11-08T12:02:00Z","cell":"` + cell.String() + `"}]`
 	if got := jsonOf(t, reveals); got != want {
 		t.Fatalf("only the reveal after the joker shows just the cell:\n got %s\nwant %s", got, want)
 	}
 	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
-	want = `{"kind":"zoneOnly","available":false,"usedAt":"2026-11-08T12:00:31Z","usedBy":"` + ada.ID.String() + `"}`
+	want = `{"kind":"zoneOnly","available":false,"usedAt":"2026-11-08T12:01:01Z","usedBy":"` + ada.ID.String() + `"}`
 	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 2 || got != want {
 		t.Fatalf("every runner sees who used the runner joker:\n got %s\nwant %s", got, want)
 	}
@@ -111,12 +116,12 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 	start := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 	center, _ := game.ParseCoordinates(52.52, 13.405)
 	point, _ := game.ParseCoordinates(52.53, 13.415)
-	playground, _ := game.NewPlayground(center, game.DefaultCellSize())
+	playground, _ := game.NewPlayground(center, game.DefaultCellSize(), game.DefaultGridSize())
 	pack, _ := game.ParseHunterTeamName("Pack")
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground}, Players: []game.Player{ada, bob}}
-	first := start.Add(game.RevealInterval)
+	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, bob}}
+	first := start.Add(time.Minute)
 	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}}}
 	if err := lobby.UseJoker(ada.ID, game.FakePosition{Point: point}, start.Add(time.Second)); err != nil {
@@ -126,7 +131,7 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
 	reveals := bobState.Players[0].Reveals
-	want := `[{"kind":"position","revealedAt":"2026-11-08T12:00:30Z","position":{"latitude":52.53,"longitude":13.415,"accuracyMeters":5,"recordedAt":"2026-11-08T12:00:29Z"}}]`
+	want := `[{"kind":"position","revealedAt":"2026-11-08T12:01:00Z","position":{"latitude":52.53,"longitude":13.415,"accuracyMeters":5,"recordedAt":"2026-11-08T12:00:59Z"}}]`
 	if got := jsonOf(t, reveals); got != want {
 		t.Fatalf("hunters must see the chosen point like a normal reveal:\n got %s\nwant %s", got, want)
 	}

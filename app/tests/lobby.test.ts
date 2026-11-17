@@ -10,6 +10,7 @@ const state: GameStateRunnerResponse = {
   status: 'countdown',
   serverTime: '2026-11-08T12:00:00Z',
   startsAt: '2026-11-08T12:00:10Z',
+  revealIntervalMinutes: 30,
   playground: previewPlayground({ latitude: 52.52, longitude: 13.405 }),
   playerId: 'a'.repeat(32),
   team: 'runner',

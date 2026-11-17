@@ -18,15 +18,15 @@ func TestDistanceMeters(t *testing.T) {
 
 func TestEdgeCells(t *testing.T) {
 	center, _ := ParseCoordinates(52.52, 13.405)
-	p, err := NewPlayground(center, DefaultCellSize())
+	p, err := NewPlayground(center, DefaultCellSize(), DefaultGridSize())
 	if err != nil {
 		t.Fatal(err)
 	}
 	south, north := p.SouthEdgeCells(), p.NorthEdgeCells()
-	if len(south) != gridSize || len(north) != gridSize {
+	if len(south) != DefaultGridSize().Cells() || len(north) != DefaultGridSize().Cells() {
 		t.Fatal("expected one cell per column")
 	}
-	bottom, top := p.CellBounds(south[0]), p.CellBounds(north[gridSize-1])
+	bottom, top := p.CellBounds(south[0]), p.CellBounds(north[DefaultGridSize().Cells()-1])
 	if bottom.South != p.Bounds().South || top.North != p.Bounds().North || top.East != p.Bounds().East || bottom.West != p.Bounds().West {
 		t.Fatalf("cells do not touch the playground edges: %+v %+v", bottom, top)
 	}

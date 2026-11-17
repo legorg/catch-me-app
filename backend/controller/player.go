@@ -319,6 +319,7 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 		Status:                     GameStatus(g.Status(view.Now)),
 		ServerTime:                 view.Now,
 		Playground:                 playgroundResponse(g.Playground),
+		RevealIntervalMinutes:      g.RevealInterval.Minutes(),
 		PlayerID:                   PlayerID(view.Me.ID.String()),
 		// Both codes, so any player (e.g. the creator after joining) can invite to either team.
 		JoinCodes: JoinCodes{Runner: g.JoinCodes.Runner.String(), Hunter: g.JoinCodes.Hunter.String()},

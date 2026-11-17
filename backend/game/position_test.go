@@ -21,8 +21,8 @@ func position(t *testing.T, l Lobby, cell string, at time.Time) Position {
 
 func TestCellAtMatchesCellCenter(t *testing.T) {
 	l := newLobby()
-	for row := range gridSize {
-		for column := range gridSize {
+	for row := range DefaultGridSize().Cells() {
+		for column := range DefaultGridSize().Cells() {
 			cell := Cell{column: column, row: row}
 			if got, ok := l.Game.Playground.CellAt(cellCenter(l.Game.Playground, cell)); !ok || got != cell {
 				t.Fatalf("cell %s maps to %s", cell, got)
@@ -122,10 +122,10 @@ func runningLobby(t *testing.T) (Lobby, Player, Player, Player) {
 func TestRevealSchedule(t *testing.T) {
 	l, _, _, _ := runningLobby(t)
 	began := l.Game.StartsAt
-	if !l.Game.latestReveal(began.Add(RevealInterval-time.Second)).IsZero() || l.Game.NextReveal(began) != began.Add(RevealInterval) {
+	if !l.Game.latestReveal(began.Add(revealInterval-time.Second)).IsZero() || l.Game.NextReveal(began) != began.Add(revealInterval) {
 		t.Fatal("first reveal must be one interval after the start")
 	}
-	if l.Game.latestReveal(began.Add(2*RevealInterval+time.Second)) != began.Add(2*RevealInterval) {
+	if l.Game.latestReveal(began.Add(2*revealInterval+time.Second)) != began.Add(2*revealInterval) {
 		t.Fatal("latest reveal wrong")
 	}
 	if !l.Game.NextReveal(began.Add(-time.Second)).IsZero() {
@@ -136,11 +136,11 @@ func TestRevealSchedule(t *testing.T) {
 func TestRevealTimes(t *testing.T) {
 	l, _, _, _ := runningLobby(t)
 	began := l.Game.StartsAt
-	if len(l.Game.RevealTimes(began.Add(RevealInterval-time.Second))) != 0 || len(l.Game.RevealTimes(began.Add(-time.Second))) != 0 {
+	if len(l.Game.RevealTimes(began.Add(revealInterval-time.Second))) != 0 || len(l.Game.RevealTimes(began.Add(-time.Second))) != 0 {
 		t.Fatal("no reveals before the first one")
 	}
-	times := l.Game.RevealTimes(began.Add(3*RevealInterval + time.Second))
-	if len(times) != 3 || times[0] != began.Add(RevealInterval) || times[2] != l.Game.latestReveal(began.Add(3*RevealInterval+time.Second)) {
+	times := l.Game.RevealTimes(began.Add(3*revealInterval + time.Second))
+	if len(times) != 3 || times[0] != began.Add(revealInterval) || times[2] != l.Game.latestReveal(began.Add(3*revealInterval+time.Second)) {
 		t.Fatalf("all reveal times, oldest first, expected: %v", times)
 	}
 }
@@ -174,9 +174,9 @@ func TestVisibility(t *testing.T) {
 	if !find(asHunter, runner.ID).Position.IsZero() || find(asHunter, hunter.ID).Position.IsZero() {
 		t.Fatal("hunters see no runner positions before a reveal")
 	}
-	revealed := l.Game.StartsAt.Add(RevealInterval)
+	revealed := l.Game.StartsAt.Add(revealInterval)
 	r := l.Players[l.index(runner.ID)]
-	earlier := Reveal{Position: r.Position, At: revealed.Add(-RevealInterval)}
+	earlier := Reveal{Position: r.Position, At: revealed.Add(-revealInterval)}
 	latest := Reveal{Position: r.Position, At: revealed}
 	l.Reveals = map[PlayerID][]Reveal{runner.ID: {earlier, latest}}
 	v := find(l.VisibleTo(h, revealed), runner.ID)

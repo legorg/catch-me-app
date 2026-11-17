@@ -14,10 +14,10 @@
   "paths": {
     "/api/games": {
       "post": {
-        "summary": "Create a 6 by 6 playground with adjustable cell size (default 2000 meters)",
+        "summary": "Create a square playground with adjustable grid size, cell size, and reveal interval",
         "operationId": "createGame",
         "requestBody": {
-          "description": "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings",
+          "description": "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100 (default 2000), gridSize 3-12 cells per side (default 6), revealIntervalMinutes 1-60 (default 30); omitted/null settings get their defaults; no date-line crossings",
           "content": {
             "application/json": {
               "schema": {
@@ -1038,6 +1038,15 @@
             "minimum": 100,
             "type": "integer"
           },
+          "gridSize": {
+            "default": 6,
+            "examples": [
+              6
+            ],
+            "maximum": 12,
+            "minimum": 3,
+            "type": "integer"
+          },
           "latitude": {
             "examples": [
               52.52
@@ -1053,6 +1062,15 @@
             "maximum": 180,
             "minimum": -180,
             "type": "number"
+          },
+          "revealIntervalMinutes": {
+            "default": 30,
+            "examples": [
+              30
+            ],
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [
@@ -1159,6 +1177,14 @@
           "playground": {
             "$ref": "#/components/schemas/ControllerPlayground"
           },
+          "revealIntervalMinutes": {
+            "examples": [
+              30
+            ],
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
           "route": {
             "$ref": "#/components/schemas/ControllerGameRoute"
           },
@@ -1175,6 +1201,7 @@
           "sessionId",
           "createdAt",
           "playground",
+          "revealIntervalMinutes",
           "route"
         ],
         "type": "object"
@@ -1240,6 +1267,14 @@
           "playground": {
             "$ref": "#/components/schemas/ControllerPlayground"
           },
+          "revealIntervalMinutes": {
+            "examples": [
+              30
+            ],
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
           "serverTime": {
             "examples": [
               "2026-11-08T12:00:00Z"
@@ -1289,6 +1324,7 @@
           "sessionId",
           "status",
           "serverTime",
+          "revealIntervalMinutes",
           "playground",
           "playerId",
           "joinCodes",
@@ -1354,6 +1390,14 @@
           "playground": {
             "$ref": "#/components/schemas/ControllerPlayground"
           },
+          "revealIntervalMinutes": {
+            "examples": [
+              30
+            ],
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
           "route": {
             "$ref": "#/components/schemas/ControllerGameRoute"
           },
@@ -1407,6 +1451,7 @@
           "sessionId",
           "status",
           "serverTime",
+          "revealIntervalMinutes",
           "playground",
           "playerId",
           "joinCodes",
@@ -1723,21 +1768,19 @@
             "$ref": "#/components/schemas/ControllerCoordinates"
           },
           "columns": {
-            "enum": [
-              6
-            ],
             "examples": [
               6
             ],
+            "maximum": 12,
+            "minimum": 3,
             "type": "integer"
           },
           "rows": {
-            "enum": [
-              6
-            ],
             "examples": [
               6
             ],
+            "maximum": 12,
+            "minimum": 3,
             "type": "integer"
           }
         },
@@ -1833,9 +1876,9 @@
             "examples": [
               "C4"
             ],
-            "maxLength": 2,
+            "maxLength": 3,
             "minLength": 2,
-            "pattern": "^[A-F][1-6]$",
+            "pattern": "^[A-L]([1-9]|1[0-2])$",
             "type": "string"
           },
           "found": {
@@ -1870,9 +1913,9 @@
             "examples": [
               "C4"
             ],
-            "maxLength": 2,
+            "maxLength": 3,
             "minLength": 2,
-            "pattern": "^[A-F][1-6]$",
+            "pattern": "^[A-L]([1-9]|1[0-2])$",
             "type": "string"
           },
           "kind": {
@@ -2186,9 +2229,9 @@
             "examples": [
               "C4"
             ],
-            "maxLength": 2,
+            "maxLength": 3,
             "minLength": 2,
-            "pattern": "^[A-F][1-6]$",
+            "pattern": "^[A-L]([1-9]|1[0-2])$",
             "type": "string"
           },
           "kind": {

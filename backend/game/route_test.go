@@ -6,16 +6,25 @@ import (
 )
 
 func TestCellParsing(t *testing.T) {
-	for _, label := range []string{"A1", "F6", "C4"} {
+	for _, label := range []string{"A1", "F6", "C4", "L12", "A10"} {
 		if cell, err := ParseCell(label); err != nil || cell.String() != label {
 			t.Fatalf("cell %s did not round trip", label)
 		}
 	}
 	var validation *ValidationError
-	for _, label := range []string{"", "A", "A0", "A7", "G1", "a1", "A10"} {
+	for _, label := range []string{"", "A", "A0", "A01", "A+1", "A13", "M1", "a1", "A1 "} {
 		if _, err := ParseCell(label); !errors.As(err, &validation) {
 			t.Fatalf("invalid cell accepted: %q", label)
 		}
+	}
+	center, _ := ParseCoordinates(52.52, 13.405)
+	small, _ := ParseGridSize(3)
+	p, _ := NewPlayground(center, DefaultCellSize(), small)
+	c3, _ := ParseCell("C3")
+	d1, _ := ParseCell("D1")
+	a4, _ := ParseCell("A4")
+	if !p.HasCell(c3) || p.HasCell(d1) || p.HasCell(a4) {
+		t.Fatal("a 3 by 3 grid has exactly the cells A1 to C3")
 	}
 	for _, used := range []int{-1, MaxRouteRegenerations + 1} {
 		if _, err := ParseRouteRegenerations(used); !errors.As(err, &validation) {

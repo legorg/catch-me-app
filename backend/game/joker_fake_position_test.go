@@ -21,7 +21,7 @@ func TestFakePositionJokerRules(t *testing.T) {
 		t.Fatalf("a runner can only have one joker waiting for the next reveal: %v", err)
 	}
 	// At the reveal time, the zone joker has acted.
-	revealed := running.Add(RevealInterval)
+	revealed := running.Add(revealInterval)
 	if err := l.UseJoker(runner.ID, fake(outside), revealed); !errors.As(err, &validation) {
 		t.Fatalf("the point must lie inside the playground: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestFakePositionJokerRules(t *testing.T) {
 
 func TestFakePositionReplacesTheNextRevealOnly(t *testing.T) {
 	l, runner, bob, _, _, running := jokerLobby(t)
-	first, second, third := running.Add(RevealInterval), running.Add(2*RevealInterval), running.Add(3*RevealInterval)
+	first, second, third := running.Add(revealInterval), running.Add(2*revealInterval), running.Add(3*revealInterval)
 	actual := position(t, l, "C4", second)
 	l.Reveals = map[PlayerID][]Reveal{runner.ID: {{Position: actual, At: first}, {Position: actual, At: second}, {Position: actual, At: third}}}
 	point := cellCenter(l.Game.Playground, Cell{column: 0, row: 0})

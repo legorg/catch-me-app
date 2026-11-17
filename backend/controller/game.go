@@ -29,12 +29,12 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &body, "expected a JSON object with latitude and longitude") {
 		return
 	}
-	center, cellSize, err := body.parse()
+	center, cellSize, gridSize, revealInterval, err := body.parse()
 	if err != nil {
 		writeGameError(w, err, "invalid game")
 		return
 	}
-	saved, err := c.service.Create(r.Context(), center, cellSize)
+	saved, err := c.service.Create(r.Context(), center, cellSize, gridSize, revealInterval)
 	if err != nil {
 		writeGameError(w, err, "could not save game")
 		return
@@ -45,25 +45,30 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (body CreateGameRequest) parse() (game.Coordinates, game.CellSize, error) {
+// parse checks every field; omitted settings get their defaults.
+func (body CreateGameRequest) parse() (center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, err error) {
 	if body.Latitude == nil || body.Longitude == nil {
-		return game.Coordinates{}, game.CellSize{}, &game.ValidationError{Message: "latitude and longitude are required"}
+		return center, cellSize, gridSize, revealInterval, &game.ValidationError{Message: "latitude and longitude are required"}
 	}
-	center, err := game.ParseCoordinates(*body.Latitude, *body.Longitude)
-	if err != nil {
-		return game.Coordinates{}, game.CellSize{}, err
+	center, err1 := game.ParseCoordinates(*body.Latitude, *body.Longitude)
+	cellSize, err2 := parseOptional(body.CellSizeMeters, game.ParseCellSize, game.DefaultCellSize())
+	gridSize, err3 := parseOptional(body.GridSize, game.ParseGridSize, game.DefaultGridSize())
+	revealInterval, err4 := parseOptional(body.RevealIntervalMinutes, game.ParseRevealInterval, game.DefaultRevealInterval())
+	return center, cellSize, gridSize, revealInterval, errors.Join(err1, err2, err3, err4)
+}
+
+// parseOptional parses a value that may be omitted (nil), which means fallback.
+func parseOptional[T any](value *int, parse func(int) (T, error), fallback T) (T, error) {
+	if value == nil {
+		return fallback, nil
 	}
-	if body.CellSizeMeters == nil {
-		return center, game.DefaultCellSize(), nil
-	}
-	cellSize, err := game.ParseCellSize(*body.CellSizeMeters)
-	return center, cellSize, err
+	return parse(*value)
 }
 
 func gameResponse(saved game.Game) GameResponse {
 	response := GameResponse{
 		SessionID: SessionID(saved.SessionID.String()), CreatedAt: saved.CreatedAt,
-		Playground: playgroundResponse(saved.Playground),
+		Playground: playgroundResponse(saved.Playground), RevealIntervalMinutes: saved.RevealInterval.Minutes(),
 	}
 	response.Route = gameRouteResponse(saved.Route)
 	return response

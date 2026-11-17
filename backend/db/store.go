@@ -23,13 +23,16 @@ type gameRow struct {
 	CreatedAt           time.Time
 	Latitude, Longitude float64
 	CellSizeMeters      int
-	RunnerCode          string `gorm:"uniqueIndex;not null"`
-	HunterCode          string `gorm:"uniqueIndex;not null"`
-	StartsAt            time.Time
-	StartTitle          string
-	StartLat, StartLon  float64
-	StopTitle           string
-	StopLat, StopLon    float64
+	// Older rows predate these settings and get the defaults.
+	GridSize              int    `gorm:"not null;default:6"`
+	RevealIntervalMinutes int    `gorm:"not null;default:30"`
+	RunnerCode            string `gorm:"uniqueIndex;not null"`
+	HunterCode            string `gorm:"uniqueIndex;not null"`
+	StartsAt              time.Time
+	StartTitle            string
+	StartLat, StartLon    float64
+	StopTitle             string
+	StopLat, StopLon      float64
 	// RouteRegenerations is how often the runners replaced the route.
 	RouteRegenerations int         `gorm:"not null;default:0"`
 	Players            []playerRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
@@ -141,7 +144,8 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 		center := g.Playground.Center()
 		row := gameRow{
 			ID: g.SessionID.String(), CreatedAt: g.CreatedAt, Latitude: center.Latitude(), Longitude: center.Longitude(),
-			CellSizeMeters: g.Playground.CellSize().Meters(), RunnerCode: codes[0], HunterCode: codes[1], StartsAt: g.StartsAt,
+			CellSizeMeters: g.Playground.CellSize().Meters(), GridSize: g.Playground.GridSize().Cells(), RevealIntervalMinutes: g.RevealInterval.Minutes(),
+			RunnerCode: codes[0], HunterCode: codes[1], StartsAt: g.StartsAt,
 			StartTitle: g.Route.Start.Title, StartLat: g.Route.Start.Coordinates.Latitude(), StartLon: g.Route.Start.Coordinates.Longitude(),
 			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
 			RouteRegenerations: g.RouteRegenerations,
@@ -542,15 +546,17 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 	cellSize, err3 := game.ParseCellSize(row.CellSizeMeters)
 	runner, err4 := game.ParseJoinCode(row.RunnerCode)
 	hunter, err5 := game.ParseJoinCode(row.HunterCode)
-	if err := errors.Join(err1, err2, err3, err4, err5); err != nil {
+	gridSize, err6 := game.ParseGridSize(row.GridSize)
+	revealInterval, err7 := game.ParseRevealInterval(row.RevealIntervalMinutes)
+	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7); err != nil {
 		return game.Lobby{}, err
 	}
-	playground, err := game.NewPlayground(center, cellSize)
+	playground, err := game.NewPlayground(center, cellSize, gridSize)
 	if err != nil {
 		return game.Lobby{}, err
 	}
 	lobby := game.Lobby{Game: game.Game{
-		SessionID: id, CreatedAt: row.CreatedAt.UTC(), Playground: playground,
+		SessionID: id, CreatedAt: row.CreatedAt.UTC(), Playground: playground, RevealInterval: revealInterval,
 		JoinCodes: game.JoinCodes{Runner: runner, Hunter: hunter}, StartsAt: row.StartsAt.UTC(),
 	}}
 	start, err1 := game.ParseCoordinates(row.StartLat, row.StartLon)

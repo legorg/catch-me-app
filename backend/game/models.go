@@ -73,8 +73,10 @@ type Game struct {
 	SessionID  SessionID
 	CreatedAt  time.Time
 	Playground Playground
-	JoinCodes  JoinCodes
-	Route      Route
+	// RevealInterval is how often hunters receive the runners' positions.
+	RevealInterval RevealInterval
+	JoinCodes      JoinCodes
+	Route          Route
 	// RouteRegenerations is how often the runners replaced the route.
 	RouteRegenerations int
 	// StartsAt is zero while the lobby is open, otherwise the scheduled start.

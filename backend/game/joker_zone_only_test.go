@@ -38,7 +38,7 @@ func TestZoneOnlyJokerRules(t *testing.T) {
 func TestZoneOnlyHidesThePositionOfTheNextRevealOnly(t *testing.T) {
 	l, runner, bob, _, _, running := jokerLobby(t)
 	cy := l.Players[1]
-	first, second, third := running.Add(RevealInterval), running.Add(2*RevealInterval), running.Add(3*RevealInterval)
+	first, second, third := running.Add(revealInterval), running.Add(2*revealInterval), running.Add(3*revealInterval)
 	inC6 := position(t, l, "C6", first)
 	// The runner moves on after using the joker: the zone is where they are at the reveal.
 	inC4 := position(t, l, "C4", second)

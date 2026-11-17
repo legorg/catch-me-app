@@ -8,8 +8,8 @@ import (
 
 const (
 	maxAccuracyMeters = 10000
-	// RevealInterval is how often hunters receive the runners' positions.
-	RevealInterval = 30 * time.Second
+	minRevealMinutes  = 1
+	maxRevealMinutes  = 60
 	// startPositionMaxAge is how recent a runner's position must be to prove they
 	// are at the start of the route.
 	startPositionMaxAge = 30 * time.Second
@@ -78,9 +78,24 @@ func (PositionReveal) hunterReveal() {}
 func (ZoneReveal) hunterReveal()     {}
 func (OutsideReveal) hunterReveal()  {}
 
+// RevealInterval is how often hunters receive the runners' positions, in whole minutes.
+type RevealInterval struct{ minutes int }
+
+func DefaultRevealInterval() RevealInterval { return RevealInterval{minutes: 30} }
+
+func ParseRevealInterval(minutes int) (RevealInterval, error) {
+	if minutes < minRevealMinutes || minutes > maxRevealMinutes {
+		return RevealInterval{}, &ValidationError{Message: "reveal interval must be 1 to 60 minutes"}
+	}
+	return RevealInterval{minutes: minutes}, nil
+}
+
+func (r RevealInterval) Minutes() int            { return r.minutes }
+func (r RevealInterval) Duration() time.Duration { return time.Duration(r.minutes) * time.Minute }
+
 // CellAt returns the grid cell containing the coordinates, if inside the playground.
 func (p Playground) CellAt(c Coordinates) (Cell, bool) {
-	row, column, ok := geo.Bounds(p.bounds).CellAt(gridSize, c.latitude, c.longitude)
+	row, column, ok := geo.Bounds(p.bounds).CellAt(p.gridSize.cells, c.latitude, c.longitude)
 	return Cell{column: column, row: row}, ok
 }
 
@@ -90,11 +105,12 @@ func (g Game) latestReveal(now time.Time) time.Time {
 	if g.Status(now) != StatusRunning {
 		return time.Time{}
 	}
-	count := now.Sub(g.StartsAt) / RevealInterval
+	interval := g.RevealInterval.Duration()
+	count := now.Sub(g.StartsAt) / interval
 	if count < 1 {
 		return time.Time{}
 	}
-	return g.StartsAt.Add(count * RevealInterval)
+	return g.StartsAt.Add(count * interval)
 }
 
 // RevealTimes are all reveal times up to now, oldest first; empty before the first one.
@@ -103,10 +119,11 @@ func (g Game) RevealTimes(now time.Time) []time.Time {
 	if latest.IsZero() {
 		return nil
 	}
-	count := int(latest.Sub(g.StartsAt) / RevealInterval)
+	interval := g.RevealInterval.Duration()
+	count := int(latest.Sub(g.StartsAt) / interval)
 	times := make([]time.Time, count)
 	for i := range times {
-		times[i] = g.StartsAt.Add(time.Duration(i+1) * RevealInterval)
+		times[i] = g.StartsAt.Add(time.Duration(i+1) * interval)
 	}
 	return times
 }
@@ -116,5 +133,6 @@ func (g Game) NextReveal(now time.Time) time.Time {
 	if g.Status(now) != StatusRunning {
 		return time.Time{}
 	}
-	return g.StartsAt.Add((now.Sub(g.StartsAt)/RevealInterval + 1) * RevealInterval)
+	interval := g.RevealInterval.Duration()
+	return g.StartsAt.Add((now.Sub(g.StartsAt)/interval + 1) * interval)
 }

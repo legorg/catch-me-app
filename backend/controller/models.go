@@ -20,7 +20,7 @@ type PlayerID string
 // SketchID is the 32-character hex ID of a sketch.
 type SketchID string
 
-// Cell is a playground cell: column A-F, then row 1-6.
+// Cell is a playground cell: column A-L, then row 1-12, within the game's grid.
 type Cell string
 
 type Team string
@@ -77,13 +77,17 @@ type CreateGameRequest struct {
 	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
 	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
 	CellSizeMeters *int     `json:"cellSizeMeters,omitempty" minimum:"100" maximum:"5000" default:"2000" example:"2000" validate:"omitempty,gte=100,lte=5000"`
+	// Cells per side of the square grid.
+	GridSize *int `json:"gridSize,omitempty" minimum:"3" maximum:"12" default:"6" example:"6" validate:"omitempty,gte=3,lte=12"`
+	// How often hunters receive the runners' positions.
+	RevealIntervalMinutes *int `json:"revealIntervalMinutes,omitempty" minimum:"1" maximum:"60" default:"30" example:"30" validate:"omitempty,gte=1,lte=60"`
 }
 
 type Playground struct {
 	Center         Coordinates `json:"center"`
 	Bounds         Bounds      `json:"bounds"`
-	Rows           int         `json:"rows" enums:"6" example:"6" validate:"eq=6"`
-	Columns        int         `json:"columns" enums:"6" example:"6" validate:"eq=6"`
+	Rows           int         `json:"rows" minimum:"3" maximum:"12" example:"6" validate:"gte=3,lte=12"`
+	Columns        int         `json:"columns" minimum:"3" maximum:"12" example:"6" validate:"gte=3,lte=12"`
 	CellSizeMeters int         `json:"cellSizeMeters" minimum:"100" maximum:"5000" example:"2000" validate:"gte=100,lte=5000"`
 }
 
@@ -105,7 +109,9 @@ type GameResponse struct {
 	SessionID  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
 	CreatedAt  time.Time  `json:"createdAt" example:"2026-11-08T12:00:00Z" validate:"required"`
 	Playground Playground `json:"playground"`
-	Route      GameRoute  `json:"route"`
+	// How often hunters receive the runners' positions.
+	RevealIntervalMinutes int       `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30" validate:"gte=1,lte=60"`
+	Route                 GameRoute `json:"route"`
 }
 
 type JoinCodes struct {
@@ -180,7 +186,7 @@ type PositionRevealResponse struct {
 type ZoneRevealResponse struct {
 	Kind       RevealKind `json:"kind" enum:"zone" validate:"required,eq=zone"`
 	RevealedAt time.Time  `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
-	Cell       Cell       `json:"cell" pattern:"^[A-F][1-6]$" example:"C4" validate:"required,len=2"`
+	Cell       Cell       `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" example:"C4" validate:"required,min=2,max=3"`
 }
 
 // OutsideRevealResponse is a zoneOnly reveal of a runner outside the playground: no cell, no position.
@@ -267,8 +273,8 @@ type ShowRunnersRequest struct {
 
 type QueryZoneRequest struct {
 	Kind JokerKind `json:"kind" enum:"queryZone" validate:"required,eq=queryZone"`
-	// The cell to query: column A-F, then row 1-6.
-	Cell Cell `json:"cell" pattern:"^[A-F][1-6]$" example:"C4" validate:"required,len=2"`
+	// The cell to query: column A-L, then row 1-12, within the game's grid.
+	Cell Cell `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" example:"C4" validate:"required,min=2,max=3"`
 }
 
 type ZoneOnlyRequest struct {
@@ -330,7 +336,7 @@ type QueryZoneJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"queryZone" validate:"required,eq=queryZone"`
 	JokerStatus
 	// Once used: the queried cell and whether any runner was inside it at usedAt.
-	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
+	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-L]([1-9]|1[0-2])$" example:"C4" validate:"omitempty,min=2,max=3"`
 	Found *bool `json:"found,omitempty" example:"true"`
 }
 
@@ -364,11 +370,13 @@ type GameStateBase struct {
 	// Scheduled start, present during the countdown and once running.
 	StartsAt *time.Time `json:"startsAt,omitempty" example:"2026-11-08T12:00:10Z" validate:"omitempty"`
 	// Next time hunters receive the runners' positions, present while running.
-	NextRevealAt *time.Time       `json:"nextRevealAt,omitempty" example:"2026-11-08T12:05:10Z" validate:"omitempty"`
-	Playground   Playground       `json:"playground"`
-	PlayerID     PlayerID         `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
-	JoinCodes    JoinCodes        `json:"joinCodes"`
-	Players      []PlayerResponse `json:"players" validate:"max=100,dive"`
+	NextRevealAt *time.Time `json:"nextRevealAt,omitempty" example:"2026-11-08T12:05:10Z" validate:"omitempty"`
+	// How often hunters receive the runners' positions.
+	RevealIntervalMinutes int              `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30" validate:"gte=1,lte=60"`
+	Playground            Playground       `json:"playground"`
+	PlayerID              PlayerID         `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
+	JoinCodes             JoinCodes        `json:"joinCodes"`
+	Players               []PlayerResponse `json:"players" validate:"max=100,dive"`
 }
 
 // GameStateRunnerResponse is the game as seen by a runner.

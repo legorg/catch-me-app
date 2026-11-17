@@ -127,8 +127,8 @@ func (o operation) register(reflector *openapi31.Reflector) error {
 // The handlers check the method themselves, so each path is mounted once.
 func operations(games *controller.GameController) []operation {
 	return []operation{
-		{method: http.MethodPost, path: "/api/games", id: "createGame", handler: games.Create, summary: "Create a 6 by 6 playground with adjustable cell size (default 2000 meters)", secured: false,
-			body: new(controller.CreateGameRequest), bodyDescription: "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings",
+		{method: http.MethodPost, path: "/api/games", id: "createGame", handler: games.Create, summary: "Create a square playground with adjustable grid size, cell size, and reveal interval", secured: false,
+			body: new(controller.CreateGameRequest), bodyDescription: "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100 (default 2000), gridSize 3-12 cells per side (default 6), revealIntervalMinutes 1-60 (default 30); omitted/null settings get their defaults; no date-line crossings",
 			success:  response{status: 201, body: new(controller.CreateGameResponse), description: "Game saved, with one join code per team"},
 			failures: []response{{status: 400, description: "Invalid JSON, coordinates, or cell size"}, {status: 413, description: "Request body exceeds 1024 bytes"}, {status: 405, description: "Method not allowed"}, {status: 422, description: "No landmark found at the edges of the playground"}, {status: 500, description: "Could not save game"}, {status: 503, description: "Landmark lookup failed"}}},
 		{method: http.MethodPost, path: "/api/players", id: "joinGame", handler: games.Join, summary: "Join a game with a team join code", secured: false,

@@ -12,6 +12,9 @@ func (QueryZone) Kind() JokerKind { return JokerQueryZone }
 
 // apply records only the answer: never which runners or where.
 func (c QueryZone) apply(l Lobby, me Player, now time.Time) (JokerUse, error) {
+	if !l.Game.Playground.HasCell(c.Cell) {
+		return nil, &ValidationError{Message: "cell is not part of this game's grid"}
+	}
 	found := l.Game.Playground.AnyInCell(l.runnerPositions(), c.Cell)
 	return QueryZoneUse{Team: me.HunterTeam, At: now, Cell: c.Cell, Found: found}, nil
 }

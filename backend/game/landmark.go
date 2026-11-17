@@ -29,16 +29,16 @@ func (b Bounds) Contains(c Coordinates) bool {
 
 // CellBounds is the area of one grid cell.
 func (p Playground) CellBounds(c Cell) Bounds {
-	return Bounds(geo.Bounds(p.bounds).Cell(gridSize, c.row, c.column))
+	return Bounds(geo.Bounds(p.bounds).Cell(p.gridSize.cells, c.row, c.column))
 }
 
 // SouthEdgeCells are the cells of the bottom row of the grid, NorthEdgeCells
 // those of the top row.
-func (p Playground) SouthEdgeCells() []Cell { return edgeCells(gridSize - 1) }
-func (p Playground) NorthEdgeCells() []Cell { return edgeCells(0) }
+func (p Playground) SouthEdgeCells() []Cell { return p.edgeCells(p.gridSize.cells - 1) }
+func (p Playground) NorthEdgeCells() []Cell { return p.edgeCells(0) }
 
-func edgeCells(row int) []Cell {
-	cells := make([]Cell, gridSize)
+func (p Playground) edgeCells(row int) []Cell {
+	cells := make([]Cell, p.gridSize.cells)
 	for column := range cells {
 		cells[column] = Cell{column: column, row: row}
 	}

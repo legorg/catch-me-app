@@ -3,7 +3,8 @@ package game
 import "catch-me/backend/geo"
 
 const (
-	gridSize           = 6
+	minGridSize        = 3
+	maxGridSize        = 12
 	minCellSizeMeters  = 100
 	maxCellSizeMeters  = 5000
 	cellSizeStepMeters = 100
@@ -34,28 +35,49 @@ func ParseCellSize(meters int) (CellSize, error) {
 
 func (s CellSize) Meters() int { return s.meters }
 
+// GridSize is how many cells the square grid has per side.
+type GridSize struct{ cells int }
+
+func DefaultGridSize() GridSize { return GridSize{cells: 6} }
+
+func ParseGridSize(cells int) (GridSize, error) {
+	if cells < minGridSize || cells > maxGridSize {
+		return GridSize{}, &ValidationError{Message: "grid size must be 3 to 12 cells per side"}
+	}
+	return GridSize{cells: cells}, nil
+}
+
+func (s GridSize) Cells() int { return s.cells }
+
 type Bounds struct{ North, South, East, West float64 }
 
 type Playground struct {
 	center   Coordinates
 	cellSize CellSize
+	gridSize GridSize
 	bounds   Bounds
 }
 
 // NewPlayground uses a local spherical approximation: meter-sized cells,
 // north-aligned. Limit latitude and reject date-line crossings to keep the
 // first version's rectangular bounds unambiguous.
-func NewPlayground(center Coordinates, cellSize CellSize) (Playground, error) {
-	halfSize := float64(gridSize*cellSize.meters) / 2
+func NewPlayground(center Coordinates, cellSize CellSize, gridSize GridSize) (Playground, error) {
+	halfSize := float64(gridSize.cells*cellSize.meters) / 2
 	bounds := Bounds(geo.BoundsAround(center.latitude, center.longitude, halfSize))
 	if geo.Bounds(bounds).CrossesDateLine() {
 		return Playground{}, &ValidationError{Message: "playground must not cross the international date line"}
 	}
-	return Playground{center: center, cellSize: cellSize, bounds: bounds}, nil
+	return Playground{center: center, cellSize: cellSize, gridSize: gridSize, bounds: bounds}, nil
 }
 
 func (p Playground) Center() Coordinates { return p.center }
 func (p Playground) CellSize() CellSize  { return p.cellSize }
+func (p Playground) GridSize() GridSize  { return p.gridSize }
 func (p Playground) Bounds() Bounds      { return p.bounds }
-func (p Playground) Rows() int           { return gridSize }
-func (p Playground) Columns() int        { return gridSize }
+func (p Playground) Rows() int           { return p.gridSize.cells }
+func (p Playground) Columns() int        { return p.gridSize.cells }
+
+// HasCell reports whether the cell is part of this playground's grid.
+func (p Playground) HasCell(c Cell) bool {
+	return c.column < p.gridSize.cells && c.row < p.gridSize.cells
+}

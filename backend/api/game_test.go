@@ -49,7 +49,7 @@ func TestCreateGame(t *testing.T) {
 		t.Fatalf("invalid join codes: %+v", createdGame.JoinCodes)
 	}
 	center, _ := domain.ParseCoordinates(52.52, 13.405)
-	p, _ := domain.NewPlayground(center, domain.DefaultCellSize())
+	p, _ := domain.NewPlayground(center, domain.DefaultCellSize(), domain.DefaultGridSize())
 	want := controller.Playground{Center: controller.Coordinates{Latitude: 52.52, Longitude: 13.405}, Bounds: controller.Bounds(p.Bounds()), Rows: 6, Columns: 6, CellSizeMeters: 2000}
 	if game.Playground != want {
 		t.Fatalf("unexpected playground: %+v", game.Playground)
@@ -75,6 +75,11 @@ func TestGameErrors(t *testing.T) {
 		{"wrong increment", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":1550}`, 400},
 		{"fractional meters", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":1500.5}`, 400},
 		{"string size", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":"2000"}`, 400},
+		{"grid too small", "POST", "/api/games", `{"latitude":0,"longitude":0,"gridSize":2}`, 400},
+		{"grid too large", "POST", "/api/games", `{"latitude":0,"longitude":0,"gridSize":13}`, 400},
+		{"zero reveal interval", "POST", "/api/games", `{"latitude":0,"longitude":0,"revealIntervalMinutes":0}`, 400},
+		{"reveal interval too long", "POST", "/api/games", `{"latitude":0,"longitude":0,"revealIntervalMinutes":61}`, 400},
+		{"fractional reveal interval", "POST", "/api/games", `{"latitude":0,"longitude":0,"revealIntervalMinutes":0.5}`, 400},
 		{"unknown field", "POST", "/api/games", `{"latitude":0,"longitude":0,"rows":8}`, 400},
 		{"two objects", "POST", "/api/games", `{"latitude":0,"longitude":0}{}`, 400},
 		{"too far north", "POST", "/api/games", `{"latitude":81,"longitude":0}`, 400},
@@ -123,6 +128,24 @@ func TestCreateGameCellSizes(t *testing.T) {
 		var created controller.CreateGameResponse
 		if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil || recorder.Code != 201 || created.Game.Playground.CellSizeMeters != tc.size {
 			t.Fatalf("unexpected size: %d %s", recorder.Code, recorder.Body)
+		}
+	}
+}
+
+func TestCreateGameGridSizeAndRevealInterval(t *testing.T) {
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
+	for _, tc := range []struct {
+		body           string
+		cells, minutes int
+	}{
+		{`{"latitude":0,"longitude":0}`, 6, 30},
+		{`{"latitude":0,"longitude":0,"gridSize":null,"revealIntervalMinutes":null}`, 6, 30},
+		{`{"latitude":0,"longitude":0,"gridSize":3,"revealIntervalMinutes":1}`, 3, 1},
+		{`{"latitude":0,"longitude":0,"gridSize":12,"revealIntervalMinutes":60}`, 12, 60},
+	} {
+		created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", tc.body), 201)
+		if p := created.Game.Playground; p.Rows != tc.cells || p.Columns != tc.cells || created.Game.RevealIntervalMinutes != tc.minutes {
+			t.Fatalf("%s: unexpected settings: %+v", tc.body, created.Game)
 		}
 	}
 }

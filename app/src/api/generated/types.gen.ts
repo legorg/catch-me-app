@@ -26,8 +26,10 @@ export type ControllerCoordinates = {
 
 export type ControllerCreateGameRequest = {
     cellSizeMeters?: number;
+    gridSize?: number;
     latitude: number;
     longitude: number;
+    revealIntervalMinutes?: number;
 };
 
 export type ControllerCreateGameResponse = {
@@ -52,6 +54,7 @@ export type ControllerFakePositionRequest = {
 export type ControllerGameResponse = {
     createdAt: string;
     playground: ControllerPlayground;
+    revealIntervalMinutes: number;
     route: ControllerGameRoute;
     sessionId: string;
 };
@@ -69,6 +72,7 @@ export type ControllerGameStateHunterResponse = {
     playerId: string;
     players: Array<ControllerPlayerResponse>;
     playground: ControllerPlayground;
+    revealIntervalMinutes: number;
     serverTime: string;
     sessionId: string;
     sketches: Array<ControllerSketchResponse>;
@@ -91,6 +95,7 @@ export type ControllerGameStateRunnerResponse = {
     playerId: string;
     players: Array<ControllerPlayerResponse>;
     playground: ControllerPlayground;
+    revealIntervalMinutes: number;
     route: ControllerGameRoute;
     routeRegenerationsLeft: number;
     serverTime: string;
@@ -167,8 +172,8 @@ export type ControllerPlayground = {
     bounds: ControllerBounds;
     cellSizeMeters: number;
     center: ControllerCoordinates;
-    columns: 6;
-    rows: 6;
+    columns: number;
+    rows: number;
 };
 
 export type ControllerPositionResponse = {
@@ -276,7 +281,7 @@ export type ControllerZoneRevealResponse = {
 
 export type CreateGameData = {
     /**
-     * Both coordinates required; cellSizeMeters is 100-5000 in steps of 100, omitted/null defaults to 2000; no date-line crossings
+     * Both coordinates required; cellSizeMeters is 100-5000 in steps of 100 (default 2000), gridSize 3-12 cells per side (default 6), revealIntervalMinutes 1-60 (default 30); omitted/null settings get their defaults; no date-line crossings
      */
     body: ControllerCreateGameRequest;
     path?: never;

@@ -209,7 +209,7 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	body := `{"kind":"showRunners"}`
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", "", body), 401)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"teleport"}`), 400)
-	for _, invalid := range []string{`{}`, `{"kind":"queryZone"}`, `{"kind":"queryZone","cell":"G1"}`, `{"kind":"showRunners","cell":"A1"}`, `{"kind":"showRunners","latitude":0,"longitude":0}`} {
+	for _, invalid := range []string{`{}`, `{"kind":"queryZone"}`, `{"kind":"queryZone","cell":"M1"}`, `{"kind":"queryZone","cell":"A13"}`, `{"kind":"showRunners","cell":"A1"}`, `{"kind":"showRunners","latitude":0,"longitude":0}`} {
 		decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, invalid), 400)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, body), 409)

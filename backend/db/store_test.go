@@ -12,7 +12,10 @@ import (
 	"catch-me/backend/game"
 )
 
-var now = time.Date(2026, 11, 8, 12, 0, 0, 123456789, time.UTC)
+var (
+	now            = time.Date(2026, 11, 8, 12, 0, 0, 123456789, time.UTC)
+	revealInterval = game.DefaultRevealInterval().Duration()
+)
 
 func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 	t.Helper()
@@ -28,7 +31,7 @@ func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := game.NewPlayground(center, size)
+	p, err := game.NewPlayground(center, size, game.DefaultGridSize())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +39,20 @@ func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 		Start: game.Landmark{Title: "Start", Coordinates: boundsCenter(p.CellBounds(p.SouthEdgeCells()[0]))},
 		Stop:  game.Landmark{Title: "Stop", Coordinates: boundsCenter(p.CellBounds(p.NorthEdgeCells()[0]))},
 	}
-	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, JoinCodes: game.NewJoinCodes(), Route: route}
+	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, RevealInterval: game.DefaultRevealInterval(), JoinCodes: game.NewJoinCodes(), Route: route}
+}
+
+// withSettings is g with another grid size and reveal interval.
+func withSettings(t *testing.T, g game.Game, cells, minutes int) game.Game {
+	t.Helper()
+	gridSize, err1 := game.ParseGridSize(cells)
+	interval, err2 := game.ParseRevealInterval(minutes)
+	p, err3 := game.NewPlayground(g.Playground.Center(), g.Playground.CellSize(), gridSize)
+	if err := errors.Join(err1, err2, err3); err != nil {
+		t.Fatal(err)
+	}
+	g.Playground, g.RevealInterval = p, interval
+	return g
 }
 
 func open(t *testing.T, path string) *Store {
@@ -118,7 +134,11 @@ func TestStorePersistsAfterReopening(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixtures := []game.Game{fixture(t, 52.52, 100, strings.Repeat("a", 32)), fixture(t, 0, 5000, strings.Repeat("b", 32))}
+	fixtures := []game.Game{
+		fixture(t, 52.52, 100, strings.Repeat("a", 32)),
+		withSettings(t, fixture(t, 0, 5000, strings.Repeat("b", 32)), 12, 1),
+		withSettings(t, fixture(t, 10, 2000, strings.Repeat("d", 32)), 3, 60),
+	}
 	for _, saved := range fixtures {
 		if err := store.Create(ctx, saved); err != nil {
 			t.Fatal(err)
@@ -234,7 +254,7 @@ func TestPositionsAndReveals(t *testing.T) {
 	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
 		t.Fatal(err)
 	}
-	reveal := start.Add(game.RevealInterval)
+	reveal := start.Add(revealInterval)
 	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 12.5, reveal.Add(-time.Second))
 	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal)
 	move(t, store, token, first)
@@ -243,7 +263,7 @@ func TestPositionsAndReveals(t *testing.T) {
 	}
 	move(t, store, token, second)
 	// A reveal shows the last position strictly before the reveal time.
-	lobby := load(t, store, saved.JoinCodes.Runner, reveal.Add(game.RevealInterval/2))
+	lobby := load(t, store, saved.JoinCodes.Runner, reveal.Add(revealInterval/2))
 	if got := lobby.Players[0]; got.Position != second {
 		t.Fatalf("latest position wrong: %+v", got.Position)
 	}
@@ -253,7 +273,7 @@ func TestPositionsAndReveals(t *testing.T) {
 	if got := lobby.Players[1]; !got.Position.IsZero() || len(lobby.Reveals) != 1 {
 		t.Fatalf("hunter without positions got one: %+v %+v", got, lobby.Reveals)
 	}
-	if got := load(t, store, saved.JoinCodes.Runner, reveal.Add(game.RevealInterval)).Reveals[runner.ID]; len(got) != 2 || got[1].Position != second {
+	if got := load(t, store, saved.JoinCodes.Runner, reveal.Add(revealInterval)).Reveals[runner.ID]; len(got) != 2 || got[1].Position != second {
 		t.Fatalf("second reveal missing: %+v", got)
 	}
 
@@ -279,7 +299,7 @@ func TestRevealsKeepEveryReveal(t *testing.T) {
 	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
 		t.Fatal(err)
 	}
-	reveal := func(n time.Duration) time.Time { return start.Add(n * game.RevealInterval) }
+	reveal := func(n time.Duration) time.Time { return start.Add(n * revealInterval) }
 	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 4, reveal(1).Add(time.Second))
 	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal(3).Add(-time.Second))
 	move(t, store, token, first)
@@ -400,15 +420,15 @@ func TestZoneOnlyJokerIsStoredAndHidesTheNextReveal(t *testing.T) {
 	moved, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(c4)), 4, start.Add(20*time.Second))
 	move(t, store, runnerToken, moved)
 
-	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(game.RevealInterval+time.Second))
+	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(revealInterval+time.Second))
 	if len(lobby.Jokers) != 1 || lobby.Jokers[0] != (game.ZoneOnlyUse{Runner: runner.ID, At: usedAt}) {
 		t.Fatalf("used runner joker not stored: %+v", lobby.Jokers)
 	}
-	for _, v := range lobby.VisibleTo(hunter, start.Add(game.RevealInterval+time.Second)) {
+	for _, v := range lobby.VisibleTo(hunter, start.Add(revealInterval+time.Second)) {
 		if v.ID != runner.ID {
 			continue
 		}
-		if len(v.Reveals) != 1 || v.Reveals[0] != (game.ZoneReveal{At: start.Add(game.RevealInterval), Cell: c4}) {
+		if len(v.Reveals) != 1 || v.Reveals[0] != (game.ZoneReveal{At: start.Add(revealInterval), Cell: c4}) {
 			t.Fatalf("hunters must see only the cell at the reveal time: %+v", v.Reveals)
 		}
 	}
@@ -439,7 +459,7 @@ func TestFakePositionJokerIsStoredAndReplacesTheNextReveal(t *testing.T) {
 	actual, _ := game.NewPosition(saved.Playground.Center(), 4, start.Add(20*time.Second))
 	move(t, store, runnerToken, actual)
 
-	at := start.Add(game.RevealInterval + time.Second)
+	at := start.Add(revealInterval + time.Second)
 	lobby := load(t, store, saved.JoinCodes.Hunter, at)
 	if len(lobby.Jokers) != 1 || lobby.Jokers[0] != (game.FakePositionUse{Runner: runner.ID, At: usedAt, Point: point}) {
 		t.Fatalf("used fake position joker not stored: %+v", lobby.Jokers)

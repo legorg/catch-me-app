@@ -129,8 +129,8 @@ type PlayerView struct {
 	StartPositionCheckDisabled bool
 }
 
-func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellSize game.CellSize) (game.Game, error) {
-	playground, err := game.NewPlayground(center, cellSize)
+func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval) (game.Game, error) {
+	playground, err := game.NewPlayground(center, cellSize, gridSize)
 	if err != nil {
 		return game.Game{}, err
 	}
@@ -144,7 +144,7 @@ func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellS
 	logRoute("route created", route, began)
 	// Collisions are extremely unlikely; retry a few times rather than fail.
 	for attempt := 0; ; attempt++ {
-		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, JoinCodes: game.NewJoinCodes(), Route: route}
+		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, RevealInterval: revealInterval, JoinCodes: game.NewJoinCodes(), Route: route}
 		err := s.repository.Create(ctx, saved)
 		if errors.Is(err, game.ErrJoinCodeTaken) && attempt < 3 {
 			continue

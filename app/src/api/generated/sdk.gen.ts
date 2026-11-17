@@ -19,7 +19,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Create a 6 by 6 playground with adjustable cell size (default 2000 meters)
+ * Create a square playground with adjustable grid size, cell size, and reveal interval
  */
 export const createGame = <ThrowOnError extends boolean = false>(options: Options<CreateGameData, ThrowOnError>) => (options.client ?? client).post<CreateGameResponses, CreateGameErrors, ThrowOnError>({
     url: '/api/games',

@@ -19,9 +19,10 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 
 ## Playground [done]
 
-- North-aligned 6 × 6 grid, columns A–F (west to east), rows 1–6 (north to south).
+- North-aligned square grid of 3 × 3 to 12 × 12 cells, chosen when creating the game, default 6 × 6. Columns A, B, … (west to east), rows 1, 2, … (north to south), e.g. A1 to L12 for 12 × 12. [backend done, app still creates 6 × 6]
 - Cell side 100–5000 m in 100 m steps, default 2000 m.
 - Center latitude within ±80°, no date-line crossing.
+- The **reveal interval** (see Visibility) is chosen when creating the game: 1–60 whole minutes, default 30. [backend done, app still uses the default]
 
 ## Joining [done: milestone 1]
 
@@ -54,7 +55,7 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 
 ## Route [done]
 
-- Each game has **one route** that all runners share: a **start** landmark in a random cell of the southern edge row (row 6) and a **stop** landmark in a random cell of the northern edge row (row 1). The server picks both from a landmark lookup when the game is created; creating fails if an edge has no landmark.
+- Each game has **one route** that all runners share: a **start** landmark in a random cell of the southern edge row (the last row) and a **stop** landmark in a random cell of the northern edge row (row 1). The server picks both from a landmark lookup when the game is created; creating fails if an edge has no landmark.
 - **Any runner** can **regenerate** the route, **2 times per game** in total (shared by all runners). Only in the lobby (not during the countdown or once running) and only while **no runner is ready**.
 - Regenerating looks up the start and the stop again, each avoiding the current landmark. An edge without another landmark keeps its current one; if neither edge has another landmark, regenerating is refused and the count stays.
 - Hunters have no start point. **Runners see the route**; hunters never see it.
@@ -77,7 +78,7 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 - Everyone always sees **their own** position.
 - **Hunters of the same hunter team** see each other's latest position **at any time**, including the lobby. Hunters never see other hunter teams' positions.
 - **Runners** see each other's latest position **only while running**.
-- **Hunters** receive each runner's position once every **30 seconds** after the start (first reveal 30 seconds after the start). A reveal shows where the runner was at the reveal time (their last report before it), not live updates. The state includes `nextRevealAt` for both teams. Hunters get **every** reveal so far, oldest first (`reveals` per runner), not just the latest; the app fades older ones.
+- **Hunters** receive each runner's position once every **reveal interval** after the start (the game's setting, 1–60 minutes, default 30; first reveal one interval after the start). A reveal shows where the runner was at the reveal time (their last report before it), not live updates. The state includes `nextRevealAt` and `revealIntervalMinutes` for both teams. Hunters get **every** reveal so far, oldest first (`reveals` per runner), not just the latest; the app fades older ones.
 - **Runners** never see hunters.
 - Players outside the playground get a warning only; there is no penalty.
 - Reveals are not stored: each reveal is derived from the stored positions as the runner's last report strictly before that reveal time. A reveal time before the runner's first report has no reveal.
@@ -116,7 +117,7 @@ One-off special abilities on top of the periodic reveals. A joker belongs to a t
 
 Every joker can be used once per game and team, only while the game is running; using it again is a `409`. The server enforces all of them.
 
-**Query a zone** (hunter teams) [implemented]: any hunter of the team picks one cell of the grid (in the app: a 6 by 6 cell picker in the joker sheet). The team gets a yes/no answer: was at least one runner inside that cell at that moment (each runner's last report at or before the use; a runner without a report counts as outside)? The answer does not say how many runners or which. The cell and the answer stay on the team's map; only that hunter team sees them, and runners are not told. The server stores the cell and the time; the answer is derived from the position history.
+**Query a zone** (hunter teams) [implemented]: any hunter of the team picks one cell of the game's grid (in the app: a cell picker in the joker sheet; a cell outside the grid is a `400`). The team gets a yes/no answer: was at least one runner inside that cell at that moment (each runner's last report at or before the use; a runner without a report counts as outside)? The answer does not say how many runners or which. The cell and the answer stay on the team's map; only that hunter team sees them, and runners are not told. The server stores the cell and the time; the answer is derived from the position history.
 
 **Runner jokers** belong to the runner team as a whole: each exists once per game, and when one runner uses it, it is used up for all runners. It affects only the runner who used it, and only that runner's **next reveal**. All runners see which runner team jokers were used, by whom and when. Hunters are never told that a joker was used; they only see its effect at the reveal. A runner can have at most one pending runner joker at a time (a second one before the next reveal is a `409`).
 
@@ -140,7 +141,7 @@ Every joker can be used once per game and team, only while the game is running; 
 
 ### Moving the playground square [planned]
 
-- When creating a game, the creator can drag the 6 × 6 grid on the map to fine-tune its position, instead of only placing it by choosing the center.
+- When creating a game, the creator can drag the grid on the map to fine-tune its position, instead of only placing it by choosing the center.
 - Open: dragging the whole square vs. moving the map under a fixed square, whether it also works with the Apple Maps and Google Maps views, whether the position can still change after creation (probably not once players joined, since routes depend on the grid).
 
 ### Further ideas
@@ -155,7 +156,7 @@ Every joker can be used once per game and team, only while the game is running; 
 
 | Method and path | Auth | Purpose |
 |---|---|---|
-| `POST /api/games` | – | Create a game. Returns the game and both join codes. |
+| `POST /api/games` | – | Create a game `{latitude, longitude, cellSizeMeters?, gridSize?, revealIntervalMinutes?}` (omitted settings get their defaults). Returns the game (with `revealIntervalMinutes`) and both join codes. |
 | `POST /api/players` | – | Join with `{code, name}`. Returns the player token and the game state. |
 | `GET /api/me/game` | Bearer | Game state as seen by the requesting player. |
 | `PUT /api/me/ready` | Bearer | Set `{ready: true/false}`. Returns the game state. |
@@ -182,7 +183,7 @@ Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game 
 | Start radius | 50 m |
 | Finish radius | 50 m |
 | Catch radius / position age | 50 m / 30 s |
-| Reveal interval | 30 s |
+| Reveal interval | 1–60 min per game, default 30 min |
 | Start position max age | 30 s |
 | Position send interval (app) | 5 s |
 | Time limit | 90 min |

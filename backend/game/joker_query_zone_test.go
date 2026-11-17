@@ -19,6 +19,10 @@ func TestQueryZoneAnswersOnlyYesOrNo(t *testing.T) {
 	// Both runners stand at the route start in C6.
 	occupied := QueryZone{Cell: Cell{column: 2, row: 5}}
 	empty := QueryZone{Cell: Cell{column: 0, row: 0}}
+	var validation *ValidationError
+	if err := l.UseJoker(bob.ID, QueryZone{Cell: Cell{column: 6, row: 0}}, at); !errors.As(err, &validation) {
+		t.Fatalf("G1 is outside a 6 by 6 grid: %v", err)
+	}
 	if err := l.UseJoker(bob.ID, occupied, at); err != nil {
 		t.Fatal(err)
 	}
