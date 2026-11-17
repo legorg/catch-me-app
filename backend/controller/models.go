@@ -45,7 +45,7 @@ const (
 type JokerKind string
 
 func (JokerKind) Enum() []any {
-	return []any{JokerKindShowRunners, JokerKindQueryZone, JokerKindZoneOnly, JokerKindFakePosition, JokerKindShowHunters}
+	return []any{JokerKindShowRunners, JokerKindQueryZone, JokerKindZoneOnly, JokerKindFakePosition, JokerKindShowHunters, JokerKindCompass}
 }
 
 const (
@@ -54,6 +54,7 @@ const (
 	JokerKindZoneOnly     JokerKind = "zoneOnly"
 	JokerKindFakePosition JokerKind = "fakePosition"
 	JokerKindShowHunters  JokerKind = "showHunters"
+	JokerKindCompass      JokerKind = "compass"
 )
 
 type HealthResponse struct {
@@ -218,7 +219,7 @@ type UpdatePositionRequest struct {
 }
 
 // UseJokerRequest is the joker to use: exactly one of ShowRunnersRequest,
-// QueryZoneRequest, ZoneOnlyRequest, FakePositionRequest, and
+// QueryZoneRequest, CompassRequest, ZoneOnlyRequest, FakePositionRequest, and
 // ShowHuntersRequest, told apart by kind. Each variant has only the fields its
 // joker needs.
 type UseJokerRequest struct {
@@ -229,7 +230,7 @@ type UseJokerRequest struct {
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
 func (UseJokerRequest) JSONSchemaOneOf() []any {
-	return []any{ShowRunnersRequest{}, QueryZoneRequest{}, ZoneOnlyRequest{}, FakePositionRequest{}, ShowHuntersRequest{}}
+	return []any{ShowRunnersRequest{}, QueryZoneRequest{}, CompassRequest{}, ZoneOnlyRequest{}, FakePositionRequest{}, ShowHuntersRequest{}}
 }
 
 // UnmarshalJSON decodes the variant named by kind, rejecting fields it does not have.
@@ -253,6 +254,8 @@ func (u *UseJokerRequest) UnmarshalJSON(data []byte) error {
 		u.variant, err = decodeStrict[FakePositionRequest](data)
 	case JokerKindShowHunters:
 		u.variant, err = decodeStrict[ShowHuntersRequest](data)
+	case JokerKindCompass:
+		u.variant, err = decodeStrict[CompassRequest](data)
 	default:
 		err = fmt.Errorf("unknown joker %q", probe.Kind)
 	}
@@ -268,7 +271,7 @@ func decodeStrict[T any](data []byte) (T, error) {
 	return value, err
 }
 
-// Variant is the decoded request: one of the five variant structs.
+// Variant is the decoded request: one of the six variant structs.
 func (u UseJokerRequest) Variant() any { return u.variant }
 
 type ShowRunnersRequest struct {
@@ -297,6 +300,10 @@ type ShowHuntersRequest struct {
 	Kind JokerKind `json:"kind" enum:"showHunters" validate:"required,eq=showHunters"`
 }
 
+type CompassRequest struct {
+	Kind JokerKind `json:"kind" enum:"compass" validate:"required,eq=compass"`
+}
+
 type AddSketchRequest struct {
 	Points []SketchPointRequest `json:"points" validate:"required,min=2,max=500,dive"`
 }
@@ -313,14 +320,15 @@ type SketchResponse struct {
 }
 
 // JokerResponse is one joker of the requesting player's team: exactly one of
-// ShowRunnersJokerResponse, QueryZoneJokerResponse, ZoneOnlyJokerResponse,
-// FakePositionJokerResponse, and ShowHuntersJokerResponse, told apart by kind.
-// Each has only its joker's result fields, present once the team used it.
+// ShowRunnersJokerResponse, QueryZoneJokerResponse, CompassJokerResponse,
+// ZoneOnlyJokerResponse, FakePositionJokerResponse, and
+// ShowHuntersJokerResponse, told apart by kind. Each has only its joker's
+// result fields, present once the team used it.
 type JokerResponse struct{ variant any }
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
 func (JokerResponse) JSONSchemaOneOf() []any {
-	return []any{ShowRunnersJokerResponse{}, QueryZoneJokerResponse{}, ZoneOnlyJokerResponse{}, FakePositionJokerResponse{}, ShowHuntersJokerResponse{}}
+	return []any{ShowRunnersJokerResponse{}, QueryZoneJokerResponse{}, CompassJokerResponse{}, ZoneOnlyJokerResponse{}, FakePositionJokerResponse{}, ShowHuntersJokerResponse{}}
 }
 
 func (j JokerResponse) MarshalJSON() ([]byte, error) { return marshalVariant(j.variant) }
@@ -346,6 +354,16 @@ type QueryZoneJokerResponse struct {
 	// Once used: the queried cell and whether any runner was inside it at usedAt.
 	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-L]([1-9]|1[0-2])$" example:"C4" validate:"omitempty,min=2,max=3"`
 	Found *bool `json:"found,omitempty" example:"true"`
+}
+
+type CompassJokerResponse struct {
+	Kind JokerKind `json:"kind" enum:"compass" validate:"required,eq=compass"`
+	JokerStatus
+	// Once used: where the hunter who used it stood, and the direction from
+	// there to each runner at usedAt, in whole degrees clockwise from true
+	// north, sorted. No positions, distances, or runner IDs.
+	Origin   *Coordinates `json:"origin,omitempty" validate:"omitempty"`
+	Bearings []int        `json:"bearings,omitempty" validate:"omitempty,max=100"`
 }
 
 type ZoneOnlyJokerResponse struct {

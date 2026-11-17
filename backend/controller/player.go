@@ -193,6 +193,8 @@ func jokerChoice(body UseJokerRequest) (game.JokerChoice, error) {
 			return nil, err
 		}
 		return game.QueryZone{Cell: cell}, nil
+	case CompassRequest:
+		return game.Compass{}, nil
 	case ZoneOnlyRequest:
 		return game.ZoneOnly{}, nil
 	case FakePositionRequest:
@@ -379,6 +381,13 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 			if use, ok := j.Use.(game.QueryZoneUse); ok {
 				found := use.Found
 				joker.Cell, joker.Found = Cell(use.Cell.String()), &found
+			}
+			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerCompass:
+			joker := CompassJokerResponse{Kind: JokerKindCompass, JokerStatus: status}
+			if use, ok := j.Use.(game.CompassUse); ok {
+				joker.Origin = &Coordinates{Latitude: use.Origin.Latitude(), Longitude: use.Origin.Longitude()}
+				joker.Bearings = use.Bearings
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerZoneOnly:

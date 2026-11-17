@@ -475,6 +475,43 @@ func TestFakePositionJokerIsStoredAndReplacesTheNextReveal(t *testing.T) {
 	}
 }
 
+func TestCompassIsStoredAndPointsToWhereTheRunnersWereAtTheUse(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	_, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	center := saved.Playground.Center()
+	at := func(latitude, longitude float64, recorded time.Time) game.Position {
+		c, _ := game.ParseCoordinates(center.Latitude()+latitude, center.Longitude()+longitude)
+		p, _ := game.NewPosition(c, 4, recorded)
+		return p
+	}
+	move(t, store, hunterToken, at(0, 0, start.Add(5*time.Second)))
+	move(t, store, runnerToken, at(0, 0.01, start.Add(10*time.Second))) // east of the hunter
+	usedAt := start.Add(60 * time.Second)
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), usedAt, func(l *game.Lobby) error {
+		return l.UseJoker(hunter.ID, game.Compass{}, usedAt)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	move(t, store, runnerToken, at(0.01, 0, start.Add(70*time.Second)))
+	move(t, store, hunterToken, at(-0.01, 0, start.Add(70*time.Second)))
+
+	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(100*time.Second))
+	stored, ok := lobby.Jokers[0].(game.CompassUse)
+	if len(lobby.Jokers) != 1 || !ok || stored.Team != hunter.HunterTeam || !stored.At.Equal(usedAt) || stored.Origin != at(0, 0, usedAt).Coordinates {
+		t.Fatalf("used compass not stored with its origin: %+v", lobby.Jokers)
+	}
+	if len(stored.Bearings) != 1 || stored.Bearings[0] != 90 {
+		t.Fatalf("the compass must point to where the runner was at the use, from where the hunter was: %+v", stored.Bearings)
+	}
+}
+
 func TestShowHuntersJokerIsStoredAndShowsWhereTheHuntersWereAtTheUse(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")

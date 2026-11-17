@@ -9,7 +9,7 @@ import GameHud from '@/components/game-hud';
 import InfoPanel from '@/components/info-panel';
 import LoadingScreen from '@/components/loading-screen';
 import PlaygroundMap from '@/components/playground-map';
-import { gameHighlights, gameMarkers, secondsUntil, sketchLines } from '@/lobby';
+import { compassLines, gameHighlights, gameMarkers, secondsUntil, sketchLines } from '@/lobby';
 import { cellAt } from '@/playground';
 import { noop } from '@/press';
 import { dynamicStyles, overlay, styles } from '@/styles';
@@ -42,7 +42,7 @@ export default function GameScreen() {
       {/* Dark text over the light map; the layout's light style returns when this screen closes. */}
       <StatusBar style="dark" />
       <View style={StyleSheet.absoluteFill}>
-        <PlaygroundMap playground={state.playground} editable={false} onSelect={noop} highlights={gameHighlights(state)} markers={gameMarkers(state)} lines={hunter ? sketchLines(hunter) : []} onDraw={drawing ? sketching.send : undefined} fullscreen controlsInset={{ bottom: insets.bottom, right: insets.right }} />
+        <PlaygroundMap playground={state.playground} editable={false} onSelect={noop} highlights={gameHighlights(state)} markers={gameMarkers(state)} lines={hunter ? [...sketchLines(hunter), ...compassLines(hunter)] : []} onDraw={drawing ? sketching.send : undefined} fullscreen controlsInset={{ bottom: insets.bottom, right: insets.right }} />
       </View>
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, dynamicStyles.hudFill(insets)]}>

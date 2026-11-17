@@ -11,11 +11,11 @@ import { useJokerUse } from '@/use-joker-use';
 
 const TITLE_KEYS = {
   showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title', fakePosition: 'joker.fakePosition.title',
-  showHunters: 'joker.showHunters.title',
+  showHunters: 'joker.showHunters.title', compass: 'joker.compass.title',
 } as const;
 const TEXT_KEYS = {
   showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text', fakePosition: 'joker.fakePosition.text',
-  showHunters: 'joker.showHunters.text',
+  showHunters: 'joker.showHunters.text', compass: 'joker.compass.text',
 } as const;
 
 /** The jokers of the player's team (a hunter team, or all runners), each with a two-step button to use it. */
@@ -28,6 +28,8 @@ export default function JokerList({ state, error, onUse }: {
   const { confirming, cell, setCell, point, setPoint, busy, ready, use, cancel, start } = useJokerUse(state.playground, onUse);
   const confirmKey = state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
   const pointCell = point && cellAt(state.playground, point);
+  // The compass starts at the hunter's own position; the server refuses it without one.
+  const hasPosition = !!state.players.find((p) => p.playerId === state.playerId)?.position;
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
@@ -54,7 +56,9 @@ export default function JokerList({ state, error, onUse }: {
                     <Button label={t('joker.cancel')} variant="secondary" disabled={busy} onPress={cancel} />
                   </View>
                 </>
-                : <Button label={t('joker.use')} onPress={() => start(joker.kind)} />
+                : joker.kind === 'compass' && !hasPosition
+                  ? <Text style={styles.hint}>{t('joker.compass.needsPosition')}</Text>
+                  : <Button label={t('joker.use')} onPress={() => start(joker.kind)} />
               : <Text style={styles.hint}>{t('joker.waitForStart')}</Text>}
         </View>
       ))}
@@ -141,6 +145,13 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
         <View style={styles.gapTiny}>
           <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
           {!!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>}
+        </View>
+      );
+    case 'compass':
+      return (
+        <View style={styles.gapTiny}>
+          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
+          <Text style={styles.hint}>{(joker.bearings ?? []).length > 0 ? t('joker.compass.used') : t('joker.noPositions')}</Text>
         </View>
       );
     case 'showRunners':

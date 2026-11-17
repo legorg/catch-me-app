@@ -364,7 +364,7 @@
             }
           },
           "409": {
-            "description": "Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last reveal joker has not acted yet",
+            "description": "Not a joker of the player's team, hunter without a team, game not running, joker already used, the runner's last reveal joker has not acted yet, or a compass without the hunter's position",
             "content": {
               "application/json": {
                 "schema": {
@@ -1000,6 +1000,58 @@
         ],
         "type": "object"
       },
+      "ControllerCompassJokerResponse": {
+        "properties": {
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "bearings": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "compass"
+            ],
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
+        ],
+        "type": "object"
+      },
+      "ControllerCompassRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "compass"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
       "ControllerCoordinates": {
         "properties": {
           "latitude": {
@@ -1574,7 +1626,8 @@
           "queryZone",
           "zoneOnly",
           "fakePosition",
-          "showHunters"
+          "showHunters",
+          "compass"
         ],
         "type": "string"
       },
@@ -1635,6 +1688,7 @@
       "ControllerJokerResponse": {
         "discriminator": {
           "mapping": {
+            "compass": "#/components/schemas/ControllerCompassJokerResponse",
             "fakePosition": "#/components/schemas/ControllerFakePositionJokerResponse",
             "queryZone": "#/components/schemas/ControllerQueryZoneJokerResponse",
             "showHunters": "#/components/schemas/ControllerShowHuntersJokerResponse",
@@ -1649,6 +1703,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerQueryZoneJokerResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerCompassJokerResponse"
           },
           {
             "$ref": "#/components/schemas/ControllerZoneOnlyJokerResponse"
@@ -2204,6 +2261,7 @@
       "ControllerUseJokerRequest": {
         "discriminator": {
           "mapping": {
+            "compass": "#/components/schemas/ControllerCompassRequest",
             "fakePosition": "#/components/schemas/ControllerFakePositionRequest",
             "queryZone": "#/components/schemas/ControllerQueryZoneRequest",
             "showHunters": "#/components/schemas/ControllerShowHuntersRequest",
@@ -2218,6 +2276,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerQueryZoneRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerCompassRequest"
           },
           {
             "$ref": "#/components/schemas/ControllerZoneOnlyRequest"

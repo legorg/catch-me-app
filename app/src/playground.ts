@@ -25,6 +25,16 @@ export function distanceMeters(a: Coordinates, b: Coordinates): number {
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(h));
 }
 
+/** The point `meters` away from `from` in the direction `bearingDegrees` (clockwise from north), on a local flat approximation. */
+export function offsetPoint(from: Coordinates, bearingDegrees: number, meters: number): Coordinates {
+  const rad = Math.PI / 180;
+  const angular = meters / EARTH_RADIUS_METERS / rad;
+  return {
+    latitude: from.latitude + angular * Math.cos(bearingDegrees * rad),
+    longitude: from.longitude + angular * Math.sin(bearingDegrees * rad) / Math.cos(from.latitude * rad),
+  };
+}
+
 export function isValidCellSize(size: unknown): size is number {
   return typeof size === 'number' && Number.isInteger(size) && size >= 100 && size <= 5000 && size % 100 === 0;
 }

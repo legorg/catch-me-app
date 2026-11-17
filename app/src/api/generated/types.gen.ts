@@ -19,6 +19,18 @@ export type ControllerBounds = {
     west: number;
 };
 
+export type ControllerCompassJokerResponse = {
+    available: boolean;
+    bearings?: Array<number>;
+    kind: 'compass';
+    origin?: ControllerCoordinates;
+    usedAt?: string;
+};
+
+export type ControllerCompassRequest = {
+    kind: 'compass';
+};
+
 export type ControllerCoordinates = {
     latitude: number;
     longitude: number;
@@ -128,7 +140,7 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
-export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters';
+export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters' | 'compass';
 
 export type ControllerJokerPositionResponse = {
     accuracyMeters: number;
@@ -143,6 +155,8 @@ export type ControllerJokerResponse = ({
 } & ControllerShowRunnersJokerResponse) | ({
     kind: 'queryZone';
 } & ControllerQueryZoneJokerResponse) | ({
+    kind: 'compass';
+} & ControllerCompassJokerResponse) | ({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyJokerResponse) | ({
     kind: 'fakePosition';
@@ -269,6 +283,8 @@ export type ControllerUseJokerRequest = (({
 } & ControllerShowRunnersRequest) | ({
     kind: 'queryZone';
 } & ControllerQueryZoneRequest) | ({
+    kind: 'compass';
+} & ControllerCompassRequest) | ({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyRequest) | ({
     kind: 'fakePosition';
@@ -485,7 +501,7 @@ export type ActivateJokerErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last reveal joker has not acted yet
+     * Not a joker of the player's team, hunter without a team, game not running, joker already used, the runner's last reveal joker has not acted yet, or a compass without the hunter's position
      */
     409: ControllerApiError;
     /**

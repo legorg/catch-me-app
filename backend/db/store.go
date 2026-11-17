@@ -66,7 +66,7 @@ type positionRow struct {
 // Runner jokers have an empty Team and Name (so the runners share one use) and
 // the runner who used it in PlayerID; hunter jokers have an empty PlayerID.
 // Cell is the queried cell (queryZone), empty otherwise. Latitude and
-// Longitude are the shown point (fakePosition), zero otherwise.
+// Longitude are the shown point (fakePosition) or the origin (compass), zero otherwise.
 type jokerRow struct {
 	ID                  uint64    `gorm:"primaryKey"`
 	GameID              string    `gorm:"not null;uniqueIndex:joker_once"`
@@ -267,6 +267,9 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
 		case game.QueryZoneUse:
 			row.Team, row.Name, row.Cell = strings.ToLower(u.Team.String()), u.Team.String(), u.Cell.String()
+		case game.CompassUse:
+			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
+			row.Latitude, row.Longitude = u.Origin.Latitude(), u.Origin.Longitude()
 		case game.ZoneOnlyUse:
 			row.PlayerID = u.Runner.String()
 		case game.FakePositionUse:
@@ -467,9 +470,9 @@ func runnerReveals(history map[string][]positionRow, times []time.Time) (map[str
 
 // parseJoker rebuilds a used joker. A showing joker gets what it showed, from
 // each player's last position at or before the use: the runners' positions
-// (showRunners), whether a runner was in the cell (queryZone), or the hunters'
-// positions (showHunters). Reveal jokers only record who used them (and the
-// point for fakePosition).
+// (showRunners), whether a runner was in the cell (queryZone), the directions
+// to the runners (compass), or the hunters' positions (showHunters). Reveal
+// jokers only record who used them (and the point for fakePosition).
 func parseJoker(row jokerRow, runners, hunters map[string][]positionRow, playground game.Playground) (game.JokerUse, error) {
 	kind, err := game.ParseJokerKind(row.Kind)
 	if err != nil {
@@ -515,6 +518,12 @@ func parseJoker(row jokerRow, runners, hunters map[string][]positionRow, playgro
 			return nil, fmt.Errorf("parse stored joker: %v", err)
 		}
 		return game.QueryZoneUse{Team: team, At: at, Cell: cell, Found: playground.AnyInCell(positions, cell)}, nil
+	case game.JokerCompass:
+		origin, err := game.ParseCoordinates(row.Latitude, row.Longitude)
+		if err != nil {
+			return nil, fmt.Errorf("parse stored joker: %v", err)
+		}
+		return game.CompassUse{Team: team, At: at, Origin: origin, Bearings: game.CompassBearings(origin, positions)}, nil
 	}
 	return nil, fmt.Errorf("parse stored joker: unknown joker %q", kind)
 }

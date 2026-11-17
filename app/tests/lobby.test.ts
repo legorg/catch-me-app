@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, thinPoints } from '../src/lobby';
-import { cellBounds, previewPlayground } from '../src/playground';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, thinPoints } from '../src/lobby';
+import { cellBounds, distanceMeters, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
   sessionId: '00112233445566778899aabbccddeeff',
@@ -183,6 +183,31 @@ test('the shown hunters are markers in their own color for every runner, once us
   assert.notEqual(MARKER_COLORS.shownHunter, MARKER_COLORS.joker);
   assert.ok(gameMarkers(running).some((m) => m.id === `joker-showHunters-${position.playerId}`));
   assert.deepEqual(shownHunterMarkers({ ...state, jokers: [{ kind: 'showHunters', available: true }] }), []);
+});
+
+test('the compass becomes one cell-long arrow per direction from the origin, without names', () => {
+  const origin = { latitude: 52.52, longitude: 13.405 };
+  const running = {
+    ...hunterState,
+    jokers: [{ kind: 'compass' as const, available: false, usedAt: '2026-11-08T12:07:00Z', origin, bearings: [0, 90] }],
+  };
+  const [north, east, ...rest] = compassLines(running);
+  assert.equal(rest.length, 0);
+  assert.deepEqual(north.coordinates[0], origin);
+  assert.equal(north.color, MARKER_COLORS.joker);
+  // The tip lies one cell away in the given direction.
+  const tipNorth = north.coordinates[1];
+  assert.ok(Math.abs(distanceMeters(origin, tipNorth) - state.playground.cellSizeMeters) < 1);
+  assert.ok(tipNorth.latitude > origin.latitude && Math.abs(tipNorth.longitude - origin.longitude) < 1e-9);
+  const tipEast = east.coordinates[1];
+  assert.ok(tipEast.longitude > origin.longitude && Math.abs(tipEast.latitude - origin.latitude) < 1e-9);
+  // Shaft, then both barbs from the tip.
+  assert.equal(north.coordinates.length, 5);
+  assert.deepEqual(north.coordinates[3], tipNorth);
+  const [marker] = compassMarkers(running);
+  assert.deepEqual(marker.coordinate, origin);
+  assert.ok(gameMarkers(running).some((m) => m.id === 'joker-compass'));
+  assert.deepEqual(compassLines({ ...hunterState, jokers: [{ kind: 'compass', available: true }] }), []);
 });
 
 test('sketches become lines in the sketch color, in the order the server sent them', () => {

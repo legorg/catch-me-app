@@ -58,7 +58,7 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
 	// An unused joker has no result; "no" must be sent as false, not left out.
-	want := `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":false,"usedAt":"2026-11-08T12:00:00Z","cell":"A1","found":false}]`
+	want := `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":false,"usedAt":"2026-11-08T12:00:00Z","cell":"A1","found":false},{"kind":"compass","available":true}]`
 	if got := jsonOf(t, bobState.Jokers); got != want {
 		t.Fatalf("jokers:\n got %s\nwant %s", got, want)
 	}
@@ -95,7 +95,7 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	now := second.Add(time.Second)
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	if len(bobState.Jokers) != 2 {
+	if len(bobState.Jokers) != 3 {
 		t.Fatalf("hunters only get their own jokers: %+v", bobState.Jokers)
 	}
 	reveals := bobState.Players[0].Reveals
@@ -166,7 +166,28 @@ func TestGameStateShowsTheHunterPositionsToRunnersOnly(t *testing.T) {
 		}
 	}
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	if got := jsonOf(t, bobState.Jokers); got != `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":true}]` {
+	if got := jsonOf(t, bobState.Jokers); got != `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":true},{"kind":"compass","available":true}]` {
 		t.Fatalf("hunters are not told: %s", got)
+	}
+}
+
+func TestGameStateShowsOnlyTheCompassDirections(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	pack, _ := game.ParseHunterTeamName("Pack")
+	here, _ := game.ParseCoordinates(52.52, 13.405)
+	north, _ := game.ParseCoordinates(52.53, 13.405)
+	hunterAt, _ := game.NewPosition(here, 5, now.Add(-time.Second))
+	runnerAt, _ := game.NewPosition(north, 5, now.Add(-time.Second))
+	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack, Position: hunterAt}
+	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners, Position: runnerAt}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
+	if err := lobby.UseJoker(bob.ID, game.Compass{}, now); err != nil {
+		t.Fatal(err)
+	}
+
+	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
+	want := `{"kind":"compass","available":false,"usedAt":"2026-11-08T12:00:00Z","origin":{"latitude":52.52,"longitude":13.405},"bearings":[0]}`
+	if got := jsonOf(t, bobState.Jokers[2]); got != want {
+		t.Fatalf("hunters see only the origin and the directions:\n got %s\nwant %s", got, want)
 	}
 }

@@ -1,6 +1,6 @@
 import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
-import { cellAt, cellBounds, START_RADIUS_METERS } from './playground';
+import { cellAt, cellBounds, offsetPoint, START_RADIUS_METERS } from './playground';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -169,6 +169,38 @@ export function sketchLines(state: GameStateHunterResponse): { id: string; coord
   return state.sketches.map((sketch) => ({ id: sketch.sketchId, coordinates: sketch.points, color: SKETCH_COLOR }));
 }
 
+/** Arrowhead barbs: their angle to the shaft and their length as a share of it. */
+const ARROWHEAD_DEGREES = 25;
+const ARROWHEAD_SHARE = 0.25;
+
+/**
+ * The compass joker's arrows: one per direction the server sent, from where the hunter stood, all one cell
+ * long so they say nothing about the distance. Drawn as one line: the shaft to the tip, then both barbs.
+ */
+export function compassLines(state: GameStateHunterResponse): { id: string; coordinates: { latitude: number; longitude: number }[]; color: string }[] {
+  const length = state.playground.cellSizeMeters;
+  return state.jokers.flatMap((joker) => {
+    if (joker.kind !== 'compass' || !joker.origin) return [];
+    const origin = joker.origin;
+    return (joker.bearings ?? []).map((bearing, index) => {
+      const tip = offsetPoint(origin, bearing, length);
+      const barb = (side: number) => offsetPoint(tip, bearing + 180 + side * ARROWHEAD_DEGREES, length * ARROWHEAD_SHARE);
+      return { id: `joker-compass-${index}`, coordinates: [origin, tip, barb(-1), tip, barb(1)], color: MARKER_COLORS.joker };
+    });
+  });
+}
+
+/** Where the hunter stood when the team used the compass, the arrows' common start. */
+export function compassMarkers(state: GameStateHunterResponse): PlayerMarker[] {
+  return state.jokers.flatMap((joker) => joker.kind === 'compass' && joker.origin ? [{
+    id: 'joker-compass',
+    coordinate: joker.origin,
+    title: translate('joker.compass.title'),
+    description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
+    color: MARKER_COLORS.joker,
+  }] : []);
+}
+
 /** Start and target colors on the map; the same values as colors.start / colors.target (styles.ts cannot be loaded by the node tests). */
 export const ROUTE_COLORS = { start: '#2f80ed', target: '#eb5757' } as const;
 
@@ -238,7 +270,7 @@ export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
   return [
     ...(isGameStateRunnerResponse(state) ? [...routeMarkers(state.route), ...fakePositionMarkers(state), ...shownHunterMarkers(state)] : []),
     ...revealMarkers(state),
-    ...(isGameStateHunterResponse(state) ? jokerMarkers(state) : []),
+    ...(isGameStateHunterResponse(state) ? [...jokerMarkers(state), ...compassMarkers(state)] : []),
     ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),
   ];
 }

@@ -32,6 +32,16 @@ func DistanceMeters(lat1, lon1, lat2, lon2 float64) float64 {
 	return 2 * EarthRadiusMeters * math.Asin(math.Sqrt(a))
 }
 
+// BearingDegrees is the initial great-circle bearing from the first point to
+// the second, in degrees clockwise from true north, in [0, 360).
+func BearingDegrees(lat1, lon1, lat2, lon2 float64) float64 {
+	p1, p2 := radians(lat1), radians(lat2)
+	dLon := radians(lon2 - lon1)
+	y := math.Sin(dLon) * math.Cos(p2)
+	x := math.Cos(p1)*math.Sin(p2) - math.Sin(p1)*math.Cos(p2)*math.Cos(dLon)
+	return math.Mod(math.Atan2(y, x)*180/math.Pi+360, 360)
+}
+
 // Bounds is a latitude/longitude rectangle, north-aligned and not crossing
 // the date line.
 type Bounds struct{ North, South, East, West float64 }
