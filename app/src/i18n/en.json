@@ -171,6 +171,7 @@
   "joker.showHunters.noPositions": "No hunter had reported a position yet.",
   "joker.showHunters.marker": "Hunter · joker · {time}",
   "joker.confirmRunner": "Use it now? The joker is shared by all runners and is then used up.",
+  "joker.confirmPersonal": "Use it now? Your personal joker is then used up.",
   "joker.usedBy": "Used by {name} at {time}",
   "joker.chooseCell": "Choose the cell:",
   "joker.cell": "Cell {cell}",

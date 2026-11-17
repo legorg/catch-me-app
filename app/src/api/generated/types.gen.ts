@@ -479,7 +479,7 @@ export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamRe
 
 export type ActivateJokerData = {
     /**
-     * The joker to use, picked by kind, with exactly the fields that joker needs; each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs
+     * The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers once per hunter team
      */
     body: ControllerUseJokerRequest;
     path?: never;
