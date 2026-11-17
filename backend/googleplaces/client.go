@@ -28,10 +28,14 @@ type Client struct {
 	http         *http.Client
 }
 
+// CallTimeout bounds one Places request, so a hanging call leaves time to try
+// another cell within the edge budget (service.edgeLookupTimeout).
+const CallTimeout = 3 * time.Second
+
 // NewClient talks to the Places API at baseURL (use DefaultBaseURL in production).
 // languageCode is optional.
 func NewClient(baseURL, apiKey, languageCode string) *Client {
-	return &Client{baseURL: baseURL, apiKey: apiKey, languageCode: languageCode, http: &http.Client{Timeout: 8 * time.Second}}
+	return &Client{baseURL: baseURL, apiKey: apiKey, languageCode: languageCode, http: &http.Client{Timeout: CallTimeout}}
 }
 
 type latLng struct {

@@ -1,4 +1,4 @@
-import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type PlayerResponse, type Playground } from './api/types';
+import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type PlayerResponse, type Playground } from './api/types';
 import { getLanguage, translate } from './i18n';
 import { cellAt, cellBounds, START_RADIUS_METERS } from './playground';
 
@@ -163,6 +163,14 @@ export const ROUTE_COLORS = { start: '#2f80ed', target: '#eb5757' } as const;
 /** The route's start and stop names, falling back to the generic labels. */
 export function routeTitles(route: GameRoute): { start: string; stop: string } {
   return { start: route.start.title || translate('lobby.start'), stop: route.stop.title || translate('lobby.target') };
+}
+
+/** Why the runners cannot regenerate the route now (the server checks the same), or null if they can. */
+export function routeChangeBlocker(state: GameStateRunnerResponse): 'notLobby' | 'noneLeft' | 'runnerReady' | null {
+  if (state.status !== 'lobby') return 'notLobby';
+  if (state.routeRegenerationsLeft <= 0) return 'noneLeft';
+  if (state.players.some((p) => p.team === 'runner' && p.ready)) return 'runnerReady';
+  return null;
 }
 
 /** The grid cells of the route's start and stop (each left out when it lies outside the playground). */

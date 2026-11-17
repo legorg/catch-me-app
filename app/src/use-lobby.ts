@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
-import { leaveGame, setHunterTeam, setReady, updatePosition } from '@/api/client';
+import { leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition } from '@/api/client';
 import { goHome, useGameState } from '@/use-game-state';
 import { useLocationSharing, type Fix } from '@/use-location-sharing';
 
@@ -10,6 +10,7 @@ export function useLobby() {
   const game = useGameState();
   const { token, state, focused, show, fail, running } = game;
   const [busy, setBusy] = useState(false);
+  const [changingRoute, setChangingRoute] = useState(false);
   const [newTeam, setNewTeam] = useState('');
 
   // The game has its own screen; joining it replaces the lobby.
@@ -66,6 +67,18 @@ export function useLobby() {
     });
   };
 
+  const changeRoute = () => {
+    void act(async () => {
+      if (!token) return;
+      setChangingRoute(true);
+      try {
+        show(await regenerateRoute(token));
+      } finally {
+        setChangingRoute(false);
+      }
+    });
+  };
+
   const leave = () => {
     void act(async () => {
       if (!token) return;
@@ -83,8 +96,8 @@ export function useLobby() {
   };
 
   return {
-    ...game, busy, newTeam, setNewTeam, sharing, location, me,
+    ...game, busy, changingRoute, newTeam, setNewTeam, sharing, location, me,
     needsBackground, needsForeground, needsHunterTeam,
-    changeHunterTeam, createTeam, toggleReady, leave, requestLocation, requestBackground,
+    changeHunterTeam, createTeam, toggleReady, changeRoute, leave, requestLocation, requestBackground,
   };
 }

@@ -306,6 +306,32 @@ func TestRegenerateRouteNeedsAnotherLandmark(t *testing.T) {
 	}
 }
 
+// hangingLandmarks never answers until the lookup is cancelled.
+type hangingLandmarks struct{}
+
+func (hangingLandmarks) Landmarks(ctx context.Context, _ game.Bounds) ([]game.Landmark, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func TestHangingLookupStopsWithinTheBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		edge, wholeRequest time.Duration
+	}{{"edge timeout", 20 * time.Millisecond, time.Minute}, {"request timeout", time.Minute, 20 * time.Millisecond}} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newMemoryRepository()
+			s := NewGameService(r, hangingLandmarks{}, false)
+			s.edgeTimeout, s.routeTimeout = tc.edge, tc.wholeRequest
+			began := time.Now()
+			_, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize())
+			if !errors.Is(err, game.ErrLandmarksUnavailable) || time.Since(began) > 5*time.Second || r.calls != 0 {
+				t.Fatalf("hanging lookup not stopped in time: %v after %v, %d saves", err, time.Since(began), r.calls)
+			}
+		})
+	}
+}
+
 // boundsCenter is the middle of the bounds.
 func boundsCenter(b game.Bounds) game.Coordinates {
 	c, _ := game.ParseCoordinates((b.North+b.South)/2, (b.East+b.West)/2)

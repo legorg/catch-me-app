@@ -99,7 +99,7 @@ The response is HTTP **201**, with `game` (`sessionId`, `createdAt`, and a `play
 
 `cellSizeMeters` is an optional integer: omitted/null defaults to 2000. Explicit values must be 100–5000 in steps of 100. The backend rejects invalid sizes and computes bounds from the requested center and size rather than trusting frontend geometry.
 
-The handwritten `app/src/api/client.ts` wrapper supplies the API URL, a five-second timeout, readable errors, and basic runtime response validation. Its types and HTTP request functions come from generated code, not manually duplicated interfaces or URLs. Creation is not automatically retried: if the network drops after a save, an unreferenced session may remain in the database.
+The handwritten `app/src/api/client.ts` wrapper supplies the API URL, timeouts (5 seconds; 15 seconds for creating a game and changing the route, which look up landmarks within a matching server budget: 3 s per Places call, 6 s per playground edge, 8 s per request, 12 s write timeout), readable errors, and basic runtime response validation. Its types and HTTP request functions come from generated code, not manually duplicated interfaces or URLs. Creation is not automatically retried: if the network drops after a save, an unreferenced session may remain in the database.
 
 You can call the generated service directly too:
 

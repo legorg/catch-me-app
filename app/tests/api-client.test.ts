@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, getGameState, joinGame, leaveGame, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
 import { previewPlayground } from '../src/playground';
@@ -198,4 +198,18 @@ test('requests time out and abort the fetch', async (t) => {
     throw new Error('Aborted');
   });
   await assert.rejects(getGameState(token), /Connection timed out/);
+});
+
+test('landmark lookups wait longer and explain a timeout', async (t) => {
+  const delays: number[] = [];
+  t.mock.method(globalThis, 'setTimeout', (callback: () => void, delay: number) => {
+    delays.push(delay);
+    queueMicrotask(callback);
+    return 0;
+  });
+  t.mock.method(globalThis, 'clearTimeout', () => {});
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('Aborted'); });
+  await assert.rejects(createGame(center), /Finding landmarks for the route took too long/);
+  await assert.rejects(regenerateRoute(token), /Finding a new route took too long/);
+  assert.deepEqual(delays, [15_000, 15_000]);
 });

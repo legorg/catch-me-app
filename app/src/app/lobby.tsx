@@ -88,7 +88,15 @@ export default function LobbyScreen() {
         </View>
         <JoinCodes codes={state.joinCodes} />
         {__DEV__ && <DebugAddPlayer codes={state.joinCodes} />}
-        {route && <LobbyRouteCard route={route} skipStartPositionCheck={skipStartPositionCheck} atStart={atStart} metersToStart={metersToStart} />}
+        {isRunner && <LobbyRouteCard
+          state={state}
+          skipStartPositionCheck={skipStartPositionCheck}
+          atStart={atStart}
+          metersToStart={metersToStart}
+          busy={busy}
+          changingRoute={lobby.changingRoute}
+          onRegenerate={lobby.changeRoute}
+        />}
         {state.team === 'hunter' && me && <HunterTeamCard
           me={me}
           players={state.players}

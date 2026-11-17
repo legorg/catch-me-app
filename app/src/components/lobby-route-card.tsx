@@ -1,19 +1,25 @@
 import { Text, View } from 'react-native';
 
-import { type GameRoute } from '@/api/types';
+import { type GameStateRunnerResponse } from '@/api/types';
+import Button from '@/components/button';
 import { translateParts, useT } from '@/i18n';
-import { routeTitles, startCheckMessage } from '@/lobby';
+import { routeChangeBlocker, routeTitles, startCheckMessage } from '@/lobby';
 import { styles } from '@/styles';
 
-/** The runner's route and whether they stand at the start. */
-export default function LobbyRouteCard({ route, skipStartPositionCheck, atStart, metersToStart }: {
-  route: GameRoute;
+/** The runners' shared route, whether the player stands at its start, and a way to get a new one. */
+export default function LobbyRouteCard({ state, skipStartPositionCheck, atStart, metersToStart, busy, changingRoute, onRegenerate }: {
+  state: GameStateRunnerResponse;
   skipStartPositionCheck: boolean;
   atStart: boolean;
   metersToStart: number | null;
+  busy: boolean;
+  changingRoute: boolean;
+  onRegenerate: () => void;
 }) {
   const t = useT();
+  const { route } = state;
   const titles = routeTitles(route);
+  const blocker = routeChangeBlocker(state);
   return (
     <View style={styles.card}>
       <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
@@ -26,6 +32,18 @@ export default function LobbyRouteCard({ route, skipStartPositionCheck, atStart,
       </Text>
       <Text style={[styles.text, !atStart && !skipStartPositionCheck && styles.error]}>
         {startCheckMessage(skipStartPositionCheck, atStart, metersToStart)}
+      </Text>
+      <Button
+        label={t('lobby.newRoute', { count: state.routeRegenerationsLeft })}
+        variant="secondary"
+        disabled={busy || blocker !== null}
+        onPress={onRegenerate}
+      />
+      <Text accessibilityLiveRegion="polite" style={styles.hint}>
+        {changingRoute ? t('lobby.findingRoute')
+          : blocker === 'noneLeft' ? t('lobby.noRouteChangesLeft')
+            : blocker === 'runnerReady' ? t('lobby.unreadyForRoute')
+              : t('lobby.newRouteHint')}
       </Text>
     </View>
   );

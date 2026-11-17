@@ -92,8 +92,9 @@ func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStart
 		Handler:           api.NewHandler(controller.NewGameController(games)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// Above the service's 8-second budget for landmark lookups, below the app's 15-second wait.
+		WriteTimeout: 12 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	serverErrors := make(chan error, 1)

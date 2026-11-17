@@ -7,13 +7,14 @@ import {
   getHealth,
   joinGame as postPlayer,
   leaveGame as deletePlayer,
+  regenerateRoute as postRoute,
   setHunterTeam as putHunterTeam,
   setReady as putReady,
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
 import type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse } from './types';
-import { translate } from '../i18n';
+import { translate, type MessageKey } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
 export type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerResponse } from './types';
@@ -58,7 +59,7 @@ export async function createGame(center: { latitude: number; longitude: number }
   if (!isValidCellSize(cellSizeMeters)) {
     throw new Error(translate('playground.cellSizeInvalid'));
   }
-  return request((signal) => postGame({ baseUrl: API_URL, body: { ...center, cellSizeMeters }, signal }));
+  return request((signal) => postGame({ baseUrl: API_URL, body: { ...center, cellSizeMeters }, signal }), LANDMARK_TIMEOUT_MS, 'client.createTimeout');
 }
 
 export async function joinGame(code: string, name: string): Promise<JoinGameResponse> {
@@ -82,6 +83,11 @@ export async function setReady(token: string, ready: boolean): Promise<GameState
 
 export async function leaveGame(token: string): Promise<void> {
   await request((signal) => deletePlayer({ baseUrl: API_URL, auth: bearer(token), signal }));
+}
+
+/** Gives the game a new route (runners, twice per game, while no runner is ready). */
+export async function regenerateRoute(token: string): Promise<GameStateResponse> {
+  return request((signal) => postRoute({ baseUrl: API_URL, auth: bearer(token), signal }), LANDMARK_TIMEOUT_MS, 'client.routeTimeout');
 }
 
 export async function setHunterTeam(token: string, name: string): Promise<GameStateResponse> {
@@ -128,11 +134,18 @@ function bearer(token: string) {
 
 type Result = { data?: unknown; error?: unknown; response?: Response };
 
-// Runs a generated SDK call with a five-second timeout and turns error
+const DEFAULT_TIMEOUT_MS = 5000;
+// Requests that look up landmarks wait longer: the server gives up after 8 seconds
+// (12 seconds write timeout), so 15 seconds leave room for a slow mobile network.
+const LANDMARK_TIMEOUT_MS = 15_000;
+
+// Runs a generated SDK call with a timeout and turns error
 // responses into ApiError, keeping the backend's readable message.
-async function request<R extends Result>(call: (signal: AbortSignal) => Promise<R>): Promise<NonNullable<R['data']>> {
+async function request<R extends Result>(
+  call: (signal: AbortSignal) => Promise<R>, timeoutMs = DEFAULT_TIMEOUT_MS, timeoutMessage: MessageKey = 'client.timeout',
+): Promise<NonNullable<R['data']>> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const result = await call(controller.signal);
     // Network failures and aborts are returned, not thrown, by the generated client.
@@ -151,7 +164,7 @@ async function request<R extends Result>(call: (signal: AbortSignal) => Promise<
   } catch (error) {
     console.log(error)
     if (controller.signal.aborted) {
-      throw new Error(translate('client.timeout'));
+      throw new Error(translate(timeoutMessage));
     }
     if (error instanceof Error) {
       throw error;

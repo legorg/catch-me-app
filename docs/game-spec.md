@@ -14,7 +14,7 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 
 | Team | Goal |
 |---|---|
-| Runners | Reach their assigned end cell without being caught. |
+| Runners | Reach the route's stop landmark without being caught. |
 | Hunters | Catch every runner before one of them finishes, or until time runs out. |
 
 ## Playground [done]
@@ -85,7 +85,7 @@ Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-t
 ## Catch, finish, and end [next: milestone 4]
 
 - **Catch:** a runner taps "I was caught". The server accepts it only if some hunter's last known position is within **50 m** of the runner and at most **30 seconds** old. An accepted catch puts the runner **out** (spectator). Otherwise the app shows "no hunter nearby".
-- **Finish:** a runner whose position lies inside their end cell finishes.
+- **Finish:** a runner who is not out finishes when they report a position within **50 m** of the route's stop landmark (the same radius as the start check).
 - **Runners win** as soon as one runner finishes.
 - **Hunters win** when every runner is caught, or when the **90-minute** time limit runs out.
 - The game becomes `ended` with a winner; positions stay stored until their retention ends, for the replay.
@@ -99,6 +99,7 @@ Agreed topics whose rules are still open. Each needs its rules settled here befo
 - Decide **where** the backend runs (hosting, domain, HTTPS) and **how** the app is distributed (EAS builds, internal testing, stores).
 - Extend the GitHub Actions pipeline (`.github/workflows/ci.yml`) from checks to build and deploy: backend image, app builds, configuration and secrets per environment.
 - Production readiness still needed before real games: HTTPS, rate limiting, versioned migrations instead of AutoMigrate, cleanup of old games, privacy policy.
+- **Remove development logging** before production: the `landmark lookup` lines (duration and cells per playground edge) exist only to tune the landmark time budget; drop or downgrade them to debug once the budget is settled. Also review the remaining logs, e.g. the route coordinates in `route created`/`route regenerated` and the app's `[api]` request log and `console.log` of errors in `app/src/api/client.ts`, and keep only what operations need.
 - Open: hosting target, environments (staging/production), who triggers a deployment.
 
 ### Game result and history view [planned, after milestone 4]
@@ -177,6 +178,7 @@ Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game 
 | Name length | 1–20 characters |
 | Route regenerations | 2 per game |
 | Start radius | 50 m |
+| Finish radius | 50 m |
 | Catch radius / position age | 50 m / 30 s |
 | Reveal interval | 30 s |
 | Start position max age | 30 s |

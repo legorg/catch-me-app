@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
 import { cellBounds, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
@@ -30,6 +30,17 @@ const state: GameStateRunnerResponse = {
 
 const { route: _route, routeRegenerationsLeft: _routeRegenerationsLeft, ...hunterBase } = state;
 const hunterState: GameStateHunterResponse = { ...hunterBase, team: 'hunter', jokers: [], sketches: [] };
+
+test('the route can only change in the lobby, with changes left and no runner ready', () => {
+  const unready = state.players.map((p) => ({ ...p, ready: false }));
+  const lobby: GameStateRunnerResponse = { ...state, status: 'lobby', startsAt: undefined, players: unready };
+  assert.equal(routeChangeBlocker(lobby), null);
+  assert.equal(routeChangeBlocker({ ...lobby, routeRegenerationsLeft: 0 }), 'noneLeft');
+  assert.equal(routeChangeBlocker({ ...lobby, players: state.players }), 'runnerReady');
+  // A ready hunter does not block it.
+  assert.equal(routeChangeBlocker({ ...lobby, players: unready.map((p) => ({ ...p, ready: p.team === 'hunter' })) }), null);
+  assert.equal(routeChangeBlocker(state), 'notLobby');
+});
 
 test('countdown uses server time plus local elapsed time', () => {
   // The phone clock is far off; only the difference since receipt matters.
