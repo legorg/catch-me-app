@@ -19,10 +19,10 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 
 ## Playground [done]
 
-- North-aligned square grid of 3 × 3 to 12 × 12 cells, chosen when creating the game, default 6 × 6. Columns A, B, … (west to east), rows 1, 2, … (north to south), e.g. A1 to L12 for 12 × 12. [backend done, app still creates 6 × 6]
+- North-aligned square grid of 3 × 3 to 12 × 12 cells, chosen when creating the game, default 6 × 6. Columns A, B, … (west to east), rows 1, 2, … (north to south), e.g. A1 to L12 for 12 × 12.
 - Cell side 100–5000 m in 100 m steps, default 2000 m.
 - Center latitude within ±80°, no date-line crossing.
-- The **reveal interval** (see Visibility) is chosen when creating the game: 1–60 whole minutes, default 30. [backend done, app still uses the default]
+- The **reveal interval** (see Visibility) is chosen when creating the game: 1–60 whole minutes, default 30.
 
 ## Joining [done: milestone 1]
 

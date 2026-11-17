@@ -50,7 +50,7 @@ export default function InfoPanel({ state, me, revealScheduled, location }: Info
         })}
         {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
       </Text>
-      {revealScheduled && <Text style={styles.hint}>{t(texts.reveal)}</Text>}
+      {revealScheduled && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
       <RouteLine state={state} />
       <Text style={styles.hint}>{t(texts.legend)}</Text>
       <LocationSharingInfo location={location} />

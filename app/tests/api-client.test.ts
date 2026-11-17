@@ -14,7 +14,7 @@ const route = {
   distanceMeters: 5873.4,
 };
 const created = {
-  game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center), route },
+  game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center), revealIntervalMinutes: 30, route },
   joinCodes: { runner: '482913', hunter: '071564' },
 };
 const token = 'ab'.repeat(32);
@@ -33,27 +33,27 @@ const state = {
 const { route: _route, ...withoutRoute } = state;
 const hunterState = { ...withoutRoute, team: 'hunter', jokers: [], sketches: [] };
 
-test('create posts the center and cell size as JSON', async (t) => {
+test('create posts the center and all settings as JSON, with defaults', async (t) => {
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     const url = new URL(request.url);
     assert.equal(url.origin, new URL(API_URL).origin);
     assert.equal(url.pathname, '/api/games');
     assert.equal(request.method, 'POST');
     assert.equal(request.headers.get('Content-Type'), 'application/json');
-    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000 });
+    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30 });
     return Response.json(created, { status: 201 });
   });
   assert.deepEqual(await createGame(center), created);
 });
 
-test('custom cell sizes are sent', async (t) => {
-  for (const size of [100, 1500, 5000]) {
-    const response = { ...created, game: { ...created.game, playground: previewPlayground(center, size) } };
+test('custom settings are sent', async (t) => {
+  for (const [size, cells, minutes] of [[100, 3, 1], [1500, 6, 30], [5000, 12, 60]]) {
+    const response = { ...created, game: { ...created.game, playground: previewPlayground(center, size, cells), revealIntervalMinutes: minutes } };
     t.mock.method(globalThis, 'fetch', async (request: Request) => {
-      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size });
+      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size, gridSize: cells, revealIntervalMinutes: minutes });
       return Response.json(response, { status: 201 });
     });
-    assert.deepEqual(await createGame(center, size), response);
+    assert.deepEqual(await createGame(center, size, cells, minutes), response);
   }
 });
 
@@ -61,6 +61,12 @@ test('invalid input is rejected before a request', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => { assert.fail('should not fetch'); });
   for (const size of [0, 99, 1550, 5100, NaN, Infinity]) {
     await assert.rejects(createGame(center, size), /Cell size/);
+  }
+  for (const cells of [2, 13, 6.5, NaN]) {
+    await assert.rejects(createGame(center, 2000, cells), /grid/);
+  }
+  for (const minutes of [0, 61, 0.5, NaN]) {
+    await assert.rejects(createGame(center, 2000, 6, minutes), /reveal interval/);
   }
   for (const code of ['', '123', '12345A', 'K7M2QX', '1234567', '123 45']) {
     await assert.rejects(joinGame(code, 'Ada'), /join code/);

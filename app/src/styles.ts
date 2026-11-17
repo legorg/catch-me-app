@@ -88,9 +88,12 @@ export const overlay = StyleSheet.create({
 /** Joker cell picker. */
 export const picker = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6 },
+  rowTight: { gap: 3 },
   cell: { flex: 1, aspectRatio: 1, maxWidth: 56, minHeight: 40, borderRadius: 8, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  cellTight: { minHeight: 32, borderRadius: 6 },
   selected: { backgroundColor: colors.accent },
   label: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+  labelSmall: { fontSize: 10 },
   selectedLabel: { color: colors.background },
   list: { gap: 6 },
 });

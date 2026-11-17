@@ -15,7 +15,9 @@ import {
 import { client } from './generated/client.gen';
 import type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest } from './types';
 import { translate, type MessageKey } from '../i18n';
-import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
+import {
+  DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
+} from '../playground';
 
 export type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse } from './types';
 
@@ -55,11 +57,23 @@ export async function checkBackend(): Promise<HealthResponse> {
   return request((signal) => getHealth({ baseUrl: API_URL, signal }));
 }
 
-export async function createGame(center: { latitude: number; longitude: number }, cellSizeMeters = DEFAULT_CELL_SIZE_METERS): Promise<CreateGameResponse> {
+export async function createGame(
+  center: { latitude: number; longitude: number },
+  cellSizeMeters = DEFAULT_CELL_SIZE_METERS,
+  gridSize = DEFAULT_GRID_SIZE,
+  revealIntervalMinutes = DEFAULT_REVEAL_INTERVAL_MINUTES,
+): Promise<CreateGameResponse> {
   if (!isValidCellSize(cellSizeMeters)) {
     throw new Error(translate('playground.cellSizeInvalid'));
   }
-  return request((signal) => postGame({ baseUrl: API_URL, body: { ...center, cellSizeMeters }, signal }), LANDMARK_TIMEOUT_MS, 'client.createTimeout');
+  if (!isValidGridSize(gridSize)) {
+    throw new Error(translate('playground.gridSizeInvalid'));
+  }
+  if (!isValidRevealInterval(revealIntervalMinutes)) {
+    throw new Error(translate('playground.revealIntervalInvalid'));
+  }
+  const body = { ...center, cellSizeMeters, gridSize, revealIntervalMinutes };
+  return request((signal) => postGame({ baseUrl: API_URL, body, signal }), LANDMARK_TIMEOUT_MS, 'client.createTimeout');
 }
 
 export async function joinGame(code: string, name: string): Promise<JoinGameResponse> {

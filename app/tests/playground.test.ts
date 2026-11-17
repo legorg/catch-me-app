@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  boundaryCoordinates, cellAt, cellBounds, cellLabels, distanceMeters, edgeName, gridLines, parseCellSizeKm, previewPlayground,
+  boundaryCoordinates, cellAt, cellBounds, cellLabels, distanceMeters, edgeName, gridLines, isValidGridSize, isValidRevealInterval,
+  parseCellSizeKm, parseWholeNumber, previewPlayground,
 } from '../src/playground';
 
 test('cellAt finds the labeled cell and rejects outside positions', () => {
@@ -30,8 +31,49 @@ test('cell bounds match the labeled grid cells', () => {
   for (const label of ['G1', 'A7', 'A0', 'a1', '']) {
     assert.throws(() => cellBounds(p, label), /Unknown cell/);
   }
-  assert.equal(edgeName('B1'), 'north edge');
-  assert.equal(edgeName('E6'), 'south edge');
+  assert.equal(edgeName(p, 'B1'), 'north edge');
+  assert.equal(edgeName(p, 'E6'), 'south edge');
+  assert.equal(edgeName(p, 'C3'), 'inside');
+});
+
+test('the grid size sets the rows, columns, labels and cells', () => {
+  for (const cells of [3, 12]) {
+    const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, cells);
+    assert.equal(p.rows, cells);
+    assert.equal(p.columns, cells);
+    assert.ok(Math.abs((p.bounds.north - p.bounds.south) * Math.PI / 180 * 6371008.8 - cells * 1000) < 1e-6);
+    const labels = cellLabels(p);
+    assert.equal(labels.length, cells * cells);
+    for (const { label, coordinate } of labels) {
+      assert.equal(cellAt(p, coordinate), label);
+      const b = cellBounds(p, label);
+      assert.ok(coordinate.latitude < b.north && coordinate.latitude > b.south, label);
+    }
+  }
+  const large = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 12);
+  assert.equal(cellAt(large, { latitude: large.bounds.south, longitude: large.bounds.east }), 'L12');
+  assert.equal(edgeName(large, 'A11'), 'inside');
+  assert.equal(edgeName(large, 'A12'), 'south edge');
+  for (const label of ['M1', 'A13', 'A01']) {
+    assert.throws(() => cellBounds(large, label), /Unknown cell/);
+  }
+  assert.throws(() => cellBounds(previewPlayground({ latitude: 0, longitude: 0 }, 1000, 3), 'D1'), /Unknown cell/);
+  for (const cells of [2, 13, 6.5, NaN]) {
+    assert.throws(() => previewPlayground({ latitude: 0, longitude: 0 }, 1000, cells), /grid/);
+  }
+});
+
+test('whole-number settings accept only valid whole numbers', () => {
+  assert.equal(parseWholeNumber(' 12 ', isValidGridSize), 12);
+  assert.equal(parseWholeNumber('3', isValidGridSize), 3);
+  assert.equal(parseWholeNumber('1', isValidRevealInterval), 1);
+  assert.equal(parseWholeNumber('60', isValidRevealInterval), 60);
+  for (const text of ['', '2', '13', '6.5', '6,0', '-6', 'abc', '1e1']) {
+    assert.equal(parseWholeNumber(text, isValidGridSize), null, text);
+  }
+  for (const text of ['0', '61', '0.5']) {
+    assert.equal(parseWholeNumber(text, isValidRevealInterval), null, text);
+  }
 });
 
 test('default cells are 2 km and the playground is 12 km wide', () => {

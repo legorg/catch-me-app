@@ -15,8 +15,6 @@ const TITLE_KEYS = {
 const TEXT_KEYS = {
   showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text', fakePosition: 'joker.fakePosition.text',
 } as const;
-const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F'];
-const ROWS = ['1', '2', '3', '4', '5', '6'];
 
 /** The jokers of the player's team (a hunter team, or all runners), each with a two-step button to use it. */
 export default function JokerList({ state, error, onUse }: {
@@ -42,7 +40,7 @@ export default function JokerList({ state, error, onUse }: {
             : joker.available
               ? confirming === joker.kind
                 ? <>
-                  {joker.kind === 'queryZone' && <CellPicker selected={cell} onSelect={setCell} disabled={busy} />}
+                  {joker.kind === 'queryZone' && <CellPicker playground={state.playground} selected={cell} onSelect={setCell} disabled={busy} />}
                   {joker.kind === 'fakePosition' && <PointPicker playground={state.playground} point={point} onPick={setPoint} />}
                   <Text style={[styles.text, styles.error]}>
                     {joker.kind === 'queryZone' && cell
@@ -63,15 +61,21 @@ export default function JokerList({ state, error, onUse }: {
   );
 }
 
-/** The 6 by 6 grid as buttons, laid out like the map: A–F west to east, 1–6 north to south. */
-function CellPicker({ selected, onSelect, disabled }: { selected: string | null; onSelect: (cell: string) => void; disabled: boolean }) {
+/** The game's grid as buttons, laid out like the map: columns A, B, … west to east, rows 1, 2, … north to south. */
+function CellPicker({ playground, selected, onSelect, disabled }: {
+  playground: Playground; selected: string | null; onSelect: (cell: string) => void; disabled: boolean;
+}) {
   const t = useT();
+  const columns = Array.from({ length: playground.columns }, (_, i) => String.fromCharCode(65 + i));
+  const rows = Array.from({ length: playground.rows }, (_, i) => String(i + 1));
+  // Many narrow buttons need a smaller label to fit names like "L12".
+  const small = playground.columns > 8;
   return (
     <View style={picker.list}>
       <Text style={styles.hint}>{t('joker.chooseCell')}</Text>
-      {ROWS.map((row) => (
-        <View key={row} style={picker.row}>
-          {COLUMNS.map((column) => {
+      {rows.map((row) => (
+        <View key={row} style={[picker.row, small && picker.rowTight]}>
+          {columns.map((column) => {
             const cell = column + row;
             const active = cell === selected;
             return (
@@ -82,8 +86,8 @@ function CellPicker({ selected, onSelect, disabled }: { selected: string | null;
                 accessibilityState={{ selected: active, disabled }}
                 disabled={disabled}
                 onPress={() => onSelect(cell)}
-                style={[picker.cell, active && picker.selected]}>
-                <Text style={[picker.label, active && picker.selectedLabel]}>{cell}</Text>
+                style={[picker.cell, small && picker.cellTight, active && picker.selected]}>
+                <Text style={[picker.label, small && picker.labelSmall, active && picker.selectedLabel]}>{cell}</Text>
               </Pressable>
             );
           })}

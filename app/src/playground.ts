@@ -3,6 +3,14 @@ import { translate } from './i18n';
 
 const EARTH_RADIUS_METERS = 6371008.8;
 export const DEFAULT_CELL_SIZE_METERS = 2000;
+/** Cells per side of the square grid, as the backend allows. */
+export const DEFAULT_GRID_SIZE = 6;
+export const MIN_GRID_SIZE = 3;
+export const MAX_GRID_SIZE = 12;
+/** Minutes between two reveals, as the backend allows. */
+export const DEFAULT_REVEAL_INTERVAL_MINUTES = 30;
+export const MIN_REVEAL_INTERVAL_MINUTES = 1;
+export const MAX_REVEAL_INTERVAL_MINUTES = 60;
 /** Where the draft playground starts before the user drags it (Cologne). */
 export const DEFAULT_CENTER: Coordinates = { latitude: 50.9375, longitude: 6.9603 };
 /** How close to the route's start a runner must be to get ready; the backend enforces the same radius. */
@@ -29,16 +37,33 @@ export function parseCellSizeKm(text: string): number | null {
   return Math.abs(meters - rounded) < 1e-6 && isValidCellSize(rounded) ? rounded : null;
 }
 
+export function isValidGridSize(cells: unknown): cells is number {
+  return Number.isInteger(cells) && (cells as number) >= MIN_GRID_SIZE && (cells as number) <= MAX_GRID_SIZE;
+}
+
+export function isValidRevealInterval(minutes: unknown): minutes is number {
+  return Number.isInteger(minutes) && (minutes as number) >= MIN_REVEAL_INTERVAL_MINUTES && (minutes as number) <= MAX_REVEAL_INTERVAL_MINUTES;
+}
+
+/** A whole number typed by the user, or null if it is not one or not valid. */
+export function parseWholeNumber(text: string, isValid: (value: number) => boolean): number | null {
+  const value = text.trim();
+  return /^\d+$/.test(value) && isValid(Number(value)) ? Number(value) : null;
+}
+
 // Preview only. The backend computes and stores the authoritative geometry.
-export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_CELL_SIZE_METERS): Playground {
+export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_CELL_SIZE_METERS, gridSize = DEFAULT_GRID_SIZE): Playground {
   if (!isValidCellSize(cellSizeMeters)) {
     throw new Error(translate('playground.cellSizeInvalid'));
+  }
+  if (!isValidGridSize(gridSize)) {
+    throw new Error(translate('playground.gridSizeInvalid'));
   }
   if (!Number.isFinite(center.latitude) || Math.abs(center.latitude) > 80 ||
       !Number.isFinite(center.longitude) || Math.abs(center.longitude) > 180) {
     throw new Error(translate('playground.latitudeInvalid'));
   }
-  const latitudeDelta = (6 * cellSizeMeters / 2) / EARTH_RADIUS_METERS * 180 / Math.PI;
+  const latitudeDelta = (gridSize * cellSizeMeters / 2) / EARTH_RADIUS_METERS * 180 / Math.PI;
   const longitudeDelta = latitudeDelta / Math.cos(center.latitude * Math.PI / 180);
   const bounds = {
     north: center.latitude + latitudeDelta, south: center.latitude - latitudeDelta,
@@ -47,7 +72,7 @@ export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_
   if (bounds.west < -180 || bounds.east > 180) {
     throw new Error(translate('playground.dateLine'));
   }
-  return { center, bounds, rows: 6, columns: 6, cellSizeMeters };
+  return { center, bounds, rows: gridSize, columns: gridSize, cellSizeMeters };
 }
 
 export function boundaryCoordinates(b: Bounds): Coordinates[] {
@@ -87,11 +112,11 @@ export function cellLabels(p: Playground) {
   });
 }
 
-/** Bounds of a cell such as "C4" (columns A–F west to east, rows 1–6 north to south). */
+/** Bounds of a cell such as "C4" (columns A, B, … west to east, rows 1, 2, … north to south). */
 export function cellBounds(p: Playground, label: string): Bounds {
   const column = label.charCodeAt(0) - 65;
   const row = Number(label.slice(1)) - 1;
-  if (!/^[A-F][1-6]$/.test(label) || column >= p.columns || row >= p.rows) {
+  if (!/^[A-L](?:[1-9]|1[0-2])$/.test(label) || column >= p.columns || row >= p.rows) {
     throw new Error(translate('playground.unknownCell', { cell: label }));
   }
   const height = (p.bounds.north - p.bounds.south) / p.rows;
@@ -101,9 +126,10 @@ export function cellBounds(p: Playground, label: string): Bounds {
   return { north, south: north - height, west, east: west + width };
 }
 
-/** Which playground edge a cell in row 1 or 6 lies on. */
-export function edgeName(label: string): string {
-  return translate(label.endsWith('1') ? 'playground.northEdge' : label.endsWith('6') ? 'playground.southEdge' : 'playground.inside');
+/** Which playground edge a cell in the first or last row lies on. */
+export function edgeName(p: Playground, label: string): string {
+  const row = Number(label.slice(1));
+  return translate(row === 1 ? 'playground.northEdge' : row === p.rows ? 'playground.southEdge' : 'playground.inside');
 }
 
 /** Label of the cell containing the coordinates, or null outside the playground. Mirrors the backend. */
