@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 
-import { activateJoker, type GameStateResponse, type JokerKind } from '@/api/client';
+import { activateJoker, type GameStateResponse, type JokerRequest } from '@/api/client';
 
 /** Activates a joker of the player's team and closes the jokers sheet; failures go to `fail`. */
 export function useActivateJoker(
@@ -8,10 +8,10 @@ export function useActivateJoker(
   show: (state: GameStateResponse) => void,
   fail: (err: unknown) => void,
 ) {
-  return async (kind: JokerKind, cell?: string) => {
+  return async (joker: JokerRequest) => {
     if (!token) return;
     try {
-      show(await activateJoker(token, kind, cell));
+      show(await activateJoker(token, joker));
       // The map behind shows the result: the game screen reloads the state when the sheet closes.
       router.back();
     } catch (err) {

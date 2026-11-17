@@ -147,14 +147,19 @@ test('using a joker posts its kind with the token and returns the state', async 
     assert.deepEqual(await request.json(), { kind: 'showRunners' });
     return Response.json(used);
   });
-  assert.deepEqual(await activateJoker(token, 'showRunners'), used);
+  assert.deepEqual(await activateJoker(token, { kind: 'showRunners' }), used);
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     assert.deepEqual(await request.json(), { kind: 'queryZone', cell: 'C4' });
     return Response.json(used);
   });
-  assert.deepEqual(await activateJoker(token, 'queryZone', 'C4'), used);
+  assert.deepEqual(await activateJoker(token, { kind: 'queryZone', cell: 'C4' }), used);
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.deepEqual(await request.json(), { kind: 'fakePosition', latitude: 52.5, longitude: 13.4 });
+    return Response.json(used);
+  });
+  assert.deepEqual(await activateJoker(token, { kind: 'fakePosition', latitude: 52.5, longitude: 13.4 }), used);
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'your hunter team already used this joker' }, { status: 409 }));
-  await assert.rejects(activateJoker(token, 'showRunners'), /already used/);
+  await assert.rejects(activateJoker(token, { kind: 'showRunners' }), /already used/);
 });
 
 test('sketches are posted and cleared with the token', async (t) => {
