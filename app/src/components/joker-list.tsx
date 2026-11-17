@@ -1,14 +1,18 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import type { JokerKind, JokerResponse } from '@/api/client';
+import type { JokerRequest, JokerResponse } from '@/api/client';
 import type { GameStateResponse } from '@/api/types';
 import Button from '@/components/button';
 import { getLanguage, translate, useT } from '@/i18n';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
 
-const TITLE_KEYS = { showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title' } as const;
-const TEXT_KEYS = { showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text' } as const;
+const TITLE_KEYS = {
+  showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title', fakePosition: 'joker.fakePosition.title',
+} as const;
+const TEXT_KEYS = {
+  showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text', fakePosition: 'joker.fakePosition.text',
+} as const;
 const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const ROWS = ['1', '2', '3', '4', '5', '6'];
 
@@ -16,10 +20,10 @@ const ROWS = ['1', '2', '3', '4', '5', '6'];
 export default function JokerList({ state, error, onUse }: {
   state: GameStateResponse;
   error: string;
-  onUse: (kind: JokerKind, cell?: string) => Promise<void>;
+  onUse: (joker: JokerRequest) => Promise<void>;
 }) {
   const t = useT();
-  const { confirming, cell, setCell, busy, use, cancel, start } = useJokerUse(onUse);
+  const { confirming, cell, setCell, busy, ready, use, cancel, start } = useJokerUse(onUse);
   const confirmKey = state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
 
   return (
@@ -40,7 +44,7 @@ export default function JokerList({ state, error, onUse }: {
                     {joker.kind === 'queryZone' && cell ? t('joker.confirmCell', { cell }) : t(confirmKey)}
                   </Text>
                   <View style={styles.row}>
-                    <Button label={t('joker.confirmYes')} disabled={busy || (joker.kind === 'queryZone' && !cell)} onPress={() => use(joker.kind)} />
+                    <Button label={t('joker.confirmYes')} disabled={busy || !ready(joker.kind)} onPress={() => use(joker.kind)} />
                     <Button label={t('joker.cancel')} variant="secondary" disabled={busy} onPress={cancel} />
                   </View>
                 </>

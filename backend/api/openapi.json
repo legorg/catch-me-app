@@ -312,7 +312,7 @@
         "summary": "Use a joker",
         "operationId": "activateJoker",
         "requestBody": {
-          "description": "The joker to use (with the cell for queryZone); each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs",
+          "description": "The joker to use, picked by kind, with exactly the fields that joker needs; each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs",
           "content": {
             "application/json": {
               "schema": {
@@ -334,7 +334,7 @@
             }
           },
           "400": {
-            "description": "Invalid JSON, unknown joker, or missing or unexpected cell",
+            "description": "Invalid JSON, unknown joker, missing or unexpected fields, or a point outside the playground",
             "content": {
               "application/json": {
                 "schema": {
@@ -364,7 +364,7 @@
             }
           },
           "409": {
-            "description": "Not a joker of the player's team, hunter without a team, game not running, or joker already used",
+            "description": "Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last joker has not acted yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -1076,6 +1076,38 @@
         ],
         "type": "object"
       },
+      "ControllerFakePositionRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "fakePosition"
+            ],
+            "type": "string"
+          },
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
       "ControllerGameResponse": {
         "properties": {
           "createdAt": {
@@ -1456,7 +1488,8 @@
         "enum": [
           "showRunners",
           "queryZone",
-          "zoneOnly"
+          "zoneOnly",
+          "fakePosition"
         ],
         "type": "string"
       },
@@ -1539,6 +1572,9 @@
           },
           "kind": {
             "$ref": "#/components/schemas/ControllerJokerKind"
+          },
+          "point": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
           },
           "positions": {
             "items": {
@@ -1730,6 +1766,30 @@
         ],
         "type": "object"
       },
+      "ControllerQueryZoneRequest": {
+        "properties": {
+          "cell": {
+            "examples": [
+              "C4"
+            ],
+            "maxLength": 2,
+            "minLength": 2,
+            "pattern": "^[A-F][1-6]$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "queryZone"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "cell"
+        ],
+        "type": "object"
+      },
       "ControllerRevealResponse": {
         "properties": {
           "cell": {
@@ -1790,6 +1850,20 @@
         },
         "required": [
           "ready"
+        ],
+        "type": "object"
+      },
+      "ControllerShowRunnersRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "showRunners"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
         ],
         "type": "object"
       },
@@ -1893,18 +1967,46 @@
         "type": "object"
       },
       "ControllerUseJokerRequest": {
-        "properties": {
-          "cell": {
-            "examples": [
-              "C4"
-            ],
-            "maxLength": 2,
-            "minLength": 2,
-            "pattern": "^[A-F][1-6]$",
-            "type": "string"
+        "discriminator": {
+          "mapping": {
+            "fakePosition": "#/components/schemas/ControllerFakePositionRequest",
+            "queryZone": "#/components/schemas/ControllerQueryZoneRequest",
+            "showRunners": "#/components/schemas/ControllerShowRunnersRequest",
+            "zoneOnly": "#/components/schemas/ControllerZoneOnlyRequest"
           },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ControllerShowRunnersRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerQueryZoneRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerZoneOnlyRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerFakePositionRequest"
+          }
+        ],
+        "properties": {
           "kind": {
             "$ref": "#/components/schemas/ControllerJokerKind"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ControllerZoneOnlyRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "zoneOnly"
+            ],
+            "type": "string"
           }
         },
         "required": [

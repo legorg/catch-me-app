@@ -166,10 +166,10 @@ func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body UseJokerRequest
-	if !decodeJSON(w, r, &body, "expected a JSON object with kind and, for queryZone, cell") {
+	if !decodeJSON(w, r, &body, "expected a JSON object with a known kind and exactly the fields of that joker") {
 		return
 	}
-	choice, err := game.ParseJokerChoice(body.Kind, body.Cell)
+	choice, err := jokerChoice(body)
 	if err != nil {
 		writeGameError(w, err, "invalid joker")
 		return
@@ -180,6 +180,32 @@ func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
+// jokerChoice parses the request variant into the joker to use.
+func jokerChoice(body UseJokerRequest) (game.JokerChoice, error) {
+	switch v := body.Variant().(type) {
+	case ShowRunnersRequest:
+		return game.ShowRunners{}, nil
+	case QueryZoneRequest:
+		cell, err := game.ParseCell(v.Cell)
+		if err != nil {
+			return nil, err
+		}
+		return game.QueryZone{Cell: cell}, nil
+	case ZoneOnlyRequest:
+		return game.ZoneOnly{}, nil
+	case FakePositionRequest:
+		if v.Latitude == nil || v.Longitude == nil {
+			return nil, &game.ValidationError{Message: "a point needs latitude and longitude"}
+		}
+		point, err := game.ParseCoordinates(*v.Latitude, *v.Longitude)
+		if err != nil {
+			return nil, err
+		}
+		return game.FakePosition{Point: point}, nil
+	}
+	return nil, &game.ValidationError{Message: "unknown joker"}
 }
 
 // Sketches routes /api/me/sketches to AddSketch and ClearSketches.
@@ -319,16 +345,16 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 	return response
 }
 
-func revealResponse(r game.Reveal) RevealResponse {
-	reveal := RevealResponse{RevealedAt: r.At}
-	switch {
-	case r.ZoneOnly && r.InPlayground:
-		reveal.ZoneOnly, reveal.Cell = true, Cell(r.Cell.String())
-	case r.ZoneOnly:
-		reveal.ZoneOnly = true
-	default:
+func revealResponse(r game.HunterReveal) RevealResponse {
+	reveal := RevealResponse{RevealedAt: r.RevealedAt()}
+	switch r := r.(type) {
+	case game.PositionReveal:
 		position := positionResponse(r.Position)
 		reveal.Position = &position
+	case game.ZoneReveal:
+		reveal.ZoneOnly, reveal.Cell = true, Cell(r.Cell.String())
+	case game.OutsideReveal:
+		reveal.ZoneOnly = true
 	}
 	return reveal
 }
@@ -337,19 +363,23 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 	jokers := make([]JokerResponse, 0)
 	for _, j := range view.Lobby.JokersFor(view.Me, view.Now) {
 		joker := JokerResponse{Kind: JokerKind(j.Kind), Available: j.Available}
-		if !j.UsedAt.IsZero() {
-			usedAt := j.UsedAt
+		if j.Use != nil {
+			usedAt := j.Use.UsedAt()
 			joker.UsedAt = &usedAt
-			if j.UsedBy != (game.PlayerID{}) {
-				joker.UsedBy = PlayerID(j.UsedBy.String())
-			}
-			if j.Kind == game.JokerQueryZone {
-				found := j.Found
-				joker.Cell, joker.Found = Cell(j.Cell.String()), &found
-			}
 		}
-		for _, p := range j.Positions {
-			joker.Positions = append(joker.Positions, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
+		switch use := j.Use.(type) {
+		case game.ShowRunnersUse:
+			for _, p := range use.Positions {
+				joker.Positions = append(joker.Positions, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
+			}
+		case game.QueryZoneUse:
+			found := use.Found
+			joker.Cell, joker.Found = Cell(use.Cell.String()), &found
+		case game.ZoneOnlyUse:
+			joker.UsedBy = PlayerID(use.Runner.String())
+		case game.FakePositionUse:
+			joker.UsedBy = PlayerID(use.Runner.String())
+			joker.Point = &Coordinates{Latitude: use.Point.Latitude(), Longitude: use.Point.Longitude()}
 		}
 		jokers = append(jokers, joker)
 	}

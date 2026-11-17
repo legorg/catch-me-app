@@ -47,7 +47,8 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
 	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute)}, Players: []game.Player{ada, bob}}
-	choice, _ := game.ParseJokerChoice("queryZone", "A1")
+	a1, _ := game.ParseCell("A1")
+	choice := game.QueryZone{Cell: a1}
 	if err := lobby.UseJoker(bob.ID, choice, now); err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +76,7 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	first, second := start.Add(game.RevealInterval), start.Add(2*game.RevealInterval)
 	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}, {Position: position, At: second}}}
-	if err := lobby.UseJoker(ada.ID, game.JokerChoice{Kind: game.JokerZoneOnly}, first.Add(time.Second)); err != nil {
+	if err := lobby.UseJoker(ada.ID, game.ZoneOnly{}, first.Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	now := second.Add(time.Second)
@@ -93,7 +94,39 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 		t.Fatalf("the next reveal shows only the cell: %+v", reveals[1])
 	}
 	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
-	if len(cyState.Jokers) != 1 || cyState.Jokers[0].Kind != "zoneOnly" || cyState.Jokers[0].Available || cyState.Jokers[0].UsedBy != PlayerID(ada.ID.String()) {
+	if len(cyState.Jokers) != 2 || cyState.Jokers[0].Kind != "zoneOnly" || cyState.Jokers[0].Available || cyState.Jokers[0].UsedBy != PlayerID(ada.ID.String()) {
 		t.Fatalf("every runner sees who used the runner joker: %+v", cyState.Jokers)
+	}
+}
+
+func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
+	start := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	center, _ := game.ParseCoordinates(52.52, 13.405)
+	point, _ := game.ParseCoordinates(52.53, 13.415)
+	playground, _ := game.NewPlayground(center, game.DefaultCellSize())
+	pack, _ := game.ParseHunterTeamName("Pack")
+	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
+	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
+	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground}, Players: []game.Player{ada, bob}}
+	first := start.Add(game.RevealInterval)
+	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
+	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}}}
+	if err := lobby.UseJoker(ada.ID, game.FakePosition{Point: point}, start.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	now := first.Add(time.Second)
+
+	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
+	reveals := bobState.Players[0].Reveals
+	if len(reveals) != 1 || reveals[0].ZoneOnly || reveals[0].Cell != "" || reveals[0].Position == nil ||
+		reveals[0].Position.Coordinates != (Coordinates{Latitude: 52.53, Longitude: 13.415}) || reveals[0].Position.AccuracyMeters != 5 {
+		t.Fatalf("hunters must see the chosen point like a normal reveal: %+v", reveals)
+	}
+	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()
+	if got := adaState.Jokers[1]; got.Kind != "fakePosition" || got.Point == nil || *got.Point != (Coordinates{Latitude: 52.53, Longitude: 13.415}) {
+		t.Fatalf("runners see the point they showed: %+v", got)
+	}
+	if adaState.Jokers[0].Point != nil {
+		t.Fatalf("other jokers have no point: %+v", adaState.Jokers[0])
 	}
 }

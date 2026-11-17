@@ -11,9 +11,9 @@ type visiblePlayer struct {
 	Ready      bool
 	// Position is the live position of oneself and teammates.
 	Position Position
-	// Reveals are all reveals of a runner, oldest first; only set when a hunter
-	// looks at a runner.
-	Reveals []Reveal
+	// Reveals are what hunters see of a runner, oldest first; only set when a
+	// hunter looks at a runner.
+	Reveals []HunterReveal
 }
 
 // VisibleTo applies the visibility rules for viewer:

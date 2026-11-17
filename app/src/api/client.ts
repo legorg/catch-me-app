@@ -13,11 +13,11 @@ import {
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
-import type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse } from './types';
+import type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest } from './types';
 import { translate, type MessageKey } from '../i18n';
 import { DEFAULT_CELL_SIZE_METERS, isValidCellSize } from '../playground';
 
-export type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerResponse } from './types';
+export type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse } from './types';
 
 export const API_URL = (
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
@@ -97,11 +97,11 @@ export async function setHunterTeam(token: string, name: string): Promise<GameSt
   return request((signal) => putHunterTeam({ baseUrl: API_URL, auth: bearer(token), body: { name: name.trim() }, signal }));
 }
 
-export type JokerKind = 'showRunners' | 'queryZone' | 'zoneOnly';
+export type JokerKind = JokerRequest['kind'];
 
-/** Spends a joker of the player's team (once per game and team, while it runs); queryZone needs the cell, such as "C4". */
-export async function activateJoker(token: string, kind: JokerKind, cell?: string): Promise<GameStateResponse> {
-  return request((signal) => postJoker({ baseUrl: API_URL, auth: bearer(token), body: cell ? { kind, cell } : { kind }, signal }));
+/** Spends a joker of the player's team (once per game and team, while it runs), with exactly the fields that joker needs. */
+export async function activateJoker(token: string, joker: JokerRequest): Promise<GameStateResponse> {
+  return request((signal) => postJoker({ baseUrl: API_URL, auth: bearer(token), body: joker, signal }));
 }
 
 const MIN_SKETCH_POINTS = 2;

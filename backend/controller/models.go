@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,13 +45,14 @@ const (
 type JokerKind string
 
 func (JokerKind) Enum() []any {
-	return []any{JokerKindShowRunners, JokerKindQueryZone, JokerKindZoneOnly}
+	return []any{JokerKindShowRunners, JokerKindQueryZone, JokerKindZoneOnly, JokerKindFakePosition}
 }
 
 const (
-	JokerKindShowRunners JokerKind = "showRunners"
-	JokerKindQueryZone   JokerKind = "queryZone"
-	JokerKindZoneOnly    JokerKind = "zoneOnly"
+	JokerKindShowRunners  JokerKind = "showRunners"
+	JokerKindQueryZone    JokerKind = "queryZone"
+	JokerKindZoneOnly     JokerKind = "zoneOnly"
+	JokerKindFakePosition JokerKind = "fakePosition"
 )
 
 type HealthResponse struct {
@@ -169,10 +171,77 @@ type UpdatePositionRequest struct {
 	AccuracyMeters *float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"required,gte=0,lte=10000"`
 }
 
+// UseJokerRequest is the joker to use: exactly one of ShowRunnersRequest,
+// QueryZoneRequest, ZoneOnlyRequest, and FakePositionRequest, told apart by
+// kind. Each variant has only the fields its joker needs.
 type UseJokerRequest struct {
-	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone zoneOnly"`
-	// The cell to query (queryZone only): column A-F, then row 1-6.
-	Cell Cell `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
+	// Which joker; it picks the variant.
+	Kind    JokerKind `json:"kind" validate:"required"`
+	variant any
+}
+
+// JSONSchemaOneOf documents the union in the OpenAPI spec.
+func (UseJokerRequest) JSONSchemaOneOf() []any {
+	return []any{ShowRunnersRequest{}, QueryZoneRequest{}, ZoneOnlyRequest{}, FakePositionRequest{}}
+}
+
+// UnmarshalJSON decodes the variant named by kind, rejecting fields it does not have.
+func (u *UseJokerRequest) UnmarshalJSON(data []byte) error {
+	var probe struct {
+		Kind JokerKind `json:"kind"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	var err error
+	u.Kind = probe.Kind
+	switch probe.Kind {
+	case JokerKindShowRunners:
+		u.variant, err = decodeStrict[ShowRunnersRequest](data)
+	case JokerKindQueryZone:
+		u.variant, err = decodeStrict[QueryZoneRequest](data)
+	case JokerKindZoneOnly:
+		u.variant, err = decodeStrict[ZoneOnlyRequest](data)
+	case JokerKindFakePosition:
+		u.variant, err = decodeStrict[FakePositionRequest](data)
+	default:
+		err = fmt.Errorf("unknown joker %q", probe.Kind)
+	}
+	return err
+}
+
+// decodeStrict decodes one JSON object into T, rejecting unknown fields.
+func decodeStrict[T any](data []byte) (T, error) {
+	var value T
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&value)
+	return value, err
+}
+
+// Variant is the decoded request: one of the four variant structs.
+func (u UseJokerRequest) Variant() any { return u.variant }
+
+type ShowRunnersRequest struct {
+	Kind JokerKind `json:"kind" enum:"showRunners" validate:"required,eq=showRunners"`
+}
+
+type QueryZoneRequest struct {
+	Kind JokerKind `json:"kind" enum:"queryZone" validate:"required,eq=queryZone"`
+	// The cell to query: column A-F, then row 1-6.
+	Cell Cell `json:"cell" pattern:"^[A-F][1-6]$" example:"C4" validate:"required,len=2"`
+}
+
+type ZoneOnlyRequest struct {
+	Kind JokerKind `json:"kind" enum:"zoneOnly" validate:"required,eq=zoneOnly"`
+}
+
+// Pointer fields distinguish missing coordinates from a valid zero.
+type FakePositionRequest struct {
+	Kind JokerKind `json:"kind" enum:"fakePosition" validate:"required,eq=fakePosition"`
+	// The point hunters see at the next reveal; it must lie inside the playground.
+	Latitude  *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
+	Longitude *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
 }
 
 type AddSketchRequest struct {
@@ -192,13 +261,15 @@ type SketchResponse struct {
 
 // JokerResponse is one joker of the requesting player's team.
 type JokerResponse struct {
-	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone zoneOnly"`
+	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone zoneOnly fakePosition"`
 	// True while the game runs and the team has not used it yet.
 	Available bool `json:"available" example:"true"`
 	// Set once the team used it.
 	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z" validate:"omitempty"`
 	// Runner jokers, once used: the runner who used it.
 	UsedBy PlayerID `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
+	// fakePosition, once used: the point hunters see at that runner's next reveal.
+	Point *Coordinates `json:"point,omitempty" validate:"omitempty"`
 	// What the joker showed (showRunners: each runner's position at usedAt), once used.
 	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,max=100,dive"`
 	// queryZone, once used: the queried cell and whether any runner was inside it at usedAt.

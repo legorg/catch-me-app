@@ -180,7 +180,8 @@ func TestVisibility(t *testing.T) {
 	latest := Reveal{Position: r.Position, At: revealed}
 	l.Reveals = map[PlayerID][]Reveal{runner.ID: {earlier, latest}}
 	v := find(l.VisibleTo(h, revealed), runner.ID)
-	if len(v.Reveals) != 2 || v.Reveals[0] != earlier || v.Reveals[1] != latest || !v.Position.IsZero() {
+	if len(v.Reveals) != 2 || v.Reveals[0] != (PositionReveal{At: earlier.At, Position: earlier.Position}) ||
+		v.Reveals[1] != (PositionReveal{At: latest.At, Position: latest.Position}) || !v.Position.IsZero() {
 		t.Fatalf("hunter must see every reveal, not the live position: %+v", v)
 	}
 	// Reveals reach hunters only, and only for runners.

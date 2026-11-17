@@ -21,7 +21,7 @@ func OpenAPI() ([]byte, error) {
 	reflector.DefaultOptions = append(reflector.DefaultOptions,
 		jsonschema.InterceptProp(requiredByDefault),
 		jsonschema.InterceptProp(constraintsFromValidateTags),
-		jsonschema.InterceptSchema(gameStateDiscriminator),
+		jsonschema.InterceptSchema(discriminators),
 	)
 	spec := reflector.SpecEns()
 	spec.SetTitle("Catch me! API")
@@ -155,9 +155,9 @@ func operations(games *controller.GameController) []operation {
 			success:  response{status: 200, body: new(controller.GameStateResponse), description: "Updated game state"},
 			failures: []response{{status: 400, description: "Invalid JSON, coordinates, or accuracy"}, {status: 401, description: "Missing or unknown player token"}, {status: 405, description: "Method not allowed"}, {status: 413, description: "Request body exceeds 1024 bytes"}, {status: 500, description: "Could not update game"}}},
 		{method: http.MethodPost, path: "/api/me/jokers", id: "activateJoker", handler: games.UseJoker, summary: "Use a joker", secured: true,
-			body: new(controller.UseJokerRequest), bodyDescription: "The joker to use (with the cell for queryZone); each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs",
+			body: new(controller.UseJokerRequest), bodyDescription: "The joker to use, picked by kind, with exactly the fields that joker needs; each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs",
 			success:  response{status: 200, body: new(controller.GameStateResponse), description: "Updated game state, with what the joker showed"},
-			failures: []response{{status: 400, description: "Invalid JSON, unknown joker, or missing or unexpected cell"}, {status: 401, description: "Missing or unknown player token"}, {status: 405, description: "Method not allowed"}, {status: 409, description: "Not a joker of the player's team, hunter without a team, game not running, or joker already used"}, {status: 413, description: "Request body exceeds 1024 bytes"}, {status: 500, description: "Could not update game"}}},
+			failures: []response{{status: 400, description: "Invalid JSON, unknown joker, missing or unexpected fields, or a point outside the playground"}, {status: 401, description: "Missing or unknown player token"}, {status: 405, description: "Method not allowed"}, {status: 409, description: "Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last joker has not acted yet"}, {status: 413, description: "Request body exceeds 1024 bytes"}, {status: 500, description: "Could not update game"}}},
 		{method: http.MethodPost, path: "/api/me/sketches", id: "addSketch", handler: games.Sketches, summary: "Draw a line on the hunter team's map", secured: true,
 			body: new(controller.AddSketchRequest), bodyDescription: "2-500 points of a freehand line; only the hunter's own team sees it",
 			success:  response{status: 200, body: new(controller.GameStateResponse), description: "Updated game state with the team's sketches"},
@@ -269,19 +269,35 @@ func setLength(schema *jsonschema.Schema, min, max int64) {
 	}
 }
 
-// gameStateDiscriminator tells clients to pick the variant of the
-// GameStateResponse union by its team.
-func gameStateDiscriminator(p jsonschema.InterceptSchemaParams) (bool, error) {
-	if !p.Processed || p.Value.Type() != reflect.TypeOf(controller.GameStateResponse{}) {
+// discriminators tells clients which property picks the variant of each union
+// (GameStateResponse by team, UseJokerRequest by kind).
+func discriminators(p jsonschema.InterceptSchemaParams) (bool, error) {
+	if !p.Processed {
 		return false, nil
 	}
 	const schemas = "#/components/schemas/"
-	p.Schema.WithExtraPropertiesItem("discriminator", map[string]any{
-		"propertyName": "team",
-		"mapping": map[string]string{
+	var property string
+	var mapping map[string]string
+	t := p.Value.Type()
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem() // request bodies are reflected through a pointer
+	}
+	switch t {
+	case reflect.TypeOf(controller.GameStateResponse{}):
+		property, mapping = "team", map[string]string{
 			string(controller.TeamRunner): schemas + "ControllerGameStateRunnerResponse",
 			string(controller.TeamHunter): schemas + "ControllerGameStateHunterResponse",
-		},
-	})
+		}
+	case reflect.TypeOf(controller.UseJokerRequest{}):
+		property, mapping = "kind", map[string]string{
+			string(controller.JokerKindShowRunners):  schemas + "ControllerShowRunnersRequest",
+			string(controller.JokerKindQueryZone):    schemas + "ControllerQueryZoneRequest",
+			string(controller.JokerKindZoneOnly):     schemas + "ControllerZoneOnlyRequest",
+			string(controller.JokerKindFakePosition): schemas + "ControllerFakePositionRequest",
+		}
+	default:
+		return false, nil
+	}
+	p.Schema.WithExtraPropertiesItem("discriminator", map[string]any{"propertyName": property, "mapping": mapping})
 	return false, nil
 }

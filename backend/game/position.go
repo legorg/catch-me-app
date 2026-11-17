@@ -37,18 +37,46 @@ func NewPosition(coordinates Coordinates, accuracyMeters float64, recordedAt tim
 
 func (p Position) IsZero() bool { return p.RecordedAt.IsZero() }
 
-// Reveal is a runner's position as shown to hunters at a reveal time. A
-// ZoneOnly reveal (runner joker) has no Position, only the Cell it was in,
-// unless the runner was outside the playground (InPlayground false).
+// Reveal is where a runner really was at a reveal time: their last report
+// before it. Hunters never get it directly; they get a HunterReveal.
 type Reveal struct {
-	Position     Position
-	At           time.Time
-	ZoneOnly     bool
-	Cell         Cell
-	InPlayground bool
+	Position Position
+	At       time.Time
 }
 
 func (r Reveal) IsZero() bool { return r.At.IsZero() }
+
+// HunterReveal is what hunters see of a runner at a reveal time, after the
+// runner's jokers are applied. It is sealed: PositionReveal, ZoneReveal, or
+// OutsideReveal. Only PositionReveal carries coordinates, so a reveal that
+// shows only a zone cannot leak the real position.
+type HunterReveal interface {
+	RevealedAt() time.Time
+	hunterReveal()
+}
+
+// PositionReveal shows a position: the real one, or the point of a fakePosition joker.
+type PositionReveal struct {
+	At       time.Time
+	Position Position
+}
+
+// ZoneReveal shows only the cell the runner was in (zoneOnly joker).
+type ZoneReveal struct {
+	At   time.Time
+	Cell Cell
+}
+
+// OutsideReveal is a zoneOnly reveal of a runner outside the playground: no cell, no position.
+type OutsideReveal struct{ At time.Time }
+
+func (r PositionReveal) RevealedAt() time.Time { return r.At }
+func (r ZoneReveal) RevealedAt() time.Time     { return r.At }
+func (r OutsideReveal) RevealedAt() time.Time  { return r.At }
+
+func (PositionReveal) hunterReveal() {}
+func (ZoneReveal) hunterReveal()     {}
+func (OutsideReveal) hunterReveal()  {}
 
 // CellAt returns the grid cell containing the coordinates, if inside the playground.
 func (p Playground) CellAt(c Coordinates) (Cell, bool) {

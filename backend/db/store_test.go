@@ -316,7 +316,7 @@ func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
 	usedAt := start.Add(60 * time.Second)
 	use := func(at time.Time) error {
 		_, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), at, func(l *game.Lobby) error {
-			return l.UseJoker(hunter.ID, game.JokerChoice{Kind: game.JokerShowRunners}, at)
+			return l.UseJoker(hunter.ID, game.ShowRunners{}, at)
 		})
 		return err
 	}
@@ -326,10 +326,11 @@ func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
 	move(t, store, runnerToken, after)
 
 	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(100*time.Second))
-	if len(lobby.Jokers) != 1 || lobby.Jokers[0].Kind != game.JokerShowRunners || !lobby.Jokers[0].UsedAt.Equal(usedAt) || lobby.Jokers[0].Team != hunter.HunterTeam {
+	stored, ok := lobby.Jokers[0].(game.ShowRunnersUse)
+	if len(lobby.Jokers) != 1 || !ok || !stored.At.Equal(usedAt) || stored.Team != hunter.HunterTeam {
 		t.Fatalf("used joker not stored: %+v", lobby.Jokers)
 	}
-	got := lobby.Jokers[0].Positions
+	got := stored.Positions
 	if len(got) != 1 || got[0].PlayerID != runner.ID || got[0].Position != before {
 		t.Fatalf("the joker must show where the runner was when it was used, not later: %+v", got)
 	}
@@ -356,10 +357,7 @@ func TestQueriedZoneIsStoredAndAnsweredAtTheTimeOfUse(t *testing.T) {
 	after, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(70*time.Second))
 	move(t, store, runnerToken, before)
 	usedAt := start.Add(60 * time.Second)
-	choice, err := game.ParseJokerChoice("queryZone", saved.Playground.SouthEdgeCells()[0].String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	choice := game.QueryZone{Cell: saved.Playground.SouthEdgeCells()[0]}
 	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), usedAt, func(l *game.Lobby) error {
 		return l.UseJoker(hunter.ID, choice, usedAt)
 	}); err != nil {
@@ -372,7 +370,7 @@ func TestQueriedZoneIsStoredAndAnsweredAtTheTimeOfUse(t *testing.T) {
 		t.Fatalf("used joker not stored: %+v", lobby.Jokers)
 	}
 	got := lobby.Jokers[0]
-	if got.Kind != game.JokerQueryZone || got.Cell != saved.Playground.SouthEdgeCells()[0] || !got.Found || len(got.Positions) != 0 || !got.UsedAt.Equal(usedAt) {
+	if got != (game.QueryZoneUse{Team: hunter.HunterTeam, At: usedAt, Cell: saved.Playground.SouthEdgeCells()[0], Found: true}) {
 		t.Fatalf("the query must answer yes for where the runner was when it was used, without positions: %+v", got)
 	}
 }
@@ -390,7 +388,7 @@ func TestZoneOnlyJokerIsStoredAndHidesTheNextReveal(t *testing.T) {
 	usedAt := start.Add(10 * time.Second)
 	use := func(at time.Time) error {
 		_, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), at, func(l *game.Lobby) error {
-			return l.UseJoker(runner.ID, game.JokerChoice{Kind: game.JokerZoneOnly}, at)
+			return l.UseJoker(runner.ID, game.ZoneOnly{}, at)
 		})
 		return err
 	}
@@ -403,21 +401,57 @@ func TestZoneOnlyJokerIsStoredAndHidesTheNextReveal(t *testing.T) {
 	move(t, store, runnerToken, moved)
 
 	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(game.RevealInterval+time.Second))
-	if len(lobby.Jokers) != 1 || lobby.Jokers[0].Kind != game.JokerZoneOnly || lobby.Jokers[0].PlayerID != runner.ID ||
-		!lobby.Jokers[0].Team.IsZero() || !lobby.Jokers[0].UsedAt.Equal(usedAt) {
+	if len(lobby.Jokers) != 1 || lobby.Jokers[0] != (game.ZoneOnlyUse{Runner: runner.ID, At: usedAt}) {
 		t.Fatalf("used runner joker not stored: %+v", lobby.Jokers)
 	}
 	for _, v := range lobby.VisibleTo(hunter, start.Add(game.RevealInterval+time.Second)) {
 		if v.ID != runner.ID {
 			continue
 		}
-		if len(v.Reveals) != 1 || !v.Reveals[0].ZoneOnly || v.Reveals[0].Cell != c4 || !v.Reveals[0].Position.IsZero() {
+		if len(v.Reveals) != 1 || v.Reveals[0] != (game.ZoneReveal{At: start.Add(game.RevealInterval), Cell: c4}) {
 			t.Fatalf("hunters must see only the cell at the reveal time: %+v", v.Reveals)
 		}
 	}
 	var rule *game.RuleError
 	if err := use(start.Add(40 * time.Second)); !errors.As(err, &rule) {
 		t.Fatalf("a second use must be refused: %v", err)
+	}
+}
+
+func TestFakePositionJokerIsStoredAndReplacesTheNextReveal(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, _ := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	c4, _ := game.ParseCell("C4")
+	point := boundsCenter(saved.Playground.CellBounds(c4))
+	usedAt := start.Add(10 * time.Second)
+	if _, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), usedAt, func(l *game.Lobby) error {
+		return l.UseJoker(runner.ID, game.FakePosition{Point: point}, usedAt)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	actual, _ := game.NewPosition(saved.Playground.Center(), 4, start.Add(20*time.Second))
+	move(t, store, runnerToken, actual)
+
+	at := start.Add(game.RevealInterval + time.Second)
+	lobby := load(t, store, saved.JoinCodes.Hunter, at)
+	if len(lobby.Jokers) != 1 || lobby.Jokers[0] != (game.FakePositionUse{Runner: runner.ID, At: usedAt, Point: point}) {
+		t.Fatalf("used fake position joker not stored: %+v", lobby.Jokers)
+	}
+	for _, v := range lobby.VisibleTo(hunter, at) {
+		if v.ID != runner.ID {
+			continue
+		}
+		shown, ok := v.Reveals[0].(game.PositionReveal)
+		if len(v.Reveals) != 1 || !ok || shown.Position.Coordinates != point || shown.Position.RecordedAt != actual.RecordedAt {
+			t.Fatalf("hunters must see the chosen point instead of the real position: %+v", v.Reveals)
+		}
 	}
 }
 

@@ -62,16 +62,18 @@ type positionRow struct {
 // A hunter team can use each kind once; Team is stored lowercase so spelling does not matter.
 // Runner jokers have an empty Team and Name (so the runners share one use) and
 // the runner who used it in PlayerID; hunter jokers have an empty PlayerID.
-// Cell is the queried cell (queryZone), empty otherwise.
+// Cell is the queried cell (queryZone), empty otherwise. Latitude and
+// Longitude are the shown point (fakePosition), zero otherwise.
 type jokerRow struct {
-	ID       uint64    `gorm:"primaryKey"`
-	GameID   string    `gorm:"not null;uniqueIndex:joker_once"`
-	Team     string    `gorm:"not null;uniqueIndex:joker_once"`
-	Kind     string    `gorm:"not null;uniqueIndex:joker_once"`
-	Name     string    `gorm:"not null"`
-	PlayerID string    `gorm:"not null;default:''"`
-	Cell     string    `gorm:"not null;default:''"`
-	UsedAt   time.Time `gorm:"not null"`
+	ID                  uint64    `gorm:"primaryKey"`
+	GameID              string    `gorm:"not null;uniqueIndex:joker_once"`
+	Team                string    `gorm:"not null;uniqueIndex:joker_once"`
+	Kind                string    `gorm:"not null;uniqueIndex:joker_once"`
+	Name                string    `gorm:"not null"`
+	PlayerID            string    `gorm:"not null;default:''"`
+	Cell                string    `gorm:"not null;default:''"`
+	Latitude, Longitude float64   `gorm:"not null;default:0"`
+	UsedAt              time.Time `gorm:"not null"`
 }
 
 // sketchRow is one line a hunter team drew. It belongs to the team, so it has no
@@ -255,12 +257,18 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	}
 	// Jokers are only ever added.
 	for _, use := range after.Jokers[min(len(before.Jokers), len(after.Jokers)):] {
-		row := jokerRow{
-			GameID: after.Game.SessionID.String(), Team: strings.ToLower(use.Team.String()), Kind: string(use.Kind),
-			Name: use.Team.String(), PlayerID: use.PlayerID.String(), UsedAt: use.UsedAt,
-		}
-		if use.Kind == game.JokerQueryZone {
-			row.Cell = use.Cell.String()
+		row := jokerRow{GameID: after.Game.SessionID.String(), Kind: string(use.Kind()), UsedAt: use.UsedAt()}
+		switch u := use.(type) {
+		case game.ShowRunnersUse:
+			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
+		case game.QueryZoneUse:
+			row.Team, row.Name, row.Cell = strings.ToLower(u.Team.String()), u.Team.String(), u.Cell.String()
+		case game.ZoneOnlyUse:
+			row.PlayerID = u.Runner.String()
+		case game.FakePositionUse:
+			row.PlayerID, row.Latitude, row.Longitude = u.Runner.String(), u.Point.Latitude(), u.Point.Longitude()
+		default:
+			return fmt.Errorf("save joker: unknown joker %q", use.Kind())
 		}
 		if err := tx.Create(&row).Error; err != nil {
 			return fmt.Errorf("save joker: %w", err)
@@ -440,26 +448,35 @@ func runnerReveals(history map[string][]positionRow, times []time.Time) (map[str
 	return reveals, nil
 }
 
-// parseJoker adds what a hunter joker showed, from each runner's last position
-// at or before the use: the positions (showRunners) or whether one was in the
-// cell (queryZone). Runner jokers only record who used them.
+// parseJoker rebuilds a used joker. A hunter joker gets what it showed, from
+// each runner's last position at or before the use: the positions
+// (showRunners) or whether one was in the cell (queryZone). Runner jokers only
+// record who used them (and the point for fakePosition).
 func parseJoker(row jokerRow, history map[string][]positionRow, playground game.Playground) (game.JokerUse, error) {
 	kind, err := game.ParseJokerKind(row.Kind)
 	if err != nil {
-		return game.JokerUse{}, fmt.Errorf("parse stored joker: %v", err)
+		return nil, fmt.Errorf("parse stored joker: %v", err)
 	}
-	if row.Name == "" {
-		playerID, err := game.ParsePlayerID(row.PlayerID)
+	at := row.UsedAt.UTC()
+	switch kind {
+	case game.JokerZoneOnly, game.JokerFakePosition:
+		runner, err := game.ParsePlayerID(row.PlayerID)
 		if err != nil {
-			return game.JokerUse{}, fmt.Errorf("parse stored joker: %v", err)
+			return nil, fmt.Errorf("parse stored joker: %v", err)
 		}
-		return game.JokerUse{Kind: kind, PlayerID: playerID, UsedAt: row.UsedAt.UTC()}, nil
+		if kind == game.JokerZoneOnly {
+			return game.ZoneOnlyUse{Runner: runner, At: at}, nil
+		}
+		point, err := game.ParseCoordinates(row.Latitude, row.Longitude)
+		if err != nil {
+			return nil, fmt.Errorf("parse stored joker: %v", err)
+		}
+		return game.FakePositionUse{Runner: runner, At: at, Point: point}, nil
 	}
 	team, err := game.ParseHunterTeamName(row.Name)
 	if err != nil {
-		return game.JokerUse{}, fmt.Errorf("parse stored joker: %v", err)
+		return nil, fmt.Errorf("parse stored joker: %v", err)
 	}
-	use := game.JokerUse{Kind: kind, Team: team, UsedAt: row.UsedAt.UTC()}
 	var positions []game.JokerPosition
 	for id, rows := range history {
 		last := -1
@@ -474,11 +491,11 @@ func parseJoker(row jokerRow, history map[string][]positionRow, playground game.
 		}
 		playerID, err := game.ParsePlayerID(id)
 		if err != nil {
-			return game.JokerUse{}, fmt.Errorf("parse stored joker: %v", err)
+			return nil, fmt.Errorf("parse stored joker: %v", err)
 		}
 		position, err := parsePosition(rows[last])
 		if err != nil {
-			return game.JokerUse{}, fmt.Errorf("parse stored position: %v", err)
+			return nil, fmt.Errorf("parse stored position: %v", err)
 		}
 		positions = append(positions, game.JokerPosition{PlayerID: playerID, Position: position})
 	}
@@ -486,15 +503,15 @@ func parseJoker(row jokerRow, history map[string][]positionRow, playground game.
 	case game.JokerShowRunners:
 		// Map order is random; keep the response stable.
 		slices.SortFunc(positions, func(a, b game.JokerPosition) int { return strings.Compare(a.PlayerID.String(), b.PlayerID.String()) })
-		use.Positions = positions
+		return game.ShowRunnersUse{Team: team, At: at, Positions: positions}, nil
 	case game.JokerQueryZone:
 		cell, err := game.ParseCell(row.Cell)
 		if err != nil {
-			return game.JokerUse{}, fmt.Errorf("parse stored joker: %v", err)
+			return nil, fmt.Errorf("parse stored joker: %v", err)
 		}
-		use.Cell, use.Found = cell, playground.AnyInCell(positions, cell)
+		return game.QueryZoneUse{Team: team, At: at, Cell: cell, Found: playground.AnyInCell(positions, cell)}, nil
 	}
-	return use, nil
+	return nil, fmt.Errorf("parse stored joker: unknown joker %q", kind)
 }
 
 // lastPositions returns each player's newest position.

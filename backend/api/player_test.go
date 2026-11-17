@@ -209,18 +209,24 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	body := `{"kind":"showRunners"}`
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", "", body), 401)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"teleport"}`), 400)
-	for _, invalid := range []string{`{"kind":"queryZone"}`, `{"kind":"queryZone","cell":"G1"}`, `{"kind":"showRunners","cell":"A1"}`} {
+	for _, invalid := range []string{`{}`, `{"kind":"queryZone"}`, `{"kind":"queryZone","cell":"G1"}`, `{"kind":"showRunners","cell":"A1"}`, `{"kind":"showRunners","latitude":0,"longitude":0}`} {
 		decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, invalid), 400)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "GET", "/api/me/jokers", hunter.PlayerToken, ""), 405)
 	runnerGame := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
-	if r, isRunner := runnerGame.Runner(); !isRunner || len(r.Jokers) != 1 || r.Jokers[0].Kind != "zoneOnly" || r.Jokers[0].Available {
-		t.Fatalf("runners have the zone joker, unavailable before the game runs: %+v", runnerGame)
+	if r, isRunner := runnerGame.Runner(); !isRunner || len(r.Jokers) != 2 || r.Jokers[0].Kind != "zoneOnly" || r.Jokers[1].Kind != "fakePosition" || r.Jokers[0].Available {
+		t.Fatalf("runners have their jokers, unavailable before the game runs: %+v", runnerGame)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"zoneOnly"}`), 409)
-	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"zoneOnly","cell":"A1"}`), 400)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"fakePosition","latitude":0,"longitude":0}`), 409)
+	for _, invalid := range []string{
+		`{"kind":"zoneOnly","cell":"A1"}`, `{"kind":"zoneOnly","latitude":0,"longitude":0}`, `{"kind":"fakePosition"}`,
+		`{"kind":"fakePosition","latitude":0}`, `{"kind":"fakePosition","latitude":95,"longitude":0}`,
+	} {
+		decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, invalid), 400)
+	}
 	teamless := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
 	if h, _ := teamless.Hunter(); h.Jokers == nil || len(h.Jokers) != 0 {
 		t.Fatalf("a hunter without a team has no jokers: %+v", h.Jokers)

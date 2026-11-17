@@ -143,6 +143,8 @@
   "joker.zoneOnly.title": "Show only the zone",
   "joker.zoneOnly.text": "Once per game for all runners: at the next reveal, hunters see only the cell you are in then, not your exact position.",
   "joker.zoneOnly.used": "At the first reveal after that, hunters saw only the cell of {name}.",
+  "joker.fakePosition.title": "Fake position",
+  "joker.fakePosition.text": "Once per game for all runners: you pick a point inside the playground. At the next reveal, hunters see you there instead of at your real position.",
   "joker.confirmRunner": "Use it now? The joker is shared by all runners and is then used up.",
   "joker.usedBy": "Used by {name} at {time}",
   "joker.chooseCell": "Choose the cell:",

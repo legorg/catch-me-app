@@ -35,6 +35,12 @@ export type ControllerCreateGameResponse = {
     joinCodes: ControllerJoinCodes;
 };
 
+export type ControllerFakePositionRequest = {
+    kind: 'fakePosition';
+    latitude: number;
+    longitude: number;
+};
+
 export type ControllerGameResponse = {
     createdAt: string;
     playground: ControllerPlayground;
@@ -109,7 +115,7 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
-export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly';
+export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition';
 
 export type ControllerJokerPositionResponse = {
     accuracyMeters: number;
@@ -124,6 +130,7 @@ export type ControllerJokerResponse = {
     cell?: string;
     found?: boolean;
     kind: ControllerJokerKind;
+    point?: ControllerCoordinates;
     positions?: Array<ControllerJokerPositionResponse>;
     usedAt?: string;
     usedBy?: string;
@@ -159,6 +166,11 @@ export type ControllerPositionResponse = {
     recordedAt: string;
 };
 
+export type ControllerQueryZoneRequest = {
+    cell: string;
+    kind: 'queryZone';
+};
+
 export type ControllerRevealResponse = {
     cell?: string;
     position?: ControllerPositionResponse;
@@ -172,6 +184,10 @@ export type ControllerSetHunterTeamRequest = {
 
 export type ControllerSetReadyRequest = {
     ready: boolean;
+};
+
+export type ControllerShowRunnersRequest = {
+    kind: 'showRunners';
 };
 
 export type ControllerSketchPointRequest = {
@@ -193,9 +209,20 @@ export type ControllerUpdatePositionRequest = {
     longitude: number;
 };
 
-export type ControllerUseJokerRequest = {
-    cell?: string;
+export type ControllerUseJokerRequest = (({
+    kind: 'showRunners';
+} & ControllerShowRunnersRequest) | ({
+    kind: 'queryZone';
+} & ControllerQueryZoneRequest) | ({
+    kind: 'zoneOnly';
+} & ControllerZoneOnlyRequest) | ({
+    kind: 'fakePosition';
+} & ControllerFakePositionRequest)) & {
     kind: ControllerJokerKind;
+};
+
+export type ControllerZoneOnlyRequest = {
+    kind: 'zoneOnly';
 };
 
 export type CreateGameData = {
@@ -366,7 +393,7 @@ export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamRe
 
 export type ActivateJokerData = {
     /**
-     * The joker to use (with the cell for queryZone); each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs
+     * The joker to use, picked by kind, with exactly the fields that joker needs; each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs
      */
     body: ControllerUseJokerRequest;
     path?: never;
@@ -376,7 +403,7 @@ export type ActivateJokerData = {
 
 export type ActivateJokerErrors = {
     /**
-     * Invalid JSON, unknown joker, or missing or unexpected cell
+     * Invalid JSON, unknown joker, missing or unexpected fields, or a point outside the playground
      */
     400: ControllerApiError;
     /**
@@ -388,7 +415,7 @@ export type ActivateJokerErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a joker of the player's team, hunter without a team, game not running, or joker already used
+     * Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last joker has not acted yet
      */
     409: ControllerApiError;
     /**
