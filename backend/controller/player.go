@@ -79,7 +79,7 @@ func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
-// RegenerateRoute gives the authenticated runner a different random route.
+// RegenerateRoute gives the game a different route; any runner may ask.
 func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
@@ -275,7 +275,8 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	base := gameStateBase(view)
 	if view.Me.Team == game.Runners {
 		return NewRunnerState(GameStateRunnerResponse{
-			GameStateBase: base, Team: TeamRunner, Route: gameRouteResponse(view.Lobby.Game.Route), Jokers: jokerResponses(view),
+			GameStateBase: base, Team: TeamRunner, Route: gameRouteResponse(view.Lobby.Game.Route),
+			RouteRegenerationsLeft: view.Lobby.Game.RouteRegenerationsLeft(), Jokers: jokerResponses(view),
 		})
 	}
 	return NewHunterState(GameStateHunterResponse{

@@ -542,7 +542,7 @@
             }
           },
           "409": {
-            "description": "Game has already started, or the runner is not in their start cell",
+            "description": "Game has already started, or the runner is not at the route's start",
             "content": {
               "application/json": {
                 "schema": {
@@ -581,7 +581,7 @@
     },
     "/api/me/route": {
       "post": {
-        "summary": "Regenerate the authenticated runner's route",
+        "summary": "Regenerate the game's route (runners, 2 times per game, while no runner is ready)",
         "operationId": "regenerateRoute",
         "responses": {
           "200": {
@@ -615,7 +615,7 @@
             }
           },
           "409": {
-            "description": "Not a runner, ready, no changes left, or game started",
+            "description": "Not a runner, a runner is ready, no changes left, game started, or no other route available",
             "content": {
               "application/json": {
                 "schema": {
@@ -626,6 +626,16 @@
           },
           "500": {
             "description": "Could not update game",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Landmark lookup failed",
             "content": {
               "application/json": {
                 "schema": {
@@ -1276,6 +1286,14 @@
           "route": {
             "$ref": "#/components/schemas/ControllerGameRoute"
           },
+          "routeRegenerationsLeft": {
+            "examples": [
+              2
+            ],
+            "maximum": 2,
+            "minimum": 0,
+            "type": "integer"
+          },
           "serverTime": {
             "examples": [
               "2026-11-08T12:00:00Z"
@@ -1324,6 +1342,7 @@
           "players",
           "team",
           "route",
+          "routeRegenerationsLeft",
           "jokers"
         ],
         "type": "object"

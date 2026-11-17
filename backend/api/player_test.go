@@ -73,7 +73,13 @@ func TestLobbyFlow(t *testing.T) {
 	if recorder := send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""); strings.Contains(recorder.Body.String(), `"route"`) {
 		t.Fatal("hunter state leaks the route")
 	}
-	decode[controller.GameStateResponse](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 200)
+	if runnerState.RouteRegenerationsLeft != 2 {
+		t.Fatalf("runner must see both route regenerations left: %+v", runnerState)
+	}
+	regenerated, _ := decode[controller.GameStateResponse](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 200).Runner()
+	if regenerated.Route == created.Game.Route || regenerated.RouteRegenerationsLeft != 1 {
+		t.Fatalf("route not regenerated: %+v", regenerated)
+	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/route", hunter.PlayerToken, ""), 409)
 
 	stateRecorder := send(t, handler, "GET", "/api/me/game", runner.PlayerToken, "")

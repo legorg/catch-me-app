@@ -78,6 +78,7 @@ export type ControllerGameStateRunnerResponse = {
     players: Array<ControllerPlayerResponse>;
     playground: ControllerPlayground;
     route: ControllerGameRoute;
+    routeRegenerationsLeft: number;
     serverTime: string;
     sessionId: string;
     startPositionCheckDisabled?: boolean;
@@ -479,7 +480,7 @@ export type SetReadyErrors = {
      */
     405: ControllerApiError;
     /**
-     * Game has already started, or the runner is not in their start cell
+     * Game has already started, or the runner is not at the route's start
      */
     409: ControllerApiError;
     /**
@@ -520,13 +521,17 @@ export type RegenerateRouteErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a runner, ready, no changes left, or game started
+     * Not a runner, a runner is ready, no changes left, game started, or no other route available
      */
     409: ControllerApiError;
     /**
      * Could not update game
      */
     500: ControllerApiError;
+    /**
+     * Landmark lookup failed
+     */
+    503: ControllerApiError;
 };
 
 export type RegenerateRouteError = RegenerateRouteErrors[keyof RegenerateRouteErrors];

@@ -234,6 +234,8 @@ type GameStateRunnerResponse struct {
 	Team Team `json:"team" enum:"runner" validate:"required,eq=runner"`
 	// The game's route between two landmarks; hunters have to find them.
 	Route GameRoute `json:"route"`
+	// How often the runners together may still regenerate the route.
+	RouteRegenerationsLeft int `json:"routeRegenerationsLeft" minimum:"0" maximum:"2" example:"2" validate:"gte=0,lte=2"`
 	// The jokers all runners share.
 	Jokers []JokerResponse `json:"jokers" validate:"max=2,dive"`
 }

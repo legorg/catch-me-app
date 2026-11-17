@@ -101,7 +101,7 @@ export const setReady = <ThrowOnError extends boolean = false>(options: Options<
 });
 
 /**
- * Regenerate the authenticated runner's route
+ * Regenerate the game's route (runners, 2 times per game, while no runner is ready)
  */
 export const regenerateRoute = <ThrowOnError extends boolean = false>(options?: Options<RegenerateRouteData, ThrowOnError>) => (options?.client ?? client).post<RegenerateRouteResponses, RegenerateRouteErrors, ThrowOnError>({
     security: [{ name: 'Authorization', type: 'apiKey' }],
