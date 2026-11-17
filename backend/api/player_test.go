@@ -226,14 +226,15 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 		} `json:"jokers"`
 	}
 	runnerGame := decode[gameJokers](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
-	if j := runnerGame.Jokers; runnerGame.Team != "runner" || len(j) != 2 || j[0].Kind != "zoneOnly" || j[1].Kind != "fakePosition" || j[0].Available {
+	if j := runnerGame.Jokers; runnerGame.Team != "runner" || len(j) != 3 || j[0].Kind != "zoneOnly" || j[1].Kind != "fakePosition" || j[2].Kind != "showHunters" || j[0].Available {
 		t.Fatalf("runners have their jokers, unavailable before the game runs: %+v", runnerGame)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"zoneOnly"}`), 409)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"fakePosition","latitude":0,"longitude":0}`), 409)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"showHunters"}`), 409)
 	for _, invalid := range []string{
 		`{"kind":"zoneOnly","cell":"A1"}`, `{"kind":"zoneOnly","latitude":0,"longitude":0}`, `{"kind":"fakePosition"}`,
-		`{"kind":"fakePosition","latitude":0}`, `{"kind":"fakePosition","latitude":95,"longitude":0}`,
+		`{"kind":"fakePosition","latitude":0}`, `{"kind":"fakePosition","latitude":95,"longitude":0}`, `{"kind":"showHunters","cell":"A1"}`,
 	} {
 		decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, invalid), 400)
 	}
@@ -248,6 +249,7 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 		t.Fatalf("a hunter team has both jokers, unavailable before the game runs: %+v", j)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"queryZone","cell":"C4"}`), 409)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"showHunters"}`), 409)
 }
 
 func TestSketchesRefuseWhatTheRulesForbid(t *testing.T) {

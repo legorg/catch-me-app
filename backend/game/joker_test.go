@@ -61,7 +61,7 @@ func TestJokersAreVisibleToTheirTeamOnly(t *testing.T) {
 	if got := only(l.JokersFor(eve, at)); !got.Available || got.Use != nil {
 		t.Fatalf("another hunter team sees nothing of it: %+v", got)
 	}
-	if got := l.JokersFor(runner, at); len(got) != 2 || got[0].Kind != JokerZoneOnly || got[1].Kind != JokerFakePosition || !got[0].Available {
+	if got := l.JokersFor(runner, at); len(got) != 3 || got[0].Kind != JokerZoneOnly || got[1].Kind != JokerFakePosition || got[2].Kind != JokerShowHunters || !got[0].Available {
 		t.Fatalf("runners see only their own jokers: %+v", got)
 	}
 }

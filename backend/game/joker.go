@@ -13,8 +13,11 @@ type JokerKind string
 // hunterJokers are the jokers every hunter team has, in display order.
 var hunterJokers = []JokerKind{JokerShowRunners, JokerQueryZone}
 
+// revealJokers are the runner jokers that act on the user's next reveal.
+var revealJokers = []JokerKind{JokerZoneOnly, JokerFakePosition}
+
 // runnerJokers are the jokers the runner team shares, in display order.
-var runnerJokers = []JokerKind{JokerZoneOnly, JokerFakePosition}
+var runnerJokers = []JokerKind{JokerZoneOnly, JokerFakePosition, JokerShowHunters}
 
 // ParseJokerKind accepts any string-based type, e.g. a wire-format kind.
 func ParseJokerKind[S ~string](value S) (JokerKind, error) {
@@ -28,7 +31,7 @@ func ParseJokerKind[S ~string](value S) (JokerKind, error) {
 }
 
 // JokerChoice is a joker to use with its target. It is sealed: the only
-// variants are ShowRunners, QueryZone, ZoneOnly, and FakePosition, each with
+// variants are ShowRunners, QueryZone, ZoneOnly, FakePosition, and ShowHunters, each with
 // exactly the target its joker needs.
 type JokerChoice interface {
 	Kind() JokerKind
@@ -37,7 +40,7 @@ type JokerChoice interface {
 	apply(l Lobby, me Player, now time.Time) (JokerUse, error)
 }
 
-// JokerPosition is where a runner was when a joker was used.
+// JokerPosition is where a player was when a joker was used.
 type JokerPosition struct {
 	PlayerID PlayerID
 	Position Position
@@ -45,9 +48,10 @@ type JokerPosition struct {
 
 // JokerUse records that a joker was used. It is sealed: every use is either a
 // hunterJokerUse (ShowRunnersUse, QueryZoneUse) or a runnerJokerUse
-// (ZoneOnlyUse, FakePositionUse). What a hunter joker showed is derived when
-// loading, like reveals, from each runner's last position at or before the
-// use; runner jokers act on the user's next reveal instead.
+// (ZoneOnlyUse, FakePositionUse, ShowHuntersUse). What the hunter jokers and
+// showHunters showed is derived when loading, like reveals, from each
+// player's last position at or before the use; reveal jokers act on the
+// user's next reveal instead.
 type JokerUse interface {
 	Kind() JokerKind
 	UsedAt() time.Time
@@ -60,11 +64,15 @@ type hunterJokerUse interface {
 	team() HunterTeamName
 }
 
-// runnerJokerUse is a use by one runner, for the whole runner team. It changes
-// that runner's next reveal as hunters see it.
+// runnerJokerUse is a use by one runner, for the whole runner team.
 type runnerJokerUse interface {
 	JokerUse
 	runner() PlayerID
+}
+
+// revealJokerUse is a runner joker that changes that runner's next reveal as hunters see it.
+type revealJokerUse interface {
+	runnerJokerUse
 	// reveal is what hunters see instead of the real reveal r. It must never
 	// contain the real position unless the joker allows it.
 	reveal(r Reveal, p Playground) HunterReveal
@@ -101,9 +109,9 @@ func (l *Lobby) UseJoker(id PlayerID, choice JokerChoice, now time.Time) error {
 	return nil
 }
 
-// mayUseJoker checks the rules all jokers share. A runner joker only affects
+// mayUseJoker checks the rules all jokers share. A reveal joker only affects
 // the runner who used it, at their next reveal; until then, that runner cannot
-// use another one.
+// use another reveal joker.
 func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
 	if me.Team == Runners {
 		switch {
@@ -113,7 +121,7 @@ func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
 			return &RuleError{Message: "jokers can only be used while the game is running"}
 		case l.runnersUse(kind) != nil:
 			return &RuleError{Message: "a runner already used this joker"}
-		case l.hasPendingJoker(me.ID, now):
+		case slices.Contains(revealJokers, kind) && l.hasPendingJoker(me.ID, now):
 			return &RuleError{Message: "your last joker has not acted yet; wait for the next reveal"}
 		}
 		return nil
@@ -132,20 +140,25 @@ func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
 }
 
 // runnerPositions are the latest positions of all runners who reported one.
-func (l Lobby) runnerPositions() []JokerPosition {
+func (l Lobby) runnerPositions() []JokerPosition { return l.teamPositions(Runners) }
+
+// hunterPositions are the latest positions of all hunters (of every hunter team) who reported one.
+func (l Lobby) hunterPositions() []JokerPosition { return l.teamPositions(Hunters) }
+
+func (l Lobby) teamPositions(team Team) []JokerPosition {
 	var positions []JokerPosition
 	for _, p := range l.Players {
-		if p.Team == Runners && !p.Position.IsZero() {
+		if p.Team == team && !p.Position.IsZero() {
 			positions = append(positions, JokerPosition{PlayerID: p.ID, Position: p.Position})
 		}
 	}
 	return positions
 }
 
-// hasPendingJoker reports whether the runner used a joker whose reveal has not happened yet.
+// hasPendingJoker reports whether the runner used a reveal joker whose reveal has not happened yet.
 func (l Lobby) hasPendingJoker(runner PlayerID, now time.Time) bool {
 	return slices.ContainsFunc(l.Jokers, func(use JokerUse) bool {
-		u, ok := use.(runnerJokerUse)
+		u, ok := use.(revealJokerUse)
 		return ok && u.runner() == runner && now.Before(l.Game.NextReveal(use.UsedAt()))
 	})
 }
@@ -193,15 +206,15 @@ func (l Lobby) runnersUse(kind JokerKind) JokerUse {
 // revealsForHunters are the runner's reveals as hunters see them: the reveal
 // after each of the runner's joker uses is replaced by what that joker shows.
 func (l Lobby) revealsForHunters(runner PlayerID) []HunterReveal {
-	var acting []runnerJokerUse
+	var acting []revealJokerUse
 	for _, use := range l.Jokers {
-		if u, ok := use.(runnerJokerUse); ok && u.runner() == runner {
+		if u, ok := use.(revealJokerUse); ok && u.runner() == runner {
 			acting = append(acting, u)
 		}
 	}
 	var reveals []HunterReveal
 	for _, r := range l.Reveals[runner] {
-		j := slices.IndexFunc(acting, func(use runnerJokerUse) bool { return l.Game.NextReveal(use.UsedAt()).Equal(r.At) })
+		j := slices.IndexFunc(acting, func(use revealJokerUse) bool { return l.Game.NextReveal(use.UsedAt()).Equal(r.At) })
 		if j < 0 {
 			reveals = append(reveals, PositionReveal{At: r.At, Position: r.Position})
 		} else {

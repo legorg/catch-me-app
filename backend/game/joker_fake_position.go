@@ -24,7 +24,7 @@ type FakePositionUse struct {
 	Point  Coordinates
 }
 
-var _ runnerJokerUse = FakePositionUse{}
+var _ revealJokerUse = FakePositionUse{}
 
 func (FakePositionUse) Kind() JokerKind     { return JokerFakePosition }
 func (u FakePositionUse) UsedAt() time.Time { return u.At }

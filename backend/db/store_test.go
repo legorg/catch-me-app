@@ -475,6 +475,47 @@ func TestFakePositionJokerIsStoredAndReplacesTheNextReveal(t *testing.T) {
 	}
 }
 
+func TestShowHuntersJokerIsStoredAndShowsWhereTheHuntersWereAtTheUse(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	_, cyToken := join(t, store, saved.JoinCodes.Runner, "Cy", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	join(t, store, saved.JoinCodes.Hunter, "Dan", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	before, _ := game.NewPosition(saved.Playground.Center(), 4, start.Add(10*time.Second))
+	after, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 3, start.Add(70*time.Second))
+	move(t, store, hunterToken, before)
+	usedAt := start.Add(60 * time.Second)
+	if _, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), usedAt, func(l *game.Lobby) error {
+		return l.UseJoker(runner.ID, game.ShowHunters{}, usedAt)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	move(t, store, hunterToken, after)
+
+	lobby := load(t, store, saved.JoinCodes.Runner, start.Add(100*time.Second))
+	stored, ok := lobby.Jokers[0].(game.ShowHuntersUse)
+	if len(lobby.Jokers) != 1 || !ok || stored.Runner != runner.ID || !stored.At.Equal(usedAt) {
+		t.Fatalf("used joker not stored: %+v", lobby.Jokers)
+	}
+	// Dan never reported a position and is left out.
+	if got := stored.Positions; len(got) != 1 || got[0].PlayerID != hunter.ID || got[0].Position != before {
+		t.Fatalf("the joker must show where the hunters were when it was used, not later: %+v", got)
+	}
+	var rule *game.RuleError
+	if _, err := store.UpdateLobbyByToken(ctx, cyToken.Hash(), start.Add(90*time.Second), func(l *game.Lobby) error {
+		me, _ := l.PlayerByToken(cyToken.Hash())
+		return l.UseJoker(me.ID, game.ShowHunters{}, start.Add(90*time.Second))
+	}); !errors.As(err, &rule) {
+		t.Fatalf("the runners share one use: %v", err)
+	}
+}
+
 func TestSketchesPersistUntilClearedOrExpired(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")

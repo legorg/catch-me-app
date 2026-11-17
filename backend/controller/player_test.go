@@ -107,7 +107,7 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	}
 	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
 	want = `{"kind":"zoneOnly","available":false,"usedAt":"2026-11-08T12:01:01Z","usedBy":"` + ada.ID.String() + `"}`
-	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 2 || got != want {
+	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 3 || got != want {
 		t.Fatalf("every runner sees who used the runner joker:\n got %s\nwant %s", got, want)
 	}
 }
@@ -139,5 +139,34 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 	want = `{"kind":"fakePosition","available":false,"usedAt":"2026-11-08T12:00:01Z","usedBy":"` + ada.ID.String() + `","point":{"latitude":52.53,"longitude":13.415}}`
 	if got := jsonOf(t, adaState.Jokers[1]); got != want {
 		t.Fatalf("runners see the point they showed:\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestGameStateShowsTheHunterPositionsToRunnersOnly(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	pack, _ := game.ParseHunterTeamName("Pack")
+	where, _ := game.ParseCoordinates(52.52, 13.405)
+	position, _ := game.NewPosition(where, 5, now.Add(-time.Second))
+	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack, Position: position}
+	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
+	if err := lobby.UseJoker(ada.ID, game.ShowHunters{}, now); err != nil {
+		t.Fatal(err)
+	}
+
+	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()
+	want := `{"kind":"showHunters","available":false,"usedAt":"2026-11-08T12:00:00Z","usedBy":"` + ada.ID.String() + `",` +
+		`"positions":[{"playerId":"` + bob.ID.String() + `","latitude":52.52,"longitude":13.405,"accuracyMeters":5,"recordedAt":"2026-11-08T11:59:59Z"}]}`
+	if got := jsonOf(t, adaState.Jokers[2]); len(adaState.Jokers) != 3 || got != want {
+		t.Fatalf("runners see where the hunters were:\n got %s\nwant %s", got, want)
+	}
+	for _, p := range adaState.Players {
+		if p.PlayerID == PlayerID(bob.ID.String()) && p.Position != nil {
+			t.Fatal("runners still get no live hunter position")
+		}
+	}
+	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
+	if got := jsonOf(t, bobState.Jokers); got != `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":true}]` {
+		t.Fatalf("hunters are not told: %s", got)
 	}
 }

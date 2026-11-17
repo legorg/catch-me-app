@@ -20,7 +20,7 @@ type ZoneOnlyUse struct {
 	At     time.Time
 }
 
-var _ runnerJokerUse = ZoneOnlyUse{}
+var _ revealJokerUse = ZoneOnlyUse{}
 
 func (ZoneOnlyUse) Kind() JokerKind     { return JokerZoneOnly }
 func (u ZoneOnlyUse) UsedAt() time.Time { return u.At }

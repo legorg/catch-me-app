@@ -364,7 +364,7 @@
             }
           },
           "409": {
-            "description": "Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last joker has not acted yet",
+            "description": "Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last reveal joker has not acted yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -1573,7 +1573,8 @@
           "showRunners",
           "queryZone",
           "zoneOnly",
-          "fakePosition"
+          "fakePosition",
+          "showHunters"
         ],
         "type": "string"
       },
@@ -1636,6 +1637,7 @@
           "mapping": {
             "fakePosition": "#/components/schemas/ControllerFakePositionJokerResponse",
             "queryZone": "#/components/schemas/ControllerQueryZoneJokerResponse",
+            "showHunters": "#/components/schemas/ControllerShowHuntersJokerResponse",
             "showRunners": "#/components/schemas/ControllerShowRunnersJokerResponse",
             "zoneOnly": "#/components/schemas/ControllerZoneOnlyJokerResponse"
           },
@@ -1653,6 +1655,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerFakePositionJokerResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerShowHuntersJokerResponse"
           }
         ],
         "type": "object"
@@ -1991,6 +1996,63 @@
         ],
         "type": "object"
       },
+      "ControllerShowHuntersJokerResponse": {
+        "properties": {
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "showHunters"
+            ],
+            "type": "string"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerJokerPositionResponse"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedBy": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
+        ],
+        "type": "object"
+      },
+      "ControllerShowHuntersRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "showHunters"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
       "ControllerShowRunnersJokerResponse": {
         "properties": {
           "available": {
@@ -2144,6 +2206,7 @@
           "mapping": {
             "fakePosition": "#/components/schemas/ControllerFakePositionRequest",
             "queryZone": "#/components/schemas/ControllerQueryZoneRequest",
+            "showHunters": "#/components/schemas/ControllerShowHuntersRequest",
             "showRunners": "#/components/schemas/ControllerShowRunnersRequest",
             "zoneOnly": "#/components/schemas/ControllerZoneOnlyRequest"
           },
@@ -2161,6 +2224,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerFakePositionRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerShowHuntersRequest"
           }
         ],
         "properties": {

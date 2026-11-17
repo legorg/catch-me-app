@@ -204,6 +204,8 @@ func jokerChoice(body UseJokerRequest) (game.JokerChoice, error) {
 			return nil, err
 		}
 		return game.FakePosition{Point: point}, nil
+	case ShowHuntersRequest:
+		return game.ShowHunters{}, nil
 	}
 	return nil, &game.ValidationError{Message: "unknown joker"}
 }
@@ -369,9 +371,7 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 		case game.JokerShowRunners:
 			joker := ShowRunnersJokerResponse{Kind: JokerKindShowRunners, JokerStatus: status}
 			if use, ok := j.Use.(game.ShowRunnersUse); ok {
-				for _, p := range use.Positions {
-					joker.Positions = append(joker.Positions, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
-				}
+				joker.Positions = jokerPositionResponses(use.Positions)
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerQueryZone:
@@ -394,9 +394,24 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 				joker.Point = &Coordinates{Latitude: use.Point.Latitude(), Longitude: use.Point.Longitude()}
 			}
 			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerShowHunters:
+			joker := ShowHuntersJokerResponse{Kind: JokerKindShowHunters, JokerStatus: status}
+			if use, ok := j.Use.(game.ShowHuntersUse); ok {
+				joker.UsedBy = PlayerID(use.Runner.String())
+				joker.Positions = jokerPositionResponses(use.Positions)
+			}
+			jokers = append(jokers, JokerResponse{joker})
 		}
 	}
 	return jokers
+}
+
+func jokerPositionResponses(positions []game.JokerPosition) []JokerPositionResponse {
+	var responses []JokerPositionResponse
+	for _, p := range positions {
+		responses = append(responses, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
+	}
+	return responses
 }
 
 func sketchResponses(view service.PlayerView) []SketchResponse {
