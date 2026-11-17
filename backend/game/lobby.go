@@ -80,39 +80,43 @@ func (l *Lobby) Join(code JoinCode, name PlayerName, token PlayerToken, now time
 		return Player{}, &RuleError{Message: "name is already taken in this game"}
 	}
 	player := Player{ID: NewPlayerID(), Name: name, Team: team, TokenHash: token.Hash(), JoinedAt: now}
-	if team == Runners {
-		player.Route = randomRoute(MaxRouteRegenerations)
-	}
 	l.Players = append(l.Players, player)
 	l.reschedule(now)
 	return player, nil
 }
 
-// RegenerateRoute replaces a runner's route with a different random one.
-// Only possible before the start and while not ready, at most
-// MaxRouteRegenerations times.
-func (l *Lobby) RegenerateRoute(id PlayerID, now time.Time) error {
+// CanRegenerateRoute checks that this player may replace the game's route: a
+// runner, in the lobby, while no runner is ready, with regenerations left.
+func (l Lobby) CanRegenerateRoute(id PlayerID, now time.Time) error {
 	if err := l.requireNotStarted(now); err != nil {
 		return err
 	}
-	i := l.index(id)
-	if i < 0 {
+	player, ok := l.Player(id)
+	if !ok {
 		return ErrUnauthorized
 	}
-	player := &l.Players[i]
 	switch {
 	case player.Team != Runners:
-		return &RuleError{Message: "only runners have a route"}
-	case player.Ready:
-		return &RuleError{Message: "set yourself not ready before changing your route"}
-	case player.Route.RegenerationsLeft == 0:
+		return &RuleError{Message: "only runners can change the route"}
+	case slices.ContainsFunc(l.Players, func(p Player) bool { return p.Team == Runners && p.Ready }):
+		return &RuleError{Message: "all runners must be not ready to change the route"}
+	case l.Game.RouteRegenerationsLeft() <= 0:
 		return &RuleError{Message: "no route changes left"}
 	}
-	next := randomRoute(player.Route.RegenerationsLeft - 1)
-	for next.Start == player.Route.Start && next.End == player.Route.End {
-		next = randomRoute(next.RegenerationsLeft)
+	return nil
+}
+
+// RegenerateRoute replaces the game's route with next, which must differ from
+// it. Callers look up next beforehand, so the rules are checked again here.
+func (l *Lobby) RegenerateRoute(id PlayerID, next Route, now time.Time) error {
+	if err := l.CanRegenerateRoute(id, now); err != nil {
+		return err
 	}
-	player.Route = next
+	if next == l.Game.Route {
+		return &RuleError{Message: "no other route available"}
+	}
+	l.Game.Route = next
+	l.Game.RouteRegenerations++
 	return nil
 }
 

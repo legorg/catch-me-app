@@ -9,7 +9,6 @@ type visiblePlayer struct {
 	Team       Team
 	HunterTeam HunterTeamName
 	Ready      bool
-	Route      RunnerRoute
 	// Position is the live position of oneself and teammates.
 	Position Position
 	// Reveals are all reveals of a runner, oldest first; only set when a hunter
@@ -19,7 +18,6 @@ type visiblePlayer struct {
 
 // VisibleTo applies the visibility rules for viewer:
 //   - Everyone sees their own position at any time.
-//   - Runners see their teammates' routes; hunters see no routes.
 //   - Hunters of the same hunter team see each other's latest positions at any
 //     time; other hunter teams never.
 //   - While running, runners see each other's latest positions.
@@ -31,9 +29,6 @@ func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 	visible := make([]visiblePlayer, 0, len(l.Players))
 	for _, p := range l.Players {
 		v := visiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready}
-		if viewer.Team == Runners {
-			v.Route = p.Route // Hunters have none.
-		}
 		sameHunterTeam := viewer.Team == Hunters && p.Team == Hunters && !viewer.HunterTeam.IsZero() && p.HunterTeam == viewer.HunterTeam
 		switch {
 		case p.ID == viewer.ID, sameHunterTeam, running && viewer.Team == Runners && p.Team == Runners:

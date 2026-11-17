@@ -145,9 +145,10 @@ func TestLobbyFlow(t *testing.T) {
 		t.Fatalf("join failed: %+v %v", runner, err)
 	}
 	regenerated, err := s.RegenerateRoute(ctx, runnerToken)
-	if err != nil || regenerated.Me.Route.IsZero() || regenerated.Me.Route.RegenerationsLeft != game.MaxRouteRegenerations-1 {
-		t.Fatalf("route not regenerated: %+v %v", regenerated.Me.Route, err)
+	if err != nil || regenerated.Lobby.Game.Route == created.Route || regenerated.Lobby.Game.RouteRegenerationsLeft() != game.MaxRouteRegenerations-1 {
+		t.Fatalf("route not regenerated: %+v %v", regenerated.Lobby.Game, err)
 	}
+	created.Route = regenerated.Lobby.Game.Route
 	bob, _ := game.ParsePlayerName("Bob")
 	_, hunterToken, err := s.Join(ctx, created.JoinCodes.Hunter, bob)
 	if err != nil {
@@ -269,6 +270,39 @@ func TestCreateRouteNeedsLandmarks(t *testing.T) {
 	_, err = NewGameService(newMemoryRepository(), &fakeLandmarks{}, false).Create(context.Background(), center, game.DefaultCellSize())
 	if !errors.Is(err, game.ErrNoLandmark) {
 		t.Fatalf("no landmark: %v", err)
+	}
+}
+
+func TestRegenerateRouteNeedsAnotherLandmark(t *testing.T) {
+	ctx := context.Background()
+	center, _ := game.ParseCoordinates(52.52, 13.405)
+	sight, _ := game.ParseCoordinates(52.5, 13.4)
+	finder := &fakeLandmarks{found: []game.Landmark{{Title: "Sight", Coordinates: sight}}}
+	s := newService(newMemoryRepository(), time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC))
+	s.landmarks = finder
+	created, err := s.Create(ctx, center, game.DefaultCellSize())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ada, _ := game.ParsePlayerName("Ada")
+	bob, _ := game.ParsePlayerName("Bob")
+	_, runnerToken, _ := s.Join(ctx, created.JoinCodes.Runner, ada)
+	_, hunterToken, _ := s.Join(ctx, created.JoinCodes.Hunter, bob)
+	lookups := len(finder.rows)
+	var rule *game.RuleError
+	if _, err := s.RegenerateRoute(ctx, hunterToken); !errors.As(err, &rule) || len(finder.rows) != lookups {
+		t.Fatalf("rules must be checked before the lookup: %v", err)
+	}
+	if _, err := s.RegenerateRoute(ctx, runnerToken); !errors.As(err, &rule) {
+		t.Fatalf("the same route must be refused: %v", err)
+	}
+	view, err := s.State(ctx, runnerToken)
+	if err != nil || view.Lobby.Game.Route != created.Route || view.Lobby.Game.RouteRegenerations != 0 {
+		t.Fatalf("a refused regeneration must not count: %+v %v", view.Lobby.Game, err)
+	}
+	finder.err = errors.New("down")
+	if _, err := s.RegenerateRoute(ctx, runnerToken); !errors.Is(err, game.ErrLandmarksUnavailable) {
+		t.Fatalf("lookup failure: %v", err)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used -- non-security gameplay randomness
+	"slices"
 	"sync"
 	"time"
 
@@ -46,29 +47,40 @@ func NewGameService(repository GameRepository, landmarks LandmarkFinder, skipSta
 	return &GameService{repository: repository, landmarks: landmarks, now: func() time.Time { return time.Now().UTC() }, skipStartPositionCheck: skipStartPositionCheck}
 }
 
-// route finds a landmark on the south edge and one on the north edge, in parallel.
-func (s *GameService) route(ctx context.Context, playground game.Playground) (game.Route, error) {
+// route finds a landmark on the south edge and one on the north edge, in
+// parallel. When replacing previous, each edge avoids its current landmark and
+// keeps it only if the edge has no other one.
+func (s *GameService) route(ctx context.Context, playground game.Playground, previous game.Route) (game.Route, error) {
 	var route game.Route
 	var startErr, stopErr error
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		route.Start, startErr = s.edgeLandmark(ctx, playground, playground.SouthEdgeCells())
+		route.Start, startErr = s.edgeLandmark(ctx, playground, playground.SouthEdgeCells(), previous.Start)
 	}()
 	go func() {
 		defer wg.Done()
-		route.Stop, stopErr = s.edgeLandmark(ctx, playground, playground.NorthEdgeCells())
+		route.Stop, stopErr = s.edgeLandmark(ctx, playground, playground.NorthEdgeCells(), previous.Stop)
 	}()
 	wg.Wait()
+	if previous != (game.Route{}) {
+		if errors.Is(startErr, game.ErrNoLandmark) {
+			route.Start, startErr = previous.Start, nil
+		}
+		if errors.Is(stopErr, game.ErrNoLandmark) {
+			route.Stop, stopErr = previous.Stop, nil
+		}
+	}
 	if err := errors.Join(startErr, stopErr); err != nil {
 		return game.Route{}, err
 	}
 	return route, nil
 }
 
-// edgeLandmark picks a random landmark inside one of the cells, trying them in random order.
-func (s *GameService) edgeLandmark(ctx context.Context, playground game.Playground, cells []game.Cell) (game.Landmark, error) {
+// edgeLandmark picks a random landmark other than avoid inside one of the
+// cells, trying them in random order.
+func (s *GameService) edgeLandmark(ctx context.Context, playground game.Playground, cells []game.Cell, avoid game.Landmark) (game.Landmark, error) {
 	rand.Shuffle(len(cells), func(i, j int) { cells[i], cells[j] = cells[j], cells[i] })
 	ctx, cancel := context.WithTimeout(ctx, landmarkTimeout)
 	defer cancel()
@@ -77,11 +89,19 @@ func (s *GameService) edgeLandmark(ctx context.Context, playground game.Playgrou
 		if err != nil {
 			return game.Landmark{}, fmt.Errorf("%w: cell %s: %v", game.ErrLandmarksUnavailable, cell, err)
 		}
+		found = slices.DeleteFunc(slices.Clone(found), func(l game.Landmark) bool { return l == avoid })
 		if len(found) > 0 {
 			return found[rand.IntN(len(found))], nil
 		}
 	}
 	return game.Landmark{}, game.ErrNoLandmark
+}
+
+func logRoute(message string, route game.Route) {
+	slog.Info(message,
+		"start", route.Start.Title, "startLat", route.Start.Coordinates.Latitude(), "startLon", route.Start.Coordinates.Longitude(),
+		"stop", route.Stop.Title, "stopLat", route.Stop.Coordinates.Latitude(), "stopLon", route.Stop.Coordinates.Longitude(),
+		"distanceMeters", route.DistanceMeters())
 }
 
 // PlayerView is a lobby as seen by one of its players.
@@ -97,14 +117,11 @@ func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellS
 	if err != nil {
 		return game.Game{}, err
 	}
-	route, err := s.route(ctx, playground)
+	route, err := s.route(ctx, playground, game.Route{})
 	if err != nil {
 		return game.Game{}, err
 	}
-	slog.Info("route created",
-		"start", route.Start.Title, "startLat", route.Start.Coordinates.Latitude(), "startLon", route.Start.Coordinates.Longitude(),
-		"stop", route.Stop.Title, "stopLat", route.Stop.Coordinates.Latitude(), "stopLon", route.Stop.Coordinates.Longitude(),
-		"distanceMeters", route.DistanceMeters())
+	logRoute("route created", route)
 	// Collisions are extremely unlikely; retry a few times rather than fail.
 	for attempt := 0; ; attempt++ {
 		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, JoinCodes: game.NewJoinCodes(), Route: route}
@@ -145,10 +162,28 @@ func (s *GameService) SetReady(ctx context.Context, token game.PlayerToken, read
 	})
 }
 
+// RegenerateRoute replaces the game's route with a different one. The landmark
+// lookup runs outside the database transaction, so the rules are checked
+// before it and again when saving.
 func (s *GameService) RegenerateRoute(ctx context.Context, token game.PlayerToken) (PlayerView, error) {
-	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
-		return l.RegenerateRoute(me.ID, now)
+	current, err := s.State(ctx, token)
+	if err != nil {
+		return PlayerView{}, err
+	}
+	if err := current.Lobby.CanRegenerateRoute(current.Me.ID, current.Now); err != nil {
+		return PlayerView{}, fmt.Errorf("update game: %w", err)
+	}
+	next, err := s.route(ctx, current.Lobby.Game.Playground, current.Lobby.Game.Route)
+	if err != nil {
+		return PlayerView{}, err
+	}
+	view, err := s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.RegenerateRoute(me.ID, next, now)
 	})
+	if err == nil {
+		logRoute("route regenerated", next)
+	}
+	return view, err
 }
 
 // SetHunterTeam joins the hunter team with this name, creating it if needed.

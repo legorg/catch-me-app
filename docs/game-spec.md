@@ -46,31 +46,30 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 - **Background location [app only]:** in installed builds, the app enables Ready only once "Always" location access is granted, so positions keep coming while the screen is off during the game. The server cannot verify the permission and does not check it; it can also be withdrawn later. Expo Go cannot share in the background, so there the app only requires foreground location access.
 - **Start condition:** every player is ready, and each team has at least one player (hunters: see hunter teams).
 - When the start condition becomes true, the server schedules the start **10 seconds** later (countdown).
-- Whenever the start condition stops holding during the countdown (someone joins, leaves, un-readies, or a ready runner leaves their start cell), the countdown is cancelled. It restarts from 10 seconds once the condition holds again.
+- Whenever the start condition stops holding during the countdown (someone joins, leaves, un-readies, or a ready runner leaves the start), the countdown is cancelled. It restarts from 10 seconds once the condition holds again.
 - Once the countdown has passed, the game is **running**. Joining, leaving, and changing ready state are then rejected.
 - Players can leave during the lobby and the countdown.
 
 Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 4).
 
-## Runner routes [done: milestone 2]
+## Route [done]
 
-- When a runner joins, they get a random **start cell in one edge row** (row 1 or row 6) and an **end cell in the opposite edge row**. Which edge is the start is random per runner; columns are random.
-- Each runner can **regenerate** their route **2 times**, only before the start and while not ready. A regenerated route always differs from the previous one.
-- Hunters have no assigned start point.
-- **Runners see all runners' routes** (their own and their teammates'). Hunters never see routes.
-- Runners who joined before routes existed have no route and skip the start cell check.
+- Each game has **one route** that all runners share: a **start** landmark in a random cell of the southern edge row (row 6) and a **stop** landmark in a random cell of the northern edge row (row 1). The server picks both from a landmark lookup when the game is created; creating fails if an edge has no landmark.
+- **Any runner** can **regenerate** the route, **2 times per game** in total (shared by all runners). Only in the lobby (not during the countdown or once running) and only while **no runner is ready**.
+- Regenerating looks up the start and the stop again, each avoiding the current landmark. An edge without another landmark keeps its current one; if neither edge has another landmark, regenerating is refused and the count stays.
+- Hunters have no start point. **Runners see the route**; hunters never see it.
 
-## Start cell [done: milestone 3]
+## Start position [done: milestone 3]
 
-- A runner can only get **ready** when their latest position lies **inside their start cell** and is at most **30 seconds** old.
-- Before the start, a ready runner who reports a position outside their start cell becomes **not ready** automatically (which cancels a running countdown).
+- A runner can only get **ready** when their latest position lies within **50 m** of the route's start landmark and is at most **30 seconds** old.
+- Before the start, a ready runner who reports a position farther away becomes **not ready** automatically (which cancels a running countdown).
 - Once running, runners move freely.
 
 Development testing only: `TEST_SKIP_START_POSITION_CHECK=true` (server flag `-test-skip-start-position-check=true`) temporarily bypasses this Ready/countdown position gate. Real position reporting is unchanged. The override defaults to off, applies to the development server rather than a stored game rule, and is exposed as `startPositionCheckDisabled` with a test banner in the app. Never use it for real games.
 
 ## Positions and visibility [done: milestone 3]
 
-- Before the start, location is shared in the foreground only, while the lobby screen is open. Everyone shares from joining: runners for the start cell check, hunters so their hunter team sees them.
+- Before the start, location is shared in the foreground only, while the lobby screen is open. Everyone shares from joining: runners for the start position check, hunters so their hunter team sees them.
 - **Background sharing [done]:** while the game runs, players who grant "Always" location access keep reporting with the screen off or another app open (Android shows a notification while sharing). It stops when the player leaves the game screen, closes the app, or the token becomes invalid; a restarted app does not resume it. It needs an installed app build; in Expo Go and browsers the app falls back to foreground sharing.
 - The app sends the latest fix every **5 seconds**, even when standing still. The server stamps each report with its own time and never trusts the phone's clock.
 - Every reported position is stored as its own record; the newest is the player's current position. A player's positions are deleted when they leave.
@@ -157,7 +156,7 @@ Every joker can be used once per game and team, only while the game is running; 
 | `POST /api/players` | – | Join with `{code, name}`. Returns the player token and the game state. |
 | `GET /api/me/game` | Bearer | Game state as seen by the requesting player. |
 | `PUT /api/me/ready` | Bearer | Set `{ready: true/false}`. Returns the game state. |
-| `POST /api/me/route` | Bearer | Regenerate the runner's route. Returns the game state. |
+| `POST /api/me/route` | Bearer | Regenerate the game's route (runners, see Route). Returns the game state. |
 | `PUT /api/me/hunter-team` | Bearer | Join or create the hunter team `{name}` (hunters, not ready, before the start). Returns the game state. |
 | `PUT /api/me/position` | Bearer | Report `{latitude, longitude, accuracyMeters}`. Returns the game state. |
 | `POST /api/me/jokers` | Bearer | Use a joker of the player's team: hunters in a hunter team `{kind: "showRunners"}` or `{kind: "queryZone", cell: "C4"}`, runners `{kind: "zoneOnly"}` (while running, once each per team). Returns the game state. |
@@ -165,9 +164,9 @@ Every joker can be used once per game and team, only while the game is running; 
 | `DELETE /api/me/sketches` | Bearer | Clear all sketches of the player's hunter team (while running). Returns the game state. |
 | `DELETE /api/me` | Bearer | Leave the game (lobby and countdown only). |
 
-The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, their own route (runners), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), routes (for runners), the `jokers` of the requester's own team (hunters in a hunter team, and all runners; each with `available`, and once used `usedAt` and what it showed: the `positions` for showRunners, the `cell` and `found` for queryZone, `usedBy` for runner jokers), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt` and either the `position`, or `zoneOnly` with the `cell` if the runner was inside the playground). Runners never get reveals, and hunters never get a live runner position. While running, hunters in a hunter team also get their team's `sketches` (oldest first, each with `id`, `createdAt`, and `points`); everyone else gets an empty list. Clients compute countdowns from the server time to avoid depending on the phone's clock.
+The game state contains the status, the server time, the scheduled start time during the countdown, the next reveal time while running, the playground, the requesting player's ID and team, both join codes, the game's route (runners only), and the list of players. Each player entry carries only what the requester may see: the hunter team (for hunters who chose one), the `jokers` of the requester's own team (hunters in a hunter team, and all runners; each with `available`, and once used `usedAt` and what it showed: the `positions` for showRunners, the `cell` and `found` for queryZone, `usedBy` for runner jokers), a live position (own, hunter teammates always, runner teammates while running) and, for hunters looking at a runner while running, the list of `reveals` (each with `revealedAt` and either the `position`, or `zoneOnly` with the `cell` if the runner was inside the playground). Runners never get reveals, and hunters never get a live runner position. While running, hunters in a hunter team also get their team's `sketches` (oldest first, each with `id`, `createdAt`, and `points`); everyone else gets an empty list. Clients compute countdowns from the server time to avoid depending on the phone's clock.
 
-Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route or hunter team change not allowed, runner not in start cell, hunter without a team, joker not available: game not running, already used, not a joker of the player's team, or a hunter without a team; sketch not allowed: game not running, not a hunter in a team, or the team's sketch limit reached).
+Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route regeneration not allowed or no other route available, hunter team change not allowed, runner not at the start, hunter without a team, joker not available: game not running, already used, not a joker of the player's team, or a hunter without a team; sketch not allowed: game not running, not a hunter in a team, or the team's sketch limit reached).
 
 ## Tuning values
 
@@ -176,10 +175,11 @@ Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game 
 | Countdown | 10 s |
 | Max players per game | 30 |
 | Name length | 1–20 characters |
-| Route regenerations | 2 |
+| Route regenerations | 2 per game |
+| Start radius | 50 m |
 | Catch radius / position age | 50 m / 30 s |
 | Reveal interval | 30 s |
-| Start cell position max age | 30 s |
+| Start position max age | 30 s |
 | Position send interval (app) | 5 s |
 | Time limit | 90 min |
 | Points per sketch | 2–500 |

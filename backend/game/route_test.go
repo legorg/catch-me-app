@@ -5,22 +5,7 @@ import (
 	"testing"
 )
 
-func TestRandomRoutesConnectOppositeEdges(t *testing.T) {
-	starts := map[int]bool{}
-	for range 500 {
-		route := randomRoute(MaxRouteRegenerations)
-		parsed, err := ParseRunnerRoute(route.Start.String(), route.End.String(), route.RegenerationsLeft)
-		if err != nil || parsed != route {
-			t.Fatalf("invalid route %v: %v", route, err)
-		}
-		starts[route.Start.row] = true
-	}
-	if !starts[0] || !starts[gridSize-1] || len(starts) != 2 {
-		t.Fatalf("routes must start on both edges and only there: %v", starts)
-	}
-}
-
-func TestCellAndRouteParsing(t *testing.T) {
+func TestCellParsing(t *testing.T) {
 	for _, label := range []string{"A1", "F6", "C4"} {
 		if cell, err := ParseCell(label); err != nil || cell.String() != label {
 			t.Fatalf("cell %s did not round trip", label)
@@ -32,62 +17,60 @@ func TestCellAndRouteParsing(t *testing.T) {
 			t.Fatalf("invalid cell accepted: %q", label)
 		}
 	}
-	for _, tc := range []struct {
-		start, end string
-		left       int
-	}{{"A2", "B5", 2}, {"A1", "B1", 2}, {"A1", "B5", 2}, {"A1", "B6", 3}, {"A1", "B6", -1}} {
-		if _, err := ParseRunnerRoute(tc.start, tc.end, tc.left); !errors.As(err, &validation) {
-			t.Fatalf("invalid route accepted: %+v", tc)
+	for _, used := range []int{-1, MaxRouteRegenerations + 1} {
+		if _, err := ParseRouteRegenerations(used); !errors.As(err, &validation) {
+			t.Fatalf("invalid route regeneration count accepted: %d", used)
 		}
-	}
-	if _, err := ParseRunnerRoute("F6", "A1", 0); err != nil {
-		t.Fatal("south-to-north route rejected")
 	}
 }
 
-func TestRunnersGetRoutesHuntersDoNot(t *testing.T) {
-	l := newLobby()
-	runner := join(t, &l, Runners, "Ada", start)
-	hunter := join(t, &l, Hunters, "Bob", start)
-	if runner.Route.IsZero() || runner.Route.RegenerationsLeft != MaxRouteRegenerations || !hunter.Route.IsZero() {
-		t.Fatalf("unexpected routes: %+v %+v", runner.Route, hunter.Route)
-	}
+// routeVia is a route that starts at the given landmark title.
+func routeVia(l Lobby, title string) Route {
+	route := l.Game.Route
+	route.Start.Title = title
+	return route
 }
 
 func TestRegenerateRoute(t *testing.T) {
 	l := newLobby()
 	runner := join(t, &l, Runners, "Ada", start)
+	mate := join(t, &l, Runners, "Cy", start)
 	hunter := join(t, &l, Hunters, "Bob", start)
-	previous := runner.Route
-	for left := MaxRouteRegenerations - 1; left >= 0; left-- {
-		if err := l.RegenerateRoute(runner.ID, start); err != nil {
+	var rule *RuleError
+	if err := l.RegenerateRoute(runner.ID, l.Game.Route, start); !errors.As(err, &rule) || l.Game.RouteRegenerations != 0 {
+		t.Fatal("unchanged route accepted")
+	}
+	if err := l.RegenerateRoute(hunter.ID, routeVia(l, "Other"), start); !errors.As(err, &rule) {
+		t.Fatal("hunter changed the route")
+	}
+	// Every runner may change it; the count is shared.
+	for i, id := range []PlayerID{runner.ID, mate.ID} {
+		next := routeVia(l, string(rune('A'+i)))
+		if err := l.RegenerateRoute(id, next, start); err != nil {
 			t.Fatal(err)
 		}
-		current, _ := l.Player(runner.ID)
-		if current.Route.RegenerationsLeft != left || (current.Route.Start == previous.Start && current.Route.End == previous.End) {
-			t.Fatalf("route not regenerated: %+v after %+v", current.Route, previous)
+		if l.Game.Route != next || l.Game.RouteRegenerationsLeft() != MaxRouteRegenerations-1-i {
+			t.Fatalf("route not replaced: %+v", l.Game)
 		}
-		previous = current.Route
 	}
-	var rule *RuleError
-	if err := l.RegenerateRoute(runner.ID, start); !errors.As(err, &rule) {
+	if err := l.CanRegenerateRoute(runner.ID, start); !errors.As(err, &rule) {
 		t.Fatal("regeneration beyond the limit accepted")
-	}
-	if err := l.RegenerateRoute(hunter.ID, start); !errors.As(err, &rule) {
-		t.Fatal("hunter got a route")
 	}
 
 	l = newLobby()
 	runner = join(t, &l, Runners, "Ada", start)
-	_ = l.SetReady(runner.ID, true, start, false)
-	if err := l.RegenerateRoute(runner.ID, start); !errors.As(err, &rule) {
-		t.Fatal("ready runner changed route")
+	mate = join(t, &l, Runners, "Cy", start)
+	_ = l.SetReady(mate.ID, true, start, false)
+	if err := l.CanRegenerateRoute(runner.ID, start); !errors.As(err, &rule) {
+		t.Fatal("route changed while a runner is ready")
 	}
 	hunter = join(t, &l, Hunters, "Bob", start)
 	_ = l.SetReady(hunter.ID, true, start, false)
-	_ = l.SetReady(runner.ID, false, start, false)
 	_ = l.SetReady(runner.ID, true, start, false)
-	if err := l.RegenerateRoute(runner.ID, start.Add(CountdownDuration)); !errors.As(err, &rule) {
+	if l.Game.Status(start.Add(CountdownDuration)) != StatusRunning {
+		t.Fatal("game did not start")
+	}
+	if err := l.RegenerateRoute(runner.ID, routeVia(l, "Other"), start.Add(CountdownDuration)); !errors.As(err, &rule) {
 		t.Fatal("route changed after the start")
 	}
 }

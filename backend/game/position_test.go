@@ -162,9 +162,6 @@ func TestVisibility(t *testing.T) {
 	if find(asRunner, runner.ID).Position.IsZero() || !find(asRunner, mate.ID).Position.IsZero() {
 		t.Fatal("before the start only the own position is visible")
 	}
-	if find(asRunner, mate.ID).Route.IsZero() || !find(asRunner, hunter.ID).Route.IsZero() {
-		t.Fatal("runners see teammates' routes")
-	}
 
 	running := l.Game.StartsAt.Add(time.Minute)
 	_ = l.UpdatePosition(hunter.ID, position(t, l, "C3", running), running, false)
@@ -174,8 +171,8 @@ func TestVisibility(t *testing.T) {
 	}
 	h, _ := l.Player(hunter.ID)
 	asHunter := l.VisibleTo(h, running)
-	if !find(asHunter, runner.ID).Position.IsZero() || !find(asHunter, runner.ID).Route.IsZero() || find(asHunter, hunter.ID).Position.IsZero() {
-		t.Fatal("hunters see no runner positions or routes before a reveal")
+	if !find(asHunter, runner.ID).Position.IsZero() || find(asHunter, hunter.ID).Position.IsZero() {
+		t.Fatal("hunters see no runner positions before a reveal")
 	}
 	revealed := l.Game.StartsAt.Add(RevealInterval)
 	r := l.Players[l.index(runner.ID)]
@@ -183,7 +180,7 @@ func TestVisibility(t *testing.T) {
 	latest := Reveal{Position: r.Position, At: revealed}
 	l.Reveals = map[PlayerID][]Reveal{runner.ID: {earlier, latest}}
 	v := find(l.VisibleTo(h, revealed), runner.ID)
-	if len(v.Reveals) != 2 || v.Reveals[0] != earlier || v.Reveals[1] != latest || !v.Position.IsZero() || !v.Route.IsZero() {
+	if len(v.Reveals) != 2 || v.Reveals[0] != earlier || v.Reveals[1] != latest || !v.Position.IsZero() {
 		t.Fatalf("hunter must see every reveal, not the live position: %+v", v)
 	}
 	// Reveals reach hunters only, and only for runners.

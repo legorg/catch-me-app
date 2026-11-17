@@ -75,6 +75,8 @@ type Game struct {
 	Playground Playground
 	JoinCodes  JoinCodes
 	Route      Route
+	// RouteRegenerations is how often the runners replaced the route.
+	RouteRegenerations int
 	// StartsAt is zero while the lobby is open, otherwise the scheduled start.
 	StartsAt time.Time
 }

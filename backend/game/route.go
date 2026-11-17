@@ -1,11 +1,9 @@
 package game
 
-import (
-	"fmt"
-	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used -- non-security gameplay randomness
-)
+import "fmt"
 
-// MaxRouteRegenerations is how often a runner may replace their route.
+// MaxRouteRegenerations is how often the runners together may replace the
+// game's route.
 const MaxRouteRegenerations = 2
 
 // Cell is one grid cell: columns A–F from west to east, rows 1–6 from north to south.
@@ -22,44 +20,13 @@ func ParseCell[S ~string](value S) (Cell, error) {
 
 func (c Cell) String() string { return fmt.Sprintf("%c%d", 'A'+c.column, c.row+1) }
 
-// RunnerRoute is a runner's start cell on one edge row and end cell on the
-// opposite edge row.
-type RunnerRoute struct {
-	Start, End        Cell
-	RegenerationsLeft int
+// ParseRouteRegenerations accepts how often a game's route was replaced.
+func ParseRouteRegenerations(used int) (int, error) {
+	if used < 0 || used > MaxRouteRegenerations {
+		return 0, &ValidationError{Message: "route regenerations out of range"}
+	}
+	return used, nil
 }
 
-// IsZero reports a missing route. A zero route (A1 to A1) is never valid.
-func (r RunnerRoute) IsZero() bool { return r == RunnerRoute{} }
-
-func ParseRunnerRoute(start, end string, regenerationsLeft int) (RunnerRoute, error) {
-	from, err := ParseCell(start)
-	if err != nil {
-		return RunnerRoute{}, err
-	}
-	to, err := ParseCell(end)
-	if err != nil {
-		return RunnerRoute{}, err
-	}
-	if !isEdgeRow(from.row) || to.row != gridSize-1-from.row {
-		return RunnerRoute{}, &ValidationError{Message: "route must lead from one edge row to the opposite one"}
-	}
-	if regenerationsLeft < 0 || regenerationsLeft > MaxRouteRegenerations {
-		return RunnerRoute{}, &ValidationError{Message: "route regenerations out of range"}
-	}
-	return RunnerRoute{Start: from, End: to, RegenerationsLeft: regenerationsLeft}, nil
-}
-
-func isEdgeRow(row int) bool { return row == 0 || row == gridSize-1 }
-
-func randomRoute(regenerationsLeft int) RunnerRoute {
-	startRow := 0
-	if rand.IntN(2) == 1 {
-		startRow = gridSize - 1
-	}
-	return RunnerRoute{
-		Start:             Cell{column: rand.IntN(gridSize), row: startRow},
-		End:               Cell{column: rand.IntN(gridSize), row: gridSize - 1 - startRow},
-		RegenerationsLeft: regenerationsLeft,
-	}
-}
+// RouteRegenerationsLeft is how often the runners may still replace the route.
+func (g Game) RouteRegenerationsLeft() int { return MaxRouteRegenerations - g.RouteRegenerations }

@@ -152,8 +152,7 @@ type Player struct {
 	JoinedAt  time.Time
 	// HunterTeam is zero for runners and for hunters who have not chosen one.
 	HunterTeam HunterTeamName
-	// Zero values mean "none": hunters have no route; Position is the latest
-	// report. Reveals live on the Lobby.
-	Route    RunnerRoute
+	// Zero values mean "none": Position is the latest report. Reveals live on
+	// the Lobby.
 	Position Position
 }
