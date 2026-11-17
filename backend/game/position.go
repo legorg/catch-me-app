@@ -37,10 +37,15 @@ func NewPosition(coordinates Coordinates, accuracyMeters float64, recordedAt tim
 
 func (p Position) IsZero() bool { return p.RecordedAt.IsZero() }
 
-// Reveal is a runner's position as shown to hunters at a reveal time.
+// Reveal is a runner's position as shown to hunters at a reveal time. A
+// ZoneOnly reveal (runner joker) has no Position, only the Cell it was in,
+// unless the runner was outside the playground (InPlayground false).
 type Reveal struct {
-	Position Position
-	At       time.Time
+	Position     Position
+	At           time.Time
+	ZoneOnly     bool
+	Cell         Cell
+	InPlayground bool
 }
 
 func (r Reveal) IsZero() bool { return r.At.IsZero() }

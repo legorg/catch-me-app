@@ -23,7 +23,8 @@ type visiblePlayer struct {
 //   - Hunters of the same hunter team see each other's latest positions at any
 //     time; other hunter teams never.
 //   - While running, runners see each other's latest positions.
-//   - While running, hunters see all reveals of each runner.
+//   - While running, hunters see all reveals of each runner, with the runners'
+//     jokers applied (a zoneOnly reveal shows only the cell).
 //   - Runners never see hunters' positions.
 func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 	running := l.Game.Status(now) == StatusRunning
@@ -38,7 +39,7 @@ func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 		case p.ID == viewer.ID, sameHunterTeam, running && viewer.Team == Runners && p.Team == Runners:
 			v.Position = p.Position
 		case running && viewer.Team == Hunters:
-			v.Reveals = l.Reveals[p.ID]
+			v.Reveals = l.revealsForHunters(p.ID)
 		}
 		visible = append(visible, v)
 	}

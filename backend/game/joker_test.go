@@ -90,8 +90,8 @@ func TestJokersAreVisibleToTheirTeamOnly(t *testing.T) {
 	if got := only(l.JokersFor(eve, at)); !got.Available || len(got.Positions) != 0 {
 		t.Fatalf("another hunter team sees nothing of it: %+v", got)
 	}
-	if got := l.JokersFor(runner, at); len(got) != 0 {
-		t.Fatalf("runners have no jokers: %+v", got)
+	if got := l.JokersFor(runner, at); len(got) != 1 || got[0].Kind != JokerZoneOnly || !got[0].Available {
+		t.Fatalf("runners see only their own jokers: %+v", got)
 	}
 }
 
@@ -147,5 +147,79 @@ func TestQueryZoneAnswersOnlyYesOrNo(t *testing.T) {
 	}
 	if err := l.UseJoker(runner.ID, empty, at); !errors.As(err, &rule) {
 		t.Fatalf("runners cannot query a zone: %v", err)
+	}
+}
+
+var zoneOnly = JokerChoice{Kind: JokerZoneOnly}
+
+func TestZoneOnlyJokerRules(t *testing.T) {
+	l, runner, bob, _, _, running := jokerLobby(t)
+	cy := l.Players[1]
+	at := running.Add(time.Minute)
+	var rule *RuleError
+	if err := l.UseJoker(runner.ID, zoneOnly, running.Add(-time.Second)); !errors.As(err, &rule) {
+		t.Fatalf("a joker before the game runs must be refused: %v", err)
+	}
+	if err := l.UseJoker(bob.ID, zoneOnly, at); !errors.As(err, &rule) {
+		t.Fatalf("hunters do not have runner jokers: %v", err)
+	}
+	if err := l.UseJoker(runner.ID, zoneOnly, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.UseJoker(cy.ID, zoneOnly, at.Add(time.Minute)); !errors.As(err, &rule) {
+		t.Fatalf("the runners share one use: %v", err)
+	}
+	if got := l.JokersFor(cy, at); len(got) != 1 || got[0].Available || !got[0].UsedAt.Equal(at) || got[0].UsedBy != runner.ID {
+		t.Fatalf("every runner sees who used it and when: %+v", got)
+	}
+	for _, j := range l.JokersFor(bob, at) {
+		if j.Kind == JokerZoneOnly || !j.Available {
+			t.Fatalf("hunters are not told about runner jokers: %+v", j)
+		}
+	}
+}
+
+func TestZoneOnlyHidesThePositionOfTheNextRevealOnly(t *testing.T) {
+	l, runner, bob, _, _, running := jokerLobby(t)
+	cy := l.Players[1]
+	first, second, third := running.Add(RevealInterval), running.Add(2*RevealInterval), running.Add(3*RevealInterval)
+	inC6 := position(t, l, "C6", first)
+	outside, _ := ParseCoordinates(0, 0)
+	away, _ := NewPosition(outside, 5, first)
+	l.Reveals = map[PlayerID][]Reveal{
+		runner.ID: {{Position: inC6, At: first}, {Position: inC6, At: second}, {Position: inC6, At: third}},
+		cy.ID:     {{Position: away, At: first}, {Position: away, At: second}},
+	}
+	// Used exactly at a reveal time: that reveal has already happened, so the next one shows the zone.
+	if err := l.UseJoker(runner.ID, zoneOnly, first); err != nil {
+		t.Fatal(err)
+	}
+	reveals := func(id PlayerID) []Reveal {
+		for _, v := range l.VisibleTo(bob, third) {
+			if v.ID == id {
+				return v.Reveals
+			}
+		}
+		t.Fatal("player missing")
+		return nil
+	}
+	got := reveals(runner.ID)
+	if len(got) != 3 || got[0] != l.Reveals[runner.ID][0] || got[2] != l.Reveals[runner.ID][2] {
+		t.Fatalf("only the next reveal is affected: %+v", got)
+	}
+	if !got[1].ZoneOnly || !got[1].Position.IsZero() || !got[1].InPlayground || got[1].Cell.String() != "C6" || !got[1].At.Equal(second) {
+		t.Fatalf("the next reveal shows only the cell: %+v", got[1])
+	}
+	if l.Reveals[runner.ID][1].ZoneOnly {
+		t.Fatal("the stored reveals stay unchanged")
+	}
+	if got := reveals(cy.ID); got[0].ZoneOnly || got[1].ZoneOnly {
+		t.Fatalf("other runners' reveals are unaffected: %+v", got)
+	}
+
+	// Outside the playground the zone reveal has no cell.
+	l.Jokers = []JokerUse{{Kind: JokerZoneOnly, PlayerID: cy.ID, UsedAt: first.Add(time.Second)}}
+	if got := reveals(cy.ID)[1]; !got.ZoneOnly || got.InPlayground || !got.Position.IsZero() {
+		t.Fatalf("a zone reveal outside the playground has neither cell nor position: %+v", got)
 	}
 }
