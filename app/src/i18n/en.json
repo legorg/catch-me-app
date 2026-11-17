@@ -1,5 +1,6 @@
 {
   "language.switch": "Language",
+  "language.close": "Close language selection",
   "common.yourName": "Your name",
   "common.backendUnreachable": "Could not reach the backend.",
   "common.cancel": "Cancel",

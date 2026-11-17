@@ -1,13 +1,26 @@
 import { router } from 'expo-router';
-import { ActivityIndicator, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/button';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
+import LanguageSwitch from '@/components/language-switch';
 import NameInput from '@/components/name-input';
 import { useT } from '@/i18n';
-import { colors, styles } from '@/styles';
+import { colors, dynamicStyles, languageSwitch, styles } from '@/styles';
 import { useJoinGame } from '@/use-join-game';
 import { useResumeGame } from '@/use-resume-game';
+
+/** The title in place of the native header, with the language dropdown on the same line. */
+function HomeTitle() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[languageSwitch.titleRow, Platform.OS === 'android' && dynamicStyles.homeTitle(insets.top)]}>
+      <Text accessibilityRole="header" style={languageSwitch.title}>Catch me!</Text>
+      <LanguageSwitch />
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const t = useT();
@@ -21,6 +34,7 @@ export default function HomeScreen() {
   return (
     <>
       <KeyboardScrollView>
+        <HomeTitle />
         <Text style={styles.text}>{t('home.intro')}</Text>
         <View style={styles.card}>
           <Text style={styles.heading}>{t('home.joinHeading')}</Text>

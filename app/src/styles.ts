@@ -73,6 +73,9 @@ export const dynamicStyles = {
     right: 12 + (inset?.right ?? 0),
     bottom: 12 + (inset?.bottom ?? 0),
   }),
+  languageMenu: (anchor: { top: number; right: number }): ViewStyle => ({ top: anchor.top, right: anchor.right }),
+  /** Android draws edge-to-edge and the start screen has no header, so its title must clear the status bar itself. */
+  homeTitle: (topInset: number): ViewStyle => ({ paddingTop: topInset }),
 };
 
 /** Game screen overlay (HUD, info panel, pills, icon buttons). */
@@ -83,6 +86,21 @@ export const overlay = StyleSheet.create({
   pill: { backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, minHeight: 40, justifyContent: 'center', opacity: 0.95 },
   bar: { flexDirection: 'row', gap: 8 },
   icon: { backgroundColor: colors.card, borderRadius: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: 0.95 },
+});
+
+/** Start screen title row and its language dropdown. */
+export const languageSwitch = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  title: { color: colors.white, fontSize: 34, fontWeight: '700', flexShrink: 1 },
+  button: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
+  flag: { fontSize: 24 },
+  caret: { color: colors.accent, fontSize: 14 },
+  backdrop: { ...StyleSheet.absoluteFill },
+  menu: { position: 'absolute', backgroundColor: colors.card, borderRadius: 12, paddingVertical: 6, minWidth: 160, elevation: 8, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  pressed: { backgroundColor: colors.background },
+  name: { color: colors.text, fontSize: 16 },
+  current: { color: colors.accent, fontWeight: '700' },
 });
 
 /** Joker cell picker. */

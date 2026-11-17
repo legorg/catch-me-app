@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 
 // Registers the background location task before any screen renders.
 import '@/background-location';
-import LanguageSwitch from '@/components/language-switch';
 import { isLanguage, setLanguage, useT } from '@/i18n';
 import { colors } from '@/styles';
 
@@ -30,10 +29,11 @@ export default function RootLayout() {
           headerLargeTitleShadowVisible: false,
           headerLargeTitleStyle: { color: '#ffffff' },
           contentStyle: { backgroundColor: colors.background },
-         // headerRight: () => <LanguageSwitch />,
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'Catch me!' }} />
+        {/* The start screen draws its own title row, so the language dropdown sits level with the large title.
+            The title still names the screen, e.g. for the back button. */}
+        <Stack.Screen name="index" options={{ title: 'Catch me!', headerShown: false }} />
         <Stack.Screen name="create" options={{ title: t('create.chooseTitle') }} />
         {/* Joining replaces the previous screen, so there is nothing to go back to. */}
         <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
