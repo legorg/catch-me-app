@@ -120,7 +120,8 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 	pack, _ := game.ParseHunterTeamName("Pack")
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, bob}}
+	cy := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
+	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, bob, cy}}
 	first := start.Add(time.Minute)
 	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}}}
@@ -139,6 +140,10 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 	want = `{"kind":"fakePosition","available":false,"usedAt":"2026-11-08T12:00:01Z","usedBy":"` + ada.ID.String() + `","point":{"latitude":52.53,"longitude":13.415}}`
 	if got := jsonOf(t, adaState.Jokers[1]); got != want {
 		t.Fatalf("runners see the point they showed:\n got %s\nwant %s", got, want)
+	}
+	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
+	if got := jsonOf(t, cyState.Jokers[1]); got != `{"kind":"fakePosition","available":true}` {
+		t.Fatalf("another runner gets their own unspent joker, not Ada's point: %s", got)
 	}
 }
 

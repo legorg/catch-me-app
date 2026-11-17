@@ -475,6 +475,78 @@ func TestFakePositionJokerIsStoredAndReplacesTheNextReveal(t *testing.T) {
 	}
 }
 
+func TestPersonalFakePositionsSurviveReopeningAndUpgradeSharedUses(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "personal-jokers.sqlite")
+	store := open(t, path)
+	saved := create(t, store)
+	ada, adaToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	cy, cyToken := join(t, store, saved.JoinCodes.Runner, "Cy", now.Add(time.Second))
+	hunter, _ := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(2*time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	adaPoint, cyPoint := saved.Route.Start.Coordinates, saved.Route.Stop.Coordinates
+	usedAt := start.Add(time.Second)
+	// Simulate the old shared storage format without deleting any data.
+	legacy := jokerRow{GameID: saved.SessionID.String(), Kind: string(game.JokerFakePosition), PlayerID: ada.ID.String(),
+		Latitude: adaPoint.Latitude(), Longitude: adaPoint.Longitude(), UsedAt: usedAt}
+	if err := store.db.Create(&legacy).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store = open(t, path)
+	var rule *game.RuleError
+	use := func(player game.Player, token game.PlayerToken, point game.Coordinates, at time.Time) error {
+		_, err := store.UpdateLobbyByToken(ctx, token.Hash(), at, func(l *game.Lobby) error {
+			return l.UseJoker(player.ID, game.FakePosition{Point: point}, at)
+		})
+		return err
+	}
+	if err := use(ada, adaToken, adaPoint, start.Add(revealInterval)); !errors.As(err, &rule) {
+		t.Fatalf("the legacy use must stay spent for its runner: %v", err)
+	}
+	if err := use(cy, cyToken, cyPoint, usedAt); err != nil {
+		t.Fatalf("another runner can use their joker while Ada's is pending: %v", err)
+	}
+	// Reopening again also checks that the legacy data upgrade is idempotent.
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store = open(t, path)
+	at := start.Add(revealInterval + time.Second)
+	if err := use(cy, cyToken, cyPoint, at); !errors.As(err, &rule) {
+		t.Fatalf("the personal use must stay spent after reopening: %v", err)
+	}
+	lobby := load(t, store, saved.JoinCodes.Hunter, at)
+	if len(lobby.Jokers) != 2 {
+		t.Fatalf("both uses must be preserved: %+v", lobby.Jokers)
+	}
+	for _, tc := range []struct {
+		player game.Player
+		point  game.Coordinates
+	}{{ada, adaPoint}, {cy, cyPoint}} {
+		use := lobby.JokersFor(tc.player, at)[1]
+		if use.Available || use.Use != (game.FakePositionUse{Runner: tc.player.ID, At: usedAt, Point: tc.point}) {
+			t.Fatalf("each runner must get their own stored use: %+v", use)
+		}
+		for _, visible := range lobby.VisibleTo(hunter, at) {
+			if visible.ID != tc.player.ID {
+				continue
+			}
+			if len(visible.Reveals) != 1 {
+				t.Fatalf("expected one reveal: %+v", visible.Reveals)
+			}
+			if reveal, ok := visible.Reveals[0].(game.PositionReveal); !ok || reveal.Position.Coordinates != tc.point {
+				t.Fatalf("each runner's reveal must use their own fake point: %+v", visible.Reveals)
+			}
+		}
+	}
+}
+
 func TestCompassIsStoredAndPointsToWhereTheRunnersWereAtTheUse(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")

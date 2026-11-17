@@ -237,7 +237,7 @@ export function routeMarkers(route: GameRoute): PlayerMarker[] {
   ];
 }
 
-/** The point a runner showed with the fakePosition joker, for every runner to see. */
+/** The requesting runner's own fakePosition point, once used. */
 export function fakePositionMarkers(state: GameStateRunnerResponse): PlayerMarker[] {
   return state.jokers.flatMap((joker) => joker.kind === 'fakePosition' && joker.point ? [{
     id: 'joker-fakePosition',

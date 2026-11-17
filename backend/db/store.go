@@ -63,8 +63,9 @@ type positionRow struct {
 
 // jokerRow is one used joker. What it showed is derived from the positions at UsedAt.
 // A hunter team can use each kind once; Team is stored lowercase so spelling does not matter.
-// Runner jokers have an empty Team and Name (so the runners share one use) and
-// the runner who used it in PlayerID; hunter jokers have an empty PlayerID.
+// Shared runner jokers have an empty Team and Name. Personal fake position
+// jokers use the runner's ID as Team (the uniqueness scope). All runner jokers
+// record who used them in PlayerID; hunter jokers have an empty PlayerID.
 // Cell is the queried cell (queryZone), empty otherwise. Latitude and
 // Longitude are the shown point (fakePosition) or the origin (compass), zero otherwise.
 type jokerRow struct {
@@ -118,6 +119,15 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &positionRow{}, &jokerRow{}, &sketchRow{}); err != nil {
 		_ = database.Close()
 		return nil, fmt.Errorf("initialize schema: %w", err)
+	}
+	// Older fake position uses were shared. Keep them spent for their user,
+	// while allowing other runners to use their own joker. This is idempotent
+	// and preserves the existing unique index and all recorded uses.
+	if err := db.WithContext(ctx).Model(&jokerRow{}).
+		Where("kind = ? AND team = ?", string(game.JokerFakePosition), "").
+		Update("team", gorm.Expr("player_id")).Error; err != nil {
+		_ = database.Close()
+		return nil, fmt.Errorf("update personal fake position jokers: %w", err)
 	}
 	return &Store{db: db}, nil
 }
@@ -274,6 +284,7 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 			row.PlayerID = u.Runner.String()
 		case game.FakePositionUse:
 			row.PlayerID, row.Latitude, row.Longitude = u.Runner.String(), u.Point.Latitude(), u.Point.Longitude()
+			row.Team = row.PlayerID
 		case game.ShowHuntersUse:
 			row.PlayerID = u.Runner.String()
 		default:

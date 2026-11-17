@@ -319,11 +319,11 @@ type SketchResponse struct {
 	Points    []Coordinates `json:"points" validate:"required,min=2,max=500,dive"`
 }
 
-// JokerResponse is one joker of the requesting player's team: exactly one of
+// JokerResponse is one personal or team joker of the requesting player: exactly one of
 // ShowRunnersJokerResponse, QueryZoneJokerResponse, CompassJokerResponse,
 // ZoneOnlyJokerResponse, FakePositionJokerResponse, and
 // ShowHuntersJokerResponse, told apart by kind. Each has only its joker's
-// result fields, present once the team used it.
+// result fields, present once the player or team used it.
 type JokerResponse struct{ variant any }
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
@@ -376,7 +376,7 @@ type ZoneOnlyJokerResponse struct {
 type FakePositionJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"fakePosition" validate:"required,eq=fakePosition"`
 	JokerStatus
-	// Once used: the runner who used it and the point hunters see at that runner's next reveal.
+	// Once used: the requesting runner and the point hunters see at their next reveal. Once per runner, not shared.
 	UsedBy PlayerID     `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
 	Point  *Coordinates `json:"point,omitempty" validate:"omitempty"`
 }
@@ -421,7 +421,7 @@ type GameStateRunnerResponse struct {
 	Route GameRoute `json:"route"`
 	// How often the runners together may still regenerate the route.
 	RouteRegenerationsLeft int `json:"routeRegenerationsLeft" minimum:"0" maximum:"2" example:"2" validate:"gte=0,lte=2"`
-	// The jokers all runners share.
+	// Shared runner team jokers and the requesting runner's personal fake position joker.
 	Jokers []JokerResponse `json:"jokers" validate:"max=2,dive"`
 }
 

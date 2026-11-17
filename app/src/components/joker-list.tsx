@@ -18,7 +18,7 @@ const TEXT_KEYS = {
   showHunters: 'joker.showHunters.text', compass: 'joker.compass.text',
 } as const;
 
-/** The jokers of the player's team (a hunter team, or all runners), each with a two-step button to use it. */
+/** Personal and team jokers, each with a two-step button to use it. */
 export default function JokerList({ state, error, onUse }: {
   state: GameStateResponse;
   error: string;
@@ -177,4 +177,3 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
       return null;
   }
 }
-

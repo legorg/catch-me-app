@@ -160,7 +160,7 @@ test('a queried zone is highlighted and marked in its center, colored by the ans
   assert.deepEqual(jokerZones({ ...hunterState, jokers: [{ kind: 'queryZone', available: true }] }), []);
 });
 
-test('the fake position is a marker for every runner, once used', () => {
+test('the personal fake position is a marker for its runner, once used', () => {
   const point = { latitude: 52.53, longitude: 13.41 };
   const [marker, ...rest] = fakePositionMarkers({
     ...state,
