@@ -145,6 +145,7 @@
   "joker.zoneOnly.used": "Beim ersten Ping danach sahen die Jäger von {name} nur die Zelle.",
   "joker.fakePosition.title": "Falsche Position",
   "joker.fakePosition.text": "Einmal pro Spiel für alle Läufer: Du wählst einen Punkt im Spielfeld. Beim nächsten Ping sehen die Jäger dich dort statt an deiner echten Position.",
+  "joker.fakePosition.used": "Beim ersten Ping danach sahen die Jäger {name} am gewählten Punkt.",
   "joker.confirmRunner": "Jetzt einsetzen? Der Joker gilt für alle Läufer und ist danach verbraucht.",
   "joker.usedBy": "Eingesetzt von {name} um {time}",
   "joker.chooseCell": "Wähle die Zelle:",

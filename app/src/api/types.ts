@@ -15,6 +15,7 @@ export type {
   ControllerJokerResponse as JokerResponse,
   ControllerPlayerResponse as PlayerResponse,
   ControllerPlayground as Playground,
+  ControllerRevealResponse as RevealResponse,
   ControllerUseJokerRequest as JokerRequest,
 } from './generated/types.gen';
 

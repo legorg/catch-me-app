@@ -95,7 +95,7 @@ test('markers cover only live positions the server sent, colored by kind', () =>
 
 test('every reveal is a numbered marker per runner, oldest first', () => {
   const at = (n: number) => `2026-11-08T12:0${n}:00Z`;
-  const reveal = (n: number) => ({ position: { latitude: 50 + n, longitude: 6, accuracyMeters: 5, recordedAt: at(n) }, revealedAt: at(n + 1) });
+  const reveal = (n: number) => ({ kind: 'position' as const, position: { latitude: 50 + n, longitude: 6, accuracyMeters: 5, recordedAt: at(n) }, revealedAt: at(n + 1) });
   const markers = revealMarkers({
     ...state,
     players: [
@@ -111,11 +111,11 @@ test('every reveal is a numbered marker per runner, oldest first', () => {
   assert.deepEqual(revealMarkers(state), []);
 });
 
-test('a zone-only reveal is highlighted and marked in the middle of its cell', () => {
+test('a zone reveal is highlighted and marked in the middle of its cell', () => {
   const at = (n: number) => `2026-11-08T12:0${n}:00Z`;
-  const exact = { position: { latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: at(1) }, revealedAt: at(2) };
-  const zone = { zoneOnly: true, cell: 'C4', revealedAt: at(3) };
-  const outside = { zoneOnly: true, revealedAt: at(4) };
+  const exact = { kind: 'position' as const, position: { latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: at(1) }, revealedAt: at(2) };
+  const zone = { kind: 'zone' as const, cell: 'C4', revealedAt: at(3) };
+  const outside = { kind: 'outside' as const, revealedAt: at(4) };
   const running = {
     ...hunterState,
     players: [{ ...state.players[0], reveals: [exact, zone, outside, { ...exact, revealedAt: at(5) }] }, state.players[1]],

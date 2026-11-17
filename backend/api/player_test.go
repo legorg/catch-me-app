@@ -215,8 +215,18 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, body), 409)
 	decode[controller.APIError](t, send(t, handler, "GET", "/api/me/jokers", hunter.PlayerToken, ""), 405)
-	runnerGame := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
-	if r, isRunner := runnerGame.Runner(); !isRunner || len(r.Jokers) != 2 || r.Jokers[0].Kind != "zoneOnly" || r.Jokers[1].Kind != "fakePosition" || r.Jokers[0].Available {
+	// The jokers as a client reads them.
+	type gameJokers struct {
+		Team   string `json:"team"`
+		Jokers []struct {
+			Kind      string  `json:"kind"`
+			Available bool    `json:"available"`
+			UsedAt    *string `json:"usedAt"`
+			Found     *bool   `json:"found"`
+		} `json:"jokers"`
+	}
+	runnerGame := decode[gameJokers](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
+	if j := runnerGame.Jokers; runnerGame.Team != "runner" || len(j) != 2 || j[0].Kind != "zoneOnly" || j[1].Kind != "fakePosition" || j[0].Available {
 		t.Fatalf("runners have their jokers, unavailable before the game runs: %+v", runnerGame)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"zoneOnly"}`), 409)
@@ -227,16 +237,15 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	} {
 		decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, invalid), 400)
 	}
-	teamless := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
-	if h, _ := teamless.Hunter(); h.Jokers == nil || len(h.Jokers) != 0 {
-		t.Fatalf("a hunter without a team has no jokers: %+v", h.Jokers)
+	teamless := decode[gameJokers](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
+	if teamless.Jokers == nil || len(teamless.Jokers) != 0 {
+		t.Fatalf("a hunter without a team has no jokers: %+v", teamless.Jokers)
 	}
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
-	hunterGame := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
-	jokers := func() []controller.JokerResponse { h, _ := hunterGame.Hunter(); return h.Jokers }()
-	if len(jokers) != 2 || jokers[0].Kind != "showRunners" || jokers[1].Kind != "queryZone" ||
-		jokers[0].Available || jokers[1].Available || jokers[0].UsedAt != nil || jokers[1].Found != nil {
-		t.Fatalf("a hunter team has both jokers, unavailable before the game runs: %+v", jokers)
+	hunterGame := decode[gameJokers](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
+	if j := hunterGame.Jokers; len(j) != 2 || j[0].Kind != "showRunners" || j[1].Kind != "queryZone" ||
+		j[0].Available || j[1].Available || j[0].UsedAt != nil || j[1].Found != nil {
+		t.Fatalf("a hunter team has both jokers, unavailable before the game runs: %+v", j)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"queryZone","cell":"C4"}`), 409)
 }

@@ -35,6 +35,14 @@ export type ControllerCreateGameResponse = {
     joinCodes: ControllerJoinCodes;
 };
 
+export type ControllerFakePositionJokerResponse = {
+    available: boolean;
+    kind: 'fakePosition';
+    point?: ControllerCoordinates;
+    usedAt?: string;
+    usedBy?: string;
+};
+
 export type ControllerFakePositionRequest = {
     kind: 'fakePosition';
     latitude: number;
@@ -125,20 +133,24 @@ export type ControllerJokerPositionResponse = {
     recordedAt: string;
 };
 
-export type ControllerJokerResponse = {
-    available: boolean;
-    cell?: string;
-    found?: boolean;
-    kind: ControllerJokerKind;
-    point?: ControllerCoordinates;
-    positions?: Array<ControllerJokerPositionResponse>;
-    usedAt?: string;
-    usedBy?: string;
-};
+export type ControllerJokerResponse = ({
+    kind: 'showRunners';
+} & ControllerShowRunnersJokerResponse) | ({
+    kind: 'queryZone';
+} & ControllerQueryZoneJokerResponse) | ({
+    kind: 'zoneOnly';
+} & ControllerZoneOnlyJokerResponse) | ({
+    kind: 'fakePosition';
+} & ControllerFakePositionJokerResponse);
 
 export type ControllerLandmark = {
     coordinates: ControllerCoordinates;
     title: string;
+};
+
+export type ControllerOutsideRevealResponse = {
+    kind: 'outside';
+    revealedAt: string;
 };
 
 export type ControllerPlayerResponse = {
@@ -166,17 +178,34 @@ export type ControllerPositionResponse = {
     recordedAt: string;
 };
 
+export type ControllerPositionRevealResponse = {
+    kind: 'position';
+    position: ControllerPositionResponse;
+    revealedAt: string;
+};
+
+export type ControllerQueryZoneJokerResponse = {
+    available: boolean;
+    cell?: string;
+    found?: boolean;
+    kind: 'queryZone';
+    usedAt?: string;
+};
+
 export type ControllerQueryZoneRequest = {
     cell: string;
     kind: 'queryZone';
 };
 
-export type ControllerRevealResponse = {
-    cell?: string;
-    position?: ControllerPositionResponse;
-    revealedAt: string;
-    zoneOnly?: boolean;
-};
+export type ControllerRevealKind = 'position' | 'zone' | 'outside';
+
+export type ControllerRevealResponse = ({
+    kind: 'position';
+} & ControllerPositionRevealResponse) | ({
+    kind: 'zone';
+} & ControllerZoneRevealResponse) | ({
+    kind: 'outside';
+} & ControllerOutsideRevealResponse);
 
 export type ControllerSetHunterTeamRequest = {
     name: string;
@@ -184,6 +213,13 @@ export type ControllerSetHunterTeamRequest = {
 
 export type ControllerSetReadyRequest = {
     ready: boolean;
+};
+
+export type ControllerShowRunnersJokerResponse = {
+    available: boolean;
+    kind: 'showRunners';
+    positions?: Array<ControllerJokerPositionResponse>;
+    usedAt?: string;
 };
 
 export type ControllerShowRunnersRequest = {
@@ -221,8 +257,21 @@ export type ControllerUseJokerRequest = (({
     kind: ControllerJokerKind;
 };
 
+export type ControllerZoneOnlyJokerResponse = {
+    available: boolean;
+    kind: 'zoneOnly';
+    usedAt?: string;
+    usedBy?: string;
+};
+
 export type ControllerZoneOnlyRequest = {
     kind: 'zoneOnly';
+};
+
+export type ControllerZoneRevealResponse = {
+    cell: string;
+    kind: 'zone';
+    revealedAt: string;
 };
 
 export type CreateGameData = {

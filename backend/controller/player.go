@@ -345,43 +345,55 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 	return response
 }
 
+// revealResponse maps what hunters see; an unknown variant shows nothing rather than a position.
 func revealResponse(r game.HunterReveal) RevealResponse {
-	reveal := RevealResponse{RevealedAt: r.RevealedAt()}
 	switch r := r.(type) {
 	case game.PositionReveal:
-		position := positionResponse(r.Position)
-		reveal.Position = &position
+		return RevealResponse{PositionRevealResponse{Kind: RevealKindPosition, RevealedAt: r.At, Position: positionResponse(r.Position)}}
 	case game.ZoneReveal:
-		reveal.ZoneOnly, reveal.Cell = true, Cell(r.Cell.String())
-	case game.OutsideReveal:
-		reveal.ZoneOnly = true
+		return RevealResponse{ZoneRevealResponse{Kind: RevealKindZone, RevealedAt: r.At, Cell: Cell(r.Cell.String())}}
 	}
-	return reveal
+	return RevealResponse{OutsideRevealResponse{Kind: RevealKindOutside, RevealedAt: r.RevealedAt()}}
 }
 
 func jokerResponses(view service.PlayerView) []JokerResponse {
 	jokers := make([]JokerResponse, 0)
 	for _, j := range view.Lobby.JokersFor(view.Me, view.Now) {
-		joker := JokerResponse{Kind: JokerKind(j.Kind), Available: j.Available}
+		status := JokerStatus{Available: j.Available}
 		if j.Use != nil {
 			usedAt := j.Use.UsedAt()
-			joker.UsedAt = &usedAt
+			status.UsedAt = &usedAt
 		}
-		switch use := j.Use.(type) {
-		case game.ShowRunnersUse:
-			for _, p := range use.Positions {
-				joker.Positions = append(joker.Positions, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
+		switch j.Kind {
+		case game.JokerShowRunners:
+			joker := ShowRunnersJokerResponse{Kind: JokerKindShowRunners, JokerStatus: status}
+			if use, ok := j.Use.(game.ShowRunnersUse); ok {
+				for _, p := range use.Positions {
+					joker.Positions = append(joker.Positions, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
+				}
 			}
-		case game.QueryZoneUse:
-			found := use.Found
-			joker.Cell, joker.Found = Cell(use.Cell.String()), &found
-		case game.ZoneOnlyUse:
-			joker.UsedBy = PlayerID(use.Runner.String())
-		case game.FakePositionUse:
-			joker.UsedBy = PlayerID(use.Runner.String())
-			joker.Point = &Coordinates{Latitude: use.Point.Latitude(), Longitude: use.Point.Longitude()}
+			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerQueryZone:
+			joker := QueryZoneJokerResponse{Kind: JokerKindQueryZone, JokerStatus: status}
+			if use, ok := j.Use.(game.QueryZoneUse); ok {
+				found := use.Found
+				joker.Cell, joker.Found = Cell(use.Cell.String()), &found
+			}
+			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerZoneOnly:
+			joker := ZoneOnlyJokerResponse{Kind: JokerKindZoneOnly, JokerStatus: status}
+			if use, ok := j.Use.(game.ZoneOnlyUse); ok {
+				joker.UsedBy = PlayerID(use.Runner.String())
+			}
+			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerFakePosition:
+			joker := FakePositionJokerResponse{Kind: JokerKindFakePosition, JokerStatus: status}
+			if use, ok := j.Use.(game.FakePositionUse); ok {
+				joker.UsedBy = PlayerID(use.Runner.String())
+				joker.Point = &Coordinates{Latitude: use.Point.Latitude(), Longitude: use.Point.Longitude()}
+			}
+			jokers = append(jokers, JokerResponse{joker})
 		}
-		jokers = append(jokers, joker)
 	}
 	return jokers
 }

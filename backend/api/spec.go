@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -270,33 +271,36 @@ func setLength(schema *jsonschema.Schema, min, max int64) {
 }
 
 // discriminators tells clients which property picks the variant of each union
-// (GameStateResponse by team, UseJokerRequest by kind).
+// (any type with JSONSchemaOneOf): the field every variant fixes with an enum
+// tag, such as team or kind.
 func discriminators(p jsonschema.InterceptSchemaParams) (bool, error) {
-	if !p.Processed {
+	if !p.Processed || !p.Value.IsValid() {
+		return false, nil
+	}
+	union, ok := p.Value.Interface().(jsonschema.OneOfExposer)
+	if !ok {
 		return false, nil
 	}
 	const schemas = "#/components/schemas/"
-	var property string
-	var mapping map[string]string
-	t := p.Value.Type()
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem() // request bodies are reflected through a pointer
+	property, mapping := "", map[string]string{}
+	for _, variant := range union.JSONSchemaOneOf() {
+		t := reflect.TypeOf(variant)
+		for i := range t.NumField() {
+			field := t.Field(i)
+			value, ok := field.Tag.Lookup("enum")
+			if !ok {
+				continue
+			}
+			name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+			if property != "" && name != property {
+				return false, fmt.Errorf("variants of %s are picked by both %s and %s", p.Value.Type(), property, name)
+			}
+			// Schema names are the package name followed by the type name.
+			property, mapping[value] = name, schemas+"Controller"+t.Name()
+		}
 	}
-	switch t {
-	case reflect.TypeOf(controller.GameStateResponse{}):
-		property, mapping = "team", map[string]string{
-			string(controller.TeamRunner): schemas + "ControllerGameStateRunnerResponse",
-			string(controller.TeamHunter): schemas + "ControllerGameStateHunterResponse",
-		}
-	case reflect.TypeOf(controller.UseJokerRequest{}):
-		property, mapping = "kind", map[string]string{
-			string(controller.JokerKindShowRunners):  schemas + "ControllerShowRunnersRequest",
-			string(controller.JokerKindQueryZone):    schemas + "ControllerQueryZoneRequest",
-			string(controller.JokerKindZoneOnly):     schemas + "ControllerZoneOnlyRequest",
-			string(controller.JokerKindFakePosition): schemas + "ControllerFakePositionRequest",
-		}
-	default:
-		return false, nil
+	if len(mapping) != len(union.JSONSchemaOneOf()) {
+		return false, fmt.Errorf("every variant of %s needs one enum-tagged field that picks it", p.Value.Type())
 	}
 	p.Schema.WithExtraPropertiesItem("discriminator", map[string]any{"propertyName": property, "mapping": mapping})
 	return false, nil

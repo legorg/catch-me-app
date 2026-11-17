@@ -146,16 +146,55 @@ type PlayerResponse struct {
 	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
 }
 
-// RevealResponse is what hunters see of a runner at a reveal time: the
-// position, or for a zone-only reveal (runner joker) only the cell.
-type RevealResponse struct {
-	RevealedAt time.Time `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
-	// Absent for a zone-only reveal.
-	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
-	// Set when the runner used the zoneOnly joker before this reveal.
-	ZoneOnly bool `json:"zoneOnly,omitempty" example:"false"`
-	// Zone-only reveals: the cell the runner was in; absent when they were outside the playground.
-	Cell Cell `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
+// RevealKind tells the variants of RevealResponse apart.
+type RevealKind string
+
+func (RevealKind) Enum() []any { return []any{RevealKindPosition, RevealKindZone, RevealKindOutside} }
+
+const (
+	RevealKindPosition RevealKind = "position"
+	RevealKindZone     RevealKind = "zone"
+	RevealKindOutside  RevealKind = "outside"
+)
+
+// RevealResponse is what hunters see of a runner at a reveal time: exactly one
+// of PositionRevealResponse, ZoneRevealResponse, and OutsideRevealResponse,
+// told apart by kind.
+type RevealResponse struct{ variant any }
+
+// JSONSchemaOneOf documents the union in the OpenAPI spec.
+func (RevealResponse) JSONSchemaOneOf() []any {
+	return []any{PositionRevealResponse{}, ZoneRevealResponse{}, OutsideRevealResponse{}}
+}
+
+func (r RevealResponse) MarshalJSON() ([]byte, error) { return marshalVariant(r.variant) }
+
+// PositionRevealResponse shows where the runner was at the reveal time.
+type PositionRevealResponse struct {
+	Kind       RevealKind       `json:"kind" enum:"position" validate:"required,eq=position"`
+	RevealedAt time.Time        `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
+	Position   PositionResponse `json:"position"`
+}
+
+// ZoneRevealResponse shows only the cell the runner was in (zoneOnly joker).
+type ZoneRevealResponse struct {
+	Kind       RevealKind `json:"kind" enum:"zone" validate:"required,eq=zone"`
+	RevealedAt time.Time  `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
+	Cell       Cell       `json:"cell" pattern:"^[A-F][1-6]$" example:"C4" validate:"required,len=2"`
+}
+
+// OutsideRevealResponse is a zoneOnly reveal of a runner outside the playground: no cell, no position.
+type OutsideRevealResponse struct {
+	Kind       RevealKind `json:"kind" enum:"outside" validate:"required,eq=outside"`
+	RevealedAt time.Time  `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
+}
+
+// marshalVariant writes the variant a union holds; an empty union is a bug.
+func marshalVariant(variant any) ([]byte, error) {
+	if variant == nil {
+		return nil, errors.New("union has no variant")
+	}
+	return json.Marshal(variant)
 }
 
 type PositionResponse struct {
@@ -259,22 +298,55 @@ type SketchResponse struct {
 	Points    []Coordinates `json:"points" validate:"required,min=2,max=500,dive"`
 }
 
-// JokerResponse is one joker of the requesting player's team.
-type JokerResponse struct {
-	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone zoneOnly fakePosition"`
+// JokerResponse is one joker of the requesting player's team: exactly one of
+// ShowRunnersJokerResponse, QueryZoneJokerResponse, ZoneOnlyJokerResponse, and
+// FakePositionJokerResponse, told apart by kind. Each has only its joker's
+// result fields, present once the team used it.
+type JokerResponse struct{ variant any }
+
+// JSONSchemaOneOf documents the union in the OpenAPI spec.
+func (JokerResponse) JSONSchemaOneOf() []any {
+	return []any{ShowRunnersJokerResponse{}, QueryZoneJokerResponse{}, ZoneOnlyJokerResponse{}, FakePositionJokerResponse{}}
+}
+
+func (j JokerResponse) MarshalJSON() ([]byte, error) { return marshalVariant(j.variant) }
+
+// JokerStatus is what every joker response has.
+type JokerStatus struct {
 	// True while the game runs and the team has not used it yet.
 	Available bool `json:"available" example:"true"`
 	// Set once the team used it.
 	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z" validate:"omitempty"`
-	// Runner jokers, once used: the runner who used it.
-	UsedBy PlayerID `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
-	// fakePosition, once used: the point hunters see at that runner's next reveal.
-	Point *Coordinates `json:"point,omitempty" validate:"omitempty"`
-	// What the joker showed (showRunners: each runner's position at usedAt), once used.
+}
+
+type ShowRunnersJokerResponse struct {
+	Kind JokerKind `json:"kind" enum:"showRunners" validate:"required,eq=showRunners"`
+	JokerStatus
+	// Once used: each runner's position at usedAt.
 	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,max=100,dive"`
-	// queryZone, once used: the queried cell and whether any runner was inside it at usedAt.
+}
+
+type QueryZoneJokerResponse struct {
+	Kind JokerKind `json:"kind" enum:"queryZone" validate:"required,eq=queryZone"`
+	JokerStatus
+	// Once used: the queried cell and whether any runner was inside it at usedAt.
 	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
 	Found *bool `json:"found,omitempty" example:"true"`
+}
+
+type ZoneOnlyJokerResponse struct {
+	Kind JokerKind `json:"kind" enum:"zoneOnly" validate:"required,eq=zoneOnly"`
+	JokerStatus
+	// Once used: the runner who used it.
+	UsedBy PlayerID `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
+}
+
+type FakePositionJokerResponse struct {
+	Kind JokerKind `json:"kind" enum:"fakePosition" validate:"required,eq=fakePosition"`
+	JokerStatus
+	// Once used: the runner who used it and the point hunters see at that runner's next reveal.
+	UsedBy PlayerID     `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
+	Point  *Coordinates `json:"point,omitempty" validate:"omitempty"`
 }
 
 type JokerPositionResponse struct {

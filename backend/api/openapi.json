@@ -1076,6 +1076,45 @@
         ],
         "type": "object"
       },
+      "ControllerFakePositionJokerResponse": {
+        "properties": {
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "fakePosition"
+            ],
+            "type": "string"
+          },
+          "point": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedBy": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
+        ],
+        "type": "object"
+      },
       "ControllerFakePositionRequest": {
         "properties": {
           "kind": {
@@ -1548,60 +1587,28 @@
         "type": "object"
       },
       "ControllerJokerResponse": {
-        "properties": {
-          "available": {
-            "examples": [
-              true
-            ],
-            "type": "boolean"
+        "discriminator": {
+          "mapping": {
+            "fakePosition": "#/components/schemas/ControllerFakePositionJokerResponse",
+            "queryZone": "#/components/schemas/ControllerQueryZoneJokerResponse",
+            "showRunners": "#/components/schemas/ControllerShowRunnersJokerResponse",
+            "zoneOnly": "#/components/schemas/ControllerZoneOnlyJokerResponse"
           },
-          "cell": {
-            "examples": [
-              "C4"
-            ],
-            "maxLength": 2,
-            "minLength": 2,
-            "pattern": "^[A-F][1-6]$",
-            "type": "string"
-          },
-          "found": {
-            "examples": [
-              true
-            ],
-            "type": "boolean"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/ControllerJokerKind"
-          },
-          "point": {
-            "$ref": "#/components/schemas/ControllerCoordinates"
-          },
-          "positions": {
-            "items": {
-              "$ref": "#/components/schemas/ControllerJokerPositionResponse"
-            },
-            "maxItems": 100,
-            "type": "array"
-          },
-          "usedAt": {
-            "examples": [
-              "2026-11-08T12:07:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
-          },
-          "usedBy": {
-            "examples": [
-              "8899aabbccddeeff0011223344556677"
-            ],
-            "maxLength": 32,
-            "minLength": 32,
-            "type": "string"
-          }
+          "propertyName": "kind"
         },
-        "required": [
-          "kind",
-          "available"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ControllerShowRunnersJokerResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerQueryZoneJokerResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerZoneOnlyJokerResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerFakePositionJokerResponse"
+          }
         ],
         "type": "object"
       },
@@ -1621,6 +1628,28 @@
         "required": [
           "title",
           "coordinates"
+        ],
+        "type": "object"
+      },
+      "ControllerOutsideRevealResponse": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "outside"
+            ],
+            "type": "string"
+          },
+          "revealedAt": {
+            "examples": [
+              "2026-11-08T12:05:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "revealedAt"
         ],
         "type": "object"
       },
@@ -1766,6 +1795,75 @@
         ],
         "type": "object"
       },
+      "ControllerPositionRevealResponse": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "position"
+            ],
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/ControllerPositionResponse"
+          },
+          "revealedAt": {
+            "examples": [
+              "2026-11-08T12:05:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "revealedAt",
+          "position"
+        ],
+        "type": "object"
+      },
+      "ControllerQueryZoneJokerResponse": {
+        "properties": {
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "cell": {
+            "examples": [
+              "C4"
+            ],
+            "maxLength": 2,
+            "minLength": 2,
+            "pattern": "^[A-F][1-6]$",
+            "type": "string"
+          },
+          "found": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "queryZone"
+            ],
+            "type": "string"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
+        ],
+        "type": "object"
+      },
       "ControllerQueryZoneRequest": {
         "properties": {
           "cell": {
@@ -1790,36 +1888,33 @@
         ],
         "type": "object"
       },
+      "ControllerRevealKind": {
+        "enum": [
+          "position",
+          "zone",
+          "outside"
+        ],
+        "type": "string"
+      },
       "ControllerRevealResponse": {
-        "properties": {
-          "cell": {
-            "examples": [
-              "C4"
-            ],
-            "maxLength": 2,
-            "minLength": 2,
-            "pattern": "^[A-F][1-6]$",
-            "type": "string"
+        "discriminator": {
+          "mapping": {
+            "outside": "#/components/schemas/ControllerOutsideRevealResponse",
+            "position": "#/components/schemas/ControllerPositionRevealResponse",
+            "zone": "#/components/schemas/ControllerZoneRevealResponse"
           },
-          "position": {
-            "$ref": "#/components/schemas/ControllerPositionResponse"
-          },
-          "revealedAt": {
-            "examples": [
-              "2026-11-08T12:05:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
-          },
-          "zoneOnly": {
-            "examples": [
-              false
-            ],
-            "type": "boolean"
-          }
+          "propertyName": "kind"
         },
-        "required": [
-          "revealedAt"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ControllerPositionRevealResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerZoneRevealResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerOutsideRevealResponse"
+          }
         ],
         "type": "object"
       },
@@ -1850,6 +1945,41 @@
         },
         "required": [
           "ready"
+        ],
+        "type": "object"
+      },
+      "ControllerShowRunnersJokerResponse": {
+        "properties": {
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "showRunners"
+            ],
+            "type": "string"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerJokerPositionResponse"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
         ],
         "type": "object"
       },
@@ -2000,6 +2130,42 @@
         ],
         "type": "object"
       },
+      "ControllerZoneOnlyJokerResponse": {
+        "properties": {
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "zoneOnly"
+            ],
+            "type": "string"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedBy": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
+        ],
+        "type": "object"
+      },
       "ControllerZoneOnlyRequest": {
         "properties": {
           "kind": {
@@ -2011,6 +2177,38 @@
         },
         "required": [
           "kind"
+        ],
+        "type": "object"
+      },
+      "ControllerZoneRevealResponse": {
+        "properties": {
+          "cell": {
+            "examples": [
+              "C4"
+            ],
+            "maxLength": 2,
+            "minLength": 2,
+            "pattern": "^[A-F][1-6]$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "zone"
+            ],
+            "type": "string"
+          },
+          "revealedAt": {
+            "examples": [
+              "2026-11-08T12:05:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "revealedAt",
+          "cell"
         ],
         "type": "object"
       }

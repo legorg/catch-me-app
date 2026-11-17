@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -54,14 +55,21 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 	}
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	got := bobState.Jokers
-	if len(got) != 2 || got[0].Kind != "showRunners" || got[0].Cell != "" || got[0].Found != nil {
-		t.Fatalf("an unused joker has no answer: %+v", got)
+	// An unused joker has no result; "no" must be sent as false, not left out.
+	want := `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":false,"usedAt":"2026-11-08T12:00:00Z","cell":"A1","found":false}]`
+	if got := jsonOf(t, bobState.Jokers); got != want {
+		t.Fatalf("jokers:\n got %s\nwant %s", got, want)
 	}
-	// "No" must be sent as false, not left out.
-	if got[1].Kind != "queryZone" || got[1].Available || got[1].Cell != "A1" || got[1].Found == nil || *got[1].Found || len(got[1].Positions) != 0 {
-		t.Fatalf("the query must show the cell and the answer, without positions: %+v", got[1])
+}
+
+// jsonOf is v as the client receives it.
+func jsonOf(t *testing.T, v any) string {
+	t.Helper()
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return string(data)
 }
 
 func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
@@ -86,16 +94,16 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 		t.Fatalf("hunters only get their own jokers: %+v", bobState.Jokers)
 	}
 	reveals := bobState.Players[0].Reveals
-	if len(reveals) != 2 || reveals[0].Position == nil || reveals[0].ZoneOnly {
-		t.Fatalf("the reveal before the joker keeps its position: %+v", reveals)
-	}
 	cell, _ := playground.CellAt(center)
-	if reveals[1].Position != nil || !reveals[1].ZoneOnly || reveals[1].Cell != Cell(cell.String()) || !reveals[1].RevealedAt.Equal(second) {
-		t.Fatalf("the next reveal shows only the cell: %+v", reveals[1])
+	want := `[{"kind":"position","revealedAt":"2026-11-08T12:00:30Z","position":{"latitude":52.52,"longitude":13.405,"accuracyMeters":5,"recordedAt":"2026-11-08T12:00:29Z"}},` +
+		`{"kind":"zone","revealedAt":"2026-11-08T12:01:00Z","cell":"` + cell.String() + `"}]`
+	if got := jsonOf(t, reveals); got != want {
+		t.Fatalf("only the reveal after the joker shows just the cell:\n got %s\nwant %s", got, want)
 	}
 	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
-	if len(cyState.Jokers) != 2 || cyState.Jokers[0].Kind != "zoneOnly" || cyState.Jokers[0].Available || cyState.Jokers[0].UsedBy != PlayerID(ada.ID.String()) {
-		t.Fatalf("every runner sees who used the runner joker: %+v", cyState.Jokers)
+	want = `{"kind":"zoneOnly","available":false,"usedAt":"2026-11-08T12:00:31Z","usedBy":"` + ada.ID.String() + `"}`
+	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 2 || got != want {
+		t.Fatalf("every runner sees who used the runner joker:\n got %s\nwant %s", got, want)
 	}
 }
 
@@ -118,15 +126,13 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
 	reveals := bobState.Players[0].Reveals
-	if len(reveals) != 1 || reveals[0].ZoneOnly || reveals[0].Cell != "" || reveals[0].Position == nil ||
-		reveals[0].Position.Coordinates != (Coordinates{Latitude: 52.53, Longitude: 13.415}) || reveals[0].Position.AccuracyMeters != 5 {
-		t.Fatalf("hunters must see the chosen point like a normal reveal: %+v", reveals)
+	want := `[{"kind":"position","revealedAt":"2026-11-08T12:00:30Z","position":{"latitude":52.53,"longitude":13.415,"accuracyMeters":5,"recordedAt":"2026-11-08T12:00:29Z"}}]`
+	if got := jsonOf(t, reveals); got != want {
+		t.Fatalf("hunters must see the chosen point like a normal reveal:\n got %s\nwant %s", got, want)
 	}
 	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()
-	if got := adaState.Jokers[1]; got.Kind != "fakePosition" || got.Point == nil || *got.Point != (Coordinates{Latitude: 52.53, Longitude: 13.415}) {
-		t.Fatalf("runners see the point they showed: %+v", got)
-	}
-	if adaState.Jokers[0].Point != nil {
-		t.Fatalf("other jokers have no point: %+v", adaState.Jokers[0])
+	want = `{"kind":"fakePosition","available":false,"usedAt":"2026-11-08T12:00:01Z","usedBy":"` + ada.ID.String() + `","point":{"latitude":52.53,"longitude":13.415}}`
+	if got := jsonOf(t, adaState.Jokers[1]); got != want {
+		t.Fatalf("runners see the point they showed:\n got %s\nwant %s", got, want)
 	}
 }

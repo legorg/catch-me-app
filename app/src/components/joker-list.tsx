@@ -89,33 +89,45 @@ function CellPicker({ selected, onSelect, disabled }: { selected: string | null;
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+const nameOf = (state: GameStateResponse, playerId?: string) => state.players.find((player) => player.playerId === playerId)?.name ?? '';
+
 function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse }) {
   const t = useT();
-  const positions = joker.positions ?? [];
   const usedAt = time(joker.usedAt ?? '');
-  if (joker.kind === 'zoneOnly') {
-    const name = state.players.find((player) => player.playerId === joker.usedBy)?.name ?? '';
-    return (
-      <View style={styles.gapTiny}>
-        <Text style={[styles.text, styles.accentText]}>{t('joker.usedBy', { name, time: usedAt })}</Text>
-        <Text style={styles.hint}>{t('joker.zoneOnly.used', { name })}</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.gapTiny}>
-      <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
-      {joker.kind === 'queryZone'
-        ? !!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>
-        : <>
+  switch (joker.kind) {
+    case 'zoneOnly':
+    case 'fakePosition': {
+      const name = nameOf(state, joker.usedBy);
+      return (
+        <View style={styles.gapTiny}>
+          <Text style={[styles.text, styles.accentText]}>{t('joker.usedBy', { name, time: usedAt })}</Text>
+          <Text style={styles.hint}>{t(joker.kind === 'zoneOnly' ? 'joker.zoneOnly.used' : 'joker.fakePosition.used', { name })}</Text>
+        </View>
+      );
+    }
+    case 'queryZone':
+      return (
+        <View style={styles.gapTiny}>
+          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
+          {!!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>}
+        </View>
+      );
+    case 'showRunners': {
+      const positions = joker.positions ?? [];
+      return (
+        <View style={styles.gapTiny}>
+          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
           {positions.length === 0 && <Text style={styles.hint}>{t('joker.noPositions')}</Text>}
           {positions.map((p) => (
             <Text key={p.playerId} style={styles.hint}>
-              {state.players.find((player) => player.playerId === p.playerId)?.name} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}
+              {nameOf(state, p.playerId)} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}
             </Text>
           ))}
-        </>}
-    </View>
-  );
+        </View>
+      );
+    }
+    default:
+      return null;
+  }
 }
 

@@ -1,4 +1,4 @@
-import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type PlayerResponse, type Playground } from './api/types';
+import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
 import { cellAt, cellBounds, START_RADIUS_METERS } from './playground';
 
@@ -78,28 +78,40 @@ export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
 
 /**
  * Markers for every reveal the server sent (hunters only), numbered per runner from 1 (the oldest)
- * up to the newest, which the server sends last. A zone-only reveal sits in the middle of its cell;
+ * up to the newest, which the server sends last. A zone reveal sits in the middle of its cell;
  * one outside the playground has no marker but keeps its number.
  */
 export function revealMarkers(state: GameStateResponse): (PlayerMarker & { label: string })[] {
-  return state.players.flatMap((p) => (p.reveals ?? []).flatMap(({ position, cell, revealedAt }, index) => {
-    const coordinate = position ? { latitude: position.latitude, longitude: position.longitude } : cell ? cellCenter(state.playground, cell) : null;
+  return state.players.flatMap((p) => (p.reveals ?? []).flatMap((reveal, index) => {
+    const coordinate = revealCoordinate(state.playground, reveal);
     if (!coordinate) return [];
-    const time = clockTime(revealedAt, true);
+    const time = clockTime(reveal.revealedAt, true);
     return [{
-      id: `reveal-${p.playerId}-${revealedAt}`,
+      id: `reveal-${p.playerId}-${reveal.revealedAt}`,
       coordinate,
       title: p.name,
-      description: position ? translate('marker.revealedAt', { time }) : translate('marker.zoneRevealedAt', { cell: cell ?? '', time }),
+      description: reveal.kind === 'zone' ? translate('marker.zoneRevealedAt', { cell: reveal.cell, time }) : translate('marker.revealedAt', { time }),
       color: MARKER_COLORS.revealed,
       label: String(index + 1),
     }];
   }));
 }
 
-/** The cells of zone-only reveals (runner joker), where hunters saw only the cell and not the position. */
+/** Where a reveal's marker goes: at the position, in the middle of the zone, or nowhere. */
+function revealCoordinate(playground: Playground, reveal: RevealResponse): { latitude: number; longitude: number } | null {
+  switch (reveal.kind) {
+    case 'position':
+      return { latitude: reveal.position.latitude, longitude: reveal.position.longitude };
+    case 'zone':
+      return cellCenter(playground, reveal.cell);
+    default:
+      return null;
+  }
+}
+
+/** The cells of zone reveals (runner joker), where hunters saw only the cell and not the position. */
 export function revealZones(state: GameStateResponse): { cell: string; title: string; color: string }[] {
-  return state.players.flatMap((p) => (p.reveals ?? []).flatMap((reveal) => reveal.zoneOnly && reveal.cell
+  return state.players.flatMap((p) => (p.reveals ?? []).flatMap((reveal) => reveal.kind === 'zone'
     ? [{ cell: reveal.cell, title: p.name, color: ZONE_COLORS.revealed }]
     : []));
 }
@@ -112,7 +124,7 @@ function cellCenter(playground: Playground, cell: string) {
 /** Markers for what the team's used jokers showed: each runner where they were when it was used, and the queried zone with its answer. */
 export function jokerMarkers(state: GameStateHunterResponse): PlayerMarker[] {
   return state.jokers.flatMap((joker) => [
-    ...(joker.positions ?? []).map((position) => ({
+    ...(joker.kind === 'showRunners' ? joker.positions ?? [] : []).map((position) => ({
       id: `joker-${joker.kind}-${position.playerId}`,
       coordinate: { latitude: position.latitude, longitude: position.longitude },
       title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
@@ -135,7 +147,7 @@ export function jokerZones(state: GameStateHunterResponse): { cell: string; titl
 }
 
 function queriedZones(jokers: GameStateHunterResponse['jokers']) {
-  return jokers.flatMap((joker) => joker.cell && joker.found !== undefined ? [{
+  return jokers.flatMap((joker) => joker.kind === 'queryZone' && joker.cell && joker.found !== undefined ? [{
     cell: joker.cell,
     title: translate(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell }),
     color: joker.found ? ZONE_COLORS.found : ZONE_COLORS.empty,
