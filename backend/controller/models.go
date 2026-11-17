@@ -43,11 +43,14 @@ const (
 
 type JokerKind string
 
-func (JokerKind) Enum() []any { return []any{JokerKindShowRunners, JokerKindQueryZone} }
+func (JokerKind) Enum() []any {
+	return []any{JokerKindShowRunners, JokerKindQueryZone, JokerKindZoneOnly}
+}
 
 const (
 	JokerKindShowRunners JokerKind = "showRunners"
 	JokerKindQueryZone   JokerKind = "queryZone"
+	JokerKindZoneOnly    JokerKind = "zoneOnly"
 )
 
 type HealthResponse struct {
@@ -141,10 +144,16 @@ type PlayerResponse struct {
 	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
 }
 
-// RevealResponse is where a runner was at a reveal time.
+// RevealResponse is what hunters see of a runner at a reveal time: the
+// position, or for a zone-only reveal (runner joker) only the cell.
 type RevealResponse struct {
-	PositionResponse
 	RevealedAt time.Time `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
+	// Absent for a zone-only reveal.
+	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
+	// Set when the runner used the zoneOnly joker before this reveal.
+	ZoneOnly bool `json:"zoneOnly,omitempty" example:"false"`
+	// Zone-only reveals: the cell the runner was in; absent when they were outside the playground.
+	Cell Cell `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
 }
 
 type PositionResponse struct {
@@ -161,7 +170,7 @@ type UpdatePositionRequest struct {
 }
 
 type UseJokerRequest struct {
-	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone"`
+	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone zoneOnly"`
 	// The cell to query (queryZone only): column A-F, then row 1-6.
 	Cell Cell `json:"cell,omitempty" pattern:"^[A-F][1-6]$" example:"C4" validate:"omitempty,len=2"`
 }
@@ -183,11 +192,13 @@ type SketchResponse struct {
 
 // JokerResponse is one joker of the requesting player's team.
 type JokerResponse struct {
-	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone"`
+	Kind JokerKind `json:"kind" validate:"required,oneof=showRunners queryZone zoneOnly"`
 	// True while the game runs and the team has not used it yet.
 	Available bool `json:"available" example:"true"`
 	// Set once the team used it.
 	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z" validate:"omitempty"`
+	// Runner jokers, once used: the runner who used it.
+	UsedBy PlayerID `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
 	// What the joker showed (showRunners: each runner's position at usedAt), once used.
 	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,max=100,dive"`
 	// queryZone, once used: the queried cell and whether any runner was inside it at usedAt.
@@ -223,6 +234,8 @@ type GameStateRunnerResponse struct {
 	Team Team `json:"team" enum:"runner" validate:"required,eq=runner"`
 	// The game's route between two landmarks; hunters have to find them.
 	Route GameRoute `json:"route"`
+	// The jokers all runners share.
+	Jokers []JokerResponse `json:"jokers" validate:"max=2,dive"`
 }
 
 // GameStateHunterResponse is the game as seen by a hunter.

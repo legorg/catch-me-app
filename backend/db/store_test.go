@@ -375,6 +375,50 @@ func TestQueriedZoneIsStoredAndAnsweredAtTheTimeOfUse(t *testing.T) {
 	}
 }
 
+func TestZoneOnlyJokerIsStoredAndHidesTheNextReveal(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, _ := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	usedAt := start.Add(10 * time.Second)
+	use := func(at time.Time) error {
+		_, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), at, func(l *game.Lobby) error {
+			return l.UseJoker(runner.ID, game.JokerChoice{Kind: game.JokerZoneOnly}, at)
+		})
+		return err
+	}
+	if err := use(usedAt); err != nil {
+		t.Fatal(err)
+	}
+	// The runner moves on after using it; the reveal shows the cell they are in then.
+	c4, _ := game.ParseCell("C4")
+	moved, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(c4)), 4, start.Add(20*time.Second))
+	move(t, store, runnerToken, moved)
+
+	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(game.RevealInterval+time.Second))
+	if len(lobby.Jokers) != 1 || lobby.Jokers[0].Kind != game.JokerZoneOnly || lobby.Jokers[0].PlayerID != runner.ID ||
+		!lobby.Jokers[0].Team.IsZero() || !lobby.Jokers[0].UsedAt.Equal(usedAt) {
+		t.Fatalf("used runner joker not stored: %+v", lobby.Jokers)
+	}
+	for _, v := range lobby.VisibleTo(hunter, start.Add(game.RevealInterval+time.Second)) {
+		if v.ID != runner.ID {
+			continue
+		}
+		if len(v.Reveals) != 1 || !v.Reveals[0].ZoneOnly || v.Reveals[0].Cell != c4 || !v.Reveals[0].Position.IsZero() {
+			t.Fatalf("hunters must see only the cell at the reveal time: %+v", v.Reveals)
+		}
+	}
+	var rule *game.RuleError
+	if err := use(start.Add(40 * time.Second)); !errors.As(err, &rule) {
+		t.Fatalf("a second use must be refused: %v", err)
+	}
+}
+
 func TestSketchesPersistUntilClearedOrExpired(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")

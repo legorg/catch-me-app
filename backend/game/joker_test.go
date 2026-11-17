@@ -184,10 +184,12 @@ func TestZoneOnlyHidesThePositionOfTheNextRevealOnly(t *testing.T) {
 	cy := l.Players[1]
 	first, second, third := running.Add(RevealInterval), running.Add(2*RevealInterval), running.Add(3*RevealInterval)
 	inC6 := position(t, l, "C6", first)
+	// The runner moves on after using the joker: the zone is where they are at the reveal.
+	inC4 := position(t, l, "C4", second)
 	outside, _ := ParseCoordinates(0, 0)
 	away, _ := NewPosition(outside, 5, first)
 	l.Reveals = map[PlayerID][]Reveal{
-		runner.ID: {{Position: inC6, At: first}, {Position: inC6, At: second}, {Position: inC6, At: third}},
+		runner.ID: {{Position: inC6, At: first}, {Position: inC4, At: second}, {Position: inC4, At: third}},
 		cy.ID:     {{Position: away, At: first}, {Position: away, At: second}},
 	}
 	// Used exactly at a reveal time: that reveal has already happened, so the next one shows the zone.
@@ -207,8 +209,8 @@ func TestZoneOnlyHidesThePositionOfTheNextRevealOnly(t *testing.T) {
 	if len(got) != 3 || got[0] != l.Reveals[runner.ID][0] || got[2] != l.Reveals[runner.ID][2] {
 		t.Fatalf("only the next reveal is affected: %+v", got)
 	}
-	if !got[1].ZoneOnly || !got[1].Position.IsZero() || !got[1].InPlayground || got[1].Cell.String() != "C6" || !got[1].At.Equal(second) {
-		t.Fatalf("the next reveal shows only the cell: %+v", got[1])
+	if !got[1].ZoneOnly || !got[1].Position.IsZero() || !got[1].InPlayground || got[1].Cell.String() != "C4" || !got[1].At.Equal(second) {
+		t.Fatalf("the next reveal shows only the cell at the reveal time: %+v", got[1])
 	}
 	if l.Reveals[runner.ID][1].ZoneOnly {
 		t.Fatal("the stored reveals stay unchanged")

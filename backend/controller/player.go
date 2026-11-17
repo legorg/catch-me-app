@@ -155,7 +155,7 @@ func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) 
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
-// UseJoker spends a joker of the authenticated hunter's team.
+// UseJoker spends a joker of the authenticated player's team.
 func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
@@ -274,7 +274,9 @@ func playerToken(r *http.Request) (game.PlayerToken, error) {
 func gameStateResponse(view service.PlayerView) GameStateResponse {
 	base := gameStateBase(view)
 	if view.Me.Team == game.Runners {
-		return NewRunnerState(GameStateRunnerResponse{GameStateBase: base, Team: TeamRunner, Route: gameRouteResponse(view.Lobby.Game.Route)})
+		return NewRunnerState(GameStateRunnerResponse{
+			GameStateBase: base, Team: TeamRunner, Route: gameRouteResponse(view.Lobby.Game.Route), Jokers: jokerResponses(view),
+		})
 	}
 	return NewHunterState(GameStateHunterResponse{
 		GameStateBase: base, Team: TeamHunter,
@@ -309,11 +311,25 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 			player.Position = &position
 		}
 		for _, r := range p.Reveals {
-			player.Reveals = append(player.Reveals, RevealResponse{PositionResponse: positionResponse(r.Position), RevealedAt: r.At})
+			player.Reveals = append(player.Reveals, revealResponse(r))
 		}
 		response.Players = append(response.Players, player)
 	}
 	return response
+}
+
+func revealResponse(r game.Reveal) RevealResponse {
+	reveal := RevealResponse{RevealedAt: r.At}
+	switch {
+	case r.ZoneOnly && r.InPlayground:
+		reveal.ZoneOnly, reveal.Cell = true, Cell(r.Cell.String())
+	case r.ZoneOnly:
+		reveal.ZoneOnly = true
+	default:
+		position := positionResponse(r.Position)
+		reveal.Position = &position
+	}
+	return reveal
 }
 
 func jokerResponses(view service.PlayerView) []JokerResponse {
@@ -323,6 +339,9 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 		if !j.UsedAt.IsZero() {
 			usedAt := j.UsedAt
 			joker.UsedAt = &usedAt
+			if j.UsedBy != (game.PlayerID{}) {
+				joker.UsedBy = PlayerID(j.UsedBy.String())
+			}
 			if j.Kind == game.JokerQueryZone {
 				found := j.Found
 				joker.Cell, joker.Found = Cell(j.Cell.String()), &found

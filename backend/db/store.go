@@ -58,15 +58,18 @@ type positionRow struct {
 
 // jokerRow is one used joker. What it showed is derived from the positions at UsedAt.
 // A hunter team can use each kind once; Team is stored lowercase so spelling does not matter.
+// Runner jokers have an empty Team and Name (so the runners share one use) and
+// the runner who used it in PlayerID; hunter jokers have an empty PlayerID.
 // Cell is the queried cell (queryZone), empty otherwise.
 type jokerRow struct {
-	ID     uint64    `gorm:"primaryKey"`
-	GameID string    `gorm:"not null;uniqueIndex:joker_once"`
-	Team   string    `gorm:"not null;uniqueIndex:joker_once"`
-	Kind   string    `gorm:"not null;uniqueIndex:joker_once"`
-	Name   string    `gorm:"not null"`
-	Cell   string    `gorm:"not null;default:''"`
-	UsedAt time.Time `gorm:"not null"`
+	ID       uint64    `gorm:"primaryKey"`
+	GameID   string    `gorm:"not null;uniqueIndex:joker_once"`
+	Team     string    `gorm:"not null;uniqueIndex:joker_once"`
+	Kind     string    `gorm:"not null;uniqueIndex:joker_once"`
+	Name     string    `gorm:"not null"`
+	PlayerID string    `gorm:"not null;default:''"`
+	Cell     string    `gorm:"not null;default:''"`
+	UsedAt   time.Time `gorm:"not null"`
 }
 
 // sketchRow is one line a hunter team drew. It belongs to the team, so it has no
@@ -240,7 +243,7 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	for _, use := range after.Jokers[min(len(before.Jokers), len(after.Jokers)):] {
 		row := jokerRow{
 			GameID: after.Game.SessionID.String(), Team: strings.ToLower(use.Team.String()), Kind: string(use.Kind),
-			Name: use.Team.String(), UsedAt: use.UsedAt,
+			Name: use.Team.String(), PlayerID: use.PlayerID.String(), UsedAt: use.UsedAt,
 		}
 		if use.Kind == game.JokerQueryZone {
 			row.Cell = use.Cell.String()
@@ -427,12 +430,20 @@ func runnerReveals(history map[string][]positionRow, times []time.Time) (map[str
 	return reveals, nil
 }
 
-// parseJoker adds what a joker showed, from each runner's last position at or
-// before the use: the positions (showRunners) or whether one was in the cell (queryZone).
+// parseJoker adds what a hunter joker showed, from each runner's last position
+// at or before the use: the positions (showRunners) or whether one was in the
+// cell (queryZone). Runner jokers only record who used them.
 func parseJoker(row jokerRow, history map[string][]positionRow, playground game.Playground) (game.JokerUse, error) {
 	kind, err := game.ParseJokerKind(row.Kind)
 	if err != nil {
 		return game.JokerUse{}, fmt.Errorf("parse stored joker: %v", err)
+	}
+	if row.Name == "" {
+		playerID, err := game.ParsePlayerID(row.PlayerID)
+		if err != nil {
+			return game.JokerUse{}, fmt.Errorf("parse stored joker: %v", err)
+		}
+		return game.JokerUse{Kind: kind, PlayerID: playerID, UsedAt: row.UsedAt.UTC()}, nil
 	}
 	team, err := game.ParseHunterTeamName(row.Name)
 	if err != nil {
