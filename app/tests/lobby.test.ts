@@ -24,10 +24,11 @@ const state: GameStateRunnerResponse = {
     stop: { title: 'Stop', coordinates: { latitude: 52.57, longitude: 13.4 } },
     distanceMeters: 11119,
   },
+  routeRegenerationsLeft: 2,
   jokers: [],
 };
 
-const { route: _route, ...hunterBase } = state;
+const { route: _route, routeRegenerationsLeft: _routeRegenerationsLeft, ...hunterBase } = state;
 const hunterState: GameStateHunterResponse = { ...hunterBase, team: 'hunter', jokers: [], sketches: [] };
 
 test('countdown uses server time plus local elapsed time', () => {
