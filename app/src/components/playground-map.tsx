@@ -41,16 +41,18 @@ export type PlaygroundMapProps = {
    * when the finger lifts; the line stays visible until the returned promise settles.
    */
   onDraw?: (points: Coordinates[]) => Promise<void>;
+  /** While set, the grid stays where it is and the point under the crosshair is picked whenever the map comes to rest. */
+  onPick?: (point: Coordinates) => void;
   /** Fill the parent instead of using the default height. */
   fullscreen?: boolean;
   /** Extra space around the location button, e.g. safe-area insets under a fullscreen map. */
   controlsInset?: { bottom?: number; right?: number };
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], onDraw, fullscreen = false, controlsInset }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], onDraw, onPick, fullscreen = false, controlsInset }: PlaygroundMapProps) {
   const center = playground?.center ?? DEFAULT_CENTER;
   const bounds = playground?.bounds;
-  const { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete } = useMapRegion({ playground, editable, onSelect });
+  const { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete } = useMapRegion({ playground, editable, onSelect, onPick });
   const { drawing, stroke, responder } = useMapDrawing(map, onDraw);
   const { locationGranted, locating, locateError, locate } = useMapLocate(map, editable, select);
   return (
@@ -90,7 +92,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
           <MapPin key={marker.label === undefined ? id : `${id}-${marker.label}`} {...marker} />
         ))}
       </MapView>
-      {editable && <MapCrosshair anchor={anchor} />}
+      {(editable || onPick) && <MapCrosshair anchor={anchor} />}
       {drawing && <MapDrawingOverlay {...responder} />}
       <MapLocateButton locating={locating} error={locateError} onLocate={locate} inset={controlsInset} />
     </View>

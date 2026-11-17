@@ -9,10 +9,11 @@ type Options = {
   playground: Playground | null;
   editable: boolean;
   onSelect: (center: Coordinates) => void;
+  onPick?: (point: Coordinates) => void;
 };
 
 /** The map's camera: refits it to the grid, keeps the grid centered on pan/tap and measures where the center is on screen. */
-export function useMapRegion({ playground, editable, onSelect }: Options) {
+export function useMapRegion({ playground, editable, onSelect, onPick }: Options) {
   // Where the map's center (and so the grid) is on screen. Native maps shift it from the middle of the
   // view, e.g. by safe-area margins under the notch, so the crosshair is placed by asking the map.
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -46,8 +47,9 @@ export function useMapRegion({ playground, editable, onSelect }: Options) {
       // keep the middle of the view
     }
   };
-  // Panning moves the grid: it stays centered on the map.
+  // Panning moves the grid: it stays centered on the map. While picking, the grid stays and the center is the point.
   const onRegionChangeComplete = (region: Region) => {
+    if (onPick) onPick({ latitude: region.latitude, longitude: region.longitude });
     if (!editable || muted.current) return;
     onSelect({ latitude: region.latitude, longitude: region.longitude });
   };

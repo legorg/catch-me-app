@@ -1,9 +1,11 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { JokerRequest, JokerResponse } from '@/api/client';
-import type { GameStateResponse } from '@/api/types';
+import type { Coordinates, GameStateResponse, Playground } from '@/api/types';
 import Button from '@/components/button';
+import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, translate, useT } from '@/i18n';
+import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
 
@@ -23,8 +25,9 @@ export default function JokerList({ state, error, onUse }: {
   onUse: (joker: JokerRequest) => Promise<void>;
 }) {
   const t = useT();
-  const { confirming, cell, setCell, busy, ready, use, cancel, start } = useJokerUse(onUse);
+  const { confirming, cell, setCell, point, setPoint, busy, ready, use, cancel, start } = useJokerUse(state.playground, onUse);
   const confirmKey = state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
+  const pointCell = point && cellAt(state.playground, point);
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
@@ -40,8 +43,11 @@ export default function JokerList({ state, error, onUse }: {
               ? confirming === joker.kind
                 ? <>
                   {joker.kind === 'queryZone' && <CellPicker selected={cell} onSelect={setCell} disabled={busy} />}
+                  {joker.kind === 'fakePosition' && <PointPicker playground={state.playground} point={point} onPick={setPoint} />}
                   <Text style={[styles.text, styles.error]}>
-                    {joker.kind === 'queryZone' && cell ? t('joker.confirmCell', { cell }) : t(confirmKey)}
+                    {joker.kind === 'queryZone' && cell
+                      ? t('joker.confirmCell', { cell })
+                      : joker.kind === 'fakePosition' && pointCell ? t('joker.confirmPoint', { cell: pointCell }) : t(confirmKey)}
                   </Text>
                   <View style={styles.row}>
                     <Button label={t('joker.confirmYes')} disabled={busy || !ready(joker.kind)} onPress={() => use(joker.kind)} />
@@ -87,6 +93,21 @@ function CellPicker({ selected, onSelect, disabled }: { selected: string | null;
   );
 }
 
+/** A map of the playground whose center is the picked point: the runner moves the map until the crosshair is on it. */
+function PointPicker({ playground, point, onPick }: { playground: Playground; point: Coordinates | null; onPick: (point: Coordinates) => void }) {
+  const t = useT();
+  const inside = point && cellAt(playground, point);
+  return (
+    <View style={styles.gapTiny}>
+      <Text style={styles.hint}>{t('joker.choosePoint')}</Text>
+      <PlaygroundMap playground={playground} editable={false} onSelect={noop} onPick={onPick} />
+      {point && <Text style={inside ? styles.hint : [styles.text, styles.error]}>{inside ? t('joker.pointIn', { cell: inside }) : t('joker.pointOutside')}</Text>}
+    </View>
+  );
+}
+
+const noop = () => {};
+
 const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 const nameOf = (state: GameStateResponse, playerId?: string) => state.players.find((player) => player.playerId === playerId)?.name ?? '';
@@ -101,7 +122,11 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
       return (
         <View style={styles.gapTiny}>
           <Text style={[styles.text, styles.accentText]}>{t('joker.usedBy', { name, time: usedAt })}</Text>
-          <Text style={styles.hint}>{t(joker.kind === 'zoneOnly' ? 'joker.zoneOnly.used' : 'joker.fakePosition.used', { name })}</Text>
+          <Text style={styles.hint}>
+            {joker.kind === 'zoneOnly'
+              ? t('joker.zoneOnly.used', { name })
+              : t('joker.fakePosition.used', { name, cell: (joker.point && cellAt(state.playground, joker.point)) ?? '' })}
+          </Text>
         </View>
       );
     }

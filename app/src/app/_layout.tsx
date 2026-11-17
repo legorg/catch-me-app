@@ -27,7 +27,6 @@ export default function RootLayout() {
           headerTitleStyle: { fontWeight: '700' },
           headerShadowVisible: false,
           headerLargeTitle: true,
-          statusBarStyle: "light",
           headerLargeTitleShadowVisible: false,
           headerLargeTitleStyle: { color: '#ffffff' },
           contentStyle: { backgroundColor: colors.background },

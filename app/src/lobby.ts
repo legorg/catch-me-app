@@ -205,6 +205,17 @@ export function routeMarkers(route: GameRoute): PlayerMarker[] {
   ];
 }
 
+/** The point a runner showed with the fakePosition joker, for every runner to see. */
+export function fakePositionMarkers(state: GameStateRunnerResponse): PlayerMarker[] {
+  return state.jokers.flatMap((joker) => joker.kind === 'fakePosition' && joker.point ? [{
+    id: 'joker-fakePosition',
+    coordinate: joker.point,
+    title: translate('joker.fakePosition.marker', { name: state.players.find((p) => p.playerId === joker.usedBy)?.name ?? '' }),
+    description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
+    color: MARKER_COLORS.joker,
+  }] : []);
+}
+
 /** Every highlighted cell the player's team may see: the route (runners) or the queried zones and zone-only reveals (hunters). */
 export function gameHighlights(state: GameStateResponse) {
   if (isGameStateRunnerResponse(state)) return routeHighlights(state.playground, state.route);
@@ -215,7 +226,7 @@ export function gameHighlights(state: GameStateResponse) {
 /** Every marker the player's team may see, other players' live positions last (the player's own position is the device's). */
 export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
   return [
-    ...(isGameStateRunnerResponse(state) ? routeMarkers(state.route) : []),
+    ...(isGameStateRunnerResponse(state) ? [...routeMarkers(state.route), ...fakePositionMarkers(state)] : []),
     ...revealMarkers(state),
     ...(isGameStateHunterResponse(state) ? jokerMarkers(state) : []),
     ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),

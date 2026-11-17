@@ -108,7 +108,7 @@ Agreed topics whose rules are still open. Each needs its rules settled here befo
 - Show the stored position history as a replay or chart of everyone's movements. It is only available after the game ended (see position history).
 - Open: what exactly the result shows, replay vs. static track chart, how long it stays reachable (positions are deleted 7 days after the start).
 
-### Jokers [hunter jokers implemented, runner jokers implemented; fake position in the app planned]
+### Jokers [hunter jokers implemented, runner jokers implemented]
 
 One-off special abilities on top of the periodic reveals. A joker belongs to a team: runners, or one hunter team (hunters of the same team share it). The app has a joker sheet (the "Jokers" button on the game screen) listing the team's jokers.
 
@@ -121,7 +121,7 @@ Every joker can be used once per game and team, only while the game is running; 
 **Runner jokers** belong to the runner team as a whole: each exists once per game, and when one runner uses it, it is used up for all runners. It affects only the runner who used it, and only that runner's **next reveal**. All runners see which runner team jokers were used, by whom and when. Hunters are never told that a joker was used; they only see its effect at the reveal. A runner can have at most one pending runner joker at a time (a second one before the next reveal is a `409`).
 
 - **Show only the zone** [implemented]: at the next reveal (the first reveal time strictly after the use), hunters see only the cell this runner is in **at that reveal** (their last report before it, like every reveal), not the exact position; the app highlights the cell on the map with the reveal's numbered marker in its middle. If the runner is outside the playground then, the reveal has neither cell nor position (no marker, but the numbering keeps the gap). The server stores who used it and when; the zone is derived like reveals, and the position of that reveal is never sent to hunters. Runners see the joker in their joker sheet, and once used, who used it and when.
-- **Fake position** [backend implemented, app planned]: the runner picks any point inside the playground (a point outside is a `400`). At the next reveal (the first reveal time strictly after the use), hunters see that point instead of the real position, looking like a normal reveal: it keeps the accuracy and report time of the real position, only the coordinates are replaced. If the runner has no report before that reveal, there is no reveal, as usual. The server stores who used it, when, and the point; all runners see the point. The server never sends the real position of that reveal to hunters (before the game has ended); the faked reveal stays faked.
+- **Fake position** [implemented]: the runner picks any point inside the playground (in the app by moving a map until a crosshair is on it; a point outside is a `400`). At the next reveal (the first reveal time strictly after the use), hunters see that point instead of the real position, looking like a normal reveal: it keeps the accuracy and report time of the real position, only the coordinates are replaced. If the runner has no report before that reveal, there is no reveal, as usual. The server stores who used it, when, and the point; all runners see the point (as a marker on their map). The server never sends the real position of that reveal to hunters (before the game has ended); the faked reveal stays faked.
 
 ### Hunter team sketches [done: MVP]
 

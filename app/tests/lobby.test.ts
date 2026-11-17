@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, sketchLines, thinPoints } from '../src/lobby';
 import { cellBounds, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
@@ -157,6 +157,19 @@ test('a queried zone is highlighted and marked in its center, colored by the ans
   assert.deepEqual(marker.coordinate, { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 });
   assert.equal(marker.color, ZONE_COLORS.found);
   assert.deepEqual(jokerZones({ ...hunterState, jokers: [{ kind: 'queryZone', available: true }] }), []);
+});
+
+test('the fake position is a marker for every runner, once used', () => {
+  const point = { latitude: 52.53, longitude: 13.41 };
+  const [marker, ...rest] = fakePositionMarkers({
+    ...state,
+    jokers: [{ kind: 'fakePosition', available: false, usedAt: '2026-11-08T12:07:00Z', usedBy: state.players[0].playerId, point }],
+  });
+  assert.equal(rest.length, 0);
+  assert.deepEqual(marker.coordinate, point);
+  assert.equal(marker.color, MARKER_COLORS.joker);
+  assert.match(marker.title, /Ada/);
+  assert.deepEqual(fakePositionMarkers({ ...state, jokers: [{ kind: 'fakePosition', available: true }] }), []);
 });
 
 test('sketches become lines in the sketch color, in the order the server sent them', () => {
