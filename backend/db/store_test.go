@@ -201,13 +201,15 @@ func TestLobbyPersists(t *testing.T) {
 	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), now, nil); !errors.Is(err, game.ErrNotFound) {
 		t.Fatal("removed player's token still works")
 	}
+	next := saved.Route
+	next.Start.Title = "Elsewhere"
 	if _, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), now, func(l *game.Lobby) error {
 		_ = l.SetReady(runner.ID, false, now, false)
-		return l.RegenerateRoute(runner.ID, now)
+		return l.RegenerateRoute(runner.ID, next, now)
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got := load(t, store, saved.JoinCodes.Runner, now).Players[0].Route; got.RegenerationsLeft != game.MaxRouteRegenerations-1 || got == runner.Route {
+	if got := load(t, store, saved.JoinCodes.Runner, now).Game; got.Route != next || got.RouteRegenerations != 1 {
 		t.Fatalf("regenerated route not persisted: %+v", got)
 	}
 	failed := errors.New("rule failed")
@@ -233,7 +235,7 @@ func TestPositionsAndReveals(t *testing.T) {
 		t.Fatal(err)
 	}
 	reveal := start.Add(game.RevealInterval)
-	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 12.5, reveal.Add(-time.Second))
+	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 12.5, reveal.Add(-time.Second))
 	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal)
 	move(t, store, token, first)
 	if before := load(t, store, saved.JoinCodes.Runner, reveal.Add(-time.Second)); before.Players[0].Position != first || len(before.Reveals) != 0 {
@@ -278,7 +280,7 @@ func TestRevealsKeepEveryReveal(t *testing.T) {
 		t.Fatal(err)
 	}
 	reveal := func(n time.Duration) time.Time { return start.Add(n * game.RevealInterval) }
-	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 4, reveal(1).Add(time.Second))
+	first, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 4, reveal(1).Add(time.Second))
 	second, _ := game.NewPosition(saved.Playground.Center(), 3, reveal(3).Add(-time.Second))
 	move(t, store, token, first)
 	move(t, store, token, second)
@@ -308,7 +310,7 @@ func TestUsedJokerIsStoredAndShowsPositionsAtTheTimeOfUse(t *testing.T) {
 	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
 		t.Fatal(err)
 	}
-	before, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 4, start.Add(10*time.Second))
+	before, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 4, start.Add(10*time.Second))
 	after, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(70*time.Second))
 	move(t, store, runnerToken, before)
 	usedAt := start.Add(60 * time.Second)
@@ -344,17 +346,17 @@ func TestQueriedZoneIsStoredAndAnsweredAtTheTimeOfUse(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")
 	saved := create(t, store)
-	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	_, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
 	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
 	start := now.Add(time.Minute)
 	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
 		t.Fatal(err)
 	}
-	before, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(runner.Route.Start)), 4, start.Add(10*time.Second))
+	before, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 4, start.Add(10*time.Second))
 	after, _ := game.NewPosition(saved.Playground.Center(), 3, start.Add(70*time.Second))
 	move(t, store, runnerToken, before)
 	usedAt := start.Add(60 * time.Second)
-	choice, err := game.ParseJokerChoice("queryZone", runner.Route.Start.String())
+	choice, err := game.ParseJokerChoice("queryZone", saved.Playground.SouthEdgeCells()[0].String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +372,7 @@ func TestQueriedZoneIsStoredAndAnsweredAtTheTimeOfUse(t *testing.T) {
 		t.Fatalf("used joker not stored: %+v", lobby.Jokers)
 	}
 	got := lobby.Jokers[0]
-	if got.Kind != game.JokerQueryZone || got.Cell != runner.Route.Start || !got.Found || len(got.Positions) != 0 || !got.UsedAt.Equal(usedAt) {
+	if got.Kind != game.JokerQueryZone || got.Cell != saved.Playground.SouthEdgeCells()[0] || !got.Found || len(got.Positions) != 0 || !got.UsedAt.Equal(usedAt) {
 		t.Fatalf("the query must answer yes for where the runner was when it was used, without positions: %+v", got)
 	}
 }

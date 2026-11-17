@@ -17,7 +17,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Table rows. A zero StartsAt means not scheduled; hunters have an empty route.
+// Table rows. A zero StartsAt means not scheduled.
 type gameRow struct {
 	ID                  string `gorm:"primaryKey"`
 	CreatedAt           time.Time
@@ -30,11 +30,15 @@ type gameRow struct {
 	StartLat, StartLon  float64
 	StopTitle           string
 	StopLat, StopLon    float64
-	Players             []playerRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
-	Jokers              []jokerRow  `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
-	Sketches            []sketchRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	// RouteRegenerations is how often the runners replaced the route.
+	RouteRegenerations int         `gorm:"not null;default:0"`
+	Players            []playerRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	Jokers             []jokerRow  `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	Sketches           []sketchRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 }
 
+// The route_start, route_end, and route_regenerations_left columns of older
+// databases held per-runner routes; they are no longer read or written.
 type playerRow struct {
 	ID                     string `gorm:"primaryKey"`
 	GameID                 string `gorm:"index;not null"`
@@ -42,8 +46,6 @@ type playerRow struct {
 	TokenHash              string `gorm:"uniqueIndex;not null"`
 	Ready                  bool
 	JoinedAt               time.Time
-	RouteStart, RouteEnd   string
-	RouteRegenerationsLeft int
 	Positions              []positionRow `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
 }
 
@@ -140,6 +142,7 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 			CellSizeMeters: g.Playground.CellSize().Meters(), RunnerCode: codes[0], HunterCode: codes[1], StartsAt: g.StartsAt,
 			StartTitle: g.Route.Start.Title, StartLat: g.Route.Start.Coordinates.Latitude(), StartLon: g.Route.Start.Coordinates.Longitude(),
 			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
+			RouteRegenerations: g.RouteRegenerations,
 		}
 		if err := tx.Create(&row).Error; err != nil {
 			return fmt.Errorf("insert game: %w", err)
@@ -210,6 +213,17 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	if !before.Game.StartsAt.Equal(after.Game.StartsAt) {
 		if err := tx.Model(&gameRow{ID: after.Game.SessionID.String()}).Update("starts_at", after.Game.StartsAt).Error; err != nil {
 			return fmt.Errorf("update start time: %w", err)
+		}
+	}
+	if before.Game.Route != after.Game.Route || before.Game.RouteRegenerations != after.Game.RouteRegenerations {
+		r := after.Game.Route
+		err := tx.Model(&gameRow{ID: after.Game.SessionID.String()}).Updates(map[string]any{
+			"start_title": r.Start.Title, "start_lat": r.Start.Coordinates.Latitude(), "start_lon": r.Start.Coordinates.Longitude(),
+			"stop_title": r.Stop.Title, "stop_lat": r.Stop.Coordinates.Latitude(), "stop_lon": r.Stop.Coordinates.Longitude(),
+			"route_regenerations": after.Game.RouteRegenerations,
+		}).Error
+		if err != nil {
+			return fmt.Errorf("update route: %w", err)
 		}
 	}
 	removed := map[game.PlayerID]game.Player{}
@@ -308,14 +322,10 @@ func withoutPositions(p game.Player) game.Player {
 }
 
 func toPlayerRow(gameID game.SessionID, p game.Player) playerRow {
-	row := playerRow{
+	return playerRow{
 		ID: p.ID.String(), GameID: gameID.String(), Team: string(p.Team), Name: p.Name.String(),
 		TokenHash: p.TokenHash.String(), Ready: p.Ready, JoinedAt: p.JoinedAt, HunterTeam: p.HunterTeam.String(),
 	}
-	if !p.Route.IsZero() {
-		row.RouteStart, row.RouteEnd, row.RouteRegenerationsLeft = p.Route.Start.String(), p.Route.End.String(), p.Route.RegenerationsLeft
-	}
-	return row
 }
 
 // loadLobby rebuilds domain values through their parsers, so invalid stored
@@ -528,13 +538,15 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 	}}
 	start, err1 := game.ParseCoordinates(row.StartLat, row.StartLon)
 	stop, err2 := game.ParseCoordinates(row.StopLat, row.StopLon)
-	if err := errors.Join(err1, err2); err != nil {
+	regenerations, err3 := game.ParseRouteRegenerations(row.RouteRegenerations)
+	if err := errors.Join(err1, err2, err3); err != nil {
 		return game.Lobby{}, err
 	}
 	lobby.Game.Route = game.Route{
 		Start: game.Landmark{Title: row.StartTitle, Coordinates: start},
 		Stop:  game.Landmark{Title: row.StopTitle, Coordinates: stop},
 	}
+	lobby.Game.RouteRegenerations = regenerations
 	for _, p := range row.Players {
 		player, err := parsePlayer(p)
 		if err != nil {
@@ -550,19 +562,16 @@ func parsePlayer(row playerRow) (game.Player, error) {
 	name, err2 := game.ParsePlayerName(row.Name)
 	team, err3 := game.ParseTeam(row.Team)
 	hash, err4 := game.ParseTokenHash(row.TokenHash)
-	var route game.RunnerRoute
 	var hunterTeam game.HunterTeamName
 	var err5 error
-	if team == game.Runners {
-		route, err5 = game.ParseRunnerRoute(row.RouteStart, row.RouteEnd, row.RouteRegenerationsLeft)
-	} else if row.HunterTeam != "" {
+	if team == game.Hunters && row.HunterTeam != "" {
 		hunterTeam, err5 = game.ParseHunterTeamName(row.HunterTeam)
 	}
 	if err := errors.Join(err1, err2, err3, err4, err5); err != nil {
 		return game.Player{}, err
 	}
 	return game.Player{
-		ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), HunterTeam: hunterTeam, Route: route,
+		ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), HunterTeam: hunterTeam,
 	}, nil
 }
 
