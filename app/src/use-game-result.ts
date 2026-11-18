@@ -6,7 +6,8 @@ import { getGameResult, type GameResultResponse } from '@/api/client';
 type Snapshot = { key: string; result?: GameResultResponse; error?: unknown };
 
 export function returnFromResult() {
-  router.dismissAll();
+  // A directly opened result may be the only screen in the stack.
+  if (router.canDismiss()) router.dismissAll();
   router.replace('/');
 }
 

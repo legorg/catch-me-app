@@ -20,7 +20,8 @@ export function goHome() {
 export function goToGameResult(sessionId: string) {
   void stopBackgroundSharing();
   playerSession.clear(); // Do not resume the ended game when returning home.
-  router.dismissAll();
+  // Joining replaces the lobby/game screen, so the stack may already be at its root.
+  if (router.canDismiss()) router.dismissAll();
   router.replace(gameResultRoute(sessionId));
 }
 
