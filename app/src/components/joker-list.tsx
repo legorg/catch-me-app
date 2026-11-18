@@ -5,7 +5,7 @@ import type { Coordinates, GameStateResponse, Playground } from '@/api/types';
 import Button from '@/components/button';
 import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, translate, useT } from '@/i18n';
-import { isCaught } from '@/game-state';
+import { ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
@@ -31,12 +31,13 @@ export default function JokerList({ state, error, onUse }: {
   const pointCell = point && cellAt(state.playground, point);
   // The compass starts at the hunter's own position; the server refuses it without one.
   const hasPosition = !!state.players.find((p) => p.playerId === state.playerId)?.position;
+  const runnerStatus = ownPlayer(state)?.runner?.status;
 
-  if (isCaught(state)) {
+  if (runnerStatus === 'caught' || runnerStatus === 'finished') {
     return (
       <View style={styles.content}>
         <Text style={styles.heading}>{t('joker.title')}</Text>
-        <Text style={styles.text}>{t('catch.noJokers')}</Text>
+        <Text style={styles.text}>{t(runnerStatus === 'caught' ? 'catch.noJokers' : 'finish.noJokers')}</Text>
       </View>
     );
   }

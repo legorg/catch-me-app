@@ -16,6 +16,7 @@ export type {
   ControllerPlayerResponse as PlayerResponse,
   ControllerPlayground as Playground,
   ControllerRevealResponse as RevealResponse,
+  ControllerRunnerStatus as RunnerStatus,
   ControllerUseJokerRequest as JokerRequest,
 } from './generated/types.gen';
 
@@ -28,4 +29,3 @@ export function isGameStateRunnerResponse(state: GameState): state is Extract<Ga
 export function isGameStateHunterResponse(state: GameState): state is Extract<GameState, { team: 'hunter' }> {
   return state.team === 'hunter';
 }
-

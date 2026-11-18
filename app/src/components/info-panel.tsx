@@ -38,11 +38,15 @@ type InfoPanelProps = {
   location: LocationSharing;
 };
 
-/** Also lists catches without a reported position, which cannot have a map pin. */
-function CaughtPlayers({ state }: { state: GameStateResponse }) {
+/** Outcomes are visible even when there is no map marker (never one for finishes). */
+function RunnerOutcomes({ state }: { state: GameStateResponse }) {
   const t = useT();
-  const names = state.players.filter((player) => player.runner?.status === 'caught').map((player) => player.name).join(', ');
-  return names ? <Text style={styles.text}>{t('catch.players', { names })}</Text> : null;
+  const caught = state.players.filter((player) => player.runner?.status === 'caught').map((player) => player.name).join(', ');
+  const finished = state.players.filter((player) => player.runner?.status === 'finished').map((player) => player.name).join(', ');
+  return <>
+    {!!caught && <Text style={styles.text}>{t('catch.players', { names: caught })}</Text>}
+    {!!finished && <Text style={styles.text}>{t('finish.players', { names: finished })}</Text>}
+  </>;
 }
 
 /** Collapsible card over the map: who you are, the route, the legend, location sharing and the exit button. */
@@ -61,9 +65,9 @@ export default function InfoPanel({ state, me, revealScheduled, location }: Info
       {revealScheduled && isActivePlayer(me) && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
       <RouteLine state={state} />
       <Text style={styles.hint}>{t(texts.legend)}</Text>
-      <CaughtPlayers state={state} />
-      {me?.runner?.status === 'caught'
-        ? <Text style={styles.text}>{t('catch.sharingStopped')}</Text>
+      <RunnerOutcomes state={state} />
+      {me?.runner?.status === 'caught' || me?.runner?.status === 'finished'
+        ? <Text style={styles.text}>{t(me.runner.status === 'caught' ? 'catch.sharingStopped' : 'finish.sharingStopped')}</Text>
         : isActivePlayer(me) && <LocationSharingInfo location={location} />}
       {/* Rarely needed and final, so it sits here behind a confirmation. */}
       <Button label={t('game.exit')} variant="secondary" onPress={confirmExit} />

@@ -13,7 +13,7 @@ export const MIN_REVEAL_INTERVAL_MINUTES = 1;
 export const MAX_REVEAL_INTERVAL_MINUTES = 60;
 /** Where the draft playground starts before the user drags it (Cologne). */
 export const DEFAULT_CENTER: Coordinates = { latitude: 50.9375, longitude: 6.9603 };
-/** How close to the route's start a runner must be to get ready; the backend enforces the same radius. */
+/** Shared start/finish landmark radius; the backend enforces the same distance. */
 export const START_RADIUS_METERS = 50;
 
 /** Great-circle (haversine) distance in meters. */

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, getGameState, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, finish, getGameState, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
 import { previewPlayground } from '../src/playground';
@@ -142,6 +142,31 @@ test('marking caught posts without coordinates and preserves the returned catch 
   assert.deepEqual(await markCaught(token), caught);
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'you can only mark yourself caught while the game is running' }, { status: 409 }));
   await assert.rejects(markCaught(token), (err: unknown) => err instanceof ApiError && err.status === 409);
+});
+
+test('finishing posts only the token and preserves the server outcome on retries', async (t) => {
+  const finished = {
+    ...state, status: 'running',
+    players: [{ ...state.players[0], runner: { status: 'finished', endedAt: '2026-11-18T12:07:00Z' } }],
+  };
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.equal(request.method, 'POST');
+    assert.equal(new URL(request.url).pathname, '/api/me/finish');
+    assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
+    assert.equal(await request.text(), '');
+    return Response.json(finished);
+  });
+  assert.deepEqual(await finish(token), finished);
+  assert.deepEqual(await finish(token), finished);
+});
+
+test('finish failures keep their HTTP status or network error, never a local success', async (t) => {
+  for (const status of [401, 409]) {
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'finish refused' }, { status }));
+    await assert.rejects(finish(token), (err: unknown) => err instanceof ApiError && err.status === status && err.message === 'finish refused');
+  }
+  t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('Network request failed'); });
+  await assert.rejects(finish(token), /Network request failed/);
 });
 
 test('the game state is returned as sent', async (t) => {

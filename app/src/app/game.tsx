@@ -10,7 +10,7 @@ import InfoPanel from '@/components/info-panel';
 import LoadingScreen from '@/components/loading-screen';
 import PlaygroundMap from '@/components/playground-map';
 import { compassLines, gameHighlights, gameMarkers, secondsUntil, sketchLines } from '@/lobby';
-import { isActivePlayer, isCaught, ownPlayer } from '@/game-state';
+import { canFinish, isActivePlayer, ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { noop } from '@/press';
 import { dynamicStyles, overlay, styles } from '@/styles';
@@ -19,7 +19,7 @@ import { useGameHaptics } from '@/use-game-haptics';
 import { useGameLocation } from '@/use-game-location';
 import { useGameState, useLobbyUnlessRunning } from '@/use-game-state';
 import { useSketching } from '@/use-sketching';
-import { useMarkCaught } from '@/use-mark-caught';
+import { useRunnerActions } from '@/use-runner-actions';
 
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
@@ -27,14 +27,13 @@ export default function GameScreen() {
   const sketching = useSketching({ token, show, fail });
   const { infoOpen, toggleInfo, startDrawing, stopDrawing } = useDrawingControls(sketching);
   const location = useGameLocation({ token, state, show, fail });
-  const capture = useMarkCaught({ token, state, show, fail });
+  const runnerActions = useRunnerActions({ token, state, receivedAt: snapshot?.receivedAt, show, fail });
   useGameHaptics(state);
   useLobbyUnlessRunning(state, running);
 
   if (!token || !state || !snapshot) return <LoadingScreen error={error} />;
 
   const me = ownPlayer(state);
-  const caught = isCaught(state);
   const active = isActivePlayer(me);
   const hunter = isGameStateHunterResponse(state) ? state : undefined;
   const canSketch = !!hunter && !!me?.hunterTeam;
@@ -51,10 +50,10 @@ export default function GameScreen() {
       </View>
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, dynamicStyles.hudFill(insets)]}>
-        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} caught={caught} />
+        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} testMode={state.startPositionCheckDisabled === true} />
         <View pointerEvents="box-none" style={styles.hudZone}>
           {infoOpen && <InfoPanel state={state} me={me} revealScheduled={nextReveal !== null} location={location} />}
-          <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} caught={active ? capture.error : ''} />
+          <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} runnerAction={active ? runnerActions.error : ''} />
           <ActionBar
             drawing={drawing}
             canSketch={canSketch}
@@ -65,7 +64,8 @@ export default function GameScreen() {
             onDraw={startDrawing}
             onDoneDrawing={stopDrawing}
             onClearSketches={sketching.confirmClear}
-            catchAction={state.team === 'runner' && state.status === 'running' && active ? { busy: capture.busy, onPress: capture.confirmCatch } : undefined}
+            catchAction={state.team === 'runner' && state.status === 'running' && active ? { busy: runnerActions.busy === 'catch', disabled: !!runnerActions.busy, onPress: runnerActions.confirmCatch } : undefined}
+            finishAction={active && (canFinish(state, snapshot.receivedAt, now) || runnerActions.busy === 'finish') ? { busy: runnerActions.busy === 'finish', disabled: !!runnerActions.busy, onPress: runnerActions.confirmFinish } : undefined}
           />
         </View>
       </View>

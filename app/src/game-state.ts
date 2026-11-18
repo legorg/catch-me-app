@@ -1,11 +1,10 @@
-import type { GameStateResponse, PlayerResponse } from './api/types';
+import { isGameStateRunnerResponse, type GameStateResponse, type PlayerResponse } from './api/types';
+import { distanceMeters, START_RADIUS_METERS } from './playground';
+
+const LANDMARK_POSITION_MAX_AGE_MS = 30_000;
 
 export function ownPlayer(state: GameStateResponse | undefined) {
   return state?.players.find((player) => player.playerId === state.playerId);
-}
-
-export function isCaught(state: GameStateResponse | undefined): boolean {
-  return ownPlayer(state)?.runner?.status === 'caught';
 }
 
 export function isActivePlayer(player: PlayerResponse | undefined): boolean {
@@ -14,6 +13,18 @@ export function isActivePlayer(player: PlayerResponse | undefined): boolean {
 
 export function canShareGameLocation(state: GameStateResponse | undefined): boolean {
   return state?.status === 'running' && isActivePlayer(ownPlayer(state));
+}
+
+/** UI eligibility only; the server repeats the check on the finish request. */
+export function canFinish(state: GameStateResponse | undefined, receivedAt: number, now: number): boolean {
+  if (!state || !isGameStateRunnerResponse(state) || state.status !== 'running' || !isActivePlayer(ownPlayer(state))) return false;
+  if (state.startPositionCheckDisabled === true) return true;
+  const position = ownPlayer(state)?.position;
+  if (!position) return false;
+  // Use server timestamps plus elapsed time since receipt, never the phone's absolute clock.
+  const age = Date.parse(state.serverTime) + Math.max(0, now - receivedAt) - Date.parse(position.recordedAt);
+  return age >= 0 && age <= LANDMARK_POSITION_MAX_AGE_MS
+    && distanceMeters(position, state.route.stop.coordinates) <= START_RADIUS_METERS;
 }
 
 /** Late responses must not undo or change a confirmed runner outcome. */

@@ -3,8 +3,8 @@ import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
 import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, thinPoints } from '../src/lobby';
-import { canShareGameLocation, isActivePlayer, isCaught, shouldAcceptGameState } from '../src/game-state';
-import { cellBounds, distanceMeters, previewPlayground } from '../src/playground';
+import { canFinish, canShareGameLocation, isActivePlayer, shouldAcceptGameState } from '../src/game-state';
+import { cellBounds, distanceMeters, offsetPoint, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
   sessionId: '00112233445566778899aabbccddeeff',
@@ -147,8 +147,6 @@ test('only active players with a running game may share game locations', () => {
   const running: GameStateRunnerResponse = { ...state, status: 'running' };
   const caught = { ...running, players: [{ ...running.players[0], runner: { status: 'caught' as const, endedAt: running.serverTime } }] };
   const finished = { ...running, players: [{ ...running.players[0], runner: { status: 'finished' as const, endedAt: running.serverTime } }] };
-  assert.equal(isCaught(running), false);
-  assert.equal(isCaught(caught), true);
   assert.equal(canShareGameLocation(undefined), false);
   assert.equal(canShareGameLocation(state), false);
   assert.equal(canShareGameLocation({ ...state, status: 'lobby' }), false);
@@ -177,6 +175,45 @@ test('finished runners have no ordinary, historical joker, fake-position or catc
   assert.deepEqual(caughtMarkers(runners), []);
   assert.deepEqual(jokerMarkers(hunters), []);
   assert.deepEqual(fakePositionMarkers(runners), []);
+});
+
+test('finishing requires a recent server-confirmed report within 50 m of the stop', () => {
+  const receivedAt = Date.UTC(2040, 0, 1); // The phone's absolute clock is irrelevant.
+  const report = { ...state.route.stop.coordinates, accuracyMeters: 5, recordedAt: state.serverTime };
+  const running: GameStateRunnerResponse = { ...state, status: 'running', players: [{ ...state.players[0], position: report }] };
+  assert.equal(canFinish(running, receivedAt, receivedAt), true);
+  assert.equal(canFinish(running, receivedAt, receivedAt + 30_000), true);
+  assert.equal(canFinish(running, receivedAt, receivedAt + 30_001), false);
+  assert.equal(canFinish(running, receivedAt, receivedAt - 250), true); // Render tick just predates receipt.
+  for (const meters of [49.99, 50.01]) {
+    const position = { ...report, ...offsetPoint(state.route.stop.coordinates, 0, meters) };
+    assert.equal(canFinish({ ...running, players: [{ ...running.players[0], position }] }, receivedAt, receivedAt), meters < 50);
+  }
+  for (const position of [
+    undefined,
+    { ...report, ...state.route.start.coordinates },
+    { ...report, recordedAt: new Date(Date.parse(state.serverTime) - 30_001).toISOString() },
+    { ...report, recordedAt: 'not a date' },
+    { ...report, recordedAt: new Date(Date.parse(state.serverTime) + 1000).toISOString() },
+  ]) {
+    assert.equal(canFinish({ ...running, players: [{ ...running.players[0], position }] }, receivedAt, receivedAt), false);
+  }
+  assert.equal(running.players[0].runner?.status, 'active'); // Eligibility never finishes automatically.
+});
+
+test('the existing test override skips only the finish position gate', () => {
+  const running: GameStateRunnerResponse = { ...state, status: 'running', startPositionCheckDisabled: true };
+  assert.equal(canFinish(running, 0, 0), true); // No position or permission needed for stationary testing.
+  const stale = { ...state.route.start.coordinates, accuracyMeters: 5, recordedAt: '2000-01-01T00:00:00Z' };
+  assert.equal(canFinish({ ...running, players: [{ ...state.players[0], position: stale }] }, 0, 0), true);
+  for (const blocked of [
+    undefined, state, { ...running, status: 'lobby' as const }, { ...running, status: 'countdown' as const },
+    { ...hunterState, status: 'running' as const, startPositionCheckDisabled: true },
+    { ...running, players: [] },
+    ...(['caught', 'finished'] as const).map((status) => ({ ...running, players: [{ ...state.players[0], runner: { status, endedAt: state.serverTime } }] })),
+  ]) {
+    assert.equal(canFinish(blocked, 0, 0), false);
+  }
 });
 
 test('late responses cannot undo or change a confirmed runner outcome', () => {

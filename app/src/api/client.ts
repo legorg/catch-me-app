@@ -3,6 +3,7 @@ import {
   addSketch as postSketch,
   clearSketches as deleteSketches,
   createGame as postGame,
+  finish as postFinish,
   getGameState as fetchGameState,
   getHealth,
   joinGame as postPlayer,
@@ -95,6 +96,11 @@ export async function getGameState(token: string): Promise<GameStateResponse> {
 /** Permanently marks this runner caught, on trust alone; retries preserve the original catch. */
 export async function markCaught(token: string): Promise<GameStateResponse> {
   return request((signal) => postCaught({ baseUrl: API_URL, auth: bearer(token), signal }));
+}
+
+/** The server checks its latest stored report; no client coordinates or time are sent. */
+export async function finish(token: string): Promise<GameStateResponse> {
+  return request((signal) => postFinish({ baseUrl: API_URL, auth: bearer(token), signal }));
 }
 
 export async function setReady(token: string, ready: boolean): Promise<GameStateResponse> {
