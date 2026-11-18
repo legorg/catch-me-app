@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 
 import { ApiError, markCaught, type GameStateResponse } from '@/api/client';
 import { confirm } from '@/confirm';
-import { isCaught } from '@/game-state';
+import { isActivePlayer, ownPlayer } from '@/game-state';
 import { useT } from '@/i18n';
 
 type Options = {
@@ -20,7 +20,7 @@ export function useMarkCaught({ token, state, show, fail }: Options) {
   const [error, setError] = useState('');
 
   const submit = async () => {
-    if (!token || state?.team !== 'runner' || state.status !== 'running' || pending.current || isCaught(state)) return;
+    if (!token || state?.team !== 'runner' || state.status !== 'running' || pending.current || !isActivePlayer(ownPlayer(state))) return;
     pending.current = true;
     setBusy(true);
     setError('');

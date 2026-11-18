@@ -15,12 +15,13 @@ type visiblePlayer struct {
 	// hunter looks at a runner.
 	Reveals []HunterReveal
 	// A catch replaces live positions and reveals for every viewer immediately.
-	CaughtAt       time.Time
 	CaughtPosition Position
+	Runner         RunnerState
 }
 
 // VisibleTo applies the visibility rules for viewer:
-//   - Everyone sees their own position at any time.
+//   - Finished runners expose only their finish status, never a position or reveal.
+//   - Active players see their own position; caught runners expose the catch instead.
 //   - Hunters of the same hunter team see each other's latest positions at any
 //     time; other hunter teams never.
 //   - While running, runners see each other's latest positions.
@@ -31,9 +32,13 @@ func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 	running := l.Game.Status(now) == StatusRunning
 	visible := make([]visiblePlayer, 0, len(l.Players))
 	for _, p := range l.Players {
-		v := visiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready}
-		if !p.CaughtAt.IsZero() {
-			v.CaughtAt, v.CaughtPosition = p.CaughtAt, p.Position
+		v := visiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready, Runner: p.Runner}
+		if p.Team == Runners && p.Runner.Status() == RunnerFinished {
+			visible = append(visible, v)
+			continue
+		}
+		if p.Team == Runners && p.Runner.Status() == RunnerCaught {
+			v.CaughtPosition = p.Position
 			visible = append(visible, v)
 			continue
 		}

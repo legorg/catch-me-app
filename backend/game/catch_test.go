@@ -37,7 +37,7 @@ func TestMarkCaughtRules(t *testing.T) {
 		t.Fatalf("retry should be harmless: %v", err)
 	}
 	caught, _ := l.Player(runner.ID)
-	if caught.CaughtAt != at || caught.Position != runner.Position {
+	if caught.Runner.Status() != RunnerCaught || caught.Runner.EndedAt() != at || caught.Position != runner.Position {
 		t.Fatalf("catch time and last report must remain frozen: %+v", caught)
 	}
 	if err := l.MarkCaught(l.Players[1].ID, at); err != nil {
@@ -69,7 +69,7 @@ func TestCaughtRunnerReplacesLivePositionAndRevealsForEveryone(t *testing.T) {
 				if p.ID != runner.ID {
 					continue
 				}
-				if p.CaughtAt != at || p.CaughtPosition != actual || !p.Position.IsZero() || len(p.Reveals) != 0 {
+				if p.Runner.Status() != RunnerCaught || p.Runner.EndedAt() != at || p.CaughtPosition != actual || !p.Position.IsZero() || len(p.Reveals) != 0 {
 					t.Fatalf("everyone must get only the frozen catch, immediately and later: %+v", p)
 				}
 			}
@@ -134,7 +134,7 @@ func TestMarkCaughtWithoutAReportedPosition(t *testing.T) {
 		t.Fatalf("catch must not require a report: %v", err)
 	}
 	for _, p := range l.VisibleTo(hunter, running) {
-		if p.ID == runner.ID && (p.CaughtAt != running || !p.CaughtPosition.IsZero()) {
+		if p.ID == runner.ID && (p.Runner.Status() != RunnerCaught || p.Runner.EndedAt() != running || !p.CaughtPosition.IsZero()) {
 			t.Fatalf("catch without a position should only expose the status: %+v", p)
 		}
 	}

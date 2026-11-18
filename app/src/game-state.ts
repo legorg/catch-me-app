@@ -1,20 +1,25 @@
-import type { GameStateResponse } from './api/types';
+import type { GameStateResponse, PlayerResponse } from './api/types';
 
 export function ownPlayer(state: GameStateResponse | undefined) {
   return state?.players.find((player) => player.playerId === state.playerId);
 }
 
 export function isCaught(state: GameStateResponse | undefined): boolean {
-  return !!ownPlayer(state)?.caughtAt;
+  return ownPlayer(state)?.runner?.status === 'caught';
+}
+
+export function isActivePlayer(player: PlayerResponse | undefined): boolean {
+  return player?.team === 'hunter' || player?.runner?.status === 'active';
 }
 
 export function canShareGameLocation(state: GameStateResponse | undefined): boolean {
-  return state?.status === 'running' && !!ownPlayer(state) && !isCaught(state);
+  return state?.status === 'running' && isActivePlayer(ownPlayer(state));
 }
 
-/** An older poll or in-flight position response must not undo a confirmed catch. */
+/** Late responses must not undo or change a confirmed runner outcome. */
 export function shouldAcceptGameState(previous: GameStateResponse | undefined, incoming: GameStateResponse): boolean {
   if (!previous || previous.sessionId !== incoming.sessionId || previous.playerId !== incoming.playerId) return true;
-  if (isCaught(previous) && !isCaught(incoming)) return false;
+  const runner = ownPlayer(previous)?.runner;
+  if (runner && runner.status !== 'active' && ownPlayer(incoming)?.runner?.status !== runner.status) return false;
   return Date.parse(incoming.serverTime) >= Date.parse(previous.serverTime);
 }

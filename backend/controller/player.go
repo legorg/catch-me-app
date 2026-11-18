@@ -53,6 +53,24 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
+// Finish validates the latest stored report; the request supplies no coordinates.
+func (c *GameController) Finish(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost) {
+		return
+	}
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	view, err := c.service.Finish(r.Context(), token)
+	if err != nil {
+		writeGameError(w, err, "could not finish runner")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
 // MarkCaught permanently retires the authenticated runner, on trust alone.
 func (c *GameController) MarkCaught(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
@@ -323,12 +341,12 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	base := gameStateBase(view)
 	if view.Me.Team == game.Runners {
 		return NewRunnerState(GameStateRunnerResponse{
-			GameStateBase: base, Team: TeamRunner, Route: gameRouteResponse(view.Lobby.Game.Route),
+			GameStateBase: base, Team: Team(game.Runners), Route: gameRouteResponse(view.Lobby.Game.Route),
 			RouteRegenerationsLeft: view.Lobby.Game.RouteRegenerationsLeft(), Jokers: jokerResponses(view),
 		})
 	}
 	return NewHunterState(GameStateHunterResponse{
-		GameStateBase: base, Team: TeamHunter,
+		GameStateBase: base, Team: Team(game.Hunters),
 		Jokers: jokerResponses(view), Sketches: sketchResponses(view),
 	})
 }
@@ -356,12 +374,14 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 	// Visibility is decided by the domain; this only maps what it allows.
 	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
 		player := PlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}
-		if !p.CaughtAt.IsZero() {
-			caughtAt := p.CaughtAt
-			player.CaughtAt = &caughtAt
+		if p.Team == game.Runners {
+			player.Runner = &RunnerStateResponse{Status: RunnerStatus(p.Runner.Status())}
+			if at := p.Runner.EndedAt(); !at.IsZero() {
+				player.Runner.EndedAt = &at
+			}
 			if !p.CaughtPosition.IsZero() {
 				position := positionResponse(p.CaughtPosition)
-				player.CaughtPosition = &position
+				player.Runner.CaughtPosition = &position
 			}
 		}
 		if !p.Position.IsZero() {
@@ -397,40 +417,40 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 		}
 		switch j.Kind {
 		case game.JokerShowRunners:
-			joker := ShowRunnersJokerResponse{Kind: JokerKindShowRunners, JokerStatus: status}
+			joker := ShowRunnersJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.ShowRunnersUse); ok {
 				joker.Positions = jokerPositionResponses(use.Positions)
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerQueryZone:
-			joker := QueryZoneJokerResponse{Kind: JokerKindQueryZone, JokerStatus: status}
+			joker := QueryZoneJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.QueryZoneUse); ok {
 				found := use.Found
 				joker.Cell, joker.Found = Cell(use.Cell.String()), &found
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerCompass:
-			joker := CompassJokerResponse{Kind: JokerKindCompass, JokerStatus: status}
+			joker := CompassJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.CompassUse); ok {
 				joker.Origin = &Coordinates{Latitude: use.Origin.Latitude(), Longitude: use.Origin.Longitude()}
 				joker.Bearings = use.Bearings
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerZoneOnly:
-			joker := ZoneOnlyJokerResponse{Kind: JokerKindZoneOnly, JokerStatus: status}
+			joker := ZoneOnlyJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.ZoneOnlyUse); ok {
 				joker.UsedBy = PlayerID(use.Runner.String())
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerFakePosition:
-			joker := FakePositionJokerResponse{Kind: JokerKindFakePosition, JokerStatus: status}
+			joker := FakePositionJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.FakePositionUse); ok {
 				joker.UsedBy = PlayerID(use.Runner.String())
 				joker.Point = &Coordinates{Latitude: use.Point.Latitude(), Longitude: use.Point.Longitude()}
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerShowHunters:
-			joker := ShowHuntersJokerResponse{Kind: JokerKindShowHunters, JokerStatus: status}
+			joker := ShowHuntersJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.ShowHuntersUse); ok {
 				joker.UsedBy = PlayerID(use.Runner.String())
 				joker.Positions = jokerPositionResponses(use.Positions)

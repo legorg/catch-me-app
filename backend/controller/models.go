@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"catch-me/backend/game"
 )
 
-// Wire enums and identifiers. The consts are the single source of the allowed
-// values: swag derives the OpenAPI enums from them.
+// Wire enums and identifiers. Enum methods expose domain constants to the
+// OpenAPI generator without adding schema methods to domain types.
 
 // SessionID is the 32-character hex ID of a game.
 type SessionID string
@@ -23,39 +25,21 @@ type SketchID string
 // Cell is a playground cell: column A-L, then row 1-12, within the game's grid.
 type Cell string
 
-type Team string
+type Team game.Team
 
-func (Team) Enum() []any { return []any{TeamRunner, TeamHunter} }
+func (Team) Enum() []any { return []any{game.Runners, game.Hunters} }
 
-const (
-	TeamRunner Team = "runner"
-	TeamHunter Team = "hunter"
-)
+type GameStatus game.Status
 
-type GameStatus string
-
-func (GameStatus) Enum() []any { return []any{GameStatusLobby, GameStatusCountdown, GameStatusRunning} }
-
-const (
-	GameStatusLobby     GameStatus = "lobby"
-	GameStatusCountdown GameStatus = "countdown"
-	GameStatusRunning   GameStatus = "running"
-)
-
-type JokerKind string
-
-func (JokerKind) Enum() []any {
-	return []any{JokerKindShowRunners, JokerKindQueryZone, JokerKindZoneOnly, JokerKindFakePosition, JokerKindShowHunters, JokerKindCompass}
+func (GameStatus) Enum() []any {
+	return []any{game.StatusLobby, game.StatusCountdown, game.StatusRunning}
 }
 
-const (
-	JokerKindShowRunners  JokerKind = "showRunners"
-	JokerKindQueryZone    JokerKind = "queryZone"
-	JokerKindZoneOnly     JokerKind = "zoneOnly"
-	JokerKindFakePosition JokerKind = "fakePosition"
-	JokerKindShowHunters  JokerKind = "showHunters"
-	JokerKindCompass      JokerKind = "compass"
-)
+type JokerKind game.JokerKind
+
+func (JokerKind) Enum() []any {
+	return []any{game.JokerShowRunners, game.JokerQueryZone, game.JokerZoneOnly, game.JokerFakePosition, game.JokerShowHunters, game.JokerCompass}
+}
 
 type HealthResponse struct {
 	Status  string `json:"status" enums:"ok" example:"ok" validate:"required,oneof=ok"`
@@ -143,7 +127,7 @@ type SetHunterTeamRequest struct {
 type PlayerResponse struct {
 	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
 	Name     string   `json:"name" minLength:"1" maxLength:"20" example:"Ada" validate:"required,min=1,max=20"`
-	Team     Team     `json:"team" validate:"required,oneof=runner hunter"`
+	Team     Team     `json:"team" validate:"required"`
 	// Present for hunters who have chosen a hunter team.
 	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves" validate:"omitempty,max=20"`
 	Ready      bool   `json:"ready" example:"false"`
@@ -152,10 +136,24 @@ type PlayerResponse struct {
 	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
 	// Hunters only, for runners while running: every reveal so far, oldest first.
 	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
-	// Present once this runner declares themselves caught; visible to everyone immediately.
-	CaughtAt *time.Time `json:"caughtAt,omitempty" validate:"omitempty"`
+	// Present for every runner, including active runners; absent for hunters.
+	Runner *RunnerStateResponse `json:"runner,omitempty" validate:"omitempty"`
+}
+
+// RunnerStatus adds schema metadata without putting OpenAPI methods on the domain type.
+type RunnerStatus game.RunnerStatus
+
+func (RunnerStatus) Enum() []any {
+	return []any{game.RunnerActive, game.RunnerCaught, game.RunnerFinished}
+}
+
+// RunnerStateResponse exposes one outcome; there is never a finish-position field.
+type RunnerStateResponse struct {
+	Status RunnerStatus `json:"status" validate:"required"`
+	// Absent while active; server-recorded completion time for caught or finished runners.
+	EndedAt *time.Time `json:"endedAt,omitempty" validate:"omitempty"`
 	// Last report before declaring the catch, frozen until position retention expires.
-	// Absent without a report. Replaces position and reveals, for a black catch marker.
+	// Only for caught runners with a retained report; never for active or finished runners.
 	CaughtPosition *PositionResponse `json:"caughtPosition,omitempty" validate:"omitempty"`
 }
 
@@ -248,18 +246,18 @@ func (u *UseJokerRequest) UnmarshalJSON(data []byte) error {
 	}
 	var err error
 	u.Kind = probe.Kind
-	switch probe.Kind {
-	case JokerKindShowRunners:
+	switch game.JokerKind(probe.Kind) {
+	case game.JokerShowRunners:
 		u.variant, err = decodeStrict[ShowRunnersRequest](data)
-	case JokerKindQueryZone:
+	case game.JokerQueryZone:
 		u.variant, err = decodeStrict[QueryZoneRequest](data)
-	case JokerKindZoneOnly:
+	case game.JokerZoneOnly:
 		u.variant, err = decodeStrict[ZoneOnlyRequest](data)
-	case JokerKindFakePosition:
+	case game.JokerFakePosition:
 		u.variant, err = decodeStrict[FakePositionRequest](data)
-	case JokerKindShowHunters:
+	case game.JokerShowHunters:
 		u.variant, err = decodeStrict[ShowHuntersRequest](data)
-	case JokerKindCompass:
+	case game.JokerCompass:
 		u.variant, err = decodeStrict[CompassRequest](data)
 	default:
 		err = fmt.Errorf("unknown joker %q", probe.Kind)
@@ -401,10 +399,10 @@ type JokerPositionResponse struct {
 
 // GameStateBase is what every player sees of the game.
 type GameStateBase struct {
-	// Explicit server-side development override; absent during normal play.
+	// Development override for both Ready and finish position checks; absent during normal play.
 	StartPositionCheckDisabled bool       `json:"startPositionCheckDisabled,omitempty" example:"false" validate:"omitempty"`
 	SessionID                  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
-	Status                     GameStatus `json:"status" validate:"required,oneof=lobby countdown running"`
+	Status                     GameStatus `json:"status" validate:"required"`
 	ServerTime                 time.Time  `json:"serverTime" example:"2026-11-08T12:00:00Z" validate:"required"`
 	// Scheduled start, present during the countdown and once running.
 	StartsAt *time.Time `json:"startsAt,omitempty" example:"2026-11-08T12:00:10Z" validate:"omitempty"`
@@ -503,11 +501,11 @@ func (s *GameStateResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*s = GameStateResponse{}
-	switch probe.Team {
-	case TeamRunner:
+	switch game.Team(probe.Team) {
+	case game.Runners:
 		s.runner = new(GameStateRunnerResponse)
 		return json.Unmarshal(data, s.runner)
-	case TeamHunter:
+	case game.Hunters:
 		s.hunter = new(GameStateHunterResponse)
 		return json.Unmarshal(data, s.hunter)
 	}

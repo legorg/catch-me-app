@@ -10,7 +10,7 @@ import InfoPanel from '@/components/info-panel';
 import LoadingScreen from '@/components/loading-screen';
 import PlaygroundMap from '@/components/playground-map';
 import { compassLines, gameHighlights, gameMarkers, secondsUntil, sketchLines } from '@/lobby';
-import { isCaught, ownPlayer } from '@/game-state';
+import { isActivePlayer, isCaught, ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { noop } from '@/press';
 import { dynamicStyles, overlay, styles } from '@/styles';
@@ -35,6 +35,7 @@ export default function GameScreen() {
 
   const me = ownPlayer(state);
   const caught = isCaught(state);
+  const active = isActivePlayer(me);
   const hunter = isGameStateHunterResponse(state) ? state : undefined;
   const canSketch = !!hunter && !!me?.hunterTeam;
   const drawing = canSketch && sketching.drawing;
@@ -46,25 +47,25 @@ export default function GameScreen() {
       {/* Dark text over the light map; the layout's light style returns when this screen closes. */}
       <StatusBar style="dark" />
       <View style={StyleSheet.absoluteFill}>
-        <PlaygroundMap playground={state.playground} editable={false} onSelect={noop} highlights={gameHighlights(state)} markers={gameMarkers(state)} lines={hunter ? [...sketchLines(hunter), ...compassLines(hunter)] : []} onDraw={drawing ? sketching.send : undefined} locationEnabled={!caught} fullscreen controlsInset={{ bottom: insets.bottom, right: insets.right }} />
+        <PlaygroundMap playground={state.playground} editable={false} onSelect={noop} highlights={gameHighlights(state)} markers={gameMarkers(state)} lines={hunter ? [...sketchLines(hunter), ...compassLines(hunter)] : []} onDraw={drawing ? sketching.send : undefined} locationEnabled={active} fullscreen controlsInset={{ bottom: insets.bottom, right: insets.right }} />
       </View>
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, dynamicStyles.hudFill(insets)]}>
         <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} caught={caught} />
         <View pointerEvents="box-none" style={styles.hudZone}>
           {infoOpen && <InfoPanel state={state} me={me} revealScheduled={nextReveal !== null} location={location} />}
-          <ErrorPills location={caught ? '' : location.error} poll={error} sketch={sketching.error} caught={caught ? '' : capture.error} />
+          <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} caught={active ? capture.error : ''} />
           <ActionBar
             drawing={drawing}
             canSketch={canSketch}
-            canUseJokers={!caught}
+            canUseJokers={active}
             hasSketches={!!hunter && hunter.sketches.length > 0}
             infoOpen={infoOpen}
             onToggleInfo={toggleInfo}
             onDraw={startDrawing}
             onDoneDrawing={stopDrawing}
             onClearSketches={sketching.confirmClear}
-            catchAction={state.team === 'runner' && state.status === 'running' && !caught ? { busy: capture.busy, onPress: capture.confirmCatch } : undefined}
+            catchAction={state.team === 'runner' && state.status === 'running' && active ? { busy: capture.busy, onPress: capture.confirmCatch } : undefined}
           />
         </View>
       </View>

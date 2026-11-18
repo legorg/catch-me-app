@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { ApiError, getGameState, updatePosition, type GameStateResponse } from '@/api/client';
 import { stopBackgroundSharing } from '@/background-location';
-import { canShareGameLocation, isCaught } from '@/game-state';
+import { canShareGameLocation, isActivePlayer, ownPlayer } from '@/game-state';
 import { useLocationSharing, type Fix } from '@/use-location-sharing';
 
 type Options = {
@@ -15,12 +15,13 @@ type Options = {
 /** Shares the player's position with the game while it is on screen (and in the background). */
 export function useGameLocation({ token, state, show, fail }: Options) {
   const active = !!token && canShareGameLocation(state);
-  const caught = isCaught(state);
+  const me = ownPlayer(state);
+  const retired = !!me && !isActivePlayer(me);
   // Also stop a task left registered by an earlier app run when the restored
-  // session is already caught (there may be no active effect to clean up).
+  // session is already retired (there may be no active effect to clean up).
   useEffect(() => {
-    if (caught) void stopBackgroundSharing();
-  }, [caught]);
+    if (retired) void stopBackgroundSharing();
+  }, [retired]);
   const send = useCallback(async (fix: Fix) => {
     if (!token || !active) return;
     try {

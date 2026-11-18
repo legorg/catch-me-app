@@ -51,11 +51,11 @@ func TestCatchSurvivesReopeningAndObeysPositionRetention(t *testing.T) {
 	}
 	lobby := load(t, store, saved.JoinCodes.Hunter, later)
 	p, _ := lobby.Player(runner.ID)
-	if p.CaughtAt != at || p.Position != actual || len(lobby.Reveals[runner.ID]) != 0 {
+	if p.Runner.Status() != game.RunnerCaught || p.Runner.EndedAt() != at || p.Position != actual || len(lobby.Reveals[runner.ID]) != 0 {
 		t.Fatalf("catch and last report must survive reopening, without further reveals: %+v", p)
 	}
 	for _, v := range lobby.VisibleTo(hunter, later) {
-		if v.ID == runner.ID && (v.CaughtAt != at || v.CaughtPosition != actual || !v.Position.IsZero() || len(v.Reveals) != 0) {
+		if v.ID == runner.ID && (v.Runner.Status() != game.RunnerCaught || v.Runner.EndedAt() != at || v.CaughtPosition != actual || !v.Position.IsZero() || len(v.Reveals) != 0) {
 			t.Fatalf("hunter must only get the frozen catch: %+v", v)
 		}
 	}
@@ -64,7 +64,7 @@ func TestCatchSurvivesReopeningAndObeysPositionRetention(t *testing.T) {
 	}
 	lobby = load(t, store, saved.JoinCodes.Hunter, later)
 	for _, v := range lobby.VisibleTo(hunter, later) {
-		if v.ID == runner.ID && (v.CaughtAt != at || !v.CaughtPosition.IsZero()) {
+		if v.ID == runner.ID && (v.Runner.Status() != game.RunnerCaught || v.Runner.EndedAt() != at || !v.CaughtPosition.IsZero()) {
 			t.Fatalf("retention must remove the catch coordinates, not the caught status: %+v", v)
 		}
 	}

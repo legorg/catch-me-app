@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
 import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, thinPoints } from '../src/lobby';
-import { canShareGameLocation, isCaught, shouldAcceptGameState } from '../src/game-state';
+import { canShareGameLocation, isActivePlayer, isCaught, shouldAcceptGameState } from '../src/game-state';
 import { cellBounds, distanceMeters, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
@@ -17,9 +17,9 @@ const state: GameStateRunnerResponse = {
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
   players: [
-    { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', ready: true },
+    { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', ready: true, runner: { status: 'active' } },
     { playerId: 'b'.repeat(32), name: 'Bob', team: 'hunter', ready: true },
-    { playerId: 'c'.repeat(32), name: 'Cy', team: 'runner', ready: false },
+    { playerId: 'c'.repeat(32), name: 'Cy', team: 'runner', ready: false, runner: { status: 'active' } },
   ],
   route: {
     start: { title: 'Start', coordinates: { latitude: 52.47, longitude: 13.4 } },
@@ -96,9 +96,9 @@ test('markers cover only live positions the server sent, colored by kind', () =>
 });
 
 test('a catch is one black marker for everyone, including the caught runner, without waiting for a ping', () => {
-  const caughtAt = '2026-11-08T12:01:00Z';
+  const endedAt = '2026-11-08T12:01:00Z';
   const position = { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: '2026-11-08T12:00:58Z' };
-  const caught = { ...state.players[0], caughtAt, caughtPosition: position };
+  const caught = { ...state.players[0], runner: { status: 'caught' as const, endedAt, caughtPosition: position } };
   for (const viewer of [state, { ...state, playerId: state.players[2].playerId }, { ...hunterState, playerId: state.players[1].playerId }]) {
     const snapshot = { ...viewer, players: [caught, state.players[1], state.players[2]] };
     const markers = caughtMarkers(snapshot);
@@ -111,14 +111,14 @@ test('a catch is one black marker for everyone, including the caught runner, wit
     assert.ok(gameMarkers(snapshot).some((marker) => marker.id === markers[0].id));
   }
   // No report (or expired history) means status only, not a made-up marker.
-  assert.deepEqual(caughtMarkers({ ...state, players: [{ ...caught, caughtPosition: undefined }] }), []);
+  assert.deepEqual(caughtMarkers({ ...state, players: [{ ...caught, runner: { ...caught.runner, caughtPosition: undefined } }] }), []);
 });
 
 test('catch markers replace live, ping, zone-reveal and historical joker markers for that runner', () => {
   const at = '2026-11-08T12:01:00Z';
   const position = { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: at };
   const caught = {
-    ...state.players[0], caughtAt: at, caughtPosition: position,
+    ...state.players[0], runner: { status: 'caught' as const, endedAt: at, caughtPosition: position },
     // Even stale marker data must not draw this runner as still playing.
     position,
     reveals: [{ kind: 'position' as const, revealedAt: at, position }, { kind: 'zone' as const, revealedAt: at, cell: 'C4' }],
@@ -145,21 +145,44 @@ test('catch markers replace live, ping, zone-reveal and historical joker markers
 
 test('only active players with a running game may share game locations', () => {
   const running: GameStateRunnerResponse = { ...state, status: 'running' };
-  const caught = { ...running, players: [{ ...running.players[0], caughtAt: running.serverTime }] };
+  const caught = { ...running, players: [{ ...running.players[0], runner: { status: 'caught' as const, endedAt: running.serverTime } }] };
+  const finished = { ...running, players: [{ ...running.players[0], runner: { status: 'finished' as const, endedAt: running.serverTime } }] };
   assert.equal(isCaught(running), false);
   assert.equal(isCaught(caught), true);
   assert.equal(canShareGameLocation(undefined), false);
   assert.equal(canShareGameLocation(state), false);
   assert.equal(canShareGameLocation({ ...state, status: 'lobby' }), false);
   assert.equal(canShareGameLocation(running), true);
-  assert.equal(canShareGameLocation({ ...hunterState, status: 'running' }), true);
+  assert.equal(canShareGameLocation({ ...hunterState, playerId: state.players[1].playerId, status: 'running' }), true);
   assert.equal(canShareGameLocation(caught), false);
+  assert.equal(canShareGameLocation(finished), false);
   assert.equal(canShareGameLocation({ ...running, players: [] }), false);
+  assert.equal(isActivePlayer(undefined), false);
+  assert.equal(isActivePlayer({ ...running.players[0], runner: undefined }), false);
 });
 
-test('late poll and location responses cannot roll back a confirmed catch or newer state', () => {
+test('finished runners have no ordinary, historical joker, fake-position or catch markers', () => {
+  const at = state.serverTime;
+  const position = { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: at };
+  const finished = {
+    ...state.players[0], runner: { status: 'finished' as const, endedAt: at },
+    // Even stale data is suppressed by status, not by timestamp presence.
+    position, reveals: [{ kind: 'position' as const, revealedAt: at, position }],
+  };
+  const players = [finished, state.players[1]];
+  const runners: GameStateRunnerResponse = { ...state, players, jokers: [{ kind: 'fakePosition', available: false, usedBy: finished.playerId, point: position }] };
+  const hunters: GameStateHunterResponse = { ...hunterState, players, jokers: [{ kind: 'showRunners', available: false, positions: [{ ...position, playerId: finished.playerId }] }] };
+  assert.deepEqual(playerMarkers(runners), []);
+  assert.deepEqual(revealMarkers(hunters), []);
+  assert.deepEqual(caughtMarkers(runners), []);
+  assert.deepEqual(jokerMarkers(hunters), []);
+  assert.deepEqual(fakePositionMarkers(runners), []);
+});
+
+test('late responses cannot undo or change a confirmed runner outcome', () => {
   const active: GameStateRunnerResponse = { ...state, status: 'running' };
-  const caught = { ...active, players: [{ ...active.players[0], caughtAt: active.serverTime }] };
+  const caught = { ...active, players: [{ ...active.players[0], runner: { status: 'caught' as const, endedAt: active.serverTime } }] };
+  const finished = { ...active, players: [{ ...active.players[0], runner: { status: 'finished' as const, endedAt: active.serverTime } }] };
   assert.equal(shouldAcceptGameState(undefined, active), true);
   assert.equal(shouldAcceptGameState(active, caught), true);
   assert.equal(shouldAcceptGameState(caught, active), false);
@@ -167,6 +190,11 @@ test('late poll and location responses cannot roll back a confirmed catch or new
   assert.equal(shouldAcceptGameState(caught, { ...caught, serverTime: '2026-11-08T12:02:00Z' }), true);
   assert.equal(shouldAcceptGameState(active, { ...active, serverTime: '2026-11-08T11:59:59Z' }), false);
   assert.equal(shouldAcceptGameState(caught, { ...active, sessionId: 'd'.repeat(32) }), true);
+  assert.equal(shouldAcceptGameState(active, finished), true);
+  assert.equal(shouldAcceptGameState(finished, active), false);
+  assert.equal(shouldAcceptGameState(finished, caught), false);
+  assert.equal(shouldAcceptGameState(caught, finished), false);
+  assert.equal(shouldAcceptGameState(finished, { ...finished, serverTime: '2026-11-08T12:02:00Z' }), true);
 });
 
 test('every reveal is a numbered marker per runner, oldest first', () => {

@@ -17,8 +17,5 @@ func (l *Lobby) MarkCaught(id PlayerID, now time.Time) error {
 	if l.Game.Status(now) != StatusRunning {
 		return &RuleError{Message: "you can only mark yourself caught while the game is running"}
 	}
-	if player.CaughtAt.IsZero() {
-		player.CaughtAt = now
-	}
-	return nil
+	return player.Runner.end(RunnerCaught, now)
 }

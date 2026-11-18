@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, MarkCaughtData, MarkCaughtErrors, MarkCaughtResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
+import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, FinishData, FinishErrors, FinishResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, MarkCaughtData, MarkCaughtErrors, MarkCaughtResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -45,6 +45,15 @@ export const leaveGame = <ThrowOnError extends boolean = false>(options?: Option
 export const markCaught = <ThrowOnError extends boolean = false>(options?: Options<MarkCaughtData, ThrowOnError>) => (options?.client ?? client).post<MarkCaughtResponses, MarkCaughtErrors, ThrowOnError>({
     security: [{ name: 'Authorization', type: 'apiKey' }],
     url: '/api/me/caught',
+    ...options
+});
+
+/**
+ * Finish at the route's stop (runners, while running)
+ */
+export const finish = <ThrowOnError extends boolean = false>(options?: Options<FinishData, ThrowOnError>) => (options?.client ?? client).post<FinishResponses, FinishErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/finish',
     ...options
 });
 

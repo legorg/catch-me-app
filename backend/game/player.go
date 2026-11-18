@@ -155,7 +155,9 @@ type Player struct {
 	// Zero values mean "none": Position is the latest report. Reveals live on
 	// the Lobby.
 	Position Position
-	// CaughtAt is zero for active players. A caught runner's Position stays at
-	// their last report, until position retention removes it.
-	CaughtAt time.Time
+	// Runner is the runner-only gameplay state. Hunters leave its zero value unused.
+	// After an outcome, Position stays at the last report until normal retention.
+	Runner RunnerState
 }
+
+func (p Player) active() bool { return p.Team != Runners || p.Runner.Status() == RunnerActive }

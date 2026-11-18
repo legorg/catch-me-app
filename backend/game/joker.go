@@ -112,8 +112,8 @@ func (l *Lobby) UseJoker(id PlayerID, choice JokerChoice, now time.Time) error {
 // the runner who used it, at their next reveal; until then, that runner cannot
 // use another reveal joker.
 func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
-	if !me.CaughtAt.IsZero() {
-		return &RuleError{Message: "caught runners cannot use jokers"}
+	if !me.active() {
+		return &RuleError{Message: "caught or finished runners cannot use jokers"}
 	}
 	if me.Team == Runners {
 		switch {
@@ -150,7 +150,7 @@ func (l Lobby) hunterPositions() []JokerPosition { return l.teamPositions(Hunter
 func (l Lobby) teamPositions(team Team) []JokerPosition {
 	var positions []JokerPosition
 	for _, p := range l.Players {
-		if p.Team == team && p.CaughtAt.IsZero() && !p.Position.IsZero() {
+		if p.Team == team && p.active() && !p.Position.IsZero() {
 			positions = append(positions, JokerPosition{PlayerID: p.ID, Position: p.Position})
 		}
 	}
@@ -181,7 +181,7 @@ func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
 	states := make([]jokerState, 0, len(kinds))
 	for _, kind := range kinds {
 		use := find(kind)
-		states = append(states, jokerState{Kind: kind, Available: running && viewer.CaughtAt.IsZero() && use == nil, Use: use})
+		states = append(states, jokerState{Kind: kind, Available: running && viewer.active() && use == nil, Use: use})
 	}
 	return states
 }

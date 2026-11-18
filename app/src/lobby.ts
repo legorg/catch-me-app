@@ -1,5 +1,6 @@
 import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
+import { isActivePlayer } from './game-state';
 import { cellAt, cellBounds, offsetPoint, START_RADIUS_METERS } from './playground';
 
 /**
@@ -63,7 +64,7 @@ export type PlayerMarker = {
 /** Map markers for every live position the server allowed this player to see. */
 export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
   return state.players.flatMap((p) => {
-    if (!p.position || p.caughtAt) return [];
+    if (!p.position || !isActivePlayer(p)) return [];
     const { latitude, longitude, accuracyMeters, recordedAt } = p.position;
     const me = p.playerId === state.playerId;
     return [{
@@ -78,11 +79,11 @@ export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
 
 /** The last real report at capture, visible to everyone, including the caught runner. */
 export function caughtMarkers(state: GameStateResponse): (PlayerMarker & { label: string })[] {
-  return state.players.flatMap((player) => player.caughtAt && player.caughtPosition ? [{
+  return state.players.flatMap((player) => player.runner?.status === 'caught' && player.runner.endedAt && player.runner.caughtPosition ? [{
     id: `caught-${player.playerId}`,
-    coordinate: { latitude: player.caughtPosition.latitude, longitude: player.caughtPosition.longitude },
+    coordinate: { latitude: player.runner.caughtPosition.latitude, longitude: player.runner.caughtPosition.longitude },
     title: translate('catch.marker', { name: player.name }),
-    description: translate('catch.markerTime', { time: clockTime(player.caughtAt, true) }),
+    description: translate('catch.markerTime', { time: clockTime(player.runner.endedAt, true) }),
     color: MARKER_COLORS.caught,
     label: '×',
   }] : []);
@@ -94,7 +95,7 @@ export function caughtMarkers(state: GameStateResponse): (PlayerMarker & { label
  * one outside the playground has no marker but keeps its number.
  */
 export function revealMarkers(state: GameStateResponse): (PlayerMarker & { label: string })[] {
-  return state.players.flatMap((p) => (p.caughtAt ? [] : p.reveals ?? []).flatMap((reveal, index) => {
+  return state.players.flatMap((p) => (isActivePlayer(p) ? p.reveals ?? [] : []).flatMap((reveal, index) => {
     const coordinate = revealCoordinate(state.playground, reveal);
     if (!coordinate) return [];
     const time = clockTime(reveal.revealedAt, true);
@@ -123,7 +124,7 @@ function revealCoordinate(playground: Playground, reveal: RevealResponse): { lat
 
 /** The cells of zone reveals (runner joker), where hunters saw only the cell and not the position. */
 export function revealZones(state: GameStateResponse): { cell: string; title: string; color: string }[] {
-  return state.players.flatMap((p) => (p.caughtAt ? [] : p.reveals ?? []).flatMap((reveal) => reveal.kind === 'zone'
+  return state.players.flatMap((p) => (isActivePlayer(p) ? p.reveals ?? [] : []).flatMap((reveal) => reveal.kind === 'zone'
     ? [{ cell: reveal.cell, title: p.name, color: ZONE_COLORS.revealed }]
     : []));
 }
@@ -137,7 +138,7 @@ function cellCenter(playground: Playground, cell: string) {
 export function jokerMarkers(state: GameStateHunterResponse): PlayerMarker[] {
   return state.jokers.flatMap((joker) => [
     ...(joker.kind === 'showRunners' ? joker.positions ?? [] : []).filter((position) =>
-      !state.players.find((player) => player.playerId === position.playerId)?.caughtAt).map((position) => ({
+      isActivePlayer(state.players.find((player) => player.playerId === position.playerId))).map((position) => ({
       id: `joker-${joker.kind}-${position.playerId}`,
       coordinate: { latitude: position.latitude, longitude: position.longitude },
       title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
@@ -253,7 +254,7 @@ export function routeMarkers(route: GameRoute): PlayerMarker[] {
 /** The requesting runner's own fakePosition point, once used. */
 export function fakePositionMarkers(state: GameStateRunnerResponse): PlayerMarker[] {
   return state.jokers.flatMap((joker) => joker.kind === 'fakePosition' && joker.point &&
-    !state.players.find((player) => player.playerId === joker.usedBy)?.caughtAt ? [{
+    isActivePlayer(state.players.find((player) => player.playerId === joker.usedBy)) ? [{
     id: 'joker-fakePosition',
     coordinate: joker.point,
     title: translate('joker.fakePosition.marker', { name: state.players.find((p) => p.playerId === joker.usedBy)?.name ?? '' }),

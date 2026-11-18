@@ -178,8 +178,8 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 		return ErrUnauthorized
 	}
 	player := &l.Players[i]
-	if !player.CaughtAt.IsZero() {
-		return &RuleError{Message: "caught runners cannot report positions"}
+	if !player.active() {
+		return &RuleError{Message: "caught or finished runners cannot report positions"}
 	}
 	player.Position = position
 	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireAtStart(*player, now) != nil {
@@ -195,11 +195,16 @@ func (l Lobby) requireAtStart(p Player, now time.Time) error {
 	if p.Team != Runners {
 		return nil
 	}
-	if p.Position.IsZero() || now.Sub(p.Position.RecordedAt) > startPositionMaxAge {
-		return &RuleError{Message: "share your location to get ready"}
+	return requireNearLandmark(p.Position, l.Game.Route.Start.Coordinates, now)
+}
+
+// requireNearLandmark is shared by Ready and Finish, with server-recorded positions.
+func requireNearLandmark(position Position, landmark Coordinates, now time.Time) error {
+	if position.IsZero() || now.Sub(position.RecordedAt) > startPositionMaxAge {
+		return &RuleError{Message: "share a location from the last 30 seconds"}
 	}
-	if p.Position.Coordinates.DistanceMeters(l.Game.Route.Start.Coordinates) > startRadiusMeters {
-		return &RuleError{Message: fmt.Sprintf("go to within %d meters of the start to get ready", startRadiusMeters)}
+	if position.Coordinates.DistanceMeters(landmark) > startRadiusMeters {
+		return &RuleError{Message: fmt.Sprintf("go to within %d meters of the route landmark", startRadiusMeters)}
 	}
 	return nil
 }

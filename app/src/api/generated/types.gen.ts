@@ -175,14 +175,13 @@ export type ControllerOutsideRevealResponse = {
 };
 
 export type ControllerPlayerResponse = {
-    caughtAt?: string;
-    caughtPosition?: ControllerPositionResponse;
     hunterTeam?: string;
     name: string;
     playerId: string;
     position?: ControllerPositionResponse;
     ready: boolean;
     reveals?: Array<ControllerRevealResponse>;
+    runner?: ControllerRunnerStateResponse;
     team: ControllerTeam;
 };
 
@@ -229,6 +228,14 @@ export type ControllerRevealResponse = ({
 } & ControllerZoneRevealResponse) | ({
     kind: 'outside';
 } & ControllerOutsideRevealResponse);
+
+export type ControllerRunnerStateResponse = {
+    caughtPosition?: ControllerPositionResponse;
+    endedAt?: string;
+    status: ControllerRunnerStatus;
+};
+
+export type ControllerRunnerStatus = 'active' | 'caught' | 'finished';
 
 export type ControllerSetHunterTeamRequest = {
     name: string;
@@ -415,7 +422,7 @@ export type MarkCaughtErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a runner or game not running
+     * Not a runner, already finished, or game not running
      */
     409: ControllerApiError;
     /**
@@ -428,12 +435,49 @@ export type MarkCaughtError = MarkCaughtErrors[keyof MarkCaughtErrors];
 
 export type MarkCaughtResponses = {
     /**
-     * Caught; repeated requests preserve the original catch time and position. Everyone sees the catch immediately; further positions and joker uses are rejected
+     * runner.status is caught with runner.endedAt and optional runner.caughtPosition; retries preserve the original time and position. Everyone sees the catch immediately; further positions and joker uses are rejected
      */
     200: ControllerGameStateResponse;
 };
 
 export type MarkCaughtResponse = MarkCaughtResponses[keyof MarkCaughtResponses];
+
+export type FinishData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/finish';
+};
+
+export type FinishErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a runner, caught, game not running, or missing, stale, or distant position
+     */
+    409: ControllerApiError;
+    /**
+     * Could not finish runner
+     */
+    500: ControllerApiError;
+};
+
+export type FinishError = FinishErrors[keyof FinishErrors];
+
+export type FinishResponses = {
+    /**
+     * runner.status is finished with runner.endedAt; retries preserve the original server time. Requires a stored report within 50 m and at most 30 seconds old, unless the development start/finish override is enabled. No finish coordinates are exposed; further position reports and jokers are rejected
+     */
+    200: ControllerGameStateResponse;
+};
+
+export type FinishResponse = FinishResponses[keyof FinishResponses];
 
 export type GetGameStateData = {
     body?: never;
@@ -461,7 +505,7 @@ export type GetGameStateError = GetGameStateErrors[keyof GetGameStateErrors];
 
 export type GetGameStateResponses = {
     /**
-     * Current game state
+     * Current game state; each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
      */
     200: ControllerGameStateResponse;
 };
@@ -588,7 +632,7 @@ export type UpdatePositionErrors = {
      */
     405: ControllerApiError;
     /**
-     * Caught runners cannot report positions
+     * Caught or finished runners cannot report positions
      */
     409: ControllerApiError;
     /**

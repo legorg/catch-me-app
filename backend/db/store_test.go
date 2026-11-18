@@ -475,7 +475,7 @@ func TestFakePositionJokerIsStoredAndReplacesTheNextReveal(t *testing.T) {
 	}
 }
 
-func TestPersonalFakePositionsSurviveReopeningAndUpgradeSharedUses(t *testing.T) {
+func TestPersonalFakePositionsSurviveReopening(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "personal-jokers.sqlite")
 	store := open(t, path)
@@ -489,16 +489,6 @@ func TestPersonalFakePositionsSurviveReopeningAndUpgradeSharedUses(t *testing.T)
 	}
 	adaPoint, cyPoint := saved.Route.Start.Coordinates, saved.Route.Stop.Coordinates
 	usedAt := start.Add(time.Second)
-	// Simulate the old shared storage format without deleting any data.
-	legacy := jokerRow{GameID: saved.SessionID.String(), Kind: string(game.JokerFakePosition), PlayerID: ada.ID.String(),
-		Latitude: adaPoint.Latitude(), Longitude: adaPoint.Longitude(), UsedAt: usedAt}
-	if err := store.db.Create(&legacy).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Close(); err != nil {
-		t.Fatal(err)
-	}
-	store = open(t, path)
 	var rule *game.RuleError
 	use := func(player game.Player, token game.PlayerToken, point game.Coordinates, at time.Time) error {
 		_, err := store.UpdateLobbyByToken(ctx, token.Hash(), at, func(l *game.Lobby) error {
@@ -506,13 +496,19 @@ func TestPersonalFakePositionsSurviveReopeningAndUpgradeSharedUses(t *testing.T)
 		})
 		return err
 	}
+	if err := use(ada, adaToken, adaPoint, usedAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store = open(t, path)
 	if err := use(ada, adaToken, adaPoint, start.Add(revealInterval)); !errors.As(err, &rule) {
-		t.Fatalf("the legacy use must stay spent for its runner: %v", err)
+		t.Fatalf("the personal use must stay spent for its runner after reopening: %v", err)
 	}
 	if err := use(cy, cyToken, cyPoint, usedAt); err != nil {
 		t.Fatalf("another runner can use their joker while Ada's is pending: %v", err)
 	}
-	// Reopening again also checks that the legacy data upgrade is idempotent.
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}

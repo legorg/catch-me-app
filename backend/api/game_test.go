@@ -190,10 +190,35 @@ func TestOpenAPIRoutes(t *testing.T) {
 		t.Fatalf("unexpected player token scheme: %+v", scheme)
 	}
 	const union = "ControllerGameStateResponse"
+	for _, tc := range []struct {
+		name   string
+		values []any
+	}{
+		{"ControllerTeam", []any{"runner", "hunter"}},
+		{"ControllerGameStatus", []any{"lobby", "countdown", "running"}},
+		{"ControllerJokerKind", []any{"showRunners", "queryZone", "zoneOnly", "fakePosition", "showHunters", "compass"}},
+	} {
+		if got := spec.Components.Schemas[tc.name].Enum; !slices.Equal(got, tc.values) {
+			t.Fatalf("%s enum changed: %v", tc.name, got)
+		}
+	}
 	player := spec.Components.Schemas["ControllerPlayerResponse"]
-	for _, field := range []string{"caughtAt", "caughtPosition"} {
-		if _, ok := player.Properties[field]; !ok || slices.Contains(player.Required, field) {
-			t.Fatalf("player schema must document optional %s", field)
+	if runner, ok := player.Properties["runner"]; !ok || runner.Ref != "#/components/schemas/ControllerRunnerStateResponse" || slices.Contains(player.Required, "runner") {
+		t.Fatal("player schema must document runner-only state")
+	}
+	for _, old := range []string{"caughtAt", "caughtPosition", "finishedAt"} {
+		if _, ok := player.Properties[old]; ok {
+			t.Fatalf("obsolete player field %s", old)
+		}
+	}
+	runner := spec.Components.Schemas["ControllerRunnerStateResponse"]
+	status := spec.Components.Schemas[strings.TrimPrefix(runner.Properties["status"].Ref, "#/components/schemas/")]
+	if !slices.Equal(status.Enum, []any{"active", "caught", "finished"}) || !slices.Contains(runner.Required, "status") {
+		t.Fatalf("runner status must be required and enumerate implemented states: %+v", runner)
+	}
+	for _, optional := range []string{"endedAt", "caughtPosition"} {
+		if _, ok := runner.Properties[optional]; !ok || slices.Contains(runner.Required, optional) {
+			t.Fatalf("runner schema missing optional %s", optional)
 		}
 	}
 	for _, tc := range []struct{ path, method, id, status, schema string }{
@@ -202,6 +227,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		{"/api/players", "post", "joinGame", "201", "ControllerJoinGameResponse"},
 		{"/api/me/game", "get", "getGameState", "200", union},
 		{"/api/me/caught", "post", "markCaught", "200", union},
+		{"/api/me/finish", "post", "finish", "200", union},
 		{"/api/me/ready", "put", "setReady", "200", union},
 		{"/api/me/route", "post", "regenerateRoute", "200", union},
 		{"/api/me/hunter-team", "put", "setHunterTeam", "200", union},

@@ -166,7 +166,7 @@
         "operationId": "markCaught",
         "responses": {
           "200": {
-            "description": "Caught; repeated requests preserve the original catch time and position. Everyone sees the catch immediately; further positions and joker uses are rejected",
+            "description": "runner.status is caught with runner.endedAt and optional runner.caughtPosition; retries preserve the original time and position. Everyone sees the catch immediately; further positions and joker uses are rejected",
             "content": {
               "application/json": {
                 "schema": {
@@ -196,7 +196,7 @@
             }
           },
           "409": {
-            "description": "Not a runner or game not running",
+            "description": "Not a runner, already finished, or game not running",
             "content": {
               "application/json": {
                 "schema": {
@@ -223,13 +223,76 @@
         ]
       }
     },
+    "/api/me/finish": {
+      "post": {
+        "summary": "Finish at the route's stop (runners, while running)",
+        "operationId": "finish",
+        "responses": {
+          "200": {
+            "description": "runner.status is finished with runner.endedAt; retries preserve the original server time. Requires a stored report within 50 m and at most 30 seconds old, unless the development start/finish override is enabled. No finish coordinates are exposed; further position reports and jokers are rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a runner, caught, game not running, or missing, stale, or distant position",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not finish runner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
     "/api/me/game": {
       "get": {
         "summary": "Get the game state for the authenticated player",
         "operationId": "getGameState",
         "responses": {
           "200": {
-            "description": "Current game state",
+            "description": "Current game state; each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object",
             "content": {
               "application/json": {
                 "schema": {
@@ -521,7 +584,7 @@
             }
           },
           "409": {
-            "description": "Caught runners cannot report positions",
+            "description": "Caught or finished runners cannot report positions",
             "content": {
               "application/json": {
                 "schema": {
@@ -1835,13 +1898,6 @@
       },
       "ControllerPlayerResponse": {
         "properties": {
-          "caughtAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "caughtPosition": {
-            "$ref": "#/components/schemas/ControllerPositionResponse"
-          },
           "hunterTeam": {
             "examples": [
               "Wolves"
@@ -1880,6 +1936,9 @@
             },
             "maxItems": 1000,
             "type": "array"
+          },
+          "runner": {
+            "$ref": "#/components/schemas/ControllerRunnerStateResponse"
           },
           "team": {
             "$ref": "#/components/schemas/ControllerTeam"
@@ -2102,6 +2161,32 @@
           }
         ],
         "type": "object"
+      },
+      "ControllerRunnerStateResponse": {
+        "properties": {
+          "caughtPosition": {
+            "$ref": "#/components/schemas/ControllerPositionResponse"
+          },
+          "endedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ControllerRunnerStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "ControllerRunnerStatus": {
+        "enum": [
+          "active",
+          "caught",
+          "finished"
+        ],
+        "type": "string"
       },
       "ControllerSetHunterTeamRequest": {
         "properties": {

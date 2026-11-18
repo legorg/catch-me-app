@@ -5,6 +5,7 @@ import Button from '@/components/button';
 import LocationSharingInfo from '@/components/location-sharing-info';
 import { translateParts, useT } from '@/i18n';
 import { routeTitles } from '@/lobby';
+import { isActivePlayer } from '@/game-state';
 import { overlay, styles } from '@/styles';
 import { useConfirmExit } from '@/use-confirm-exit';
 import type { LocationSharing } from '@/use-location-sharing';
@@ -40,7 +41,7 @@ type InfoPanelProps = {
 /** Also lists catches without a reported position, which cannot have a map pin. */
 function CaughtPlayers({ state }: { state: GameStateResponse }) {
   const t = useT();
-  const names = state.players.filter((player) => player.caughtAt).map((player) => player.name).join(', ');
+  const names = state.players.filter((player) => player.runner?.status === 'caught').map((player) => player.name).join(', ');
   return names ? <Text style={styles.text}>{t('catch.players', { names })}</Text> : null;
 }
 
@@ -57,13 +58,13 @@ export default function InfoPanel({ state, me, revealScheduled, location }: Info
         })}
         {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
       </Text>
-      {revealScheduled && !me?.caughtAt && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
+      {revealScheduled && isActivePlayer(me) && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
       <RouteLine state={state} />
       <Text style={styles.hint}>{t(texts.legend)}</Text>
       <CaughtPlayers state={state} />
-      {me?.caughtAt
+      {me?.runner?.status === 'caught'
         ? <Text style={styles.text}>{t('catch.sharingStopped')}</Text>
-        : <LocationSharingInfo location={location} />}
+        : isActivePlayer(me) && <LocationSharingInfo location={location} />}
       {/* Rarely needed and final, so it sits here behind a confirmation. */}
       <Button label={t('game.exit')} variant="secondary" onPress={confirmExit} />
     </ScrollView>

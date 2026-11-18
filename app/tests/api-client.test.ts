@@ -26,7 +26,7 @@ const state = {
   playerId: '8899aabbccddeeff0011223344556677',
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564' },
-  players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false }],
+  players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false, runner: { status: 'active' } }],
   route,
   jokers: [],
 };
@@ -129,7 +129,7 @@ test('marking caught posts without coordinates and preserves the returned catch 
   const caught = {
     ...state,
     status: 'running',
-    players: [{ ...state.players[0], caughtAt: '2026-11-18T12:07:00Z', caughtPosition: { ...center, accuracyMeters: 8, recordedAt: '2026-11-18T12:06:58Z' } }],
+    players: [{ ...state.players[0], runner: { status: 'caught', endedAt: '2026-11-18T12:07:00Z', caughtPosition: { ...center, accuracyMeters: 8, recordedAt: '2026-11-18T12:06:58Z' } } }],
   };
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     assert.equal(request.method, 'POST');

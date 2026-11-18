@@ -19,7 +19,7 @@ func TestMarkCaughtUsesAuthenticatedPlayerAndServerTime(t *testing.T) {
 	saved := game.Game{SessionID: game.NewSessionID(), StartsAt: at.Add(-time.Minute)}
 	repository.lobbies[saved.SessionID] = game.Lobby{Game: saved, Players: []game.Player{runner}}
 	view, err := s.MarkCaught(ctx, token)
-	if err != nil || view.Me.ID != runner.ID || view.Me.CaughtAt != at || view.Now != at {
+	if err != nil || view.Me.ID != runner.ID || view.Me.Runner.Status() != game.RunnerCaught || view.Me.Runner.EndedAt() != at || view.Now != at {
 		t.Fatalf("catch must use the authenticated player and server time: %+v %v", view, err)
 	}
 	if _, err := s.State(ctx, token); err != nil {

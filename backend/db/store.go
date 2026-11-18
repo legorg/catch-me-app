@@ -49,8 +49,15 @@ type playerRow struct {
 	TokenHash              string `gorm:"uniqueIndex;not null"`
 	Ready                  bool
 	JoinedAt               time.Time
-	CaughtAt               *time.Time
+	Runner                 *runnerRow    `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
 	Positions              []positionRow `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
+}
+
+// runnerRow is the one-to-one gameplay state of a runner, never a hunter.
+type runnerRow struct {
+	PlayerID string     `gorm:"primaryKey;not null"`
+	Status   string     `gorm:"not null"`
+	EndedAt  *time.Time `gorm:"check:runner_outcome,(status = 'active' AND ended_at IS NULL) OR (status IN ('caught','finished') AND ended_at IS NOT NULL)"`
 }
 
 // positionRow is one reported position. A player's newest row is their current
@@ -95,6 +102,7 @@ type sketchRow struct {
 func (gameRow) TableName() string     { return "games" }
 func (jokerRow) TableName() string    { return "jokers" }
 func (playerRow) TableName() string   { return "players" }
+func (runnerRow) TableName() string   { return "runners" }
 func (positionRow) TableName() string { return "positions" }
 func (sketchRow) TableName() string   { return "sketches" }
 
@@ -117,18 +125,9 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// updates cannot interleave.
 	database.SetMaxOpenConns(1)
 	// AutoMigrate creates missing tables, columns, and indexes; it never drops any.
-	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &positionRow{}, &jokerRow{}, &sketchRow{}); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &runnerRow{}, &positionRow{}, &jokerRow{}, &sketchRow{}); err != nil {
 		_ = database.Close()
 		return nil, fmt.Errorf("initialize schema: %w", err)
-	}
-	// Older fake position uses were shared. Keep them spent for their user,
-	// while allowing other runners to use their own joker. This is idempotent
-	// and preserves the existing unique index and all recorded uses.
-	if err := db.WithContext(ctx).Model(&jokerRow{}).
-		Where("kind = ? AND team = ?", string(game.JokerFakePosition), "").
-		Update("team", gorm.Expr("player_id")).Error; err != nil {
-		_ = database.Close()
-		return nil, fmt.Errorf("update personal fake position jokers: %w", err)
 	}
 	return &Store{db: db}, nil
 }
@@ -184,7 +183,7 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 	var lobby game.Lobby
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var row gameRow
-		err := tx.Preload("Players", func(q *gorm.DB) *gorm.DB { return q.Order("joined_at, id") }).Where(where, args...).Take(&row).Error
+		err := tx.Preload("Players", func(q *gorm.DB) *gorm.DB { return q.Order("joined_at, id") }).Preload("Players.Runner").Where(where, args...).Take(&row).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return game.ErrNotFound
 		}
@@ -258,6 +257,12 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 			}
 			if err := save(&row).Error; err != nil {
 				return fmt.Errorf("save player: %w", err)
+			}
+		}
+		if p.Team == game.Runners && (!existed || previous.Runner != p.Runner) {
+			row := toRunnerRow(p)
+			if err := tx.Save(&row).Error; err != nil {
+				return fmt.Errorf("save runner: %w", err)
 			}
 		}
 		if p.Position != previous.Position && !p.Position.IsZero() {
@@ -347,6 +352,7 @@ func saveSketches(tx *gorm.DB, gameID game.SessionID, before, after []game.Sketc
 // withoutPositions keeps the fields stored in the players table.
 func withoutPositions(p game.Player) game.Player {
 	p.Position = game.Position{}
+	p.Runner = game.RunnerState{}
 	return p
 }
 
@@ -355,9 +361,13 @@ func toPlayerRow(gameID game.SessionID, p game.Player) playerRow {
 		ID: p.ID.String(), GameID: gameID.String(), Team: string(p.Team), Name: p.Name.String(),
 		TokenHash: p.TokenHash.String(), Ready: p.Ready, JoinedAt: p.JoinedAt, HunterTeam: p.HunterTeam.String(),
 	}
-	if !p.CaughtAt.IsZero() {
-		at := p.CaughtAt
-		row.CaughtAt = &at
+	return row
+}
+
+func toRunnerRow(p game.Player) runnerRow {
+	row := runnerRow{PlayerID: p.ID.String(), Status: string(p.Runner.Status())}
+	if at := p.Runner.EndedAt(); !at.IsZero() {
+		row.EndedAt = &at
 	}
 	return row
 }
@@ -437,7 +447,7 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 	for i := range lobby.Players {
 		p := &lobby.Players[i]
 		p.Position = latest[p.ID.String()]
-		if all := reveals[p.ID.String()]; p.CaughtAt.IsZero() && len(all) > 0 {
+		if all := reveals[p.ID.String()]; p.Runner.Status() == game.RunnerActive && len(all) > 0 {
 			lobby.Reveals[p.ID] = all
 		}
 	}
@@ -527,10 +537,10 @@ func parseJoker(row jokerRow, runners, hunters map[string][]positionRow, lobby g
 		return nil, err
 	}
 	// Rebuild the result using only runners active at the time of this use.
-	// Earlier snapshots stay historical; jokers used after a catch exclude it.
+	// Earlier snapshots stay historical; later jokers exclude caught/finished runners.
 	positions = slices.DeleteFunc(positions, func(position game.JokerPosition) bool {
 		player, ok := lobby.Player(position.PlayerID)
-		return !ok || (!player.CaughtAt.IsZero() && !player.CaughtAt.After(at))
+		return !ok || !player.Runner.ActiveAt(at)
 	})
 	switch kind {
 	case game.JokerShowRunners:
@@ -659,11 +669,21 @@ func parsePlayer(row playerRow) (game.Player, error) {
 	player := game.Player{
 		ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), HunterTeam: hunterTeam,
 	}
-	if row.CaughtAt != nil {
-		if team != game.Runners {
-			return game.Player{}, fmt.Errorf("only runners can be caught")
+	if team == game.Runners {
+		if row.Runner == nil {
+			return game.Player{}, fmt.Errorf("runner state missing")
 		}
-		player.CaughtAt = row.CaughtAt.UTC()
+		var at time.Time
+		if row.Runner.EndedAt != nil {
+			at = *row.Runner.EndedAt
+		}
+		state, err := game.ParseRunnerState(row.Runner.Status, at)
+		if err != nil {
+			return game.Player{}, err
+		}
+		player.Runner = state
+	} else if row.Runner != nil {
+		return game.Player{}, fmt.Errorf("hunters cannot have runner state")
 	}
 	return player, nil
 }
