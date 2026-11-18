@@ -25,6 +25,9 @@ const (
 // It exposes domain values, not database rows or SQL errors.
 type GameRepository interface {
 	Create(context.Context, game.Game) error
+	// Result returns a coordinate/credential-free summary of an ended game;
+	// unknown and unfinished games both return game.ErrNotFound.
+	Result(context.Context, game.SessionID) (game.Result, error)
 	// UpdateLobby* load a lobby as of now (including reveals), apply change, and
 	// save atomically. A nil change only loads.
 	UpdateLobbyByJoinCode(context.Context, game.JoinCode, time.Time, func(*game.Lobby) error) (game.Lobby, error)

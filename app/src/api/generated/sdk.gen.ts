@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, FinishData, FinishErrors, FinishResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, MarkCaughtData, MarkCaughtErrors, MarkCaughtResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
+import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, FinishData, FinishErrors, FinishResponses, GetGameResultData, GetGameResultErrors, GetGameResultResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, MarkCaughtData, MarkCaughtErrors, MarkCaughtResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -29,6 +29,11 @@ export const createGame = <ThrowOnError extends boolean = false>(options: Option
         ...options.headers
     }
 });
+
+/**
+ * Get the public, coordinate-free result of an ended game by its full game ID
+ */
+export const getGameResult = <ThrowOnError extends boolean = false>(options: Options<GetGameResultData, ThrowOnError>) => (options.client ?? client).get<GetGameResultResponses, GetGameResultErrors, ThrowOnError>({ url: '/api/games/{sessionId}/result', ...options });
 
 /**
  * Leave the game before it starts

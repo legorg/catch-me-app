@@ -82,6 +82,7 @@ type operation struct {
 	method, path, id, summary string
 	handler                   http.HandlerFunc
 	secured                   bool
+	pathParams                any
 	body                      any
 	bodyDescription           string
 	success                   response
@@ -109,6 +110,9 @@ func (o operation) register(reflector *openapi31.Reflector) error {
 	if o.secured {
 		oc.AddSecurity(playerToken)
 	}
+	if o.pathParams != nil {
+		oc.AddReqStructure(o.pathParams)
+	}
 	if o.body != nil {
 		oc.AddReqStructure(o.body, func(cu *openapi.ContentUnit) { cu.Description = o.bodyDescription })
 	}
@@ -127,6 +131,10 @@ func (o operation) register(reflector *openapi31.Reflector) error {
 // The handlers check the method themselves, so each path is mounted once.
 func operations(games *controller.GameController) []operation {
 	return []operation{
+		{method: http.MethodGet, path: "/api/games/{sessionId}/result", id: "getGameResult", handler: games.Result, summary: "Get the public, coordinate-free result of an ended game by its full game ID", secured: false,
+			pathParams: new(controller.GameResultRequest),
+			success:    response{status: 200, body: new(controller.GameResultResponse), description: "Game times and duration, player names, runner outcomes/times, and hunter teams in join order; no coordinates, history, join codes, or tokens; no authentication required"},
+			failures:   []response{{status: 400, description: "Invalid game ID; expected 32 lowercase hexadecimal characters, not a join code"}, {status: 404, description: "Game not found or not ended"}, {status: 405, description: "Method not allowed"}, {status: 500, description: "Could not load game result"}}},
 		{method: http.MethodPost, path: "/api/games", id: "createGame", handler: games.Create, summary: "Create a square playground with adjustable grid size, cell size, and reveal interval", secured: false,
 			body: new(controller.CreateGameRequest), bodyDescription: "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100 (default 2000), gridSize 3-12 cells per side (default 6), revealIntervalMinutes 1-60 (default 30); omitted/null settings get their defaults; no date-line crossings",
 			success:  response{status: 201, body: new(controller.CreateGameResponse), description: "Game saved, with one join code per team"},

@@ -71,6 +71,14 @@ export type ControllerGameResponse = {
     sessionId: string;
 };
 
+export type ControllerGameResultResponse = {
+    durationSeconds: number;
+    endedAt: string;
+    players: Array<ControllerResultPlayerResponse>;
+    sessionId: string;
+    startsAt: string;
+};
+
 export type ControllerGameRoute = {
     distanceMeters: number;
     start: ControllerLandmark;
@@ -221,6 +229,14 @@ export type ControllerQueryZoneRequest = {
     kind: 'queryZone';
 };
 
+export type ControllerResultPlayerResponse = {
+    hunterTeam?: string;
+    name: string;
+    playerId: string;
+    runner?: ControllerRunnerResultResponse;
+    team: ControllerTeam;
+};
+
 export type ControllerRevealKind = 'position' | 'zone' | 'outside';
 
 export type ControllerRevealResponse = ({
@@ -230,6 +246,13 @@ export type ControllerRevealResponse = ({
 } & ControllerZoneRevealResponse) | ({
     kind: 'outside';
 } & ControllerOutsideRevealResponse);
+
+export type ControllerRunnerOutcome = 'caught' | 'finished';
+
+export type ControllerRunnerResultResponse = {
+    endedAt: string;
+    status: ControllerRunnerOutcome;
+};
 
 export type ControllerRunnerStateResponse = {
     caughtPosition?: ControllerPositionResponse;
@@ -369,6 +392,45 @@ export type CreateGameResponses = {
 };
 
 export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
+
+export type GetGameResultData = {
+    body?: never;
+    path: {
+        sessionId: string;
+    };
+    query?: never;
+    url: '/api/games/{sessionId}/result';
+};
+
+export type GetGameResultErrors = {
+    /**
+     * Invalid game ID; expected 32 lowercase hexadecimal characters, not a join code
+     */
+    400: ControllerApiError;
+    /**
+     * Game not found or not ended
+     */
+    404: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Could not load game result
+     */
+    500: ControllerApiError;
+};
+
+export type GetGameResultError = GetGameResultErrors[keyof GetGameResultErrors];
+
+export type GetGameResultResponses = {
+    /**
+     * Game times and duration, player names, runner outcomes/times, and hunter teams in join order; no coordinates, history, join codes, or tokens; no authentication required
+     */
+    200: ControllerGameResultResponse;
+};
+
+export type GetGameResultResponse = GetGameResultResponses[keyof GetGameResultResponses];
 
 export type LeaveGameData = {
     body?: never;

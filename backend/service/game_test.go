@@ -37,6 +37,18 @@ func (r *memoryRepository) Create(ctx context.Context, saved game.Game) error {
 	return nil
 }
 
+func (r *memoryRepository) Result(ctx context.Context, id game.SessionID) (game.Result, error) {
+	r.calls++
+	if r.err != nil {
+		return game.Result{}, r.err
+	}
+	lobby, ok := r.lobbies[id]
+	if !ok {
+		return game.Result{}, game.ErrNotFound
+	}
+	return lobby.Result()
+}
+
 func (r *memoryRepository) DeletePositionsBefore(ctx context.Context, cutoff time.Time) error {
 	r.calls++
 	r.cutoff = cutoff

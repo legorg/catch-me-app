@@ -104,6 +104,83 @@
         ]
       }
     },
+    "/api/games/{sessionId}/result": {
+      "get": {
+        "summary": "Get the public, coordinate-free result of an ended game by its full game ID",
+        "operationId": "getGameResult",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "examples": [
+                "00112233445566778899aabbccddeeff"
+              ],
+              "maxLength": 32,
+              "minLength": 32,
+              "pattern": "^[a-f0-9]{32}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game times and duration, player names, runner outcomes/times, and hunter teams in join order; no coordinates, history, join codes, or tokens; no authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameResultResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid game ID; expected 32 lowercase hexadecimal characters, not a join code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Game not found or not ended",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not load game result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
     "/api/me": {
       "delete": {
         "summary": "Leave the game before it starts",
@@ -1394,6 +1471,55 @@
         ],
         "type": "object"
       },
+      "ControllerGameResultResponse": {
+        "properties": {
+          "durationSeconds": {
+            "examples": [
+              3600
+            ],
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "endedAt": {
+            "examples": [
+              "2026-11-18T13:00:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerResultPlayerResponse"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "sessionId": {
+            "examples": [
+              "00112233445566778899aabbccddeeff"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "startsAt": {
+            "examples": [
+              "2026-11-18T12:00:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "startsAt",
+          "endedAt",
+          "durationSeconds",
+          "players"
+        ],
+        "type": "object"
+      },
       "ControllerGameRoute": {
         "properties": {
           "distanceMeters": {
@@ -2147,6 +2273,45 @@
         ],
         "type": "object"
       },
+      "ControllerResultPlayerResponse": {
+        "properties": {
+          "hunterTeam": {
+            "examples": [
+              "Pack"
+            ],
+            "maxLength": 20,
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Ada"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          },
+          "playerId": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "runner": {
+            "$ref": "#/components/schemas/ControllerRunnerResultResponse"
+          },
+          "team": {
+            "$ref": "#/components/schemas/ControllerTeam"
+          }
+        },
+        "required": [
+          "playerId",
+          "name",
+          "team"
+        ],
+        "type": "object"
+      },
       "ControllerRevealKind": {
         "enum": [
           "position",
@@ -2174,6 +2339,32 @@
           {
             "$ref": "#/components/schemas/ControllerOutsideRevealResponse"
           }
+        ],
+        "type": "object"
+      },
+      "ControllerRunnerOutcome": {
+        "enum": [
+          "caught",
+          "finished"
+        ],
+        "type": "string"
+      },
+      "ControllerRunnerResultResponse": {
+        "properties": {
+          "endedAt": {
+            "examples": [
+              "2026-11-18T12:30:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ControllerRunnerOutcome"
+          }
+        },
+        "required": [
+          "status",
+          "endedAt"
         ],
         "type": "object"
       },

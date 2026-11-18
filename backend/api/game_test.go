@@ -171,6 +171,15 @@ func TestOpenAPIRoutes(t *testing.T) {
 		Paths   map[string]map[string]struct {
 			OperationID string `json:"operationId"`
 			Security    []map[string][]string
+			Parameters  []struct {
+				Name, In string
+				Required bool
+				Schema   struct {
+					Pattern              string
+					MinLength, MaxLength int
+				}
+			}
+			RequestBody json.RawMessage
 			Responses   map[string]struct {
 				Content map[string]struct{ Schema schema }
 			}
@@ -196,6 +205,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 	}{
 		{"ControllerTeam", []any{"runner", "hunter"}},
 		{"ControllerGameStatus", []any{"lobby", "countdown", "running", "ended"}},
+		{"ControllerRunnerOutcome", []any{"caught", "finished"}},
 		{"ControllerJokerKind", []any{"showRunners", "queryZone", "zoneOnly", "fakePosition", "showHunters", "compass"}},
 	} {
 		if got := spec.Components.Schemas[tc.name].Enum; !slices.Equal(got, tc.values) {
@@ -224,6 +234,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 	for _, tc := range []struct{ path, method, id, status, schema string }{
 		{"/health", "get", "getHealth", "200", "ControllerHealthResponse"},
 		{"/api/games", "post", "createGame", "201", "ControllerCreateGameResponse"},
+		{"/api/games/{sessionId}/result", "get", "getGameResult", "200", "ControllerGameResultResponse"},
 		{"/api/players", "post", "joinGame", "201", "ControllerJoinGameResponse"},
 		{"/api/me/game", "get", "getGameState", "200", union},
 		{"/api/me/caught", "post", "markCaught", "200", union},
@@ -249,6 +260,32 @@ func TestOpenAPIRoutes(t *testing.T) {
 	}
 	if _, ok := spec.Paths["/api/me"]["delete"].Responses["204"]; !ok {
 		t.Fatal("leaving the game must respond 204")
+	}
+	resultOperation := spec.Paths["/api/games/{sessionId}/result"]["get"]
+	if len(resultOperation.Parameters) != 1 || len(resultOperation.RequestBody) != 0 {
+		t.Fatal("result lookup must have one path parameter and no request body")
+	}
+	param := resultOperation.Parameters[0]
+	if param.Name != "sessionId" || param.In != "path" || !param.Required || param.Schema.Pattern != "^[a-f0-9]{32}$" || param.Schema.MinLength != 32 || param.Schema.MaxLength != 32 {
+		t.Fatalf("result lookup must document the complete game ID: %+v", param)
+	}
+	for _, tc := range []struct {
+		name   string
+		fields []string
+	}{
+		{"ControllerGameResultResponse", []string{"sessionId", "startsAt", "endedAt", "durationSeconds", "players"}},
+		{"ControllerResultPlayerResponse", []string{"playerId", "name", "team", "hunterTeam", "runner"}},
+		{"ControllerRunnerResultResponse", []string{"status", "endedAt"}},
+	} {
+		definition := spec.Components.Schemas[tc.name]
+		if len(definition.Properties) != len(tc.fields) {
+			t.Fatalf("public result schema has unexpected fields: %s", tc.name)
+		}
+		for field := range definition.Properties {
+			if !slices.Contains(tc.fields, field) {
+				t.Fatalf("public result schema exposes %s in %s", field, tc.name)
+			}
+		}
 	}
 
 	state := spec.Components.Schemas[union]
