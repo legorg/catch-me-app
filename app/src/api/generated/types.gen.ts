@@ -63,6 +63,11 @@ export type ControllerFakePositionRequest = {
     longitude: number;
 };
 
+export type ControllerGameEndedEventResponse = {
+    at: string;
+    kind: 'gameEnded';
+};
+
 export type ControllerGameResponse = {
     createdAt: string;
     playground: ControllerPlayground;
@@ -83,6 +88,11 @@ export type ControllerGameRoute = {
     distanceMeters: number;
     start: ControllerLandmark;
     stop: ControllerLandmark;
+};
+
+export type ControllerGameStartedEventResponse = {
+    at: string;
+    kind: 'gameStarted';
 };
 
 export type ControllerGameStateHunterResponse = {
@@ -156,6 +166,13 @@ export type ControllerGameStatus = 'lobby' | 'countdown' | 'running' | 'ended';
 export type ControllerHealthResponse = {
     service: 'catch-me-backend';
     status: 'ok';
+};
+
+export type ControllerHunterJokerUsedEventResponse = {
+    at: string;
+    hunterTeam: string;
+    joker: ControllerJokerKind;
+    kind: 'hunterJokerUsed';
 };
 
 export type ControllerJoinCodes = {
@@ -273,6 +290,25 @@ export type ControllerRevealResponse = ({
 
 export type ControllerRole = 'player' | 'spectator';
 
+export type ControllerRunnerCaughtEventResponse = {
+    at: string;
+    kind: 'runnerCaught';
+    runner: ControllerTimelinePlayer;
+};
+
+export type ControllerRunnerFinishedEventResponse = {
+    at: string;
+    kind: 'runnerFinished';
+    runner: ControllerTimelinePlayer;
+};
+
+export type ControllerRunnerJokerUsedEventResponse = {
+    at: string;
+    joker: ControllerJokerKind;
+    kind: 'runnerJokerUsed';
+    runner: ControllerTimelinePlayer;
+};
+
 export type ControllerRunnerOutcome = 'caught' | 'finished';
 
 export type ControllerRunnerResultResponse = {
@@ -331,6 +367,30 @@ export type ControllerSketchResponse = {
 };
 
 export type ControllerTeam = 'runner' | 'hunter' | 'spectator';
+
+export type ControllerTimelineEventResponse = ({
+    kind: 'gameStarted';
+} & ControllerGameStartedEventResponse) | ({
+    kind: 'hunterJokerUsed';
+} & ControllerHunterJokerUsedEventResponse) | ({
+    kind: 'runnerJokerUsed';
+} & ControllerRunnerJokerUsedEventResponse) | ({
+    kind: 'runnerCaught';
+} & ControllerRunnerCaughtEventResponse) | ({
+    kind: 'runnerFinished';
+} & ControllerRunnerFinishedEventResponse) | ({
+    kind: 'gameEnded';
+} & ControllerGameEndedEventResponse);
+
+export type ControllerTimelinePlayer = {
+    name: string;
+    playerId: string;
+};
+
+export type ControllerTimelineResponse = {
+    events: Array<ControllerTimelineEventResponse>;
+    serverTime: string;
+};
 
 export type ControllerUpdatePositionRequest = {
     accuracyMeters: number;
@@ -919,6 +979,43 @@ export type AddSketchResponses = {
 };
 
 export type AddSketchResponse = AddSketchResponses[keyof AddSketchResponses];
+
+export type GetTimelineData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/timeline';
+};
+
+export type GetTimelineErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a spectator: active runners and hunters get no timeline
+     */
+    409: ControllerApiError;
+    /**
+     * Could not load timeline
+     */
+    500: ControllerApiError;
+};
+
+export type GetTimelineError = GetTimelineErrors[keyof GetTimelineErrors];
+
+export type GetTimelineResponses = {
+    /**
+     * Game start, joker uses (joker kind with hunter team or runner), catches, finishes, and game end up to serverTime, oldest first. No coordinates, cells, or joker results. Empty before the start
+     */
+    200: ControllerTimelineResponse;
+};
+
+export type GetTimelineResponse = GetTimelineResponses[keyof GetTimelineResponses];
 
 export type JoinGameData = {
     /**

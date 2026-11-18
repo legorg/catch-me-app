@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, FinishData, FinishErrors, FinishResponses, GetGameResultData, GetGameResultErrors, GetGameResultResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, MarkCaughtData, MarkCaughtErrors, MarkCaughtResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
+import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, FinishData, FinishErrors, FinishResponses, GetGameResultData, GetGameResultErrors, GetGameResultResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, GetTimelineData, GetTimelineErrors, GetTimelineResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, MarkCaughtData, MarkCaughtErrors, MarkCaughtResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -152,6 +152,15 @@ export const addSketch = <ThrowOnError extends boolean = false>(options: Options
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Get the game's event timeline (spectators only)
+ */
+export const getTimeline = <ThrowOnError extends boolean = false>(options?: Options<GetTimelineData, ThrowOnError>) => (options?.client ?? client).get<GetTimelineResponses, GetTimelineErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/timeline',
+    ...options
 });
 
 /**

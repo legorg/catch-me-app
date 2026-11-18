@@ -272,6 +272,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		{"/api/games/{sessionId}/result", "get", "getGameResult", "200", "ControllerGameResultResponse"},
 		{"/api/players", "post", "joinGame", "201", "ControllerJoinGameResponse"},
 		{"/api/me/game", "get", "getGameState", "200", union},
+		{"/api/me/timeline", "get", "getTimeline", "200", "ControllerTimelineResponse"},
 		{"/api/me/caught", "post", "markCaught", "200", union},
 		{"/api/me/finish", "post", "finish", "200", union},
 		{"/api/me/ready", "put", "setReady", "200", union},
@@ -357,5 +358,20 @@ func TestOpenAPIRoutes(t *testing.T) {
 	codes := spec.Components.Schemas["ControllerJoinCodes"]
 	if _, ok := codes.Properties["spectator"]; !ok || !slices.Contains(codes.Required, "spectator") {
 		t.Fatal("spectator code must be documented and required")
+	}
+	events := spec.Components.Schemas["ControllerTimelineEventResponse"]
+	if len(events.OneOf) != 6 || events.Discriminator.PropertyName != "kind" {
+		t.Fatalf("timeline events must be a oneOf discriminated by kind: %+v", events)
+	}
+	for _, variant := range events.OneOf {
+		definition := spec.Components.Schemas[strings.TrimPrefix(variant.Ref, "#/components/schemas/")]
+		if len(definition.Required) != len(definition.Properties) {
+			t.Fatalf("timeline event %s must have only required fields", variant.Ref)
+		}
+		for field := range definition.Properties {
+			if !slices.Contains([]string{"kind", "at", "hunterTeam", "runner", "joker"}, field) {
+				t.Fatalf("timeline event %s exposes %s", variant.Ref, field)
+			}
+		}
 	}
 }
