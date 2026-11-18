@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strings"
 
 	"catch-me/backend/game"
 	"catch-me/backend/service"
@@ -40,9 +39,8 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodGet, http.MethodHead) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.State(r.Context(), token)
@@ -58,9 +56,8 @@ func (c *GameController) Finish(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.Finish(r.Context(), token)
@@ -76,9 +73,8 @@ func (c *GameController) MarkCaught(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.MarkCaught(r.Context(), token)
@@ -94,9 +90,8 @@ func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body SetReadyRequest
@@ -120,9 +115,8 @@ func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request)
 	if !allowMethods(w, r, http.MethodPost) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.RegenerateRoute(r.Context(), token)
@@ -138,9 +132,8 @@ func (c *GameController) SetHunterTeam(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body SetHunterTeamRequest
@@ -165,9 +158,8 @@ func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) 
 	if !allowMethods(w, r, http.MethodPut) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body UpdatePositionRequest
@@ -196,9 +188,8 @@ func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body UseJokerRequest
@@ -262,9 +253,8 @@ func (c *GameController) Sketches(w http.ResponseWriter, r *http.Request) {
 
 // AddSketch adds a line to the map of the authenticated hunter's team.
 func (c *GameController) AddSketch(w http.ResponseWriter, r *http.Request) {
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body AddSketchRequest
@@ -299,9 +289,8 @@ func (c *GameController) AddSketch(w http.ResponseWriter, r *http.Request) {
 
 // ClearSketches removes all lines of the authenticated hunter's team.
 func (c *GameController) ClearSketches(w http.ResponseWriter, r *http.Request) {
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.ClearSketches(r.Context(), token)
@@ -317,9 +306,8 @@ func (c *GameController) Leave(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodDelete) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	if err := c.service.Leave(r.Context(), token); err != nil {
@@ -327,14 +315,6 @@ func (c *GameController) Leave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func playerToken(r *http.Request) (game.PlayerToken, error) {
-	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if !ok {
-		return game.PlayerToken{}, game.ErrUnauthorized
-	}
-	return game.ParsePlayerToken(strings.TrimSpace(token))
 }
 
 func gameStateResponse(view service.PlayerView) GameStateResponse {
