@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Result loads only the game and participants, never positions, reveals,
-// jokers or sketches. Unfinished games are excluded by the database query.
+// Result loads only the game, participants and used jokers, never positions,
+// reveals or sketches. Unfinished games are excluded by the database query.
 func (s *Store) Result(ctx context.Context, id game.SessionID) (game.Result, error) {
 	var result game.Result
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -26,6 +26,19 @@ func (s *Store) Result(ctx context.Context, id game.SessionID) (game.Result, err
 		lobby, err := parseLobby(row)
 		if err != nil {
 			return fmt.Errorf("parse stored result: %v", err)
+		}
+		jokers, err := selectJokers(tx, row.ID)
+		if err != nil {
+			return err
+		}
+		// Without position histories the uses show nothing; only their kinds,
+		// users and times reach the result, as timeline events.
+		for _, j := range jokers {
+			use, err := parseJoker(j, nil, nil, lobby)
+			if err != nil {
+				return err
+			}
+			lobby.Jokers = append(lobby.Jokers, use)
 		}
 		result, err = lobby.Result()
 		return err

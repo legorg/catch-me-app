@@ -16,7 +16,7 @@ func TestTimelineEventKindsMatchTheirVariants(t *testing.T) {
 	name, _ := game.ParsePlayerName("Ada")
 	team, _ := game.ParseHunterTeamName("Wolves")
 	runner := game.Player{ID: game.NewPlayerID(), Name: name, Team: game.Runners}
-	lobby := game.Lobby{Players: []game.Player{runner}}
+	lookup := func(id game.PlayerID) (game.PlayerName, bool) { return runner.Name, id == runner.ID }
 	// In the order of JSONSchemaOneOf.
 	events := []game.Event{
 		game.StartEvent{At: at},
@@ -31,7 +31,7 @@ func TestTimelineEventKindsMatchTheirVariants(t *testing.T) {
 		t.Fatalf("%d events for %d variants", len(events), len(variants))
 	}
 	for i, event := range events {
-		mapped, err := timelineEventResponse(lobby, event)
+		mapped, err := timelineEventResponse(event, lookup)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,7 +52,8 @@ func TestTimelineEventKindsMatchTheirVariants(t *testing.T) {
 			t.Fatalf("%s has kind %q, its schema says %q", variant.Name(), probe.Kind, want)
 		}
 	}
-	if _, err := timelineEventResponse(game.Lobby{}, game.CatchEvent{Runner: runner.ID, At: at}); err == nil {
+	unknown := func(game.PlayerID) (game.PlayerName, bool) { return game.PlayerName{}, false }
+	if _, err := timelineEventResponse(game.CatchEvent{Runner: runner.ID, At: at}, unknown); err == nil {
 		t.Fatal("an event of an unknown player must not lose its runner")
 	}
 }

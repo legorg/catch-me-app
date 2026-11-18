@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 
 import type { GameResultResponse, ResultPlayerResponse } from '@/api/types';
+import TimelineEntries from '@/components/timeline-entries';
 import { formatResultTime } from '@/game-result';
 import { useT } from '@/i18n';
 import { formatDuration } from '@/lobby';
@@ -40,6 +41,11 @@ export default function GameResultSummary({ result }: { result: GameResultRespon
         <Text accessibilityRole="header" style={styles.heading}>{t('team.spectators')}</Text>
         {result.players.filter((p) => p.team === 'spectator').map((p) => <PlayerResult key={p.playerId} player={p} />)}
       </View>}
+      {/* Oldest first: a finished game reads from start to end. */}
+      <View style={styles.card}>
+        <Text accessibilityRole="header" style={styles.heading}>{t('timeline.title')}</Text>
+        <TimelineEntries events={result.events} />
+      </View>
       <Text style={styles.hint}>{t('result.summaryOnly')}</Text>
     </>
   );

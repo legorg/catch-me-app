@@ -132,7 +132,7 @@ func operations(games *controller.GameController) []operation {
 	return []operation{
 		{method: http.MethodGet, path: "/api/games/{sessionId}/result", id: "getGameResult", handler: games.Result, summary: "Get the public, coordinate-free result of an ended game by its full game ID", secured: false,
 			pathParams: new(controller.GameResultRequest),
-			success:    response{status: 200, body: new(controller.GameResultResponse), description: "Game times and duration, player names, runner outcomes/times, and hunter teams in join order; no coordinates, history, join codes, or tokens; no authentication required"},
+			success:    response{status: 200, body: new(controller.GameResultResponse), description: "Game times and duration, player names, runner outcomes/times, and hunter teams in join order, plus the whole event timeline oldest first; no coordinates, cells, joker results, join codes, or tokens; no authentication required"},
 			failures:   []response{{status: 400, description: "Invalid game ID; expected 32 lowercase hexadecimal characters, not a join code"}, {status: 404, description: "Game not found or not ended"}, {status: 405, description: "Method not allowed"}, {status: 500, description: "Could not load game result"}}},
 		{method: http.MethodPost, path: "/api/games", id: "createGame", handler: games.Create, summary: "Create a square playground with adjustable grid size, cell size, and reveal interval", secured: false,
 			body: new(controller.CreateGameRequest), bodyDescription: "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60); no date-line crossings",

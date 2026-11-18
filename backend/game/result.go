@@ -3,11 +3,14 @@ package game
 import "time"
 
 // Result is the public, coordinate-free summary of an ended game. It carries
-// no credentials or gameplay history, even internally.
+// no credentials, positions or joker results, even internally; its events are
+// the coordinate-free timeline.
 type Result struct {
 	SessionID         SessionID
 	StartsAt, EndedAt time.Time
 	Players           []ResultPlayer
+	// Events is the whole timeline, oldest first.
+	Events []Event
 }
 
 type ResultPlayer struct {
@@ -27,6 +30,7 @@ func (l Lobby) Result() (Result, error) {
 	result := Result{
 		SessionID: l.Game.SessionID, StartsAt: l.Game.StartsAt, EndedAt: l.Game.EndedAt,
 		Players: make([]ResultPlayer, 0, len(l.Players)),
+		Events:  l.timeline(l.Game.EndedAt),
 	}
 	for _, p := range l.Players {
 		result.Players = append(result.Players, ResultPlayer{
@@ -34,4 +38,14 @@ func (l Lobby) Result() (Result, error) {
 		})
 	}
 	return result, nil
+}
+
+// Player finds a participant of the result, e.g. the runner of an event.
+func (r Result) Player(id PlayerID) (ResultPlayer, bool) {
+	for _, p := range r.Players {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return ResultPlayer{}, false
 }

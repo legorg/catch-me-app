@@ -1,6 +1,6 @@
 import type { JokerKind, TimelineEvent, TimelinePlayer, TimelineResponse } from './api/types';
-import { isObject, isTimestamp, isValidGameId } from './game-result';
 import { translate } from './i18n';
+import { isHexId, isObject, isTimestamp } from './json-guards';
 
 // Every joker kind; the type check reports a missing one.
 const JOKER_KINDS = {
@@ -16,10 +16,11 @@ function isName(value: unknown): value is string {
 }
 
 function isTimelinePlayer(value: unknown): value is TimelinePlayer {
-  return isObject(value) && typeof value.playerId === 'string' && isValidGameId(value.playerId) && isName(value.name);
+  return isObject(value) && isHexId(value.playerId) && isName(value.name);
 }
 
-function isTimelineEvent(value: unknown): value is TimelineEvent {
+/** Also used for the events of a game result. */
+export function isTimelineEvent(value: unknown): value is TimelineEvent {
   if (!isObject(value) || !isTimestamp(value.at)) return false;
   switch (value.kind) {
     case 'gameStarted':

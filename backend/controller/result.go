@@ -18,6 +18,8 @@ type GameResultResponse struct {
 	// Whole seconds between start and end, rounded down.
 	DurationSeconds int64                  `json:"durationSeconds" minimum:"0" example:"3600"`
 	Players         []ResultPlayerResponse `json:"players" maxItems:"30"`
+	// The whole timeline, oldest first, with no coordinates, cells or joker results.
+	Events []TimelineEventResponse `json:"events"`
 }
 
 type ResultPlayerResponse struct {
@@ -52,14 +54,27 @@ func (c *GameController) Result(w http.ResponseWriter, r *http.Request) {
 		writeGameError(w, err, "could not load game result")
 		return
 	}
-	WriteJSON(w, http.StatusOK, gameResultResponse(result))
+	response, err := gameResultResponse(result)
+	if err != nil {
+		writeGameError(w, err, "could not load game result")
+		return
+	}
+	WriteJSON(w, http.StatusOK, response)
 }
 
-func gameResultResponse(result game.Result) GameResultResponse {
+func gameResultResponse(result game.Result) (GameResultResponse, error) {
+	events, err := timelineEventResponses(result.Events, func(id game.PlayerID) (game.PlayerName, bool) {
+		p, ok := result.Player(id)
+		return p.Name, ok
+	})
+	if err != nil {
+		return GameResultResponse{}, err
+	}
 	response := GameResultResponse{
 		SessionID: SessionID(result.SessionID.String()), StartsAt: result.StartsAt, EndedAt: result.EndedAt,
 		DurationSeconds: int64(result.EndedAt.Sub(result.StartsAt) / time.Second),
 		Players:         make([]ResultPlayerResponse, 0, len(result.Players)),
+		Events:          events,
 	}
 	for _, p := range result.Players {
 		player := ResultPlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team)}
@@ -70,5 +85,5 @@ func gameResultResponse(result game.Result) GameResultResponse {
 		}
 		response.Players = append(response.Players, player)
 	}
-	return response
+	return response, nil
 }

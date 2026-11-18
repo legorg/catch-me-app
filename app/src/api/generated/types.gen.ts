@@ -79,6 +79,7 @@ export type ControllerGameResponse = {
 export type ControllerGameResultResponse = {
     durationSeconds: number;
     endedAt: string;
+    events: Array<ControllerTimelineEventResponse>;
     players: Array<ControllerResultPlayerResponse>;
     sessionId: string;
     startsAt: string;
@@ -509,7 +510,7 @@ export type GetGameResultError = GetGameResultErrors[keyof GetGameResultErrors];
 
 export type GetGameResultResponses = {
     /**
-     * Game times and duration, player names, runner outcomes/times, and hunter teams in join order; no coordinates, history, join codes, or tokens; no authentication required
+     * Game times and duration, player names, runner outcomes/times, and hunter teams in join order, plus the whole event timeline oldest first; no coordinates, cells, joker results, join codes, or tokens; no authentication required
      */
     200: ControllerGameResultResponse;
 };

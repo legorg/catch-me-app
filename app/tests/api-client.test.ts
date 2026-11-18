@@ -65,6 +65,13 @@ const gameResult = {
     { playerId: 'b'.repeat(32), name: 'Cy', team: 'runner', runner: { status: 'caught', endedAt: '2026-11-18T13:00:00Z' } },
     { playerId: 'c'.repeat(32), name: 'Bob', team: 'hunter', hunterTeam: 'Pack' },
   ],
+  events: [
+    { kind: 'gameStarted', at: '2026-11-18T12:00:00Z' },
+    { kind: 'hunterJokerUsed', at: '2026-11-18T12:10:00Z', hunterTeam: 'Pack', joker: 'compass' },
+    { kind: 'runnerFinished', at: '2026-11-18T12:30:00Z', runner: { playerId: 'a'.repeat(32), name: 'Ada' } },
+    { kind: 'runnerCaught', at: '2026-11-18T13:00:00Z', runner: { playerId: 'b'.repeat(32), name: 'Cy' } },
+    { kind: 'gameEnded', at: '2026-11-18T13:00:00Z' },
+  ],
 };
 
 test('result lookup uses the normalized full game ID without a token, body or position', async (t) => {
@@ -112,6 +119,8 @@ test('malformed or mismatched result JSON is rejected rather than crashing the r
     { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'active' } }] },
     { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'caught', endedAt: 'invalid' } }] },
     { ...gameResult, players: [{ ...gameResult.players[2], runner: { status: 'caught', endedAt: gameResult.endedAt } }] },
+    { ...gameResult, events: undefined }, { ...gameResult, events: [null] },
+    { ...gameResult, events: [{ kind: 'runnerCaught', at: gameResult.endedAt }] },
   ]) {
     assert.equal(isGameResultResponse(invalid), false);
     t.mock.method(globalThis, 'fetch', async () => Response.json(invalid));

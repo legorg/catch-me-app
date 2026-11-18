@@ -82,7 +82,27 @@ func TestPublicGameResultHTTPFlow(t *testing.T) {
 	// An exact JSON allowlist prevents leaking any present or future gameplay
 	// fields, including catch locations, route coordinates, join codes and hashes.
 	raw := decode[map[string]json.RawMessage](t, response, 200)
-	assertResultFields(t, raw, "sessionId", "startsAt", "endedAt", "durationSeconds", "players")
+	assertResultFields(t, raw, "sessionId", "startsAt", "endedAt", "durationSeconds", "players", "events")
+	var events []map[string]json.RawMessage
+	if err := json.Unmarshal(raw["events"], &events); err != nil {
+		t.Fatal(err)
+	}
+	kinds := make([]string, 0, len(events))
+	for _, e := range events {
+		var kind string
+		if err := json.Unmarshal(e["kind"], &kind); err != nil {
+			t.Fatal(err)
+		}
+		kinds = append(kinds, kind)
+		if kind == "runnerCaught" || kind == "runnerFinished" {
+			assertResultFields(t, e, "kind", "at", "runner")
+		} else {
+			assertResultFields(t, e, "kind", "at")
+		}
+	}
+	if !slices.Equal(kinds, []string{"gameStarted", "runnerCaught", "runnerFinished", "gameEnded"}) {
+		t.Fatalf("result must contain the whole timeline: %v", kinds)
+	}
 	var players []map[string]json.RawMessage
 	if err := json.Unmarshal(raw["players"], &players); err != nil {
 		t.Fatal(err)
