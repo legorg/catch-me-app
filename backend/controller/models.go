@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"catch-me/backend/game"
 )
 
-// Wire enums and identifiers. The consts are the single source of the allowed
-// values: swag derives the OpenAPI enums from them.
+// Wire enums and identifiers. Enum methods expose domain constants to the
+// OpenAPI generator without adding schema methods to domain types.
 
 // SessionID is the 32-character hex ID of a game.
 type SessionID string
@@ -23,37 +25,21 @@ type SketchID string
 // Cell is a playground cell: column A-L, then row 1-12, within the game's grid.
 type Cell string
 
-type Team string
+type Team game.Team
 
-func (Team) Enum() []any { return []any{TeamRunner, TeamHunter} }
+func (Team) Enum() []any { return []any{game.Runners, game.Hunters} }
 
-const (
-	TeamRunner Team = "runner"
-	TeamHunter Team = "hunter"
-)
+type GameStatus game.Status
 
-type GameStatus string
-
-func (GameStatus) Enum() []any { return []any{GameStatusLobby, GameStatusCountdown, GameStatusRunning} }
-
-const (
-	GameStatusLobby     GameStatus = "lobby"
-	GameStatusCountdown GameStatus = "countdown"
-	GameStatusRunning   GameStatus = "running"
-)
-
-type JokerKind string
-
-func (JokerKind) Enum() []any {
-	return []any{JokerKindShowRunners, JokerKindQueryZone, JokerKindZoneOnly, JokerKindFakePosition}
+func (GameStatus) Enum() []any {
+	return []any{game.StatusLobby, game.StatusCountdown, game.StatusRunning, game.StatusEnded}
 }
 
-const (
-	JokerKindShowRunners  JokerKind = "showRunners"
-	JokerKindQueryZone    JokerKind = "queryZone"
-	JokerKindZoneOnly     JokerKind = "zoneOnly"
-	JokerKindFakePosition JokerKind = "fakePosition"
-)
+type JokerKind game.JokerKind
+
+func (JokerKind) Enum() []any {
+	return []any{game.JokerShowRunners, game.JokerQueryZone, game.JokerZoneOnly, game.JokerFakePosition, game.JokerShowHunters, game.JokerCompass}
+}
 
 type HealthResponse struct {
 	Status  string `json:"status" enums:"ok" example:"ok" validate:"required,oneof=ok"`
@@ -141,7 +127,7 @@ type SetHunterTeamRequest struct {
 type PlayerResponse struct {
 	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
 	Name     string   `json:"name" minLength:"1" maxLength:"20" example:"Ada" validate:"required,min=1,max=20"`
-	Team     Team     `json:"team" validate:"required,oneof=runner hunter"`
+	Team     Team     `json:"team" validate:"required"`
 	// Present for hunters who have chosen a hunter team.
 	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves" validate:"omitempty,max=20"`
 	Ready      bool   `json:"ready" example:"false"`
@@ -150,6 +136,25 @@ type PlayerResponse struct {
 	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
 	// Hunters only, for runners while running: every reveal so far, oldest first.
 	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
+	// Present for every runner, including active runners; absent for hunters.
+	Runner *RunnerStateResponse `json:"runner,omitempty" validate:"omitempty"`
+}
+
+// RunnerStatus adds schema metadata without putting OpenAPI methods on the domain type.
+type RunnerStatus game.RunnerStatus
+
+func (RunnerStatus) Enum() []any {
+	return []any{game.RunnerActive, game.RunnerCaught, game.RunnerFinished}
+}
+
+// RunnerStateResponse exposes one outcome; there is never a finish-position field.
+type RunnerStateResponse struct {
+	Status RunnerStatus `json:"status" validate:"required"`
+	// Absent while active; server-recorded completion time for caught or finished runners.
+	EndedAt *time.Time `json:"endedAt,omitempty" validate:"omitempty"`
+	// Last report before declaring the catch, frozen until position retention expires.
+	// Only for caught runners with a retained report; never for active or finished runners.
+	CaughtPosition *PositionResponse `json:"caughtPosition,omitempty" validate:"omitempty"`
 }
 
 // RevealKind tells the variants of RevealResponse apart.
@@ -217,8 +222,9 @@ type UpdatePositionRequest struct {
 }
 
 // UseJokerRequest is the joker to use: exactly one of ShowRunnersRequest,
-// QueryZoneRequest, ZoneOnlyRequest, and FakePositionRequest, told apart by
-// kind. Each variant has only the fields its joker needs.
+// QueryZoneRequest, CompassRequest, ZoneOnlyRequest, FakePositionRequest, and
+// ShowHuntersRequest, told apart by kind. Each variant has only the fields its
+// joker needs.
 type UseJokerRequest struct {
 	// Which joker; it picks the variant.
 	Kind    JokerKind `json:"kind" validate:"required"`
@@ -227,7 +233,7 @@ type UseJokerRequest struct {
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
 func (UseJokerRequest) JSONSchemaOneOf() []any {
-	return []any{ShowRunnersRequest{}, QueryZoneRequest{}, ZoneOnlyRequest{}, FakePositionRequest{}}
+	return []any{ShowRunnersRequest{}, QueryZoneRequest{}, CompassRequest{}, ZoneOnlyRequest{}, FakePositionRequest{}, ShowHuntersRequest{}}
 }
 
 // UnmarshalJSON decodes the variant named by kind, rejecting fields it does not have.
@@ -240,15 +246,19 @@ func (u *UseJokerRequest) UnmarshalJSON(data []byte) error {
 	}
 	var err error
 	u.Kind = probe.Kind
-	switch probe.Kind {
-	case JokerKindShowRunners:
+	switch game.JokerKind(probe.Kind) {
+	case game.JokerShowRunners:
 		u.variant, err = decodeStrict[ShowRunnersRequest](data)
-	case JokerKindQueryZone:
+	case game.JokerQueryZone:
 		u.variant, err = decodeStrict[QueryZoneRequest](data)
-	case JokerKindZoneOnly:
+	case game.JokerZoneOnly:
 		u.variant, err = decodeStrict[ZoneOnlyRequest](data)
-	case JokerKindFakePosition:
+	case game.JokerFakePosition:
 		u.variant, err = decodeStrict[FakePositionRequest](data)
+	case game.JokerShowHunters:
+		u.variant, err = decodeStrict[ShowHuntersRequest](data)
+	case game.JokerCompass:
+		u.variant, err = decodeStrict[CompassRequest](data)
 	default:
 		err = fmt.Errorf("unknown joker %q", probe.Kind)
 	}
@@ -264,7 +274,7 @@ func decodeStrict[T any](data []byte) (T, error) {
 	return value, err
 }
 
-// Variant is the decoded request: one of the four variant structs.
+// Variant is the decoded request: one of the six variant structs.
 func (u UseJokerRequest) Variant() any { return u.variant }
 
 type ShowRunnersRequest struct {
@@ -289,6 +299,14 @@ type FakePositionRequest struct {
 	Longitude *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
 }
 
+type ShowHuntersRequest struct {
+	Kind JokerKind `json:"kind" enum:"showHunters" validate:"required,eq=showHunters"`
+}
+
+type CompassRequest struct {
+	Kind JokerKind `json:"kind" enum:"compass" validate:"required,eq=compass"`
+}
+
 type AddSketchRequest struct {
 	Points []SketchPointRequest `json:"points" validate:"required,min=2,max=500,dive"`
 }
@@ -304,15 +322,16 @@ type SketchResponse struct {
 	Points    []Coordinates `json:"points" validate:"required,min=2,max=500,dive"`
 }
 
-// JokerResponse is one joker of the requesting player's team: exactly one of
-// ShowRunnersJokerResponse, QueryZoneJokerResponse, ZoneOnlyJokerResponse, and
-// FakePositionJokerResponse, told apart by kind. Each has only its joker's
-// result fields, present once the team used it.
+// JokerResponse is one personal or team joker of the requesting player: exactly one of
+// ShowRunnersJokerResponse, QueryZoneJokerResponse, CompassJokerResponse,
+// ZoneOnlyJokerResponse, FakePositionJokerResponse, and
+// ShowHuntersJokerResponse, told apart by kind. Each has only its joker's
+// result fields, present once the player or team used it.
 type JokerResponse struct{ variant any }
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
 func (JokerResponse) JSONSchemaOneOf() []any {
-	return []any{ShowRunnersJokerResponse{}, QueryZoneJokerResponse{}, ZoneOnlyJokerResponse{}, FakePositionJokerResponse{}}
+	return []any{ShowRunnersJokerResponse{}, QueryZoneJokerResponse{}, CompassJokerResponse{}, ZoneOnlyJokerResponse{}, FakePositionJokerResponse{}, ShowHuntersJokerResponse{}}
 }
 
 func (j JokerResponse) MarshalJSON() ([]byte, error) { return marshalVariant(j.variant) }
@@ -340,6 +359,16 @@ type QueryZoneJokerResponse struct {
 	Found *bool `json:"found,omitempty" example:"true"`
 }
 
+type CompassJokerResponse struct {
+	Kind JokerKind `json:"kind" enum:"compass" validate:"required,eq=compass"`
+	JokerStatus
+	// Once used: where the hunter who used it stood, and the direction from
+	// there to each runner at usedAt, in whole degrees clockwise from true
+	// north, sorted. No positions, distances, or runner IDs.
+	Origin   *Coordinates `json:"origin,omitempty" validate:"omitempty"`
+	Bearings []int        `json:"bearings,omitempty" validate:"omitempty,max=100"`
+}
+
 type ZoneOnlyJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"zoneOnly" validate:"required,eq=zoneOnly"`
 	JokerStatus
@@ -350,9 +379,17 @@ type ZoneOnlyJokerResponse struct {
 type FakePositionJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"fakePosition" validate:"required,eq=fakePosition"`
 	JokerStatus
-	// Once used: the runner who used it and the point hunters see at that runner's next reveal.
+	// Once used: the requesting runner and the point hunters see at their next reveal. Once per runner, not shared.
 	UsedBy PlayerID     `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
 	Point  *Coordinates `json:"point,omitempty" validate:"omitempty"`
+}
+
+type ShowHuntersJokerResponse struct {
+	Kind JokerKind `json:"kind" enum:"showHunters" validate:"required,eq=showHunters"`
+	JokerStatus
+	// Once used: the runner who used it and each hunter's position at usedAt.
+	UsedBy    PlayerID                `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
+	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,max=100,dive"`
 }
 
 type JokerPositionResponse struct {
@@ -362,13 +399,15 @@ type JokerPositionResponse struct {
 
 // GameStateBase is what every player sees of the game.
 type GameStateBase struct {
-	// Explicit server-side development override; absent during normal play.
+	// Development override for both Ready and finish position checks; absent during normal play.
 	StartPositionCheckDisabled bool       `json:"startPositionCheckDisabled,omitempty" example:"false" validate:"omitempty"`
 	SessionID                  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
-	Status                     GameStatus `json:"status" validate:"required,oneof=lobby countdown running"`
+	Status                     GameStatus `json:"status" validate:"required"`
 	ServerTime                 time.Time  `json:"serverTime" example:"2026-11-08T12:00:00Z" validate:"required"`
-	// Scheduled start, present during the countdown and once running.
+	// Scheduled start, present during the countdown, while running, and after the end.
 	StartsAt *time.Time `json:"startsAt,omitempty" example:"2026-11-08T12:00:10Z" validate:"omitempty"`
+	// Server-recorded end time, present only once every runner is caught or finished.
+	EndedAt *time.Time `json:"endedAt,omitempty" example:"2026-11-08T13:00:10Z" validate:"omitempty"`
 	// Next time hunters receive the runners' positions, present while running.
 	NextRevealAt *time.Time `json:"nextRevealAt,omitempty" example:"2026-11-08T12:05:10Z" validate:"omitempty"`
 	// How often hunters receive the runners' positions.
@@ -387,7 +426,7 @@ type GameStateRunnerResponse struct {
 	Route GameRoute `json:"route"`
 	// How often the runners together may still regenerate the route.
 	RouteRegenerationsLeft int `json:"routeRegenerationsLeft" minimum:"0" maximum:"2" example:"2" validate:"gte=0,lte=2"`
-	// The jokers all runners share.
+	// Shared runner team jokers and the requesting runner's personal fake position joker.
 	Jokers []JokerResponse `json:"jokers" validate:"max=2,dive"`
 }
 
@@ -464,11 +503,11 @@ func (s *GameStateResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*s = GameStateResponse{}
-	switch probe.Team {
-	case TeamRunner:
+	switch game.Team(probe.Team) {
+	case game.Runners:
 		s.runner = new(GameStateRunnerResponse)
 		return json.Unmarshal(data, s.runner)
-	case TeamHunter:
+	case game.Hunters:
 		s.hunter = new(GameStateHunterResponse)
 		return json.Unmarshal(data, s.hunter)
 	}

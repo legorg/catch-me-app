@@ -3,23 +3,27 @@ import {
   addSketch as postSketch,
   clearSketches as deleteSketches,
   createGame as postGame,
+  finish as postFinish,
+  getGameResult as fetchGameResult,
   getGameState as fetchGameState,
   getHealth,
   joinGame as postPlayer,
   leaveGame as deletePlayer,
+  markCaught as postCaught,
   regenerateRoute as postRoute,
   setHunterTeam as putHunterTeam,
   setReady as putReady,
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
-import type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest } from './types';
+import type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest } from './types';
+import { isGameResultResponse, isValidGameId, normalizeGameId } from '../game-result';
 import { translate, type MessageKey } from '../i18n';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
 } from '../playground';
 
-export type { Coordinates, CreateGameResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse } from './types';
+export type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse } from './types';
 
 export const API_URL = (
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
@@ -28,7 +32,9 @@ export const API_URL = (
 // Development aid: shows in the Metro terminal which URL every request goes to (__DEV__ is unset under node tests).
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   client.interceptors.request.use((request) => {
-    console.log(`[api] ${request.method} ${request.url}`);
+    // The full game ID grants access to results; do not print it in the request log.
+    const url = request.url.replace(/(\/api\/games\/)[^/]+(\/result)/, '$1[game-id]$2');
+    console.log(`[api] ${request.method} ${url}`);
     return request;
   });
 }
@@ -89,6 +95,25 @@ export async function joinGame(code: string, name: string): Promise<JoinGameResp
 
 export async function getGameState(token: string): Promise<GameStateResponse> {
   return request((signal) => fetchGameState({ baseUrl: API_URL, auth: bearer(token), signal }));
+}
+
+/** No token, joining, or location permission is needed to look up an ended game. */
+export async function getGameResult(sessionId: string): Promise<GameResultResponse> {
+  const id = normalizeGameId(sessionId);
+  if (!isValidGameId(id)) throw new Error(translate('result.invalidId'));
+  const result = await request((signal) => fetchGameResult({ baseUrl: API_URL, path: { sessionId: id }, signal }));
+  if (!isGameResultResponse(result) || result.sessionId !== id) throw new Error(translate('result.invalidResponse'));
+  return result;
+}
+
+/** Permanently marks this runner caught, on trust alone; retries preserve the original catch. */
+export async function markCaught(token: string): Promise<GameStateResponse> {
+  return request((signal) => postCaught({ baseUrl: API_URL, auth: bearer(token), signal }));
+}
+
+/** The server checks its latest stored report; no client coordinates or time are sent. */
+export async function finish(token: string): Promise<GameStateResponse> {
+  return request((signal) => postFinish({ baseUrl: API_URL, auth: bearer(token), signal }));
 }
 
 export async function setReady(token: string, ready: boolean): Promise<GameStateResponse> {

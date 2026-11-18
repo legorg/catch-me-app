@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strings"
 
 	"catch-me/backend/game"
 	"catch-me/backend/service"
@@ -40,9 +39,8 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodGet, http.MethodHead) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.State(r.Context(), token)
@@ -53,14 +51,47 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
+// Finish validates the latest stored report; the request supplies no coordinates.
+func (c *GameController) Finish(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost) {
+		return
+	}
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
+		return
+	}
+	view, err := c.service.Finish(r.Context(), token)
+	if err != nil {
+		writeGameError(w, err, "could not finish runner")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
+// MarkCaught permanently retires the authenticated runner, on trust alone.
+func (c *GameController) MarkCaught(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost) {
+		return
+	}
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
+		return
+	}
+	view, err := c.service.MarkCaught(r.Context(), token)
+	if err != nil {
+		writeGameError(w, err, "could not mark runner caught")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
 // SetReady marks the authenticated player as ready or not ready.
 func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body SetReadyRequest
@@ -84,9 +115,8 @@ func (c *GameController) RegenerateRoute(w http.ResponseWriter, r *http.Request)
 	if !allowMethods(w, r, http.MethodPost) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.RegenerateRoute(r.Context(), token)
@@ -102,9 +132,8 @@ func (c *GameController) SetHunterTeam(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body SetHunterTeamRequest
@@ -129,9 +158,8 @@ func (c *GameController) UpdatePosition(w http.ResponseWriter, r *http.Request) 
 	if !allowMethods(w, r, http.MethodPut) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body UpdatePositionRequest
@@ -160,9 +188,8 @@ func (c *GameController) UseJoker(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPost) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body UseJokerRequest
@@ -193,6 +220,8 @@ func jokerChoice(body UseJokerRequest) (game.JokerChoice, error) {
 			return nil, err
 		}
 		return game.QueryZone{Cell: cell}, nil
+	case CompassRequest:
+		return game.Compass{}, nil
 	case ZoneOnlyRequest:
 		return game.ZoneOnly{}, nil
 	case FakePositionRequest:
@@ -204,6 +233,8 @@ func jokerChoice(body UseJokerRequest) (game.JokerChoice, error) {
 			return nil, err
 		}
 		return game.FakePosition{Point: point}, nil
+	case ShowHuntersRequest:
+		return game.ShowHunters{}, nil
 	}
 	return nil, &game.ValidationError{Message: "unknown joker"}
 }
@@ -222,9 +253,8 @@ func (c *GameController) Sketches(w http.ResponseWriter, r *http.Request) {
 
 // AddSketch adds a line to the map of the authenticated hunter's team.
 func (c *GameController) AddSketch(w http.ResponseWriter, r *http.Request) {
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	var body AddSketchRequest
@@ -259,9 +289,8 @@ func (c *GameController) AddSketch(w http.ResponseWriter, r *http.Request) {
 
 // ClearSketches removes all lines of the authenticated hunter's team.
 func (c *GameController) ClearSketches(w http.ResponseWriter, r *http.Request) {
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	view, err := c.service.ClearSketches(r.Context(), token)
@@ -277,9 +306,8 @@ func (c *GameController) Leave(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodDelete) {
 		return
 	}
-	token, err := playerToken(r)
-	if err != nil {
-		writeGameError(w, err, "invalid token")
+	token, ok := requirePlayerToken(w, r)
+	if !ok {
 		return
 	}
 	if err := c.service.Leave(r.Context(), token); err != nil {
@@ -289,24 +317,16 @@ func (c *GameController) Leave(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func playerToken(r *http.Request) (game.PlayerToken, error) {
-	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if !ok {
-		return game.PlayerToken{}, game.ErrUnauthorized
-	}
-	return game.ParsePlayerToken(strings.TrimSpace(token))
-}
-
 func gameStateResponse(view service.PlayerView) GameStateResponse {
 	base := gameStateBase(view)
 	if view.Me.Team == game.Runners {
 		return NewRunnerState(GameStateRunnerResponse{
-			GameStateBase: base, Team: TeamRunner, Route: gameRouteResponse(view.Lobby.Game.Route),
+			GameStateBase: base, Team: Team(game.Runners), Route: gameRouteResponse(view.Lobby.Game.Route),
 			RouteRegenerationsLeft: view.Lobby.Game.RouteRegenerationsLeft(), Jokers: jokerResponses(view),
 		})
 	}
 	return NewHunterState(GameStateHunterResponse{
-		GameStateBase: base, Team: TeamHunter,
+		GameStateBase: base, Team: Team(game.Hunters),
 		Jokers: jokerResponses(view), Sketches: sketchResponses(view),
 	})
 }
@@ -328,12 +348,25 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 	if !g.StartsAt.IsZero() {
 		response.StartsAt = &g.StartsAt
 	}
+	if !g.EndedAt.IsZero() {
+		response.EndedAt = &g.EndedAt
+	}
 	if next := g.NextReveal(view.Now); !next.IsZero() {
 		response.NextRevealAt = &next
 	}
 	// Visibility is decided by the domain; this only maps what it allows.
 	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
 		player := PlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}
+		if p.Team == game.Runners {
+			player.Runner = &RunnerStateResponse{Status: RunnerStatus(p.Runner.Status())}
+			if at := p.Runner.EndedAt(); !at.IsZero() {
+				player.Runner.EndedAt = &at
+			}
+			if !p.CaughtPosition.IsZero() {
+				position := positionResponse(p.CaughtPosition)
+				player.Runner.CaughtPosition = &position
+			}
+		}
 		if !p.Position.IsZero() {
 			position := positionResponse(p.Position)
 			player.Position = &position
@@ -367,31 +400,45 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 		}
 		switch j.Kind {
 		case game.JokerShowRunners:
-			joker := ShowRunnersJokerResponse{Kind: JokerKindShowRunners, JokerStatus: status}
+			joker := ShowRunnersJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.ShowRunnersUse); ok {
-				for _, p := range use.Positions {
-					joker.Positions = append(joker.Positions, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
-				}
+				joker.Positions = jokerPositionResponses(use.Positions)
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerQueryZone:
-			joker := QueryZoneJokerResponse{Kind: JokerKindQueryZone, JokerStatus: status}
+			joker := QueryZoneJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.QueryZoneUse); ok {
 				found := use.Found
 				joker.Cell, joker.Found = Cell(use.Cell.String()), &found
 			}
 			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerCompass:
+			joker := CompassJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
+			if use, ok := j.Use.(game.CompassUse); ok {
+				origin := coordinatesResponse(use.Origin)
+				joker.Origin = &origin
+				joker.Bearings = use.Bearings
+			}
+			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerZoneOnly:
-			joker := ZoneOnlyJokerResponse{Kind: JokerKindZoneOnly, JokerStatus: status}
+			joker := ZoneOnlyJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.ZoneOnlyUse); ok {
 				joker.UsedBy = PlayerID(use.Runner.String())
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerFakePosition:
-			joker := FakePositionJokerResponse{Kind: JokerKindFakePosition, JokerStatus: status}
+			joker := FakePositionJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.FakePositionUse); ok {
 				joker.UsedBy = PlayerID(use.Runner.String())
-				joker.Point = &Coordinates{Latitude: use.Point.Latitude(), Longitude: use.Point.Longitude()}
+				point := coordinatesResponse(use.Point)
+				joker.Point = &point
+			}
+			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerShowHunters:
+			joker := ShowHuntersJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
+			if use, ok := j.Use.(game.ShowHuntersUse); ok {
+				joker.UsedBy = PlayerID(use.Runner.String())
+				joker.Positions = jokerPositionResponses(use.Positions)
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		}
@@ -399,12 +446,20 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 	return jokers
 }
 
+func jokerPositionResponses(positions []game.JokerPosition) []JokerPositionResponse {
+	var responses []JokerPositionResponse
+	for _, p := range positions {
+		responses = append(responses, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
+	}
+	return responses
+}
+
 func sketchResponses(view service.PlayerView) []SketchResponse {
 	sketches := make([]SketchResponse, 0)
 	for _, s := range view.Lobby.SketchesFor(view.Me, view.Now) {
 		sketch := SketchResponse{SketchID: SketchID(s.ID.String()), CreatedAt: s.CreatedAt}
 		for _, p := range s.Line.Points() {
-			sketch.Points = append(sketch.Points, Coordinates{Latitude: p.Latitude(), Longitude: p.Longitude()})
+			sketch.Points = append(sketch.Points, coordinatesResponse(p))
 		}
 		sketches = append(sketches, sketch)
 	}

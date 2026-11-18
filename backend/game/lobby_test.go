@@ -74,6 +74,53 @@ func setHunterTeam(t *testing.T, l *Lobby, id PlayerID, name string, now time.Ti
 	}
 }
 
+func TestRequirePlayer(t *testing.T) {
+	first, second := Player{ID: NewPlayerID()}, Player{ID: NewPlayerID()}
+	l := Lobby{Players: []Player{first, second}}
+	player, err := l.requirePlayer(second.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if player != &l.Players[1] {
+		t.Fatal("must return the stored player, not a copy")
+	}
+	player.Ready = true
+	if !l.Players[1].Ready || l.Players[0] != first {
+		t.Fatal("mutating the result must only update the requested player")
+	}
+	if player, err := l.requirePlayer(NewPlayerID()); player != nil || !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("unknown player: got %v, %v", player, err)
+	}
+	var empty Lobby
+	if player, err := empty.requirePlayer(first.ID); player != nil || !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("empty lobby: got %v, %v", player, err)
+	}
+}
+
+func TestPlayerActionsRejectUnknownPlayer(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		act  func(*Lobby, PlayerID) error
+	}{
+		{"ready", func(l *Lobby, id PlayerID) error { return l.SetReady(id, true, start, true) }},
+		{"hunter team", func(l *Lobby, id PlayerID) error {
+			name, _ := ParseHunterTeamName("Pack")
+			return l.SetHunterTeam(id, name, start)
+		}},
+		{"position", func(l *Lobby, id PlayerID) error { return l.UpdatePosition(id, Position{}, start, true) }},
+		{"joker", func(l *Lobby, id PlayerID) error { return l.UseJoker(id, ShowRunners{}, start) }},
+		{"finish", func(l *Lobby, id PlayerID) error { return l.Finish(id, start, true) }},
+		{"caught", func(l *Lobby, id PlayerID) error { return l.MarkCaught(id, start) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			l := newLobby()
+			if err := tc.act(&l, NewPlayerID()); !errors.Is(err, ErrUnauthorized) {
+				t.Fatalf("unknown player must be unauthorized: %v", err)
+			}
+		})
+	}
+}
+
 func TestCountdownStartsWhenAllReadyAndBothTeamsPresent(t *testing.T) {
 	l := newLobby()
 	runner := join(t, &l, Runners, "Ada", start)

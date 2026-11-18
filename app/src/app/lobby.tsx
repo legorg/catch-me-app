@@ -22,7 +22,7 @@ export default function LobbyScreen() {
   const lobby = useLobby();
   const { token, snapshot, state, error, countdown, busy, me, location, sharing } = lobby;
 
-  if (!token || !state || !snapshot) {
+  if (!token || !state || !snapshot || state.status === 'ended') {
     // A ScrollView must exist from the first render, or the large header never links to it.
     return (
       <>

@@ -10,11 +10,9 @@ const (
 	maxAccuracyMeters = 10000
 	minRevealMinutes  = 1
 	maxRevealMinutes  = 60
-	// startPositionMaxAge is how recent a runner's position must be to prove they
-	// are at the start of the route.
+	// Start and finish share the same report freshness and landmark radius.
 	startPositionMaxAge = 30 * time.Second
-	// startRadiusMeters is how close to the route's start a runner must be to get ready.
-	startRadiusMeters = 50
+	startRadiusMeters   = 50
 	// PositionRetention is how long reported positions and sketches are kept after
 	// a game's start (or creation, if it never started), for a replay after the game.
 	PositionRetention = 7 * 24 * time.Hour

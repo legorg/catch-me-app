@@ -62,20 +62,21 @@ export function useLocationSharing(active: boolean, background: boolean, send: (
     let subscription: Location.LocationSubscription | null = null;
     let stopped = false;
     const deliver = () => {
-      if (latest) void sendRef.current(latest);
+      if (!stopped && latest) void sendRef.current(latest);
     };
     Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 0 },
       ({ coords }) => {
+        if (stopped) return;
         const first = latest === null;
         latest = { latitude: coords.latitude, longitude: coords.longitude, accuracyMeters: coords.accuracy ?? UNKNOWN_ACCURACY_METERS };
         setError('');
         if (first) deliver();
       },
-      (reason) => setError(reason),
+      (reason) => { if (!stopped) setError(reason); },
     ).then(
       (s) => { if (stopped) s.remove(); else subscription = s; },
-      (err: unknown) => setError(err instanceof Error ? err.message : translate('location.unavailable')),
+      (err: unknown) => { if (!stopped) setError(err instanceof Error ? err.message : translate('location.unavailable')); },
     );
     const timer = setInterval(deliver, SEND_INTERVAL_MS);
     return () => {

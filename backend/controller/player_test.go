@@ -58,7 +58,7 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
 	// An unused joker has no result; "no" must be sent as false, not left out.
-	want := `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":false,"usedAt":"2026-11-08T12:00:00Z","cell":"A1","found":false}]`
+	want := `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":false,"usedAt":"2026-11-08T12:00:00Z","cell":"A1","found":false},{"kind":"compass","available":true}]`
 	if got := jsonOf(t, bobState.Jokers); got != want {
 		t.Fatalf("jokers:\n got %s\nwant %s", got, want)
 	}
@@ -95,7 +95,7 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	now := second.Add(time.Second)
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	if len(bobState.Jokers) != 2 {
+	if len(bobState.Jokers) != 3 {
 		t.Fatalf("hunters only get their own jokers: %+v", bobState.Jokers)
 	}
 	reveals := bobState.Players[0].Reveals
@@ -107,7 +107,7 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	}
 	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
 	want = `{"kind":"zoneOnly","available":false,"usedAt":"2026-11-08T12:01:01Z","usedBy":"` + ada.ID.String() + `"}`
-	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 2 || got != want {
+	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 3 || got != want {
 		t.Fatalf("every runner sees who used the runner joker:\n got %s\nwant %s", got, want)
 	}
 }
@@ -120,7 +120,8 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 	pack, _ := game.ParseHunterTeamName("Pack")
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, bob}}
+	cy := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
+	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, bob, cy}}
 	first := start.Add(time.Minute)
 	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}}}
@@ -139,5 +140,59 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 	want = `{"kind":"fakePosition","available":false,"usedAt":"2026-11-08T12:00:01Z","usedBy":"` + ada.ID.String() + `","point":{"latitude":52.53,"longitude":13.415}}`
 	if got := jsonOf(t, adaState.Jokers[1]); got != want {
 		t.Fatalf("runners see the point they showed:\n got %s\nwant %s", got, want)
+	}
+	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
+	if got := jsonOf(t, cyState.Jokers[1]); got != `{"kind":"fakePosition","available":true}` {
+		t.Fatalf("another runner gets their own unspent joker, not Ada's point: %s", got)
+	}
+}
+
+func TestGameStateShowsTheHunterPositionsToRunnersOnly(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	pack, _ := game.ParseHunterTeamName("Pack")
+	where, _ := game.ParseCoordinates(52.52, 13.405)
+	position, _ := game.NewPosition(where, 5, now.Add(-time.Second))
+	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack, Position: position}
+	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
+	if err := lobby.UseJoker(ada.ID, game.ShowHunters{}, now); err != nil {
+		t.Fatal(err)
+	}
+
+	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()
+	want := `{"kind":"showHunters","available":false,"usedAt":"2026-11-08T12:00:00Z","usedBy":"` + ada.ID.String() + `",` +
+		`"positions":[{"playerId":"` + bob.ID.String() + `","latitude":52.52,"longitude":13.405,"accuracyMeters":5,"recordedAt":"2026-11-08T11:59:59Z"}]}`
+	if got := jsonOf(t, adaState.Jokers[2]); len(adaState.Jokers) != 3 || got != want {
+		t.Fatalf("runners see where the hunters were:\n got %s\nwant %s", got, want)
+	}
+	for _, p := range adaState.Players {
+		if p.PlayerID == PlayerID(bob.ID.String()) && p.Position != nil {
+			t.Fatal("runners still get no live hunter position")
+		}
+	}
+	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
+	if got := jsonOf(t, bobState.Jokers); got != `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":true},{"kind":"compass","available":true}]` {
+		t.Fatalf("hunters are not told: %s", got)
+	}
+}
+
+func TestGameStateShowsOnlyTheCompassDirections(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	pack, _ := game.ParseHunterTeamName("Pack")
+	here, _ := game.ParseCoordinates(52.52, 13.405)
+	north, _ := game.ParseCoordinates(52.53, 13.405)
+	hunterAt, _ := game.NewPosition(here, 5, now.Add(-time.Second))
+	runnerAt, _ := game.NewPosition(north, 5, now.Add(-time.Second))
+	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack, Position: hunterAt}
+	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners, Position: runnerAt}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
+	if err := lobby.UseJoker(bob.ID, game.Compass{}, now); err != nil {
+		t.Fatal(err)
+	}
+
+	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
+	want := `{"kind":"compass","available":false,"usedAt":"2026-11-08T12:00:00Z","origin":{"latitude":52.52,"longitude":13.405},"bearings":[0]}`
+	if got := jsonOf(t, bobState.Jokers[2]); got != want {
+		t.Fatalf("hunters see only the origin and the directions:\n got %s\nwant %s", got, want)
 	}
 }

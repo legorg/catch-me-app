@@ -19,6 +19,18 @@ export type ControllerBounds = {
     west: number;
 };
 
+export type ControllerCompassJokerResponse = {
+    available: boolean;
+    bearings?: Array<number>;
+    kind: 'compass';
+    origin?: ControllerCoordinates;
+    usedAt?: string;
+};
+
+export type ControllerCompassRequest = {
+    kind: 'compass';
+};
+
 export type ControllerCoordinates = {
     latitude: number;
     longitude: number;
@@ -59,6 +71,14 @@ export type ControllerGameResponse = {
     sessionId: string;
 };
 
+export type ControllerGameResultResponse = {
+    durationSeconds: number;
+    endedAt: string;
+    players: Array<ControllerResultPlayerResponse>;
+    sessionId: string;
+    startsAt: string;
+};
+
 export type ControllerGameRoute = {
     distanceMeters: number;
     start: ControllerLandmark;
@@ -66,6 +86,7 @@ export type ControllerGameRoute = {
 };
 
 export type ControllerGameStateHunterResponse = {
+    endedAt?: string;
     joinCodes: ControllerJoinCodes;
     jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
@@ -89,6 +110,7 @@ export type ControllerGameStateResponse = ({
 } & ControllerGameStateHunterResponse);
 
 export type ControllerGameStateRunnerResponse = {
+    endedAt?: string;
     joinCodes: ControllerJoinCodes;
     jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
@@ -106,7 +128,7 @@ export type ControllerGameStateRunnerResponse = {
     team: 'runner';
 };
 
-export type ControllerGameStatus = 'lobby' | 'countdown' | 'running';
+export type ControllerGameStatus = 'lobby' | 'countdown' | 'running' | 'ended';
 
 export type ControllerHealthResponse = {
     service: 'catch-me-backend';
@@ -128,7 +150,7 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
-export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition';
+export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters' | 'compass';
 
 export type ControllerJokerPositionResponse = {
     accuracyMeters: number;
@@ -143,10 +165,14 @@ export type ControllerJokerResponse = ({
 } & ControllerShowRunnersJokerResponse) | ({
     kind: 'queryZone';
 } & ControllerQueryZoneJokerResponse) | ({
+    kind: 'compass';
+} & ControllerCompassJokerResponse) | ({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyJokerResponse) | ({
     kind: 'fakePosition';
-} & ControllerFakePositionJokerResponse);
+} & ControllerFakePositionJokerResponse) | ({
+    kind: 'showHunters';
+} & ControllerShowHuntersJokerResponse);
 
 export type ControllerLandmark = {
     coordinates: ControllerCoordinates;
@@ -165,6 +191,7 @@ export type ControllerPlayerResponse = {
     position?: ControllerPositionResponse;
     ready: boolean;
     reveals?: Array<ControllerRevealResponse>;
+    runner?: ControllerRunnerStateResponse;
     team: ControllerTeam;
 };
 
@@ -202,6 +229,14 @@ export type ControllerQueryZoneRequest = {
     kind: 'queryZone';
 };
 
+export type ControllerResultPlayerResponse = {
+    hunterTeam?: string;
+    name: string;
+    playerId: string;
+    runner?: ControllerRunnerResultResponse;
+    team: ControllerTeam;
+};
+
 export type ControllerRevealKind = 'position' | 'zone' | 'outside';
 
 export type ControllerRevealResponse = ({
@@ -212,12 +247,39 @@ export type ControllerRevealResponse = ({
     kind: 'outside';
 } & ControllerOutsideRevealResponse);
 
+export type ControllerRunnerOutcome = 'caught' | 'finished';
+
+export type ControllerRunnerResultResponse = {
+    endedAt: string;
+    status: ControllerRunnerOutcome;
+};
+
+export type ControllerRunnerStateResponse = {
+    caughtPosition?: ControllerPositionResponse;
+    endedAt?: string;
+    status: ControllerRunnerStatus;
+};
+
+export type ControllerRunnerStatus = 'active' | 'caught' | 'finished';
+
 export type ControllerSetHunterTeamRequest = {
     name: string;
 };
 
 export type ControllerSetReadyRequest = {
     ready: boolean;
+};
+
+export type ControllerShowHuntersJokerResponse = {
+    available: boolean;
+    kind: 'showHunters';
+    positions?: Array<ControllerJokerPositionResponse>;
+    usedAt?: string;
+    usedBy?: string;
+};
+
+export type ControllerShowHuntersRequest = {
+    kind: 'showHunters';
 };
 
 export type ControllerShowRunnersJokerResponse = {
@@ -255,10 +317,14 @@ export type ControllerUseJokerRequest = (({
 } & ControllerShowRunnersRequest) | ({
     kind: 'queryZone';
 } & ControllerQueryZoneRequest) | ({
+    kind: 'compass';
+} & ControllerCompassRequest) | ({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyRequest) | ({
     kind: 'fakePosition';
-} & ControllerFakePositionRequest)) & {
+} & ControllerFakePositionRequest) | ({
+    kind: 'showHunters';
+} & ControllerShowHuntersRequest)) & {
     kind: ControllerJokerKind;
 };
 
@@ -327,6 +393,45 @@ export type CreateGameResponses = {
 
 export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
 
+export type GetGameResultData = {
+    body?: never;
+    path: {
+        sessionId: string;
+    };
+    query?: never;
+    url: '/api/games/{sessionId}/result';
+};
+
+export type GetGameResultErrors = {
+    /**
+     * Invalid game ID; expected 32 lowercase hexadecimal characters, not a join code
+     */
+    400: ControllerApiError;
+    /**
+     * Game not found or not ended
+     */
+    404: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Could not load game result
+     */
+    500: ControllerApiError;
+};
+
+export type GetGameResultError = GetGameResultErrors[keyof GetGameResultErrors];
+
+export type GetGameResultResponses = {
+    /**
+     * Game times and duration, player names, runner outcomes/times, and hunter teams in join order; no coordinates, history, join codes, or tokens; no authentication required
+     */
+    200: ControllerGameResultResponse;
+};
+
+export type GetGameResultResponse = GetGameResultResponses[keyof GetGameResultResponses];
+
 export type LeaveGameData = {
     body?: never;
     path?: never;
@@ -364,6 +469,80 @@ export type LeaveGameResponses = {
 
 export type LeaveGameResponse = LeaveGameResponses[keyof LeaveGameResponses];
 
+export type MarkCaughtData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/caught';
+};
+
+export type MarkCaughtErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a runner, already finished, or game not running
+     */
+    409: ControllerApiError;
+    /**
+     * Could not mark runner caught
+     */
+    500: ControllerApiError;
+};
+
+export type MarkCaughtError = MarkCaughtErrors[keyof MarkCaughtErrors];
+
+export type MarkCaughtResponses = {
+    /**
+     * runner.status is caught with runner.endedAt and optional runner.caughtPosition; retries preserve the original time and position, including after game end. Everyone sees the catch immediately; further positions and joker uses are rejected. The last active runner ends the game atomically, returning status ended and endedAt
+     */
+    200: ControllerGameStateResponse;
+};
+
+export type MarkCaughtResponse = MarkCaughtResponses[keyof MarkCaughtResponses];
+
+export type FinishData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/finish';
+};
+
+export type FinishErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a runner, caught, game not running, or missing, stale, or distant position
+     */
+    409: ControllerApiError;
+    /**
+     * Could not finish runner
+     */
+    500: ControllerApiError;
+};
+
+export type FinishError = FinishErrors[keyof FinishErrors];
+
+export type FinishResponses = {
+    /**
+     * runner.status is finished with runner.endedAt; retries preserve the original server time, including after game end. Requires a stored report within 50 m and at most 30 seconds old, unless the development start/finish override is enabled. No finish coordinates are exposed; further position reports and jokers are rejected. The last active runner ends the game atomically, returning status ended and endedAt
+     */
+    200: ControllerGameStateResponse;
+};
+
+export type FinishResponse = FinishResponses[keyof FinishResponses];
+
 export type GetGameStateData = {
     body?: never;
     path?: never;
@@ -390,7 +569,7 @@ export type GetGameStateError = GetGameStateErrors[keyof GetGameStateErrors];
 
 export type GetGameStateResponses = {
     /**
-     * Current game state
+     * Current game state, including status ended and endedAt once every runner is caught or finished; each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
      */
     200: ControllerGameStateResponse;
 };
@@ -447,7 +626,7 @@ export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamRe
 
 export type ActivateJokerData = {
     /**
-     * The joker to use, picked by kind, with exactly the fields that joker needs; each hunter team can use each of its jokers once, the runners each of theirs once together, while the game runs
+     * The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers once per hunter team
      */
     body: ControllerUseJokerRequest;
     path?: never;
@@ -469,7 +648,7 @@ export type ActivateJokerErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a joker of the player's team, hunter without a team, game not running, joker already used, or the runner's last joker has not acted yet
+     * Caught runner, not a joker of the player's team, hunter without a team, game not running, joker already used, the runner's last reveal joker has not acted yet, or a compass without the hunter's position
      */
     409: ControllerApiError;
     /**
@@ -516,6 +695,10 @@ export type UpdatePositionErrors = {
      * Method not allowed
      */
     405: ControllerApiError;
+    /**
+     * Game ended, or a caught or finished runner cannot report positions
+     */
+    409: ControllerApiError;
     /**
      * Request body exceeds 1024 bytes
      */

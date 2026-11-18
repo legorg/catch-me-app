@@ -5,18 +5,21 @@ import type { Coordinates, GameStateResponse, Playground } from '@/api/types';
 import Button from '@/components/button';
 import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, translate, useT } from '@/i18n';
+import { ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
 
 const TITLE_KEYS = {
   showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title', fakePosition: 'joker.fakePosition.title',
+  showHunters: 'joker.showHunters.title', compass: 'joker.compass.title',
 } as const;
 const TEXT_KEYS = {
   showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text', fakePosition: 'joker.fakePosition.text',
+  showHunters: 'joker.showHunters.text', compass: 'joker.compass.text',
 } as const;
 
-/** The jokers of the player's team (a hunter team, or all runners), each with a two-step button to use it. */
+/** Personal and team jokers, each with a two-step button to use it. */
 export default function JokerList({ state, error, onUse }: {
   state: GameStateResponse;
   error: string;
@@ -24,8 +27,20 @@ export default function JokerList({ state, error, onUse }: {
 }) {
   const t = useT();
   const { confirming, cell, setCell, point, setPoint, busy, ready, use, cancel, start } = useJokerUse(state.playground, onUse);
-  const confirmKey = state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
+  const confirmKey = confirming === 'fakePosition' ? 'joker.confirmPersonal' : state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
   const pointCell = point && cellAt(state.playground, point);
+  // The compass starts at the hunter's own position; the server refuses it without one.
+  const hasPosition = !!state.players.find((p) => p.playerId === state.playerId)?.position;
+  const runnerStatus = ownPlayer(state)?.runner?.status;
+
+  if (runnerStatus === 'caught' || runnerStatus === 'finished') {
+    return (
+      <View style={styles.content}>
+        <Text style={styles.heading}>{t('joker.title')}</Text>
+        <Text style={styles.text}>{t(runnerStatus === 'caught' ? 'catch.noJokers' : 'finish.noJokers')}</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
@@ -52,7 +67,9 @@ export default function JokerList({ state, error, onUse }: {
                     <Button label={t('joker.cancel')} variant="secondary" disabled={busy} onPress={cancel} />
                   </View>
                 </>
-                : <Button label={t('joker.use')} onPress={() => start(joker.kind)} />
+                : joker.kind === 'compass' && !hasPosition
+                  ? <Text style={styles.hint}>{t('joker.compass.needsPosition')}</Text>
+                  : <Button label={t('joker.use')} onPress={() => start(joker.kind)} />
               : <Text style={styles.hint}>{t('joker.waitForStart')}</Text>}
         </View>
       ))}
@@ -141,12 +158,24 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
           {!!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>}
         </View>
       );
-    case 'showRunners': {
-      const positions = joker.positions ?? [];
+    case 'compass':
       return (
         <View style={styles.gapTiny}>
           <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
-          {positions.length === 0 && <Text style={styles.hint}>{t('joker.noPositions')}</Text>}
+          <Text style={styles.hint}>{(joker.bearings ?? []).length > 0 ? t('joker.compass.used') : t('joker.noPositions')}</Text>
+        </View>
+      );
+    case 'showRunners':
+    case 'showHunters': {
+      const positions = joker.positions ?? [];
+      return (
+        <View style={styles.gapTiny}>
+          <Text style={[styles.text, styles.accentText]}>
+            {joker.kind === 'showHunters'
+              ? t('joker.usedBy', { name: nameOf(state, joker.usedBy), time: usedAt })
+              : translate('joker.usedAt', { time: usedAt })}
+          </Text>
+          {positions.length === 0 && <Text style={styles.hint}>{t(joker.kind === 'showHunters' ? 'joker.showHunters.noPositions' : 'joker.noPositions')}</Text>}
           {positions.map((p) => (
             <Text key={p.playerId} style={styles.hint}>
               {nameOf(state, p.playerId)} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}
@@ -159,4 +188,3 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
       return null;
   }
 }
-

@@ -5,6 +5,7 @@ import Button from '@/components/button';
 import LocationSharingInfo from '@/components/location-sharing-info';
 import { translateParts, useT } from '@/i18n';
 import { routeTitles } from '@/lobby';
+import { isActivePlayer } from '@/game-state';
 import { overlay, styles } from '@/styles';
 import { useConfirmExit } from '@/use-confirm-exit';
 import type { LocationSharing } from '@/use-location-sharing';
@@ -37,6 +38,17 @@ type InfoPanelProps = {
   location: LocationSharing;
 };
 
+/** Outcomes are visible even when there is no map marker (never one for finishes). */
+function RunnerOutcomes({ state }: { state: GameStateResponse }) {
+  const t = useT();
+  const caught = state.players.filter((player) => player.runner?.status === 'caught').map((player) => player.name).join(', ');
+  const finished = state.players.filter((player) => player.runner?.status === 'finished').map((player) => player.name).join(', ');
+  return <>
+    {!!caught && <Text style={styles.text}>{t('catch.players', { names: caught })}</Text>}
+    {!!finished && <Text style={styles.text}>{t('finish.players', { names: finished })}</Text>}
+  </>;
+}
+
 /** Collapsible card over the map: who you are, the route, the legend, location sharing and the exit button. */
 export default function InfoPanel({ state, me, revealScheduled, location }: InfoPanelProps) {
   const t = useT();
@@ -50,10 +62,13 @@ export default function InfoPanel({ state, me, revealScheduled, location }: Info
         })}
         {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
       </Text>
-      {revealScheduled && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
+      {revealScheduled && isActivePlayer(me) && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
       <RouteLine state={state} />
       <Text style={styles.hint}>{t(texts.legend)}</Text>
-      <LocationSharingInfo location={location} />
+      <RunnerOutcomes state={state} />
+      {me?.runner?.status === 'caught' || me?.runner?.status === 'finished'
+        ? <Text style={styles.text}>{t(me.runner.status === 'caught' ? 'catch.sharingStopped' : 'finish.sharingStopped')}</Text>
+        : isActivePlayer(me) && <LocationSharingInfo location={location} />}
       {/* Rarely needed and final, so it sits here behind a confirmation. */}
       <Button label={t('game.exit')} variant="secondary" onPress={confirmExit} />
     </ScrollView>

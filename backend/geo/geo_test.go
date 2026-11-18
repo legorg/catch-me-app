@@ -33,6 +33,28 @@ func TestDistanceMeters(t *testing.T) {
 	}
 }
 
+func TestBearingDegrees(t *testing.T) {
+	tests := []struct {
+		name                   string
+		lat1, lon1, lat2, lon2 float64
+		want                   float64
+	}{
+		{"north", 52, 13, 53, 13, 0},
+		{"east along the equator", 0, 0, 0, 1, 90},
+		{"south", 52, 13, 51, 13, 180},
+		{"west along the equator", 0, 0, 0, -1, 270},
+		{"north-east nearby", 0, 0, 0.001, 0.001, 45},
+		{"across the date line", 0, 179.5, 0, -179.5, 90},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := BearingDegrees(tt.lat1, tt.lon1, tt.lat2, tt.lon2); math.Abs(got-tt.want) > 1e-3 {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestInRange(t *testing.T) {
 	nan, inf := math.NaN(), math.Inf(1)
 	tests := []struct {

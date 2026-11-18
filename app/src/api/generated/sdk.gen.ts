@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
+import type { ActivateJokerData, ActivateJokerErrors, ActivateJokerResponses, AddSketchData, AddSketchErrors, AddSketchResponses, ClearSketchesData, ClearSketchesErrors, ClearSketchesResponses, CreateGameData, CreateGameErrors, CreateGameResponses, FinishData, FinishErrors, FinishResponses, GetGameResultData, GetGameResultErrors, GetGameResultResponses, GetGameStateData, GetGameStateErrors, GetGameStateResponses, GetHealthData, GetHealthResponses, JoinGameData, JoinGameErrors, JoinGameResponses, LeaveGameData, LeaveGameErrors, LeaveGameResponses, MarkCaughtData, MarkCaughtErrors, MarkCaughtResponses, RegenerateRouteData, RegenerateRouteErrors, RegenerateRouteResponses, SetHunterTeamData, SetHunterTeamErrors, SetHunterTeamResponses, SetReadyData, SetReadyErrors, SetReadyResponses, UpdatePositionData, UpdatePositionErrors, UpdatePositionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -31,11 +31,34 @@ export const createGame = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
+ * Get the public, coordinate-free result of an ended game by its full game ID
+ */
+export const getGameResult = <ThrowOnError extends boolean = false>(options: Options<GetGameResultData, ThrowOnError>) => (options.client ?? client).get<GetGameResultResponses, GetGameResultErrors, ThrowOnError>({ url: '/api/games/{sessionId}/result', ...options });
+
+/**
  * Leave the game before it starts
  */
 export const leaveGame = <ThrowOnError extends boolean = false>(options?: Options<LeaveGameData, ThrowOnError>) => (options?.client ?? client).delete<LeaveGameResponses, LeaveGameErrors, ThrowOnError>({
     security: [{ name: 'Authorization', type: 'apiKey' }],
     url: '/api/me',
+    ...options
+});
+
+/**
+ * Permanently mark yourself caught (runners, while running, no proximity check)
+ */
+export const markCaught = <ThrowOnError extends boolean = false>(options?: Options<MarkCaughtData, ThrowOnError>) => (options?.client ?? client).post<MarkCaughtResponses, MarkCaughtErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/caught',
+    ...options
+});
+
+/**
+ * Finish at the route's stop (runners, while running)
+ */
+export const finish = <ThrowOnError extends boolean = false>(options?: Options<FinishData, ThrowOnError>) => (options?.client ?? client).post<FinishResponses, FinishErrors, ThrowOnError>({
+    security: [{ name: 'Authorization', type: 'apiKey' }],
+    url: '/api/me/finish',
     ...options
 });
 

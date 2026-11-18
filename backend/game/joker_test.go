@@ -40,8 +40,8 @@ func TestJokersAreVisibleToTheirTeamOnly(t *testing.T) {
 	at := running.Add(time.Minute)
 	only := func(states []jokerState) jokerState {
 		t.Helper()
-		if len(states) != 2 || states[0].Kind != JokerShowRunners || states[1].Kind != JokerQueryZone {
-			t.Fatalf("expected both hunter jokers: %+v", states)
+		if len(states) != 3 || states[0].Kind != JokerShowRunners || states[1].Kind != JokerQueryZone || states[2].Kind != JokerCompass {
+			t.Fatalf("expected all hunter jokers: %+v", states)
 		}
 		return states[0]
 	}
@@ -61,7 +61,7 @@ func TestJokersAreVisibleToTheirTeamOnly(t *testing.T) {
 	if got := only(l.JokersFor(eve, at)); !got.Available || got.Use != nil {
 		t.Fatalf("another hunter team sees nothing of it: %+v", got)
 	}
-	if got := l.JokersFor(runner, at); len(got) != 2 || got[0].Kind != JokerZoneOnly || got[1].Kind != JokerFakePosition || !got[0].Available {
+	if got := l.JokersFor(runner, at); len(got) != 3 || got[0].Kind != JokerZoneOnly || got[1].Kind != JokerFakePosition || got[2].Kind != JokerShowHunters || !got[0].Available {
 		t.Fatalf("runners see only their own jokers: %+v", got)
 	}
 }

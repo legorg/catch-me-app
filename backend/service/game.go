@@ -25,6 +25,9 @@ const (
 // It exposes domain values, not database rows or SQL errors.
 type GameRepository interface {
 	Create(context.Context, game.Game) error
+	// Result returns a coordinate/credential-free summary of an ended game;
+	// unknown and unfinished games both return game.ErrNotFound.
+	Result(context.Context, game.SessionID) (game.Result, error)
 	// UpdateLobby* load a lobby as of now (including reveals), apply change, and
 	// save atomically. A nil change only loads.
 	UpdateLobbyByJoinCode(context.Context, game.JoinCode, time.Time, func(*game.Lobby) error) (game.Lobby, error)
@@ -49,7 +52,7 @@ type GameService struct {
 }
 
 // NewGameService creates the service. skipStartPositionCheck is the
-// development test override and must be false for real games.
+// development override for start/finish position checks and must be false for real games.
 func NewGameService(repository GameRepository, landmarks LandmarkFinder, skipStartPositionCheck bool) *GameService {
 	return &GameService{
 		repository: repository, landmarks: landmarks, now: func() time.Time { return time.Now().UTC() },
@@ -179,6 +182,20 @@ func (s *GameService) State(ctx context.Context, token game.PlayerToken) (Player
 func (s *GameService) SetReady(ctx context.Context, token game.PlayerToken, ready bool) (PlayerView, error) {
 	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
 		return l.SetReady(me.ID, ready, now, s.skipStartPositionCheck)
+	})
+}
+
+// Finish validates the authenticated runner at the destination, using server time.
+func (s *GameService) Finish(ctx context.Context, token game.PlayerToken) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.Finish(me.ID, now, s.skipStartPositionCheck)
+	})
+}
+
+// MarkCaught retires the authenticated runner without checking hunter proximity.
+func (s *GameService) MarkCaught(ctx context.Context, token game.PlayerToken) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.MarkCaught(me.ID, now)
 	})
 }
 

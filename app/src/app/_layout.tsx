@@ -39,6 +39,7 @@ export default function RootLayout() {
         <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
         {/* The map fills the screen under its own overlay, so no header; leaving goes through the exit button. */}
         <Stack.Screen name="game" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="results/[sessionId]" options={{ title: t('result.title'), headerBackVisible: false, gestureEnabled: false }} />
         {/* A plain modal over the game screen: one fixed height, swipe down to dismiss on iOS.
             Not a form sheet with several heights: on iOS its content went blank while dragging or scrolling. */}
         <Stack.Screen name="jokers" options={{

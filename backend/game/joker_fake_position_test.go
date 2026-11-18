@@ -28,11 +28,39 @@ func TestFakePositionJokerRules(t *testing.T) {
 	if err := l.UseJoker(runner.ID, fake(point), revealed); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.UseJoker(cy.ID, fake(point), revealed); !errors.As(err, &rule) {
-		t.Fatalf("the runners share one use: %v", err)
+	if got := l.JokersFor(cy, revealed)[1]; !got.Available || got.Use != nil {
+		t.Fatalf("another runner still has their own joker: %+v", got)
 	}
-	if got := l.JokersFor(cy, revealed); got[1].Available || got[1].Use != (FakePositionUse{Runner: runner.ID, At: revealed, Point: point}) {
-		t.Fatalf("every runner sees who used it and the shown point: %+v", got[1])
+	otherPoint := cellCenter(l.Game.Playground, Cell{column: 1, row: 0})
+	if err := l.UseJoker(cy.ID, fake(otherPoint), revealed); err != nil {
+		t.Fatalf("each runner can use their joker independently: %v", err)
+	}
+	for _, tc := range []struct {
+		runner Player
+		point  Coordinates
+	}{{runner, point}, {cy, otherPoint}} {
+		if got := l.JokersFor(tc.runner, revealed)[1]; got.Available || got.Use != (FakePositionUse{Runner: tc.runner.ID, At: revealed, Point: tc.point}) {
+			t.Fatalf("each runner sees their own use and point: %+v", got)
+		}
+		if err := l.UseJoker(tc.runner.ID, fake(point), revealed.Add(revealInterval)); !errors.As(err, &rule) {
+			t.Fatalf("a runner cannot use their joker twice, even after its reveal: %v", err)
+		}
+	}
+}
+
+func TestPersonalFakePositionStillBlocksAnotherPendingRevealJoker(t *testing.T) {
+	l, runner, _, _, _, running := jokerLobby(t)
+	point := cellCenter(l.Game.Playground, Cell{})
+	at := running.Add(time.Second)
+	if err := l.UseJoker(runner.ID, FakePosition{Point: point}, at); err != nil {
+		t.Fatal(err)
+	}
+	var rule *RuleError
+	if err := l.UseJoker(runner.ID, zoneOnly, at.Add(time.Second)); !errors.As(err, &rule) {
+		t.Fatalf("the same runner cannot have two pending reveal jokers: %v", err)
+	}
+	if err := l.UseJoker(runner.ID, zoneOnly, running.Add(revealInterval)); err != nil {
+		t.Fatalf("the shared zone joker stays available after the personal fake acted: %v", err)
 	}
 }
 

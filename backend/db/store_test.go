@@ -475,6 +475,152 @@ func TestFakePositionJokerIsStoredAndReplacesTheNextReveal(t *testing.T) {
 	}
 }
 
+func TestPersonalFakePositionsSurviveReopening(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "personal-jokers.sqlite")
+	store := open(t, path)
+	saved := create(t, store)
+	ada, adaToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	cy, cyToken := join(t, store, saved.JoinCodes.Runner, "Cy", now.Add(time.Second))
+	hunter, _ := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(2*time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	adaPoint, cyPoint := saved.Route.Start.Coordinates, saved.Route.Stop.Coordinates
+	usedAt := start.Add(time.Second)
+	var rule *game.RuleError
+	use := func(player game.Player, token game.PlayerToken, point game.Coordinates, at time.Time) error {
+		_, err := store.UpdateLobbyByToken(ctx, token.Hash(), at, func(l *game.Lobby) error {
+			return l.UseJoker(player.ID, game.FakePosition{Point: point}, at)
+		})
+		return err
+	}
+	if err := use(ada, adaToken, adaPoint, usedAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store = open(t, path)
+	if err := use(ada, adaToken, adaPoint, start.Add(revealInterval)); !errors.As(err, &rule) {
+		t.Fatalf("the personal use must stay spent for its runner after reopening: %v", err)
+	}
+	if err := use(cy, cyToken, cyPoint, usedAt); err != nil {
+		t.Fatalf("another runner can use their joker while Ada's is pending: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store = open(t, path)
+	at := start.Add(revealInterval + time.Second)
+	if err := use(cy, cyToken, cyPoint, at); !errors.As(err, &rule) {
+		t.Fatalf("the personal use must stay spent after reopening: %v", err)
+	}
+	lobby := load(t, store, saved.JoinCodes.Hunter, at)
+	if len(lobby.Jokers) != 2 {
+		t.Fatalf("both uses must be preserved: %+v", lobby.Jokers)
+	}
+	for _, tc := range []struct {
+		player game.Player
+		point  game.Coordinates
+	}{{ada, adaPoint}, {cy, cyPoint}} {
+		use := lobby.JokersFor(tc.player, at)[1]
+		if use.Available || use.Use != (game.FakePositionUse{Runner: tc.player.ID, At: usedAt, Point: tc.point}) {
+			t.Fatalf("each runner must get their own stored use: %+v", use)
+		}
+		for _, visible := range lobby.VisibleTo(hunter, at) {
+			if visible.ID != tc.player.ID {
+				continue
+			}
+			if len(visible.Reveals) != 1 {
+				t.Fatalf("expected one reveal: %+v", visible.Reveals)
+			}
+			if reveal, ok := visible.Reveals[0].(game.PositionReveal); !ok || reveal.Position.Coordinates != tc.point {
+				t.Fatalf("each runner's reveal must use their own fake point: %+v", visible.Reveals)
+			}
+		}
+	}
+}
+
+func TestCompassIsStoredAndPointsToWhereTheRunnersWereAtTheUse(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	_, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	center := saved.Playground.Center()
+	at := func(latitude, longitude float64, recorded time.Time) game.Position {
+		c, _ := game.ParseCoordinates(center.Latitude()+latitude, center.Longitude()+longitude)
+		p, _ := game.NewPosition(c, 4, recorded)
+		return p
+	}
+	move(t, store, hunterToken, at(0, 0, start.Add(5*time.Second)))
+	move(t, store, runnerToken, at(0, 0.01, start.Add(10*time.Second))) // east of the hunter
+	usedAt := start.Add(60 * time.Second)
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), usedAt, func(l *game.Lobby) error {
+		return l.UseJoker(hunter.ID, game.Compass{}, usedAt)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	move(t, store, runnerToken, at(0.01, 0, start.Add(70*time.Second)))
+	move(t, store, hunterToken, at(-0.01, 0, start.Add(70*time.Second)))
+
+	lobby := load(t, store, saved.JoinCodes.Hunter, start.Add(100*time.Second))
+	stored, ok := lobby.Jokers[0].(game.CompassUse)
+	if len(lobby.Jokers) != 1 || !ok || stored.Team != hunter.HunterTeam || !stored.At.Equal(usedAt) || stored.Origin != at(0, 0, usedAt).Coordinates {
+		t.Fatalf("used compass not stored with its origin: %+v", lobby.Jokers)
+	}
+	if len(stored.Bearings) != 1 || stored.Bearings[0] != 90 {
+		t.Fatalf("the compass must point to where the runner was at the use, from where the hunter was: %+v", stored.Bearings)
+	}
+}
+
+func TestShowHuntersJokerIsStoredAndShowsWhereTheHuntersWereAtTheUse(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	runner, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	_, cyToken := join(t, store, saved.JoinCodes.Runner, "Cy", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	join(t, store, saved.JoinCodes.Hunter, "Dan", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	before, _ := game.NewPosition(saved.Playground.Center(), 4, start.Add(10*time.Second))
+	after, _ := game.NewPosition(boundsCenter(saved.Playground.CellBounds(saved.Playground.SouthEdgeCells()[0])), 3, start.Add(70*time.Second))
+	move(t, store, hunterToken, before)
+	usedAt := start.Add(60 * time.Second)
+	if _, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), usedAt, func(l *game.Lobby) error {
+		return l.UseJoker(runner.ID, game.ShowHunters{}, usedAt)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	move(t, store, hunterToken, after)
+
+	lobby := load(t, store, saved.JoinCodes.Runner, start.Add(100*time.Second))
+	stored, ok := lobby.Jokers[0].(game.ShowHuntersUse)
+	if len(lobby.Jokers) != 1 || !ok || stored.Runner != runner.ID || !stored.At.Equal(usedAt) {
+		t.Fatalf("used joker not stored: %+v", lobby.Jokers)
+	}
+	// Dan never reported a position and is left out.
+	if got := stored.Positions; len(got) != 1 || got[0].PlayerID != hunter.ID || got[0].Position != before {
+		t.Fatalf("the joker must show where the hunters were when it was used, not later: %+v", got)
+	}
+	var rule *game.RuleError
+	if _, err := store.UpdateLobbyByToken(ctx, cyToken.Hash(), start.Add(90*time.Second), func(l *game.Lobby) error {
+		me, _ := l.PlayerByToken(cyToken.Hash())
+		return l.UseJoker(me.ID, game.ShowHunters{}, start.Add(90*time.Second))
+	}); !errors.As(err, &rule) {
+		t.Fatalf("the runners share one use: %v", err)
+	}
+}
+
 func TestSketchesPersistUntilClearedOrExpired(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")

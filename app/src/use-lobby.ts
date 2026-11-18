@@ -19,16 +19,16 @@ export function useLobby() {
   }, [running]);
 
   // Everyone shares from joining: runners for the start cell check, hunters for their hunter team.
-  const sharing = focused && !!token && !!state;
+  const sharing = focused && !!token && (state?.status === 'lobby' || state?.status === 'countdown');
   // The lobby shares in the foreground only; background sharing belongs to the game screen.
   const location = useLocationSharing(sharing, false, useCallback(async (fix: Fix) => {
-    if (!token) return;
+    if (!token || !sharing) return;
     try {
       show(await updatePosition(token, fix));
     } catch (err) {
       fail(err);
     }
-  }, [token, show, fail]));
+  }, [token, sharing, show, fail]));
 
   async function act(action: () => Promise<void>) {
     if (busy) return;

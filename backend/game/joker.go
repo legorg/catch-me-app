@@ -11,10 +11,13 @@ import (
 type JokerKind string
 
 // hunterJokers are the jokers every hunter team has, in display order.
-var hunterJokers = []JokerKind{JokerShowRunners, JokerQueryZone}
+var hunterJokers = []JokerKind{JokerShowRunners, JokerQueryZone, JokerCompass}
 
-// runnerJokers are the jokers the runner team shares, in display order.
-var runnerJokers = []JokerKind{JokerZoneOnly, JokerFakePosition}
+// revealJokers are the runner jokers that act on the user's next reveal.
+var revealJokers = []JokerKind{JokerZoneOnly, JokerFakePosition}
+
+// runnerJokers are the runners' jokers, in display order. Fake position is personal.
+var runnerJokers = []JokerKind{JokerZoneOnly, JokerFakePosition, JokerShowHunters}
 
 // ParseJokerKind accepts any string-based type, e.g. a wire-format kind.
 func ParseJokerKind[S ~string](value S) (JokerKind, error) {
@@ -28,7 +31,7 @@ func ParseJokerKind[S ~string](value S) (JokerKind, error) {
 }
 
 // JokerChoice is a joker to use with its target. It is sealed: the only
-// variants are ShowRunners, QueryZone, ZoneOnly, and FakePosition, each with
+// variants are ShowRunners, QueryZone, Compass, ZoneOnly, FakePosition, and ShowHunters, each with
 // exactly the target its joker needs.
 type JokerChoice interface {
 	Kind() JokerKind
@@ -37,17 +40,18 @@ type JokerChoice interface {
 	apply(l Lobby, me Player, now time.Time) (JokerUse, error)
 }
 
-// JokerPosition is where a runner was when a joker was used.
+// JokerPosition is where a player was when a joker was used.
 type JokerPosition struct {
 	PlayerID PlayerID
 	Position Position
 }
 
 // JokerUse records that a joker was used. It is sealed: every use is either a
-// hunterJokerUse (ShowRunnersUse, QueryZoneUse) or a runnerJokerUse
-// (ZoneOnlyUse, FakePositionUse). What a hunter joker showed is derived when
-// loading, like reveals, from each runner's last position at or before the
-// use; runner jokers act on the user's next reveal instead.
+// hunterJokerUse (ShowRunnersUse, QueryZoneUse, CompassUse) or a runnerJokerUse
+// (ZoneOnlyUse, FakePositionUse, ShowHuntersUse). What the hunter jokers and
+// showHunters showed is derived when loading, like reveals, from each
+// player's last position at or before the use; reveal jokers act on the
+// user's next reveal instead.
 type JokerUse interface {
 	Kind() JokerKind
 	UsedAt() time.Time
@@ -60,40 +64,42 @@ type hunterJokerUse interface {
 	team() HunterTeamName
 }
 
-// runnerJokerUse is a use by one runner, for the whole runner team. It changes
-// that runner's next reveal as hunters see it.
+// runnerJokerUse is a use by one runner, either personal or shared by the runner team.
 type runnerJokerUse interface {
 	JokerUse
 	runner() PlayerID
+}
+
+// revealJokerUse is a runner joker that changes that runner's next reveal as hunters see it.
+type revealJokerUse interface {
+	runnerJokerUse
 	// reveal is what hunters see instead of the real reveal r. It must never
 	// contain the real position unless the joker allows it.
 	reveal(r Reveal, p Playground) HunterReveal
 }
 
 // jokerState is one joker as one player sees it: Use is nil until the
-// player's team used it.
+// player (for a personal joker) or their team used it.
 type jokerState struct {
 	Kind      JokerKind
 	Available bool
 	Use       JokerUse
 }
 
-// UseJoker spends a joker of the player's team: hunters of one hunter team
-// share their jokers, all runners share theirs. Each can be used once per game
-// and team, only while it runs.
+// UseJoker spends a joker while the game runs. Fake position is once per runner;
+// other jokers are once per runner team or hunter team.
 func (l *Lobby) UseJoker(id PlayerID, choice JokerChoice, now time.Time) error {
 	if choice == nil {
 		return &ValidationError{Message: "unknown joker"}
 	}
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
-	}
-	me := l.Players[i]
-	if err := l.mayUseJoker(me, choice.Kind(), now); err != nil {
+	me, err := l.requirePlayer(id)
+	if err != nil {
 		return err
 	}
-	use, err := choice.apply(*l, me, now)
+	if err := l.mayUseJoker(*me, choice.Kind(), now); err != nil {
+		return err
+	}
+	use, err := choice.apply(*l, *me, now)
 	if err != nil {
 		return err
 	}
@@ -101,19 +107,22 @@ func (l *Lobby) UseJoker(id PlayerID, choice JokerChoice, now time.Time) error {
 	return nil
 }
 
-// mayUseJoker checks the rules all jokers share. A runner joker only affects
+// mayUseJoker checks the rules all jokers share. A reveal joker only affects
 // the runner who used it, at their next reveal; until then, that runner cannot
-// use another one.
+// use another reveal joker.
 func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
+	if !me.active() {
+		return &RuleError{Message: "caught or finished runners cannot use jokers"}
+	}
 	if me.Team == Runners {
 		switch {
 		case !slices.Contains(runnerJokers, kind):
 			return &RuleError{Message: "runners do not have this joker"}
 		case l.Game.Status(now) != StatusRunning:
 			return &RuleError{Message: "jokers can only be used while the game is running"}
-		case l.runnersUse(kind) != nil:
-			return &RuleError{Message: "a runner already used this joker"}
-		case l.hasPendingJoker(me.ID, now):
+		case l.runnerUse(me.ID, kind) != nil:
+			return &RuleError{Message: "this joker has already been used"}
+		case slices.Contains(revealJokers, kind) && l.hasPendingJoker(me.ID, now):
 			return &RuleError{Message: "your last joker has not acted yet; wait for the next reveal"}
 		}
 		return nil
@@ -132,28 +141,34 @@ func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
 }
 
 // runnerPositions are the latest positions of all runners who reported one.
-func (l Lobby) runnerPositions() []JokerPosition {
+func (l Lobby) runnerPositions() []JokerPosition { return l.teamPositions(Runners) }
+
+// hunterPositions are the latest positions of all hunters (of every hunter team) who reported one.
+func (l Lobby) hunterPositions() []JokerPosition { return l.teamPositions(Hunters) }
+
+func (l Lobby) teamPositions(team Team) []JokerPosition {
 	var positions []JokerPosition
 	for _, p := range l.Players {
-		if p.Team == Runners && !p.Position.IsZero() {
+		if p.Team == team && p.active() && !p.Position.IsZero() {
 			positions = append(positions, JokerPosition{PlayerID: p.ID, Position: p.Position})
 		}
 	}
 	return positions
 }
 
-// hasPendingJoker reports whether the runner used a joker whose reveal has not happened yet.
+// hasPendingJoker reports whether the runner used a reveal joker whose reveal has not happened yet.
 func (l Lobby) hasPendingJoker(runner PlayerID, now time.Time) bool {
 	return slices.ContainsFunc(l.Jokers, func(use JokerUse) bool {
-		u, ok := use.(runnerJokerUse)
+		u, ok := use.(revealJokerUse)
 		return ok && u.runner() == runner && now.Before(l.Game.NextReveal(use.UsedAt()))
 	})
 }
 
-// JokersFor lists the jokers of the viewer's team and what they showed.
+// JokersFor lists the viewer's personal and team jokers and what they showed.
 // Other teams' jokers are never visible; hunters are not told about runner jokers.
 func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
-	kinds, find := runnerJokers, l.runnersUse
+	kinds := runnerJokers
+	find := func(kind JokerKind) JokerUse { return l.runnerUse(viewer.ID, kind) }
 	if viewer.Team == Hunters {
 		if viewer.HunterTeam.IsZero() {
 			return nil
@@ -165,7 +180,7 @@ func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
 	states := make([]jokerState, 0, len(kinds))
 	for _, kind := range kinds {
 		use := find(kind)
-		states = append(states, jokerState{Kind: kind, Available: running && use == nil, Use: use})
+		states = append(states, jokerState{Kind: kind, Available: running && viewer.active() && use == nil, Use: use})
 	}
 	return states
 }
@@ -180,10 +195,10 @@ func (l Lobby) hunterTeamUse(team HunterTeamName, kind JokerKind) JokerUse {
 	return nil
 }
 
-// runnersUse finds the runners' use of a kind; all runners share one.
-func (l Lobby) runnersUse(kind JokerKind) JokerUse {
+// runnerUse finds a personal fake position use, or a shared runner team use.
+func (l Lobby) runnerUse(runner PlayerID, kind JokerKind) JokerUse {
 	for _, use := range l.Jokers {
-		if _, ok := use.(runnerJokerUse); ok && use.Kind() == kind {
+		if u, ok := use.(runnerJokerUse); ok && use.Kind() == kind && (kind != JokerFakePosition || u.runner() == runner) {
 			return use
 		}
 	}
@@ -193,15 +208,15 @@ func (l Lobby) runnersUse(kind JokerKind) JokerUse {
 // revealsForHunters are the runner's reveals as hunters see them: the reveal
 // after each of the runner's joker uses is replaced by what that joker shows.
 func (l Lobby) revealsForHunters(runner PlayerID) []HunterReveal {
-	var acting []runnerJokerUse
+	var acting []revealJokerUse
 	for _, use := range l.Jokers {
-		if u, ok := use.(runnerJokerUse); ok && u.runner() == runner {
+		if u, ok := use.(revealJokerUse); ok && u.runner() == runner {
 			acting = append(acting, u)
 		}
 	}
 	var reveals []HunterReveal
 	for _, r := range l.Reveals[runner] {
-		j := slices.IndexFunc(acting, func(use runnerJokerUse) bool { return l.Game.NextReveal(use.UsedAt()).Equal(r.At) })
+		j := slices.IndexFunc(acting, func(use revealJokerUse) bool { return l.Game.NextReveal(use.UsedAt()).Equal(r.At) })
 		if j < 0 {
 			reveals = append(reveals, PositionReveal{At: r.At, Position: r.Position})
 		} else {

@@ -81,4 +81,6 @@ type Game struct {
 	RouteRegenerations int
 	// StartsAt is zero while the lobby is open, otherwise the scheduled start.
 	StartsAt time.Time
+	// EndedAt is zero until the last active runner is caught or finishes.
+	EndedAt time.Time
 }

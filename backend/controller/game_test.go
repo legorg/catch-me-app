@@ -45,3 +45,19 @@ func TestCreateGameTagsMatchTheDomain(t *testing.T) {
 		}
 	}
 }
+
+func TestCoordinatesResponse(t *testing.T) {
+	for _, want := range []Coordinates{
+		{Latitude: 52.52, Longitude: 13.405},
+		{Latitude: -33.8688, Longitude: -70.6693},
+		{},
+	} {
+		point, err := game.ParseCoordinates(want.Latitude, want.Longitude)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := coordinatesResponse(point); got != want {
+			t.Fatalf("coordinates = %+v, want %+v", got, want)
+		}
+	}
+}

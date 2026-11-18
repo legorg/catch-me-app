@@ -13,7 +13,7 @@ export const MIN_REVEAL_INTERVAL_MINUTES = 1;
 export const MAX_REVEAL_INTERVAL_MINUTES = 60;
 /** Where the draft playground starts before the user drags it (Cologne). */
 export const DEFAULT_CENTER: Coordinates = { latitude: 50.9375, longitude: 6.9603 };
-/** How close to the route's start a runner must be to get ready; the backend enforces the same radius. */
+/** Shared start/finish landmark radius; the backend enforces the same distance. */
 export const START_RADIUS_METERS = 50;
 
 /** Great-circle (haversine) distance in meters. */
@@ -23,6 +23,16 @@ export function distanceMeters(a: Coordinates, b: Coordinates): number {
   const dLon = (b.longitude - a.longitude) * rad;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2;
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(h));
+}
+
+/** The point `meters` away from `from` in the direction `bearingDegrees` (clockwise from north), on a local flat approximation. */
+export function offsetPoint(from: Coordinates, bearingDegrees: number, meters: number): Coordinates {
+  const rad = Math.PI / 180;
+  const angular = meters / EARTH_RADIUS_METERS / rad;
+  return {
+    latitude: from.latitude + angular * Math.cos(bearingDegrees * rad),
+    longitude: from.longitude + angular * Math.sin(bearingDegrees * rad) / Math.cos(from.latitude * rad),
+  };
 }
 
 export function isValidCellSize(size: unknown): size is number {

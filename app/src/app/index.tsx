@@ -6,6 +6,7 @@ import Button from '@/components/button';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import LanguageSwitch from '@/components/language-switch';
 import NameInput from '@/components/name-input';
+import ResultLookup from '@/components/result-lookup';
 import { useT } from '@/i18n';
 import { colors, dynamicStyles, languageSwitch, styles } from '@/styles';
 import { useJoinGame } from '@/use-join-game';
@@ -61,6 +62,7 @@ export default function HomeScreen() {
           <Text style={styles.text}>{t('home.createText')}</Text>
           <Button label={t('home.create')} variant="secondary" onPress={() => router.push('/create')} disabled={busy} />
         </View>
+        <ResultLookup disabled={busy} />
         <Text style={styles.hint}>{t('home.devHint')}</Text>
       </KeyboardScrollView>
     </>

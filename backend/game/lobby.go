@@ -17,12 +17,15 @@ const (
 	StatusLobby     Status = "lobby"
 	StatusCountdown Status = "countdown"
 	StatusRunning   Status = "running"
+	StatusEnded     Status = "ended"
 )
 
-// Status is derived from the scheduled start, so time-based transitions need
-// no background job: a countdown that has elapsed simply reads as running.
+// Status is derived from the scheduled start and persisted end time. Countdown
+// expiry needs no background job; a recorded end always remains terminal.
 func (g Game) Status(now time.Time) Status {
 	switch {
+	case !g.EndedAt.IsZero():
+		return StatusEnded
 	case g.StartsAt.IsZero():
 		return StatusLobby
 	case now.Before(g.StartsAt):
@@ -55,6 +58,15 @@ func (l Lobby) Player(id PlayerID) (Player, bool) {
 		return l.Players[i], true
 	}
 	return Player{}, false
+}
+
+// requirePlayer returns the stored player for an action. The pointer must not
+// be kept across changes to the Players slice.
+func (l *Lobby) requirePlayer(id PlayerID) (*Player, error) {
+	if i := l.index(id); i >= 0 {
+		return &l.Players[i], nil
+	}
+	return nil, ErrUnauthorized
 }
 
 func (l Lobby) PlayerByToken(hash TokenHash) (Player, bool) {
@@ -127,14 +139,14 @@ func (l *Lobby) SetHunterTeam(id PlayerID, name HunterTeamName, now time.Time) e
 	if err := l.requireNotStarted(now); err != nil {
 		return err
 	}
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
+	player, err := l.requirePlayer(id)
+	if err != nil {
+		return err
 	}
 	switch {
-	case l.Players[i].Team != Hunters:
+	case player.Team != Hunters:
 		return &RuleError{Message: "only hunters choose a hunter team"}
-	case l.Players[i].Ready:
+	case player.Ready:
 		return &RuleError{Message: "set yourself not ready before changing your team"}
 	}
 	for _, p := range l.Players {
@@ -143,7 +155,7 @@ func (l *Lobby) SetHunterTeam(id PlayerID, name HunterTeamName, now time.Time) e
 			break
 		}
 	}
-	l.Players[i].HunterTeam = name
+	player.HunterTeam = name
 	return nil
 }
 
@@ -153,19 +165,19 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 	if err := l.requireNotStarted(now); err != nil {
 		return err
 	}
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
+	player, err := l.requirePlayer(id)
+	if err != nil {
+		return err
 	}
-	if ready && l.Players[i].Team == Hunters && l.Players[i].HunterTeam.IsZero() {
+	if ready && player.Team == Hunters && player.HunterTeam.IsZero() {
 		return &RuleError{Message: "choose a hunter team to get ready"}
 	}
 	if ready && !skipStartCheck {
-		if err := l.requireAtStart(l.Players[i], now); err != nil {
+		if err := l.requireAtStart(*player, now); err != nil {
 			return err
 		}
 	}
-	l.Players[i].Ready = ready
+	player.Ready = ready
 	l.reschedule(now)
 	return nil
 }
@@ -173,11 +185,16 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 // UpdatePosition stores a player's latest location. Before the start, a ready
 // runner who moves away from the start becomes not ready (unless skipStartCheck).
 func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, skipStartCheck bool) error {
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
+	player, err := l.requirePlayer(id)
+	if err != nil {
+		return err
 	}
-	player := &l.Players[i]
+	if l.Game.Status(now) == StatusEnded {
+		return &RuleError{Message: "game has ended"}
+	}
+	if !player.active() {
+		return &RuleError{Message: "caught or finished runners cannot report positions"}
+	}
 	player.Position = position
 	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireAtStart(*player, now) != nil {
 		player.Ready = false
@@ -192,11 +209,16 @@ func (l Lobby) requireAtStart(p Player, now time.Time) error {
 	if p.Team != Runners {
 		return nil
 	}
-	if p.Position.IsZero() || now.Sub(p.Position.RecordedAt) > startPositionMaxAge {
-		return &RuleError{Message: "share your location to get ready"}
+	return requireNearLandmark(p.Position, l.Game.Route.Start.Coordinates, now)
+}
+
+// requireNearLandmark is shared by Ready and Finish, with server-recorded positions.
+func requireNearLandmark(position Position, landmark Coordinates, now time.Time) error {
+	if position.IsZero() || now.Sub(position.RecordedAt) > startPositionMaxAge {
+		return &RuleError{Message: "share a location from the last 30 seconds"}
 	}
-	if p.Position.Coordinates.DistanceMeters(l.Game.Route.Start.Coordinates) > startRadiusMeters {
-		return &RuleError{Message: fmt.Sprintf("go to within %d meters of the start to get ready", startRadiusMeters)}
+	if position.Coordinates.DistanceMeters(landmark) > startRadiusMeters {
+		return &RuleError{Message: fmt.Sprintf("go to within %d meters of the route landmark", startRadiusMeters)}
 	}
 	return nil
 }
@@ -211,7 +233,7 @@ func (l *Lobby) Leave(id PlayerID, now time.Time) error {
 }
 
 func (l Lobby) requireNotStarted(now time.Time) error {
-	if l.Game.Status(now) == StatusRunning {
+	if status := l.Game.Status(now); status == StatusRunning || status == StatusEnded {
 		return &RuleError{Message: "game has already started"}
 	}
 	return nil
