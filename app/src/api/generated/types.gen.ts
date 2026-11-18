@@ -278,8 +278,6 @@ export type ControllerResultPlayerResponse = {
     team: ControllerTeam;
 };
 
-export type ControllerRevealKind = 'position' | 'zone' | 'outside';
-
 export type ControllerRevealResponse = ({
     kind: 'position';
 } & ControllerPositionRevealResponse) | ({

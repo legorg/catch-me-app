@@ -2587,14 +2587,6 @@
         ],
         "type": "object"
       },
-      "ControllerRevealKind": {
-        "enum": [
-          "position",
-          "zone",
-          "outside"
-        ],
-        "type": "string"
-      },
       "ControllerRevealResponse": {
         "discriminator": {
           "mapping": {

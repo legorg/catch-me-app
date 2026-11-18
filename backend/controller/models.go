@@ -163,10 +163,10 @@ type RunnerStateResponse struct {
 	CaughtPosition *PositionResponse `json:"caughtPosition,omitempty"`
 }
 
-// RevealKind tells the variants of RevealResponse apart.
+// RevealKind tells the variants of RevealResponse apart. Each value must match
+// the enum tag of its variant's kind field, which the OpenAPI discriminator is
+// built from.
 type RevealKind string
-
-func (RevealKind) Enum() []any { return []any{RevealKindPosition, RevealKindZone, RevealKindOutside} }
 
 const (
 	RevealKindPosition RevealKind = "position"

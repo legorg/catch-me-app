@@ -340,6 +340,6 @@ export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
   ];
 }
 
-function clockTime(iso: string, seconds = false): string {
+export function clockTime(iso: string, seconds = false): string {
   return new Date(iso).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit', second: seconds ? '2-digit' : undefined });
 }

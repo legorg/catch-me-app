@@ -7,6 +7,7 @@ import {
   getGameResult as fetchGameResult,
   getGameState as fetchGameState,
   getHealth,
+  getTimeline as fetchTimeline,
   joinGame as postPlayer,
   leaveGame as deletePlayer,
   markCaught as postCaught,
@@ -16,14 +17,15 @@ import {
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
-import type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest } from './types';
+import type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest, TimelineResponse } from './types';
 import { isGameResultResponse, isValidGameId, normalizeGameId } from '../game-result';
 import { translate, type MessageKey } from '../i18n';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
 } from '../playground';
+import { isTimelineResponse } from '../timeline';
 
-export type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse } from './types';
+export type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse, TimelineEvent, TimelineResponse } from './types';
 
 export const API_URL = (
   process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
@@ -95,6 +97,13 @@ export async function joinGame(code: string, name: string): Promise<JoinGameResp
 
 export async function getGameState(token: string): Promise<GameStateResponse> {
   return request((signal) => fetchGameState({ baseUrl: API_URL, auth: bearer(token), signal }));
+}
+
+/** The game's events up to the server time, oldest first; only spectators get them (others 409). */
+export async function getTimeline(token: string): Promise<TimelineResponse> {
+  const timeline = await request((signal) => fetchTimeline({ baseUrl: API_URL, auth: bearer(token), signal }));
+  if (!isTimelineResponse(timeline)) throw new Error(translate('timeline.invalidResponse'));
+  return timeline;
 }
 
 /** No token, joining, or location permission is needed to look up an ended game. */

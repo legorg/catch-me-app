@@ -2,14 +2,19 @@ import { useState } from 'react';
 
 import type { useSketching } from '@/use-sketching';
 
-/** Info panel and drawing mode of the game screen: starting to draw closes the panel. */
-export function useDrawingControls(sketching: ReturnType<typeof useSketching>) {
-  const [infoOpen, setInfoOpen] = useState(false);
+type Panel = 'info' | 'timeline';
 
-  const toggleInfo = () => setInfoOpen(!infoOpen);
+/**
+ * Info panel, timeline panel and drawing mode of the game screen. At most one
+ * panel is open; starting to draw closes it.
+ */
+export function useDrawingControls(sketching: ReturnType<typeof useSketching>) {
+  const [panel, setPanel] = useState<Panel | null>(null);
+
+  const toggle = (next: Panel) => setPanel(panel === next ? null : next);
   const startDrawing = () => {
     sketching.setDrawing(true);
-    setInfoOpen(false);
+    setPanel(null);
     sketching.clearError();
   };
   const stopDrawing = () => {
@@ -17,5 +22,9 @@ export function useDrawingControls(sketching: ReturnType<typeof useSketching>) {
     sketching.clearError();
   };
 
-  return { infoOpen, toggleInfo, startDrawing, stopDrawing };
+  return {
+    infoOpen: panel === 'info', toggleInfo: () => toggle('info'),
+    timelineOpen: panel === 'timeline', toggleTimeline: () => toggle('timeline'),
+    startDrawing, stopDrawing,
+  };
 }

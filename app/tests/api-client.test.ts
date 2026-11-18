@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, finish, getGameResult, getGameState, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, finish, getGameResult, getGameState, getTimeline, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
 import { previewPlayground } from '../src/playground';
 import { isGameResultResponse, isValidGameId, normalizeGameId } from '../src/game-result';
+import { isTimelineResponse } from '../src/timeline';
 
 const center = { latitude: 52.52, longitude: 13.405 };
 const route = {
@@ -118,6 +119,54 @@ test('malformed or mismatched result JSON is rejected rather than crashing the r
   }
   t.mock.method(globalThis, 'fetch', async () => Response.json({ ...gameResult, sessionId: 'f'.repeat(32) }));
   await assert.rejects(getGameResult(gameResult.sessionId), /invalid game result/);
+});
+
+const ada = { playerId: 'a'.repeat(32), name: 'Ada' };
+const timeline = {
+  serverTime: '2026-11-18T13:00:10Z',
+  events: [
+    { kind: 'gameStarted', at: '2026-11-18T12:00:10Z' },
+    { kind: 'hunterJokerUsed', at: '2026-11-18T12:07:00Z', hunterTeam: 'Wolves', joker: 'showRunners' },
+    { kind: 'runnerJokerUsed', at: '2026-11-18T12:08:00Z', runner: ada, joker: 'zoneOnly' },
+    { kind: 'runnerCaught', at: '2026-11-18T12:30:00Z', runner: ada },
+    { kind: 'runnerFinished', at: '2026-11-18T13:00:10Z', runner: { playerId: 'b'.repeat(32), name: 'Cy' } },
+    { kind: 'gameEnded', at: '2026-11-18T13:00:10Z' },
+  ],
+};
+
+test('the timeline is fetched with the token and returned as sent', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.equal(request.method, 'GET');
+    assert.equal(new URL(request.url).pathname, '/api/me/timeline');
+    assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
+    return Response.json(timeline);
+  });
+  assert.equal(isTimelineResponse(timeline), true);
+  assert.deepEqual(await getTimeline(token), timeline);
+  assert.equal(isTimelineResponse({ ...timeline, events: [] }), true);
+});
+
+test('active players keep the 409 of the timeline request', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'only spectators can see the timeline' }, { status: 409 }));
+  await assert.rejects(getTimeline(token), (err: unknown) => err instanceof ApiError && err.status === 409);
+});
+
+test('malformed timeline JSON is rejected rather than crashing the timeline', async (t) => {
+  const [started, hunterJoker, runnerJoker, caught] = timeline.events;
+  for (const invalid of [
+    null, {}, { ...timeline, serverTime: 'invalid' }, { ...timeline, events: null }, { ...timeline, events: [null] },
+    { ...timeline, events: [{ ...started, at: 'invalid' }] },
+    { ...timeline, events: [{ ...started, kind: 'teleported' }] },
+    { ...timeline, events: [{ ...hunterJoker, hunterTeam: ' ' }] },
+    { ...timeline, events: [{ ...hunterJoker, joker: 'teleport' }] },
+    { ...timeline, events: [{ ...runnerJoker, runner: undefined }] },
+    { ...timeline, events: [{ ...caught, runner: { ...ada, playerId: '482913' } }] },
+    { ...timeline, events: [{ ...caught, runner: { ...ada, name: '' } }] },
+  ]) {
+    assert.equal(isTimelineResponse(invalid), false);
+    t.mock.method(globalThis, 'fetch', async () => Response.json(invalid));
+    await assert.rejects(getTimeline(token), /invalid timeline/);
+  }
 });
 
 test('create posts the center and all settings as JSON, with defaults', async (t) => {

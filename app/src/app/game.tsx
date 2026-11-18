@@ -9,6 +9,7 @@ import GameHud from '@/components/game-hud';
 import InfoPanel from '@/components/info-panel';
 import LoadingScreen from '@/components/loading-screen';
 import PlaygroundMap from '@/components/playground-map';
+import TimelinePanel from '@/components/timeline-panel';
 import { compassLines, gameHighlights, gameMarkers, secondsUntil, sketchLines } from '@/lobby';
 import { canFinish, canShareGameLocation, isSpectator, ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
@@ -20,14 +21,18 @@ import { useGameLocation } from '@/use-game-location';
 import { useGameState, useLobbyUnlessRunning } from '@/use-game-state';
 import { useSketching } from '@/use-sketching';
 import { useRunnerActions } from '@/use-runner-actions';
+import { useTimeline } from '@/use-timeline';
 
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
   const { token, snapshot, state, now, error, show, fail, running } = useGameState();
   const sketching = useSketching({ token, show, fail });
-  const { infoOpen, toggleInfo, startDrawing, stopDrawing } = useDrawingControls(sketching);
+  const { infoOpen, toggleInfo, timelineOpen, toggleTimeline, startDrawing, stopDrawing } = useDrawingControls(sketching);
   const location = useGameLocation({ token, state, show, fail });
   const runnerActions = useRunnerActions({ token, state, receivedAt: snapshot?.receivedAt, show, fail });
+  // Only spectators may see the timeline; the server rejects everyone else.
+  const showTimeline = timelineOpen && isSpectator(state);
+  const timeline = useTimeline(token, showTimeline);
   useGameHaptics(state);
   useLobbyUnlessRunning(state, running);
 
@@ -54,7 +59,8 @@ export default function GameScreen() {
         <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} spectator={spectator} testMode={state.startPositionCheckDisabled === true} />
         <View pointerEvents="box-none" style={styles.hudZone}>
           {infoOpen && <InfoPanel state={state} me={me} revealScheduled={nextReveal !== null} location={location} />}
-          <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} runnerAction={active ? runnerActions.error : ''} />
+          {showTimeline && <TimelinePanel events={timeline.events} loaded={timeline.loaded} />}
+          <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} runnerAction={active ? runnerActions.error : ''} timeline={timeline.error} />
           <ActionBar
             drawing={drawing}
             canSketch={canSketch}
@@ -67,6 +73,7 @@ export default function GameScreen() {
             onClearSketches={sketching.confirmClear}
             catchAction={state.team === 'runner' && state.status === 'running' && active ? { busy: runnerActions.busy === 'catch', disabled: !!runnerActions.busy, onPress: runnerActions.confirmCatch } : undefined}
             finishAction={active && (canFinish(state, snapshot.receivedAt, now) || runnerActions.busy === 'finish') ? { busy: runnerActions.busy === 'finish', disabled: !!runnerActions.busy, onPress: runnerActions.confirmFinish } : undefined}
+            timeline={spectator ? { open: showTimeline, onToggle: toggleTimeline } : undefined}
           />
         </View>
       </View>
