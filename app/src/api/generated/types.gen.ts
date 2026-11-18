@@ -94,6 +94,7 @@ export type ControllerGameStateHunterResponse = {
     players: Array<ControllerPlayerResponse>;
     playground: ControllerPlayground;
     revealIntervalMinutes: number;
+    role: ControllerRole;
     serverTime: string;
     sessionId: string;
     sketches: Array<ControllerSketchResponse>;
@@ -118,6 +119,7 @@ export type ControllerGameStateRunnerResponse = {
     players: Array<ControllerPlayerResponse>;
     playground: ControllerPlayground;
     revealIntervalMinutes: number;
+    role: ControllerRole;
     route: ControllerGameRoute;
     routeRegenerationsLeft: number;
     serverTime: string;
@@ -246,6 +248,8 @@ export type ControllerRevealResponse = ({
 } & ControllerZoneRevealResponse) | ({
     kind: 'outside';
 } & ControllerOutsideRevealResponse);
+
+export type ControllerRole = 'player' | 'spectator';
 
 export type ControllerRunnerOutcome = 'caught' | 'finished';
 

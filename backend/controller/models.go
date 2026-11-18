@@ -29,6 +29,10 @@ type Team game.Team
 
 func (Team) Enum() []any { return []any{game.Runners, game.Hunters} }
 
+type Role game.Role
+
+func (Role) Enum() []any { return []any{game.RolePlayer, game.RoleSpectator} }
+
 type GameStatus game.Status
 
 func (GameStatus) Enum() []any {
@@ -131,8 +135,9 @@ type PlayerResponse struct {
 	// Present for hunters who have chosen a hunter team.
 	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves" validate:"omitempty,max=20"`
 	Ready      bool   `json:"ready" example:"false"`
-	// Live position: own always; hunter teammates' always; runner teammates'
-	// while running. Hunters see runners through reveals instead.
+	// Latest permitted report: own/hunter teammates', or runner teammates' while
+	// running. Spectators receive all real latest reports only while running,
+	// including finished runners' frozen last reports; caught reports use caughtPosition.
 	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
 	// Hunters only, for runners while running: every reveal so far, oldest first.
 	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
@@ -399,6 +404,9 @@ type JokerPositionResponse struct {
 
 // GameStateBase is what every player sees of the game.
 type GameStateBase struct {
+	// Viewing permission, independent of original team. Caught/finished runners
+	// become spectators automatically; only while running may they see all locations.
+	Role Role `json:"role" validate:"required"`
 	// Development override for both Ready and finish position checks; absent during normal play.
 	StartPositionCheckDisabled bool       `json:"startPositionCheckDisabled,omitempty" example:"false" validate:"omitempty"`
 	SessionID                  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`

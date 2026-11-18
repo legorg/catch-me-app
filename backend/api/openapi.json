@@ -1596,6 +1596,9 @@
             "minimum": 1,
             "type": "integer"
           },
+          "role": {
+            "$ref": "#/components/schemas/ControllerRole"
+          },
           "serverTime": {
             "examples": [
               "2026-11-08T12:00:00Z"
@@ -1642,6 +1645,7 @@
           }
         },
         "required": [
+          "role",
           "sessionId",
           "status",
           "serverTime",
@@ -1726,6 +1730,9 @@
             "minimum": 1,
             "type": "integer"
           },
+          "role": {
+            "$ref": "#/components/schemas/ControllerRole"
+          },
           "route": {
             "$ref": "#/components/schemas/ControllerGameRoute"
           },
@@ -1776,6 +1783,7 @@
           }
         },
         "required": [
+          "role",
           "sessionId",
           "status",
           "serverTime",
@@ -2341,6 +2349,13 @@
           }
         ],
         "type": "object"
+      },
+      "ControllerRole": {
+        "enum": [
+          "player",
+          "spectator"
+        ],
+        "type": "string"
       },
       "ControllerRunnerOutcome": {
         "enum": [

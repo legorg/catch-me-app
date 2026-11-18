@@ -60,8 +60,8 @@ func TestMarkCaughtHTTPFlow(t *testing.T) {
 			if !withPosition && caught.Runner.CaughtPosition != nil {
 				t.Fatal("catch without a position must not invent one")
 			}
-			// The caught player remains authenticated and gets the same restricted
-			// runner view, not privileged spectator access to hidden positions.
+			// The caught player remains authenticated; catch markers stay identical
+			// for active players and the converted spectator.
 			for _, token := range []string{runner.PlayerToken, other.PlayerToken, hunter.PlayerToken} {
 				view := decode[controller.GameStateResponse](t, send(t, handler, "GET", "/api/me/game", token, ""), 200)
 				for _, p := range view.Base().Players {

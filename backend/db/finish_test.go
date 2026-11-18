@@ -86,6 +86,17 @@ func TestFinishPersistenceAndHistoricalJokers(t *testing.T) {
 	if p.Runner.Status() != game.RunnerFinished || p.Runner.EndedAt() != at || p.Position != finishPosition || len(lobby.Reveals[runner.ID]) != 0 {
 		t.Fatalf("finish/history not preserved: %+v", p)
 	}
+	if p.Role() != game.RoleSpectator || p.Team != game.Runners {
+		t.Fatal("reopening lost spectator permission or original affiliation")
+	}
+	for _, v := range lobby.VisibleTo(p, later) {
+		if v.ID == runner.ID && v.Position != finishPosition {
+			t.Fatal("spectator lost frozen finish report after reopening")
+		}
+		if v.ID == after.ID && v.Position != origin {
+			t.Fatal("spectator lost hunter report after reopening")
+		}
+	}
 	for _, v := range lobby.VisibleTo(after, later) {
 		if v.ID == runner.ID && (v.Runner.Status() != game.RunnerFinished || v.Runner.EndedAt() != at || !v.Position.IsZero() || !v.CaughtPosition.IsZero() || len(v.Reveals) != 0) {
 			t.Fatalf("finish leaked: %+v", v)
@@ -121,5 +132,13 @@ func TestFinishPersistenceAndHistoricalJokers(t *testing.T) {
 	p, _ = lobby.Player(runner.ID)
 	if p.Runner.Status() != game.RunnerFinished || p.Runner.EndedAt() != at || !p.Position.IsZero() {
 		t.Fatal("retention must remove positions, not finish status")
+	}
+	if p.Role() != game.RoleSpectator {
+		t.Fatal("position expiry removed spectator permission")
+	}
+	for _, v := range lobby.VisibleTo(p, later) {
+		if !v.Position.IsZero() || !v.CaughtPosition.IsZero() {
+			t.Fatal("spectator feed resurrected expired positions")
+		}
 	}
 }

@@ -334,6 +334,7 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 func gameStateBase(view service.PlayerView) GameStateBase {
 	g := view.Lobby.Game
 	response := GameStateBase{
+		Role:                       Role(view.Me.Role()),
 		StartPositionCheckDisabled: view.StartPositionCheckDisabled,
 		SessionID:                  SessionID(g.SessionID.String()),
 		Status:                     GameStatus(g.Status(view.Now)),

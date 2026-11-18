@@ -41,8 +41,11 @@ func TestRunnerResponseContract(t *testing.T) {
 				if (got.Runner.CaughtPosition != nil) != (status == game.RunnerCaught && withReport) {
 					t.Fatalf("catch coordinates have wrong visibility: %+v", got)
 				}
-				if status != game.RunnerActive && (got.Position != nil || len(got.Reveals) != 0) {
-					t.Fatal("completed runner exposed ordinary position/reveals")
+				if status != game.RunnerActive {
+					wantPosition := status == game.RunnerFinished && viewer.Role() == game.RoleSpectator && withReport
+					if (got.Position != nil) != wantPosition || len(got.Reveals) != 0 {
+						t.Fatal("completed runner position has wrong viewer permissions")
+					}
 				}
 				if players[1].Runner != nil {
 					t.Fatal("hunter received runner state")

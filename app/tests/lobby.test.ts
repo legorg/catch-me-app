@@ -8,6 +8,7 @@ import { gameResultRoute } from '../src/game-result';
 import { cellBounds, distanceMeters, offsetPoint, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
+  role: 'player',
   sessionId: '00112233445566778899aabbccddeeff',
   status: 'countdown',
   serverTime: '2026-11-08T12:00:00Z',

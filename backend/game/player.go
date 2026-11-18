@@ -20,6 +20,14 @@ const (
 
 type Team string
 
+// Role is the viewing permission, separate from the original team and outcome.
+type Role string
+
+const (
+	RolePlayer    Role = "player"
+	RoleSpectator Role = "spectator"
+)
+
 const (
 	Runners Team = "runner"
 	Hunters Team = "hunter"
@@ -161,3 +169,12 @@ type Player struct {
 }
 
 func (p Player) active() bool { return p.Team != Runners || p.Runner.Status() == RunnerActive }
+
+// Role derives the irreversible spectator transition from the persisted outcome.
+// No separate flag can drift out of sync with a catch or finish.
+func (p Player) Role() Role {
+	if p.Team == Runners && (p.Runner.Status() == RunnerCaught || p.Runner.Status() == RunnerFinished) {
+		return RoleSpectator
+	}
+	return RolePlayer
+}

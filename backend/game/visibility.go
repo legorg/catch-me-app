@@ -9,7 +9,8 @@ type visiblePlayer struct {
 	Team       Team
 	HunterTeam HunterTeamName
 	Ready      bool
-	// Position is the live position of oneself and teammates.
+	// Position is the latest permitted report. For spectators it also includes
+	// finished runners' last reports; their Runner status distinguishes these from live tracking.
 	Position Position
 	// Reveals are what hunters see of a runner, oldest first; only set when a
 	// hunter looks at a runner.
@@ -20,7 +21,9 @@ type visiblePlayer struct {
 }
 
 // VisibleTo applies the visibility rules for viewer:
-//   - Finished runners expose only their finish status, never a position or reveal.
+//   - Only while running, spectators see all latest real reports, without jokers
+//     or reveal delays. Caught runners keep their frozen catch marker.
+//   - To active players, finished runners expose only their status, never a position or reveal.
 //   - Active players see their own position; caught runners expose the catch instead.
 //   - Hunters of the same hunter team see each other's latest positions at any
 //     time; other hunter teams never.
@@ -30,9 +33,23 @@ type visiblePlayer struct {
 //   - Runners never see hunters' positions.
 func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 	running := l.Game.Status(now) == StatusRunning
+	spectator := viewer.Role() == RoleSpectator
 	visible := make([]visiblePlayer, 0, len(l.Players))
 	for _, p := range l.Players {
 		v := visiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready, Runner: p.Runner}
+		if spectator {
+			// No unrestricted feed before the start or after the end. Completed
+			// games use the separate result endpoint, not a live/history feed.
+			if running {
+				if p.Team == Runners && p.Runner.Status() == RunnerCaught {
+					v.CaughtPosition = p.Position
+				} else {
+					v.Position = p.Position
+				}
+			}
+			visible = append(visible, v)
+			continue
+		}
 		if p.Team == Runners && p.Runner.Status() == RunnerFinished {
 			visible = append(visible, v)
 			continue
