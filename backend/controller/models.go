@@ -152,6 +152,11 @@ type PlayerResponse struct {
 	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
 	// Hunters only, for runners while running: every reveal so far, oldest first.
 	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
+	// Present once this runner declares themselves caught; visible to everyone immediately.
+	CaughtAt *time.Time `json:"caughtAt,omitempty" validate:"omitempty"`
+	// Last report before declaring the catch, frozen until position retention expires.
+	// Absent without a report. Replaces position and reveals, for a black catch marker.
+	CaughtPosition *PositionResponse `json:"caughtPosition,omitempty" validate:"omitempty"`
 }
 
 // RevealKind tells the variants of RevealResponse apart.

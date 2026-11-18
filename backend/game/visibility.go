@@ -14,6 +14,9 @@ type visiblePlayer struct {
 	// Reveals are what hunters see of a runner, oldest first; only set when a
 	// hunter looks at a runner.
 	Reveals []HunterReveal
+	// A catch replaces live positions and reveals for every viewer immediately.
+	CaughtAt       time.Time
+	CaughtPosition Position
 }
 
 // VisibleTo applies the visibility rules for viewer:
@@ -29,6 +32,11 @@ func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 	visible := make([]visiblePlayer, 0, len(l.Players))
 	for _, p := range l.Players {
 		v := visiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready}
+		if !p.CaughtAt.IsZero() {
+			v.CaughtAt, v.CaughtPosition = p.CaughtAt, p.Position
+			visible = append(visible, v)
+			continue
+		}
 		sameHunterTeam := viewer.Team == Hunters && p.Team == Hunters && !viewer.HunterTeam.IsZero() && p.HunterTeam == viewer.HunterTeam
 		switch {
 		case p.ID == viewer.ID, sameHunterTeam, running && viewer.Team == Runners && p.Team == Runners:

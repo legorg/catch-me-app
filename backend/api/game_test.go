@@ -190,11 +190,18 @@ func TestOpenAPIRoutes(t *testing.T) {
 		t.Fatalf("unexpected player token scheme: %+v", scheme)
 	}
 	const union = "ControllerGameStateResponse"
+	player := spec.Components.Schemas["ControllerPlayerResponse"]
+	for _, field := range []string{"caughtAt", "caughtPosition"} {
+		if _, ok := player.Properties[field]; !ok || slices.Contains(player.Required, field) {
+			t.Fatalf("player schema must document optional %s", field)
+		}
+	}
 	for _, tc := range []struct{ path, method, id, status, schema string }{
 		{"/health", "get", "getHealth", "200", "ControllerHealthResponse"},
 		{"/api/games", "post", "createGame", "201", "ControllerCreateGameResponse"},
 		{"/api/players", "post", "joinGame", "201", "ControllerJoinGameResponse"},
 		{"/api/me/game", "get", "getGameState", "200", union},
+		{"/api/me/caught", "post", "markCaught", "200", union},
 		{"/api/me/ready", "put", "setReady", "200", union},
 		{"/api/me/route", "post", "regenerateRoute", "200", union},
 		{"/api/me/hunter-team", "put", "setHunterTeam", "200", union},

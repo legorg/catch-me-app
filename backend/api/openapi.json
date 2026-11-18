@@ -160,6 +160,69 @@
         ]
       }
     },
+    "/api/me/caught": {
+      "post": {
+        "summary": "Permanently mark yourself caught (runners, while running, no proximity check)",
+        "operationId": "markCaught",
+        "responses": {
+          "200": {
+            "description": "Caught; repeated requests preserve the original catch time and position. Everyone sees the catch immediately; further positions and joker uses are rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerGameStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown player token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a runner or game not running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Could not mark runner caught",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "PlayerToken": []
+          }
+        ]
+      }
+    },
     "/api/me/game": {
       "get": {
         "summary": "Get the game state for the authenticated player",
@@ -364,7 +427,7 @@
             }
           },
           "409": {
-            "description": "Not a joker of the player's team, hunter without a team, game not running, joker already used, the runner's last reveal joker has not acted yet, or a compass without the hunter's position",
+            "description": "Caught runner, not a joker of the player's team, hunter without a team, game not running, joker already used, the runner's last reveal joker has not acted yet, or a compass without the hunter's position",
             "content": {
               "application/json": {
                 "schema": {
@@ -449,6 +512,16 @@
           },
           "405": {
             "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControllerAPIError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Caught runners cannot report positions",
             "content": {
               "application/json": {
                 "schema": {
@@ -1762,6 +1835,13 @@
       },
       "ControllerPlayerResponse": {
         "properties": {
+          "caughtAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "caughtPosition": {
+            "$ref": "#/components/schemas/ControllerPositionResponse"
+          },
           "hunterTeam": {
             "examples": [
               "Wolves"

@@ -155,4 +155,7 @@ type Player struct {
 	// Zero values mean "none": Position is the latest report. Reveals live on
 	// the Lobby.
 	Position Position
+	// CaughtAt is zero for active players. A caught runner's Position stays at
+	// their last report, until position retention removes it.
+	CaughtAt time.Time
 }

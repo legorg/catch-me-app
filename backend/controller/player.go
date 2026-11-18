@@ -53,6 +53,24 @@ func (c *GameController) State(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, gameStateResponse(view))
 }
 
+// MarkCaught permanently retires the authenticated runner, on trust alone.
+func (c *GameController) MarkCaught(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost) {
+		return
+	}
+	token, err := playerToken(r)
+	if err != nil {
+		writeGameError(w, err, "invalid token")
+		return
+	}
+	view, err := c.service.MarkCaught(r.Context(), token)
+	if err != nil {
+		writeGameError(w, err, "could not mark runner caught")
+		return
+	}
+	WriteJSON(w, http.StatusOK, gameStateResponse(view))
+}
+
 // SetReady marks the authenticated player as ready or not ready.
 func (c *GameController) SetReady(w http.ResponseWriter, r *http.Request) {
 	if !allowMethods(w, r, http.MethodPut) {
@@ -338,6 +356,14 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 	// Visibility is decided by the domain; this only maps what it allows.
 	for _, p := range view.Lobby.VisibleTo(view.Me, view.Now) {
 		player := PlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team), HunterTeam: p.HunterTeam.String(), Ready: p.Ready}
+		if !p.CaughtAt.IsZero() {
+			caughtAt := p.CaughtAt
+			player.CaughtAt = &caughtAt
+			if !p.CaughtPosition.IsZero() {
+				position := positionResponse(p.CaughtPosition)
+				player.CaughtPosition = &position
+			}
+		}
 		if !p.Position.IsZero() {
 			position := positionResponse(p.Position)
 			player.Position = &position

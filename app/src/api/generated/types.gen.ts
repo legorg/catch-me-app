@@ -175,6 +175,8 @@ export type ControllerOutsideRevealResponse = {
 };
 
 export type ControllerPlayerResponse = {
+    caughtAt?: string;
+    caughtPosition?: ControllerPositionResponse;
     hunterTeam?: string;
     name: string;
     playerId: string;
@@ -396,6 +398,43 @@ export type LeaveGameResponses = {
 
 export type LeaveGameResponse = LeaveGameResponses[keyof LeaveGameResponses];
 
+export type MarkCaughtData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/me/caught';
+};
+
+export type MarkCaughtErrors = {
+    /**
+     * Missing or unknown player token
+     */
+    401: ControllerApiError;
+    /**
+     * Method not allowed
+     */
+    405: ControllerApiError;
+    /**
+     * Not a runner or game not running
+     */
+    409: ControllerApiError;
+    /**
+     * Could not mark runner caught
+     */
+    500: ControllerApiError;
+};
+
+export type MarkCaughtError = MarkCaughtErrors[keyof MarkCaughtErrors];
+
+export type MarkCaughtResponses = {
+    /**
+     * Caught; repeated requests preserve the original catch time and position. Everyone sees the catch immediately; further positions and joker uses are rejected
+     */
+    200: ControllerGameStateResponse;
+};
+
+export type MarkCaughtResponse = MarkCaughtResponses[keyof MarkCaughtResponses];
+
 export type GetGameStateData = {
     body?: never;
     path?: never;
@@ -501,7 +540,7 @@ export type ActivateJokerErrors = {
      */
     405: ControllerApiError;
     /**
-     * Not a joker of the player's team, hunter without a team, game not running, joker already used, the runner's last reveal joker has not acted yet, or a compass without the hunter's position
+     * Caught runner, not a joker of the player's team, hunter without a team, game not running, joker already used, the runner's last reveal joker has not acted yet, or a compass without the hunter's position
      */
     409: ControllerApiError;
     /**
@@ -548,6 +587,10 @@ export type UpdatePositionErrors = {
      * Method not allowed
      */
     405: ControllerApiError;
+    /**
+     * Caught runners cannot report positions
+     */
+    409: ControllerApiError;
     /**
      * Request body exceeds 1024 bytes
      */

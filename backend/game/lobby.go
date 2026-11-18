@@ -178,6 +178,9 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 		return ErrUnauthorized
 	}
 	player := &l.Players[i]
+	if !player.CaughtAt.IsZero() {
+		return &RuleError{Message: "caught runners cannot report positions"}
+	}
 	player.Position = position
 	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireAtStart(*player, now) != nil {
 		player.Ready = false

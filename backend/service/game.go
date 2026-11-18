@@ -182,6 +182,13 @@ func (s *GameService) SetReady(ctx context.Context, token game.PlayerToken, read
 	})
 }
 
+// MarkCaught retires the authenticated runner without checking hunter proximity.
+func (s *GameService) MarkCaught(ctx context.Context, token game.PlayerToken) (PlayerView, error) {
+	return s.updateAsPlayer(ctx, token, func(l *game.Lobby, me game.Player, now time.Time) error {
+		return l.MarkCaught(me.ID, now)
+	})
+}
+
 // RegenerateRoute replaces the game's route with a different one. The landmark
 // lookup runs outside the database transaction, so the rules are checked
 // before it and again when saving.
