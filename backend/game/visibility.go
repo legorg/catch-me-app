@@ -37,6 +37,11 @@ func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 	visible := make([]visiblePlayer, 0, len(l.Players))
 	for _, p := range l.Players {
 		v := visiblePlayer{ID: p.ID, Name: p.Name, Team: p.Team, HunterTeam: p.HunterTeam, Ready: p.Ready, Runner: p.Runner}
+		// Direct spectators have no gameplay position, even if stored data is malformed.
+		if p.Team == Spectators {
+			visible = append(visible, v)
+			continue
+		}
 		if spectator {
 			// No unrestricted feed before the start or after the end. Completed
 			// games use the separate result endpoint, not a live/history feed.

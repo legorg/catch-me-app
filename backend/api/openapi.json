@@ -1022,7 +1022,7 @@
     },
     "/api/players": {
       "post": {
-        "summary": "Join a game with a team join code",
+        "summary": "Join before game start with a runner, hunter or spectator code",
         "operationId": "joinGame",
         "requestBody": {
           "description": "Join code (6 digits) and display name (1-20 characters, unique per game)",
@@ -1664,7 +1664,8 @@
         "discriminator": {
           "mapping": {
             "hunter": "#/components/schemas/ControllerGameStateHunterResponse",
-            "runner": "#/components/schemas/ControllerGameStateRunnerResponse"
+            "runner": "#/components/schemas/ControllerGameStateRunnerResponse",
+            "spectator": "#/components/schemas/ControllerGameStateSpectatorResponse"
           },
           "propertyName": "team"
         },
@@ -1674,6 +1675,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerGameStateHunterResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerGameStateSpectatorResponse"
           }
         ],
         "type": "object"
@@ -1799,6 +1803,114 @@
         ],
         "type": "object"
       },
+      "ControllerGameStateSpectatorResponse": {
+        "properties": {
+          "endedAt": {
+            "examples": [
+              "2026-11-08T13:00:10Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "joinCodes": {
+            "$ref": "#/components/schemas/ControllerJoinCodes"
+          },
+          "jokers": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerJokerResponse"
+            },
+            "maxItems": 0,
+            "type": "array"
+          },
+          "nextRevealAt": {
+            "examples": [
+              "2026-11-08T12:05:10Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "playerId": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerPlayerResponse"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "playground": {
+            "$ref": "#/components/schemas/ControllerPlayground"
+          },
+          "revealIntervalMinutes": {
+            "examples": [
+              30
+            ],
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ControllerRole"
+          },
+          "serverTime": {
+            "examples": [
+              "2026-11-08T12:00:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "sessionId": {
+            "examples": [
+              "00112233445566778899aabbccddeeff"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          },
+          "startPositionCheckDisabled": {
+            "examples": [
+              false
+            ],
+            "type": "boolean"
+          },
+          "startsAt": {
+            "examples": [
+              "2026-11-08T12:00:10Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ControllerGameStatus"
+          },
+          "team": {
+            "enum": [
+              "spectator"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "sessionId",
+          "status",
+          "serverTime",
+          "revealIntervalMinutes",
+          "playground",
+          "playerId",
+          "joinCodes",
+          "players",
+          "team",
+          "jokers"
+        ],
+        "type": "object"
+      },
       "ControllerGameStatus": {
         "enum": [
           "lobby",
@@ -1852,11 +1964,20 @@
             "maxLength": 6,
             "minLength": 6,
             "type": "string"
+          },
+          "spectator": {
+            "examples": [
+              "305821"
+            ],
+            "maxLength": 6,
+            "minLength": 6,
+            "type": "string"
           }
         },
         "required": [
           "runner",
-          "hunter"
+          "hunter",
+          "spectator"
         ],
         "type": "object"
       },
@@ -2606,7 +2727,8 @@
       "ControllerTeam": {
         "enum": [
           "runner",
-          "hunter"
+          "hunter",
+          "spectator"
         ],
         "type": "string"
       },

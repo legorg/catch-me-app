@@ -25,6 +25,7 @@ function isResultPlayer(value: unknown): value is ResultPlayerResponse {
   if (!isObject(value) || typeof value.playerId !== 'string' || !isValidGameId(value.playerId)
     || typeof value.name !== 'string' || !value.name.trim()) return false;
   if (value.team === 'hunter') return value.runner === undefined && (value.hunterTeam === undefined || typeof value.hunterTeam === 'string');
+  if (value.team === 'spectator') return value.runner === undefined && value.hunterTeam === undefined;
   return value.team === 'runner' && isObject(value.runner)
     && (value.runner.status === 'caught' || value.runner.status === 'finished') && isTimestamp(value.runner.endedAt);
 }

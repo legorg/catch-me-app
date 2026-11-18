@@ -28,6 +28,7 @@ type gameRow struct {
 	RevealIntervalMinutes int    `gorm:"not null;default:30"`
 	RunnerCode            string `gorm:"uniqueIndex;not null"`
 	HunterCode            string `gorm:"uniqueIndex;not null"`
+	SpectatorCode         string `gorm:"uniqueIndex;not null"`
 	StartsAt              time.Time
 	EndedAt               *time.Time
 	StartTitle            string
@@ -143,10 +144,10 @@ func (s *Store) Close() error {
 
 func (s *Store) Create(ctx context.Context, g game.Game) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Also prevents a runner code equal to another game's hunter code.
-		codes := []string{g.JoinCodes.Runner.String(), g.JoinCodes.Hunter.String()}
+		// Prevent collisions across all invitation columns, not just within one affiliation.
+		codes := []string{g.JoinCodes.Runner.String(), g.JoinCodes.Hunter.String(), g.JoinCodes.Spectator.String()}
 		var taken int64
-		if err := tx.Model(&gameRow{}).Where("runner_code IN ? OR hunter_code IN ?", codes, codes).Count(&taken).Error; err != nil {
+		if err := tx.Model(&gameRow{}).Where("runner_code IN ? OR hunter_code IN ? OR spectator_code IN ?", codes, codes, codes).Count(&taken).Error; err != nil {
 			return fmt.Errorf("check join codes: %w", err)
 		}
 		if taken > 0 {
@@ -156,7 +157,7 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 		row := gameRow{
 			ID: g.SessionID.String(), CreatedAt: g.CreatedAt, Latitude: center.Latitude(), Longitude: center.Longitude(),
 			CellSizeMeters: g.Playground.CellSize().Meters(), GridSize: g.Playground.GridSize().Cells(), RevealIntervalMinutes: g.RevealInterval.Minutes(),
-			RunnerCode: codes[0], HunterCode: codes[1], StartsAt: g.StartsAt,
+			RunnerCode: codes[0], HunterCode: codes[1], SpectatorCode: codes[2], StartsAt: g.StartsAt,
 			StartTitle: g.Route.Start.Title, StartLat: g.Route.Start.Coordinates.Latitude(), StartLon: g.Route.Start.Coordinates.Longitude(),
 			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
 			RouteRegenerations: g.RouteRegenerations,
@@ -171,11 +172,11 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 	})
 }
 
-// UpdateLobbyByJoinCode loads the game with this runner or hunter code and its
+// UpdateLobbyByJoinCode loads the game with this runner, hunter or spectator code and its
 // players as of now, applies change, and saves the result in one transaction.
 // A nil change only loads.
 func (s *Store) UpdateLobbyByJoinCode(ctx context.Context, code game.JoinCode, now time.Time, change func(*game.Lobby) error) (game.Lobby, error) {
-	return s.updateLobby(ctx, now, change, "runner_code = ? OR hunter_code = ?", code.String(), code.String())
+	return s.updateLobby(ctx, now, change, "runner_code = ? OR hunter_code = ? OR spectator_code = ?", code.String(), code.String(), code.String())
 }
 
 // UpdateLobbyByToken is UpdateLobbyByJoinCode for the game of the player with this token hash.
@@ -399,7 +400,7 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 	for _, p := range lobby.Players {
 		if p.Team == game.Runners {
 			runnerIDs = append(runnerIDs, p.ID.String())
-		} else {
+		} else if p.Team == game.Hunters {
 			hunterIDs = append(hunterIDs, p.ID.String())
 		}
 	}
@@ -630,7 +631,8 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 	hunter, err5 := game.ParseJoinCode(row.HunterCode)
 	gridSize, err6 := game.ParseGridSize(row.GridSize)
 	revealInterval, err7 := game.ParseRevealInterval(row.RevealIntervalMinutes)
-	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7); err != nil {
+	spectator, err8 := game.ParseJoinCode(row.SpectatorCode)
+	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8); err != nil {
 		return game.Lobby{}, err
 	}
 	playground, err := game.NewPlayground(center, cellSize, gridSize)
@@ -639,7 +641,7 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 	}
 	lobby := game.Lobby{Game: game.Game{
 		SessionID: id, CreatedAt: row.CreatedAt.UTC(), Playground: playground, RevealInterval: revealInterval,
-		JoinCodes: game.JoinCodes{Runner: runner, Hunter: hunter}, StartsAt: row.StartsAt.UTC(),
+		JoinCodes: game.JoinCodes{Runner: runner, Hunter: hunter, Spectator: spectator}, StartsAt: row.StartsAt.UTC(),
 	}}
 	if row.EndedAt != nil {
 		lobby.Game.EndedAt = row.EndedAt.UTC()
@@ -695,7 +697,7 @@ func parsePlayer(row playerRow) (game.Player, error) {
 		}
 		player.Runner = state
 	} else if row.Runner != nil {
-		return game.Player{}, fmt.Errorf("hunters cannot have runner state")
+		return game.Player{}, fmt.Errorf("non-runners cannot have runner state")
 	}
 	return player, nil
 }

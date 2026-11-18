@@ -67,7 +67,7 @@ export default function LobbyScreen() {
         {state.team === 'hunter' && <Text style={styles.hint}>
           {t('lobby.legendHunter')}
         </Text>}
-        <LocationPermissionCards
+        {state.team !== 'spectator' && <LocationPermissionCards
           location={location}
           team={state.team}
           skipStartPositionCheck={skipStartPositionCheck}
@@ -77,7 +77,7 @@ export default function LobbyScreen() {
           needsBackground={lobby.needsBackground}
           onRequestLocation={lobby.requestLocation}
           onRequestBackground={lobby.requestBackground}
-        />
+        />}
         <View style={styles.card}>
           <Text style={styles.text}>
             {translateParts('lobby.youAre', {

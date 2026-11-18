@@ -203,7 +203,8 @@ func TestOpenAPIRoutes(t *testing.T) {
 		name   string
 		values []any
 	}{
-		{"ControllerTeam", []any{"runner", "hunter"}},
+		{"ControllerTeam", []any{"runner", "hunter", "spectator"}},
+		{"ControllerRole", []any{"player", "spectator"}},
 		{"ControllerGameStatus", []any{"lobby", "countdown", "running", "ended"}},
 		{"ControllerRunnerOutcome", []any{"caught", "finished"}},
 		{"ControllerJokerKind", []any{"showRunners", "queryZone", "zoneOnly", "fakePosition", "showHunters", "compass"}},
@@ -289,10 +290,10 @@ func TestOpenAPIRoutes(t *testing.T) {
 	}
 
 	state := spec.Components.Schemas[union]
-	if len(state.OneOf) != 2 || state.Discriminator.PropertyName != "team" {
+	if len(state.OneOf) != 3 || state.Discriminator.PropertyName != "team" {
 		t.Fatalf("the game state must be a oneOf discriminated by team: %+v", state)
 	}
-	for i, team := range []string{"runner", "hunter"} {
+	for i, team := range []string{"runner", "hunter", "spectator"} {
 		name := strings.TrimPrefix(state.OneOf[i].Ref, "#/components/schemas/")
 		variant := spec.Components.Schemas[name]
 		if got := variant.Properties["team"].Enum; len(got) != 1 || got[0] != team || !slices.Contains(variant.Required, "team") {
@@ -301,5 +302,19 @@ func TestOpenAPIRoutes(t *testing.T) {
 		if _, ok := variant.Properties["endedAt"]; !ok || slices.Contains(variant.Required, "endedAt") {
 			t.Fatalf("%s must document the optional game end time", name)
 		}
+		if !slices.Contains(variant.Required, "role") {
+			t.Fatalf("%s must document viewer permission", name)
+		}
+		if team == "spectator" {
+			for _, hidden := range []string{"route", "routeRegenerationsLeft", "sketches"} {
+				if _, ok := variant.Properties[hidden]; ok {
+					t.Fatalf("direct spectator schema exposes %s", hidden)
+				}
+			}
+		}
+	}
+	codes := spec.Components.Schemas["ControllerJoinCodes"]
+	if _, ok := codes.Properties["spectator"]; !ok || !slices.Contains(codes.Required, "spectator") {
+		t.Fatal("spectator code must be documented and required")
 	}
 }

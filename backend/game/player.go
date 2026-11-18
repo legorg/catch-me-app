@@ -31,14 +31,16 @@ const (
 const (
 	Runners Team = "runner"
 	Hunters Team = "hunter"
+	// Spectators records a direct spectator's original affiliation, not a playing team.
+	Spectators Team = "spectator"
 )
 
 func ParseTeam(team string) (Team, error) {
 	switch Team(team) {
-	case Runners, Hunters:
+	case Runners, Hunters, Spectators:
 		return Team(team), nil
 	}
-	return "", &ValidationError{Message: "team must be runner or hunter"}
+	return "", &ValidationError{Message: "team must be runner, hunter or spectator"}
 }
 
 type JoinCode struct{ value string }
@@ -60,22 +62,30 @@ func ParseJoinCode(code string) (JoinCode, error) {
 
 func (c JoinCode) String() string { return c.value }
 
-type JoinCodes struct{ Runner, Hunter JoinCode }
+type JoinCodes struct{ Runner, Hunter, Spectator JoinCode }
 
 func NewJoinCodes() JoinCodes {
-	codes := JoinCodes{Runner: NewJoinCode(), Hunter: NewJoinCode()}
+	codes := JoinCodes{Runner: NewJoinCode(), Hunter: NewJoinCode(), Spectator: NewJoinCode()}
 	for codes.Hunter == codes.Runner {
 		codes.Hunter = NewJoinCode()
+	}
+	for codes.Spectator == codes.Runner || codes.Spectator == codes.Hunter {
+		codes.Spectator = NewJoinCode()
 	}
 	return codes
 }
 
 func (c JoinCodes) TeamFor(code JoinCode) (Team, bool) {
+	if code == (JoinCode{}) {
+		return "", false
+	}
 	switch code {
 	case c.Runner:
 		return Runners, true
 	case c.Hunter:
 		return Hunters, true
+	case c.Spectator:
+		return Spectators, true
 	}
 	return "", false
 }
@@ -168,11 +178,16 @@ type Player struct {
 	Runner RunnerState
 }
 
-func (p Player) active() bool { return p.Team != Runners || p.Runner.Status() == RunnerActive }
+func (p Player) active() bool {
+	return p.Team == Hunters || p.Team == Runners && p.Runner.Status() == RunnerActive
+}
 
-// Role derives the irreversible spectator transition from the persisted outcome.
-// No separate flag can drift out of sync with a catch or finish.
+// Role derives viewing permission from original affiliation and the persisted
+// outcome. No separate flag can drift out of sync with a catch or finish.
 func (p Player) Role() Role {
+	if p.Team == Spectators {
+		return RoleSpectator
+	}
 	if p.Team == Runners && (p.Runner.Status() == RunnerCaught || p.Runner.Status() == RunnerFinished) {
 		return RoleSpectator
 	}

@@ -69,7 +69,7 @@ export function spectatorMarkers(state: GameStateResponse): PlayerMarker[] {
   if (!isSpectator(state) || state.status !== 'running') return [];
   return [
     ...state.players.flatMap((player) => {
-      if (!player.position || player.runner?.status === 'caught') return [];
+      if (player.team === 'spectator' || !player.position || player.runner?.status === 'caught') return [];
       const { latitude, longitude, accuracyMeters, recordedAt } = player.position;
       const finished = player.runner?.status === 'finished';
       const name = player.playerId === state.playerId ? translate('common.you', { name: player.name }) : player.name;

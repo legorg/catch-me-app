@@ -155,7 +155,7 @@ export const addSketch = <ThrowOnError extends boolean = false>(options: Options
 });
 
 /**
- * Join a game with a team join code
+ * Join before game start with a runner, hunter or spectator code
  */
 export const joinGame = <ThrowOnError extends boolean = false>(options: Options<JoinGameData, ThrowOnError>) => (options.client ?? client).post<JoinGameResponses, JoinGameErrors, ThrowOnError>({
     url: '/api/players',

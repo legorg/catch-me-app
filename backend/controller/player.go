@@ -319,6 +319,11 @@ func (c *GameController) Leave(w http.ResponseWriter, r *http.Request) {
 
 func gameStateResponse(view service.PlayerView) GameStateResponse {
 	base := gameStateBase(view)
+	if view.Me.Team == game.Spectators {
+		return NewSpectatorState(GameStateSpectatorResponse{
+			GameStateBase: base, Team: Team(game.Spectators), Jokers: []JokerResponse{},
+		})
+	}
 	if view.Me.Team == game.Runners {
 		return NewRunnerState(GameStateRunnerResponse{
 			GameStateBase: base, Team: Team(game.Runners), Route: gameRouteResponse(view.Lobby.Game.Route),
@@ -342,8 +347,8 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 		Playground:                 playgroundResponse(g.Playground),
 		RevealIntervalMinutes:      g.RevealInterval.Minutes(),
 		PlayerID:                   PlayerID(view.Me.ID.String()),
-		// Both codes, so any player (e.g. the creator after joining) can invite to either team.
-		JoinCodes: JoinCodes{Runner: g.JoinCodes.Runner.String(), Hunter: g.JoinCodes.Hunter.String()},
+		// Every available code, so authenticated participants can invite others.
+		JoinCodes: JoinCodes{Runner: g.JoinCodes.Runner.String(), Hunter: g.JoinCodes.Hunter.String(), Spectator: g.JoinCodes.Spectator.String()},
 		Players:   make([]PlayerResponse, 0, len(view.Lobby.Players)),
 	}
 	if !g.StartsAt.IsZero() {

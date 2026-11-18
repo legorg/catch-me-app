@@ -10,6 +10,7 @@ export type {
   ControllerGameStateHunterResponse as GameStateHunterResponse,
   ControllerGameStateResponse as GameStateResponse,
   ControllerGameStateRunnerResponse as GameStateRunnerResponse,
+  ControllerGameStateSpectatorResponse as GameStateSpectatorResponse,
   ControllerHealthResponse as HealthResponse,
   ControllerJoinCodes as JoinCodes,
   ControllerJoinGameResponse as JoinGameResponse,

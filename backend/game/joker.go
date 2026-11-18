@@ -167,6 +167,9 @@ func (l Lobby) hasPendingJoker(runner PlayerID, now time.Time) bool {
 // JokersFor lists the viewer's personal and team jokers and what they showed.
 // Other teams' jokers are never visible; hunters are not told about runner jokers.
 func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
+	if viewer.Team == Spectators {
+		return nil
+	}
 	kinds := runnerJokers
 	find := func(kind JokerKind) JokerUse { return l.runnerUse(viewer.ID, kind) }
 	if viewer.Team == Hunters {

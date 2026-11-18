@@ -108,7 +108,9 @@ export type ControllerGameStateResponse = ({
     team: 'runner';
 } & ControllerGameStateRunnerResponse) | ({
     team: 'hunter';
-} & ControllerGameStateHunterResponse);
+} & ControllerGameStateHunterResponse) | ({
+    team: 'spectator';
+} & ControllerGameStateSpectatorResponse);
 
 export type ControllerGameStateRunnerResponse = {
     endedAt?: string;
@@ -130,6 +132,24 @@ export type ControllerGameStateRunnerResponse = {
     team: 'runner';
 };
 
+export type ControllerGameStateSpectatorResponse = {
+    endedAt?: string;
+    joinCodes: ControllerJoinCodes;
+    jokers: Array<ControllerJokerResponse>;
+    nextRevealAt?: string;
+    playerId: string;
+    players: Array<ControllerPlayerResponse>;
+    playground: ControllerPlayground;
+    revealIntervalMinutes: number;
+    role: ControllerRole;
+    serverTime: string;
+    sessionId: string;
+    startPositionCheckDisabled?: boolean;
+    startsAt?: string;
+    status: ControllerGameStatus;
+    team: 'spectator';
+};
+
 export type ControllerGameStatus = 'lobby' | 'countdown' | 'running' | 'ended';
 
 export type ControllerHealthResponse = {
@@ -140,6 +160,7 @@ export type ControllerHealthResponse = {
 export type ControllerJoinCodes = {
     hunter: string;
     runner: string;
+    spectator: string;
 };
 
 export type ControllerJoinGameRequest = {
@@ -308,7 +329,7 @@ export type ControllerSketchResponse = {
     sketchId: string;
 };
 
-export type ControllerTeam = 'runner' | 'hunter';
+export type ControllerTeam = 'runner' | 'hunter' | 'spectator';
 
 export type ControllerUpdatePositionRequest = {
     accuracyMeters: number;

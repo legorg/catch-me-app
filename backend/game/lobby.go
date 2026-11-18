@@ -169,6 +169,9 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 	if err != nil {
 		return err
 	}
+	if player.Role() == RoleSpectator {
+		return &RuleError{Message: "spectators cannot get ready"}
+	}
 	if ready && player.Team == Hunters && player.HunterTeam.IsZero() {
 		return &RuleError{Message: "choose a hunter team to get ready"}
 	}
@@ -193,7 +196,7 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 		return &RuleError{Message: "game has ended"}
 	}
 	if !player.active() {
-		return &RuleError{Message: "caught or finished runners cannot report positions"}
+		return &RuleError{Message: "spectators cannot report positions"}
 	}
 	player.Position = position
 	if !skipStartCheck && l.Game.Status(now) != StatusRunning && player.Ready && l.requireAtStart(*player, now) != nil {
@@ -240,7 +243,7 @@ func (l Lobby) requireNotStarted(now time.Time) error {
 }
 
 // reschedule keeps the invariant: a start is scheduled exactly while every
-// player is ready and both teams have players. A running countdown is kept;
+// playing participant is ready and both playing teams have players. A running countdown is kept;
 // otherwise a new one starts now.
 func (l *Lobby) reschedule(now time.Time) {
 	if !l.canStart() {
@@ -253,6 +256,9 @@ func (l *Lobby) reschedule(now time.Time) {
 func (l Lobby) canStart() bool {
 	teams := map[Team]bool{}
 	for _, p := range l.Players {
+		if p.Team == Spectators {
+			continue
+		}
 		if !p.Ready {
 			return false
 		}

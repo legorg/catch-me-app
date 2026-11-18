@@ -27,7 +27,7 @@ type Cell string
 
 type Team game.Team
 
-func (Team) Enum() []any { return []any{game.Runners, game.Hunters} }
+func (Team) Enum() []any { return []any{game.Runners, game.Hunters, game.Spectators} }
 
 type Role game.Role
 
@@ -105,8 +105,9 @@ type GameResponse struct {
 }
 
 type JoinCodes struct {
-	Runner string `json:"runner" minLength:"6" maxLength:"6" example:"482913" validate:"required,len=6,numeric"`
-	Hunter string `json:"hunter" minLength:"6" maxLength:"6" example:"071564" validate:"required,len=6,numeric"`
+	Runner    string `json:"runner" minLength:"6" maxLength:"6" example:"482913" validate:"required,len=6,numeric"`
+	Hunter    string `json:"hunter" minLength:"6" maxLength:"6" example:"071564" validate:"required,len=6,numeric"`
+	Spectator string `json:"spectator" minLength:"6" maxLength:"6" example:"305821" validate:"required,len=6,numeric"`
 }
 
 type CreateGameResponse struct {
@@ -448,16 +449,26 @@ type GameStateHunterResponse struct {
 	Sketches []SketchResponse `json:"sketches" validate:"max=1000,dive"`
 }
 
+// GameStateSpectatorResponse is a direct spectator's read-only view. Converted
+// runners keep the runner variant and original affiliation, with role spectator.
+type GameStateSpectatorResponse struct {
+	GameStateBase
+	Team Team `json:"team" enum:"spectator" validate:"required,eq=spectator"`
+	// Always empty: spectators have no personal or team jokers.
+	Jokers []JokerResponse `json:"jokers" validate:"max=0,dive"`
+}
+
 // GameStateResponse is the game as seen by the requesting player: exactly one
-// of GameStateRunnerResponse and GameStateHunterResponse, told apart by team.
+// of the runner, hunter and direct spectator variants, told apart by team.
 type GameStateResponse struct {
-	runner *GameStateRunnerResponse
-	hunter *GameStateHunterResponse
+	runner    *GameStateRunnerResponse
+	hunter    *GameStateHunterResponse
+	spectator *GameStateSpectatorResponse
 }
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
 func (GameStateResponse) JSONSchemaOneOf() []any {
-	return []any{GameStateRunnerResponse{}, GameStateHunterResponse{}}
+	return []any{GameStateRunnerResponse{}, GameStateHunterResponse{}, GameStateSpectatorResponse{}}
 }
 
 func NewRunnerState(state GameStateRunnerResponse) GameStateResponse {
@@ -468,13 +479,20 @@ func NewHunterState(state GameStateHunterResponse) GameStateResponse {
 	return GameStateResponse{hunter: &state}
 }
 
-// Base is the part both teams see.
+func NewSpectatorState(state GameStateSpectatorResponse) GameStateResponse {
+	return GameStateResponse{spectator: &state}
+}
+
+// Base is the metadata every authenticated participant sees.
 func (s GameStateResponse) Base() GameStateBase {
 	if s.runner != nil {
 		return s.runner.GameStateBase
 	}
 	if s.hunter != nil {
 		return s.hunter.GameStateBase
+	}
+	if s.spectator != nil {
+		return s.spectator.GameStateBase
 	}
 	return GameStateBase{}
 }
@@ -493,12 +511,22 @@ func (s GameStateResponse) Hunter() (GameStateHunterResponse, bool) {
 	return *s.hunter, true
 }
 
+func (s GameStateResponse) Spectator() (GameStateSpectatorResponse, bool) {
+	if s.spectator == nil {
+		return GameStateSpectatorResponse{}, false
+	}
+	return *s.spectator, true
+}
+
 func (s GameStateResponse) MarshalJSON() ([]byte, error) {
 	if s.runner != nil {
 		return json.Marshal(s.runner)
 	}
 	if s.hunter != nil {
 		return json.Marshal(s.hunter)
+	}
+	if s.spectator != nil {
+		return json.Marshal(s.spectator)
 	}
 	return nil, errors.New("game state has no team")
 }
@@ -518,6 +546,9 @@ func (s *GameStateResponse) UnmarshalJSON(data []byte) error {
 	case game.Hunters:
 		s.hunter = new(GameStateHunterResponse)
 		return json.Unmarshal(data, s.hunter)
+	case game.Spectators:
+		s.spectator = new(GameStateSpectatorResponse)
+		return json.Unmarshal(data, s.spectator)
 	}
 	return fmt.Errorf("unknown team %q", probe.Team)
 }

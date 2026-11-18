@@ -65,7 +65,7 @@ func gameResultResponse(result game.Result) GameResultResponse {
 		player := ResultPlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team)}
 		if p.Team == game.Runners {
 			player.Runner = &RunnerResultResponse{Status: RunnerOutcome(p.Runner.Status()), EndedAt: p.Runner.EndedAt()}
-		} else {
+		} else if p.Team == game.Hunters {
 			player.HunterTeam = p.HunterTeam.String()
 		}
 		response.Players = append(response.Players, player)

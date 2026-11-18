@@ -14,6 +14,7 @@ import type { LocationSharing } from '@/use-location-sharing';
 const TEAM_TEXTS = {
   runner: { team: 'team.runner', reveal: 'lobby.revealRunner', legend: 'lobby.legendRunner' },
   hunter: { team: 'team.hunter', reveal: 'lobby.revealHunter', legend: 'lobby.legendHunter' },
+  spectator: { team: 'spectator.title', reveal: 'spectator.info', legend: 'spectator.info' },
 } as const;
 
 function RouteLine({ state }: { state: GameStateResponse }) {

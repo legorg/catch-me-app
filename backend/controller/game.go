@@ -41,7 +41,7 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteJSON(w, http.StatusCreated, CreateGameResponse{
 		Game:      gameResponse(saved),
-		JoinCodes: JoinCodes{Runner: saved.JoinCodes.Runner.String(), Hunter: saved.JoinCodes.Hunter.String()},
+		JoinCodes: JoinCodes{Runner: saved.JoinCodes.Runner.String(), Hunter: saved.JoinCodes.Hunter.String(), Spectator: saved.JoinCodes.Spectator.String()},
 	})
 }
 

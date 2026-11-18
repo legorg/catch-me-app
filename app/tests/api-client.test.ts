@@ -16,7 +16,7 @@ const route = {
 };
 const created = {
   game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center), revealIntervalMinutes: 30, route },
-  joinCodes: { runner: '482913', hunter: '071564' },
+  joinCodes: { runner: '482913', hunter: '071564', spectator: '305821' },
 };
 const token = 'ab'.repeat(32);
 const state = {
@@ -26,7 +26,7 @@ const state = {
   playground: created.game.playground,
   playerId: '8899aabbccddeeff0011223344556677',
   team: 'runner',
-  joinCodes: { runner: '482913', hunter: '071564' },
+  joinCodes: { runner: '482913', hunter: '071564', spectator: '305821' },
   players: [{ playerId: '8899aabbccddeeff0011223344556677', name: 'Ada', team: 'runner', ready: false, runner: { status: 'active' } }],
   route,
   jokers: [],
@@ -54,6 +54,13 @@ test('result lookup uses the normalized full game ID without a token, body or po
   });
   assert.equal(isGameResultResponse(gameResult), true);
   assert.deepEqual(await getGameResult(` ${gameResult.sessionId.toUpperCase()} `), gameResult);
+});
+
+test('result guards accept direct spectators without inventing a runner outcome or hunter team', () => {
+  const viewer = { playerId: 'd'.repeat(32), name: 'Viewer', team: 'spectator' };
+  assert.equal(isGameResultResponse({ ...gameResult, players: [...gameResult.players, viewer] }), true);
+  assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, runner: { status: 'caught', endedAt: gameResult.endedAt } }] }), false);
+  assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, hunterTeam: 'Pack' }] }), false);
 });
 
 test('invalid game IDs and join codes are rejected without making a result request', async (t) => {
