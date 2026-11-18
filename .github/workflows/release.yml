@@ -1,0 +1,72 @@
+name: Release app
+
+# Push a tag matching the app version, e.g. `git tag v1.0.0 && git push origin v1.0.0`.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  app:
+    name: Build and submit app
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: app
+    env:
+      CI: "true"
+      EXPO_NO_TELEMETRY: "1"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Manual runs from a branch skip this; they release whatever version app.json holds.
+      - name: Verify tag matches app version
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(jq -r .expo.version app.json)"
+          if [ "$TAG" != "v$version" ]; then
+            echo "Tag $TAG does not match app/app.json version $version (expected v$version)."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Typecheck app
+        run: npm run typecheck
+
+      - name: Lint app
+        run: npm run lint
+
+      - name: Test frontend API client and generation
+        run: npm run test:api
+
+      # Builds run on EAS with its production environment variables and stored credentials.
+      # iOS only until Android Play credentials are set up; then switch to --platform all.
+      - name: Start EAS production build with auto-submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas build --platform ios --profile production --auto-submit --non-interactive --no-wait
