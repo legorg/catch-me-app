@@ -16,12 +16,12 @@ type Options = {
 export function useGameLocation({ token, state, show, fail }: Options) {
   const active = !!token && canShareGameLocation(state);
   const me = ownPlayer(state);
-  const retired = !!me && !isActivePlayer(me);
+  const stopped = state?.status === 'ended' || (!!me && !isActivePlayer(me));
   // Also stop a task left registered by an earlier app run when the restored
-  // session is already retired (there may be no active effect to clean up).
+  // session is already retired or ended (there may be no active effect to clean up).
   useEffect(() => {
-    if (retired) void stopBackgroundSharing();
-  }, [retired]);
+    if (stopped) void stopBackgroundSharing();
+  }, [stopped]);
   const send = useCallback(async (fix: Fix) => {
     if (!token || !active) return;
     try {

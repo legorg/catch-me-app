@@ -31,7 +31,7 @@ export default function GameScreen() {
   useGameHaptics(state);
   useLobbyUnlessRunning(state, running);
 
-  if (!token || !state || !snapshot) return <LoadingScreen error={error} />;
+  if (!token || !state || !snapshot || state.status === 'ended') return <LoadingScreen error={error} />;
 
   const me = ownPlayer(state);
   const active = isActivePlayer(me);

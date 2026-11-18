@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react';
 
 import { ApiError, getGameState } from '@/api/client';
 import { playerSession } from '@/player-session';
+import { gameDestination } from '@/game-state';
+import { goToGameResult } from '@/use-game-state';
 
 /**
  * On app start, rejoins the game saved from the last run: the game screen while it is running,
- * otherwise the lobby. A token the backend no longer knows is forgotten.
+ * otherwise the lobby, or the result if it has ended. Unknown tokens are forgotten.
  * Returns true while it is still checking.
  */
 export function useResumeGame() {
@@ -19,7 +21,10 @@ export function useResumeGame() {
       if (token) {
         try {
           const state = await getGameState(token);
-          if (current) router.replace(state.status === 'running' ? '/game' : '/lobby');
+          if (current) {
+            if (state.status === 'ended') goToGameResult(state.sessionId);
+            else router.replace(gameDestination(state));
+          }
           return;
         } catch (err) {
           if (err instanceof ApiError && err.status === 401) playerSession.clear();

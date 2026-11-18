@@ -5,6 +5,7 @@ export type {
   ControllerBounds as Bounds,
   ControllerCoordinates as Coordinates,
   ControllerCreateGameResponse as CreateGameResponse,
+  ControllerGameResultResponse as GameResultResponse,
   ControllerGameRoute as GameRoute,
   ControllerGameStateHunterResponse as GameStateHunterResponse,
   ControllerGameStateResponse as GameStateResponse,
@@ -16,6 +17,7 @@ export type {
   ControllerPlayerResponse as PlayerResponse,
   ControllerPlayground as Playground,
   ControllerRevealResponse as RevealResponse,
+  ControllerResultPlayerResponse as ResultPlayerResponse,
   ControllerRunnerStatus as RunnerStatus,
   ControllerUseJokerRequest as JokerRequest,
 } from './generated/types.gen';

@@ -36,8 +36,8 @@ TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
     });
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 409)) await stopBackgroundSharing();
-    // Position updates return 409 once the runner is caught, including when
-    // the catch response was lost or the session was resumed later.
+    // Position updates return 409 after a catch/finish or game end (hunters
+    // too), including when an action response was lost or the app is backgrounded.
     // Other failures (e.g. no network) are retried with the next location.
   }
 });

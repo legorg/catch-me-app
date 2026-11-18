@@ -17,7 +17,7 @@ export default function JokersScreen() {
 
   const use = useActivateJoker(token, show, fail);
 
-  if (!token || !state) {
+  if (!token || !state || state.status === 'ended') {
     return (
       <View style={[styles.screen, styles.centeredScreen]}>
         <ActivityIndicator color={colors.accent} />

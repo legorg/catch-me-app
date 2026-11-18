@@ -3,7 +3,8 @@ import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
 import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, thinPoints } from '../src/lobby';
-import { canFinish, canShareGameLocation, isActivePlayer, shouldAcceptGameState } from '../src/game-state';
+import { canFinish, canShareGameLocation, gameDestination, isActivePlayer, shouldAcceptGameState } from '../src/game-state';
+import { gameResultRoute } from '../src/game-result';
 import { cellBounds, distanceMeters, offsetPoint, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
@@ -52,6 +53,24 @@ test('countdown uses server time plus local elapsed time', () => {
   assert.equal(secondsUntilStart(state, receivedAt, receivedAt + 9001), 1);
   assert.equal(secondsUntilStart(state, receivedAt, receivedAt + 60_000), 0);
   assert.equal(secondsUntilStart({ ...state, startsAt: undefined, status: 'lobby' }, receivedAt, receivedAt), null);
+});
+
+test('ended games always lead to the same ID-addressed result, never back to the lobby or game', () => {
+  const expected = { pathname: '/results/[sessionId]', params: { sessionId: state.sessionId } };
+  assert.deepEqual(gameResultRoute(state.sessionId), expected);
+  assert.equal(gameDestination({ ...state, status: 'lobby' }, 0), '/lobby');
+  assert.equal(gameDestination(state, 10), '/lobby');
+  assert.equal(gameDestination(state, 0), '/game');
+  assert.equal(gameDestination({ ...state, status: 'running' }), '/game');
+  for (const current of [state, hunterState]) {
+    const ended = { ...current, status: 'ended' as const, endedAt: '2026-11-18T13:00:00Z' };
+    assert.deepEqual(gameDestination(ended), expected); // Restored session.
+    assert.deepEqual(gameDestination(ended, 0), expected); // Elapsed countdown must not restart it.
+    assert.equal(canShareGameLocation(ended), false); // Hunters stop too.
+    assert.equal(canFinish(ended, 0, 0), false);
+    assert.equal(shouldAcceptGameState(ended, { ...current, status: 'running', serverTime: '2026-11-18T14:00:00Z' }), false);
+    assert.equal(shouldAcceptGameState(ended, { ...ended, serverTime: '2026-11-18T14:00:00Z' }), true);
+  }
 });
 
 test('players are grouped by team in join order', () => {

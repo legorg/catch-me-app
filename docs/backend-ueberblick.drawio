@@ -1,0 +1,153 @@
+<mxfile host="drawio-plugin" compressed="false" modified="2026-11-14T09:53:32.191Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" version="22.1.22" etag="Yi_hHr_IBuKoPC2btO9N" type="embed" pages="2">
+  <diagram id="backend-aufbau" name="1 - Backend-Aufbau">
+    <mxGraphModel dx="1213" dy="488" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="b1-0" />
+        <mxCell id="b1-1" parent="b1-0" />
+        <mxCell id="b1-title" value="Catch me! – Go-Backend im Projekt" style="text;html=0;align=center;fontSize=24;fontStyle=1;" parent="b1-1" vertex="1">
+          <mxGeometry x="40" y="20" width="1080" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-subtitle" value="Gelb: Start / Hintergrund · Blau: HTTP-Schichten · Grün: Spielregeln · Orange: Speicherung" style="text;html=0;align=center;fontSize=13;" parent="b1-1" vertex="1">
+          <mxGeometry x="40" y="62" width="1080" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-app" value="React-Native-App&#xa;api/client.ts sendet HTTP-Anfragen mit JSON" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;" parent="b1-1" vertex="1">
+          <mxGeometry x="380" y="105" width="420" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-api" value="API · internal/api/handler.go&#xa;URL → Controller-Funktion (z. B. PUT /api/me/position)&#xa;Sicherheits-Header, CORS für die Browser-Vorschau" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="b1-1" vertex="1">
+          <mxGeometry x="380" y="215" width="420" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-controller" value="Controller · internal/controller/&#xa;HTTP-Methode, JSON und Token lesen und prüfen&#xa;Fehler → HTTP-Status (400, 401, 409, …)&#xa;Antwort-JSON + Swagger-Annotationen" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="b1-1" vertex="1">
+          <mxGeometry x="380" y="350" width="420" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-service" value="Service · internal/service/game.go&#xa;Organisiert Spielaktionen (Join, Ready, Position, …)&#xa;Setzt Serverzeit, identifiziert Spieler per Token-Hash&#xa;Kennt nur das GameRepository-Interface" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="b1-1" vertex="1">
+          <mxGeometry x="380" y="495" width="420" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-store" value="DB-Adapter · internal/db/store.go (GORM)&#xa;Lädt Lobby, wendet Änderung an, speichert – in einer Transaktion&#xa;Übersetzt Tabellenzeilen ↔ Domain-Modelle&#xa;Nur 1 DB-Verbindung: Schreibvorgänge nacheinander" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" parent="b1-1" vertex="1">
+          <mxGeometry x="390" y="640" width="420" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-db" value="SQLite-Datei (catch-me.sqlite)&#xa;games · players · position_history" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" parent="b1-1" vertex="1">
+          <mxGeometry x="440" y="785" width="300" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-domain" value="Domain · internal/game/&#xa;Spielregeln ohne HTTP und Datenbank&#xa;&#xa;lobby.go: Join, Ready, Countdown&#xa;route.go: Runner-Routen&#xa;position.go: Positionen, Reveals&#xa;visibility.go: Wer sieht was?&#xa;playground.go: 6 × 6 Raster" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;align=left;spacingLeft=12;" parent="b1-1" vertex="1">
+          <mxGeometry x="860" y="440" width="270" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-main" value="Start · cmd/server/main.go&#xa;Flags lesen (Port, DB-Pfad, Testmodus)&#xa;SQLite öffnen, Tabellen anlegen&#xa;Store → Service → Controller → API verdrahten&#xa;HTTP-Server auf Port 8080 starten&#xa;Geordnetes Herunterfahren" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;align=left;spacingLeft=10;" parent="b1-1" vertex="1">
+          <mxGeometry x="40" y="215" width="290" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-cleanup" value="Hintergrund-Aufräumen (Goroutine)&#xa;Beim Start und stündlich:&#xa;DeleteExpiredHistory löscht&#xa;Positionshistorie älter als&#xa;7 Tage nach Spielstart" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" parent="b1-1" vertex="1">
+          <mxGeometry x="40" y="495" width="290" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e1" value="HTTP-Anfrage / JSON-Antwort" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;startFill=1;endArrow=block;" parent="b1-1" source="b1-app" target="b1-api" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e2" value="ruft auf" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b1-1" source="b1-api" target="b1-controller" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e3" value="Domain-Werte" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b1-1" source="b1-controller" target="b1-service" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e4" value="GameRepository-Interface" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b1-1" source="b1-service" target="b1-store" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e5" value="SQL über GORM" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;startFill=1;endArrow=block;" parent="b1-1" source="b1-store" target="b1-db" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e6" value="wendet Regeln an" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeColor=#82b366;" parent="b1-1" source="b1-service" target="b1-domain" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e7" value="Sichtbarkeit filtern" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeColor=#82b366;dashed=1;" parent="b1-1" source="b1-controller" target="b1-domain" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e8" value="verdrahtet" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;dashed=1;strokeColor=#d6b656;" parent="b1-1" source="b1-main" target="b1-api" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e9" value="startet" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;dashed=1;strokeColor=#d6b656;" parent="b1-1" source="b1-main" target="b1-cleanup" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-e10" value="ruft Service auf" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;dashed=1;strokeColor=#d6b656;" parent="b1-1" source="b1-cleanup" target="b1-service" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1-footer" value="Regel: Jede Schicht kennt nur die darunterliegende. Die Domain weiß nichts von HTTP oder SQL.&#xa;Das Backend ist der Schiedsrichter. Fangen, Zielankunft und Spielende sind noch nicht implementiert." style="text;html=0;align=center;whiteSpace=wrap;fontSize=14;" parent="b1-1" vertex="1">
+          <mxGeometry x="40" y="905" width="1090" height="55" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="backend-ablauf" name="2 - Ablauf: Position melden">
+    <mxGraphModel dx="1100" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="b2-0" />
+        <mxCell id="b2-1" parent="b2-0" />
+        <mxCell id="b2-tx" value="Eine Transaktion: Schritte 4–6 gelingen ganz oder gar nicht" style="rounded=1;whiteSpace=wrap;html=0;dashed=1;fillColor=none;strokeColor=#d79b00;fontSize=13;verticalAlign=bottom;" parent="b2-1" vertex="1">
+          <mxGeometry x="40" y="270" width="1080" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-title" value="Eine Anfrage durch das Backend: PUT /api/me/position" style="text;html=0;align=center;fontSize=24;fontStyle=1;" parent="b2-1" vertex="1">
+          <mxGeometry x="40" y="20" width="1080" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-s1" value="1. App sendet&#xa;Authorization: Bearer &lt;Token&gt;&#xa;{latitude, longitude, accuracyMeters}" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="60" y="110" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-s2" value="2. API + Controller&#xa;Methode PUT erlaubt?&#xa;Token aus Header lesen&#xa;JSON + Koordinaten prüfen → sonst 400" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="430" y="110" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-s3" value="3. Service: UpdatePosition&#xa;Serverzeit „jetzt“ festlegen&#xa;Token → SHA-256-Hash&#xa;Position mit Serverzeit erstellen" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="800" y="110" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-s4" value="4. Store: Transaktion beginnt&#xa;Spiel + Spieler per Token-Hash laden&#xa;Unbekannter Token → 401" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="800" y="290" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-s5" value="5. Domain: Regeln anwenden&#xa;Fällige Reveals festhalten&#xa;Neue Position übernehmen&#xa;Vor Start: Runner außerhalb Startfeld&#xa;→ nicht mehr bereit, Countdown neu" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="430" y="290" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-s6" value="6. Store: speichern + Commit&#xa;Spielerzeile aktualisieren&#xa;Neuer Eintrag in position_history&#xa;Fehler → Rollback, nichts gespeichert" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="60" y="290" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-s7" value="7. Controller: Antwort bauen&#xa;VisibleTo filtert, was dieser Spieler sehen darf&#xa;200 + Spielzustand als JSON → App" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="60" y="470" width="290" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-a" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b2-1" source="b2-s1" target="b2-s2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-b" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b2-1" source="b2-s2" target="b2-s3" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-c" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b2-1" source="b2-s3" target="b2-s4" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-d" value="geladene Lobby" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b2-1" source="b2-s4" target="b2-s5" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-e" value="geänderte Lobby" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b2-1" source="b2-s5" target="b2-s6" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-f" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b2-1" source="b2-s6" target="b2-s7" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-time" value="Zeit ohne Spielschleife&#xa;Status wird aus dem gespeicherten Startzeitpunkt berechnet:&#xa;kein Start → lobby · vor Start → countdown · ab Start → running&#xa;Reveals werden bei der nächsten Anfrage nachgeholt." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="430" y="470" width="670" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-histtitle" value="Was wird gespeichert?" style="text;html=0;align=left;fontSize=20;fontStyle=1;" parent="b2-1" vertex="1">
+          <mxGeometry x="60" y="610" width="1040" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-players" value="players&#xa;Pro Spieler genau eine Zeile:&#xa;Name, Team, Ready, Route&#xa;letzte Position (wird überschrieben)&#xa;letzter Reveal für Hunter" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" parent="b2-1" vertex="1">
+          <mxGeometry x="60" y="660" width="320" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-history" value="position_history&#xa;Jede geänderte Position als neue Zeile:&#xa;Spieler-ID, Koordinaten, Genauigkeit,&#xa;Serverzeit – Grundlage für ein Replay" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" parent="b2-1" vertex="1">
+          <mxGeometry x="430" y="660" width="320" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-retention" value="Lebensdauer der Historie&#xa;Löschen beim Austreten (Kaskade)&#xa;Automatisch 7 Tage nach Spielstart&#xa;(stündliche Prüfung)&#xa;Noch keine API zum Abrufen" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" parent="b2-1" vertex="1">
+          <mxGeometry x="800" y="660" width="300" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-g" value="zusätzlich anhängen" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;" parent="b2-1" source="b2-players" target="b2-history" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-h" value="begrenzt" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;dashed=1;" parent="b2-1" source="b2-retention" target="b2-history" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b2-footer" value="Wichtig: Live-Positionen verlassen das Backend nur gefiltert nach Sichtbarkeitsregeln. Die Historie wird derzeit gar nicht ausgeliefert." style="text;html=0;align=center;whiteSpace=wrap;fontSize=14;" parent="b2-1" vertex="1">
+          <mxGeometry x="40" y="840" width="1080" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ApiError, getGameState, type GameStateResponse } from '@/api/client';
 import { translate } from '@/i18n';
-import { shouldAcceptGameState } from '@/game-state';
+import { gameDestination, shouldAcceptGameState } from '@/game-state';
+import { gameResultRoute } from '@/game-result';
+import { stopBackgroundSharing } from '@/background-location';
 import { secondsUntilStart } from '@/lobby';
 import { playerSession } from '@/player-session';
 
@@ -12,6 +14,14 @@ const POLL_INTERVAL_MS = 2000;
 export function goHome() {
   playerSession.clear();
   router.replace('/');
+}
+
+/** Replace the entire gameplay stack, including an open joker modal. */
+export function goToGameResult(sessionId: string) {
+  void stopBackgroundSharing();
+  playerSession.clear(); // Do not resume the ended game when returning home.
+  router.dismissAll();
+  router.replace(gameResultRoute(sessionId));
 }
 
 /**
@@ -62,7 +72,11 @@ export function useGameState() {
 
   const state = snapshot?.state;
   const countdown = state && snapshot ? secondsUntilStart(state, snapshot.receivedAt, now) : null;
-  const running = state?.status === 'running' || countdown === 0;
+  const running = !!state && gameDestination(state, countdown) === '/game';
+
+  useEffect(() => {
+    if (focused && state?.status === 'ended') goToGameResult(state.sessionId);
+  }, [focused, state?.status, state?.sessionId]);
 
   return { token, snapshot, state, now, error, focused, show, fail, countdown, running };
 }
@@ -70,6 +84,6 @@ export function useGameState() {
 /** Back in the lobby if the game is not running (e.g. a countdown that was cancelled). */
 export function useLobbyUnlessRunning(state: GameStateResponse | undefined, running: boolean) {
   useEffect(() => {
-    if (state && !running) router.replace('/lobby');
+    if (state && state.status !== 'ended' && !running) router.replace('/lobby');
   }, [state, running]);
 }

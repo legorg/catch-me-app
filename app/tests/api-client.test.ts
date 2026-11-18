@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, finish, getGameState, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, finish, getGameResult, getGameState, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
 import { previewPlayground } from '../src/playground';
+import { isGameResultResponse, isValidGameId, normalizeGameId } from '../src/game-result';
 
 const center = { latitude: 52.52, longitude: 13.405 };
 const route = {
@@ -32,6 +33,63 @@ const state = {
 };
 const { route: _route, ...withoutRoute } = state;
 const hunterState = { ...withoutRoute, team: 'hunter', jokers: [], sketches: [] };
+
+const gameResult = {
+  sessionId: created.game.sessionId,
+  startsAt: '2026-11-18T12:00:00Z', endedAt: '2026-11-18T13:00:00Z', durationSeconds: 3600,
+  players: [
+    { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', runner: { status: 'finished', endedAt: '2026-11-18T12:30:00Z' } },
+    { playerId: 'b'.repeat(32), name: 'Cy', team: 'runner', runner: { status: 'caught', endedAt: '2026-11-18T13:00:00Z' } },
+    { playerId: 'c'.repeat(32), name: 'Bob', team: 'hunter', hunterTeam: 'Pack' },
+  ],
+};
+
+test('result lookup uses the normalized full game ID without a token, body or position', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.equal(request.method, 'GET');
+    assert.equal(new URL(request.url).pathname, `/api/games/${gameResult.sessionId}/result`);
+    assert.equal(request.headers.get('Authorization'), null);
+    assert.equal(await request.text(), '');
+    return Response.json(gameResult);
+  });
+  assert.equal(isGameResultResponse(gameResult), true);
+  assert.deepEqual(await getGameResult(` ${gameResult.sessionId.toUpperCase()} `), gameResult);
+});
+
+test('invalid game IDs and join codes are rejected without making a result request', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => { assert.fail('must not fetch'); });
+  assert.equal(normalizeGameId(` ${gameResult.sessionId.toUpperCase()} `), gameResult.sessionId);
+  assert.equal(isValidGameId(gameResult.sessionId), true);
+  for (const id of ['', '482913', 'a'.repeat(31), 'a'.repeat(33), 'z'.repeat(32), '../' + gameResult.sessionId]) {
+    assert.equal(isValidGameId(id), false);
+    await assert.rejects(getGameResult(id), /32 hexadecimal characters/);
+  }
+});
+
+test('unknown or unfinished results retain 404, and a later retry can succeed', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'game not found' }, { status: 404 }));
+  await assert.rejects(getGameResult(gameResult.sessionId), (err: unknown) => err instanceof ApiError && err.status === 404);
+  t.mock.method(globalThis, 'fetch', async () => Response.json(gameResult));
+  assert.deepEqual(await getGameResult(gameResult.sessionId), gameResult);
+});
+
+test('malformed or mismatched result JSON is rejected rather than crashing the result screen', async (t) => {
+  for (const invalid of [
+    null, {}, { ...gameResult, sessionId: '482913' }, { ...gameResult, startsAt: 'invalid' },
+    { ...gameResult, durationSeconds: -1 }, { ...gameResult, durationSeconds: 0.5 },
+    { ...gameResult, players: null }, { ...gameResult, players: [null] },
+    { ...gameResult, players: [{ ...gameResult.players[0], runner: undefined }] },
+    { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'active' } }] },
+    { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'caught', endedAt: 'invalid' } }] },
+    { ...gameResult, players: [{ ...gameResult.players[2], runner: { status: 'caught', endedAt: gameResult.endedAt } }] },
+  ]) {
+    assert.equal(isGameResultResponse(invalid), false);
+    t.mock.method(globalThis, 'fetch', async () => Response.json(invalid));
+    await assert.rejects(getGameResult(gameResult.sessionId), /invalid game result/);
+  }
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ ...gameResult, sessionId: 'f'.repeat(32) }));
+  await assert.rejects(getGameResult(gameResult.sessionId), /invalid game result/);
+});
 
 test('create posts the center and all settings as JSON, with defaults', async (t) => {
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
