@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, getGameState, joinGame, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition,
+  API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, getGameState, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
 import { previewPlayground } from '../src/playground';
@@ -123,6 +123,25 @@ test('health check also uses the generated client', async (t) => {
     return Response.json({ status: 'ok', service: 'catch-me-backend' });
   });
   assert.deepEqual(await checkBackend(), { status: 'ok', service: 'catch-me-backend' });
+});
+
+test('marking caught posts without coordinates and preserves the returned catch on retries', async (t) => {
+  const caught = {
+    ...state,
+    status: 'running',
+    players: [{ ...state.players[0], caughtAt: '2026-11-18T12:07:00Z', caughtPosition: { ...center, accuracyMeters: 8, recordedAt: '2026-11-18T12:06:58Z' } }],
+  };
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.equal(request.method, 'POST');
+    assert.equal(new URL(request.url).pathname, '/api/me/caught');
+    assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
+    assert.equal(await request.text(), '');
+    return Response.json(caught);
+  });
+  assert.deepEqual(await markCaught(token), caught);
+  assert.deepEqual(await markCaught(token), caught);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'you can only mark yourself caught while the game is running' }, { status: 409 }));
+  await assert.rejects(markCaught(token), (err: unknown) => err instanceof ApiError && err.status === 409);
 });
 
 test('the game state is returned as sent', async (t) => {

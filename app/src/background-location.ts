@@ -9,15 +9,20 @@ import { playerSession } from './player-session';
 const TASK_NAME = 'catch-me-background-location';
 const UNKNOWN_ACCURACY_METERS = 1000;
 
+// Serialize native start/stop calls: cleanup must not finish before a pending
+// start registers its task, otherwise a confirmed catch could leave it running.
+let sharingOperation: Promise<void> = Promise.resolve();
+let sharingRequested = false;
+
 type TaskData = { locations?: Location.LocationObject[] };
 
 // Must run at module load (imported by the root layout), so the task exists
 // when the operating system delivers locations while the app is in the background.
 TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
   const token = playerSession.get();
-  // No token means the player left, or the app was restarted and lost its
-  // in-memory session: stop instead of tracking without purpose.
-  if (!token) {
+  // Ignore queued fixes immediately once sharing stops, even if the native
+  // stop is still pending. On restart, wait for the game screen to opt in.
+  if (!token || !sharingRequested) {
     await stopBackgroundSharing();
     return;
   }
@@ -30,7 +35,9 @@ TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
       accuracyMeters: latest.coords.accuracy ?? UNKNOWN_ACCURACY_METERS,
     });
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) await stopBackgroundSharing();
+    if (err instanceof ApiError && (err.status === 401 || err.status === 409)) await stopBackgroundSharing();
+    // Position updates return 409 once the runner is caught, including when
+    // the catch response was lost or the session was resumed later.
     // Other failures (e.g. no network) are retried with the next location.
   }
 });
@@ -46,30 +53,39 @@ export async function isBackgroundSharingAvailable(): Promise<boolean> {
   }
 }
 
-export async function startBackgroundSharing(): Promise<void> {
-  if (await Location.hasStartedLocationUpdatesAsync(TASK_NAME)) return;
-  await Location.startLocationUpdatesAsync(TASK_NAME, {
-    accuracy: Location.Accuracy.High,
-    timeInterval: 5000,
-    distanceInterval: 5,
-    pausesUpdatesAutomatically: false,
-    activityType: Location.ActivityType.Fitness,
-    showsBackgroundLocationIndicator: true,
-    // Uses the language active when sharing starts.
-    foregroundService: {
-      notificationTitle: translate('location.notificationTitle'),
-      notificationBody: translate('location.notificationBody'),
-      killServiceOnDestroy: true,
-    },
+export function startBackgroundSharing(): Promise<void> {
+  sharingRequested = true;
+  sharingOperation = sharingOperation.catch(() => {}).then(async () => {
+    if (!sharingRequested) return;
+    if (await Location.hasStartedLocationUpdatesAsync(TASK_NAME)) return;
+    await Location.startLocationUpdatesAsync(TASK_NAME, {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 5000,
+      distanceInterval: 5,
+      pausesUpdatesAutomatically: false,
+      activityType: Location.ActivityType.Fitness,
+      showsBackgroundLocationIndicator: true,
+      // Uses the language active when sharing starts.
+      foregroundService: {
+        notificationTitle: translate('location.notificationTitle'),
+        notificationBody: translate('location.notificationBody'),
+        killServiceOnDestroy: true,
+      },
+    });
   });
+  return sharingOperation;
 }
 
-export async function stopBackgroundSharing(): Promise<void> {
-  try {
-    if (await Location.hasStartedLocationUpdatesAsync(TASK_NAME)) {
-      await Location.stopLocationUpdatesAsync(TASK_NAME);
+export function stopBackgroundSharing(): Promise<void> {
+  sharingRequested = false;
+  sharingOperation = sharingOperation.catch(() => {}).then(async () => {
+    try {
+      if (await Location.hasStartedLocationUpdatesAsync(TASK_NAME)) {
+        await Location.stopLocationUpdatesAsync(TASK_NAME);
+      }
+    } catch {
+      // Already stopped or unavailable.
     }
-  } catch {
-    // Already stopped or unavailable.
-  }
+  });
+  return sharingOperation;
 }

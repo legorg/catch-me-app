@@ -11,15 +11,16 @@ function ErrorPill({ message, live = false }: ErrorPillProps) {
   );
 }
 
-type ErrorPillsProps = { location: string; poll: string; sketch: string };
+type ErrorPillsProps = { location: string; poll: string; sketch: string; caught?: string };
 
 /** Location, polling and sketch errors floating over the map; empty ones are left out. */
-export default function ErrorPills({ location, poll, sketch }: ErrorPillsProps) {
+export default function ErrorPills({ location, poll, sketch, caught = '' }: ErrorPillsProps) {
   return (
     <>
       <ErrorPill message={location} />
       <ErrorPill message={poll} live />
       <ErrorPill message={sketch} live />
+      <ErrorPill message={caught} live />
     </>
   );
 }

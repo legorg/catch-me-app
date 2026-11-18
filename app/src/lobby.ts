@@ -50,7 +50,7 @@ export function hunterTeams(players: PlayerResponse[]): string[] {
   return [...new Set(players.flatMap((p) => (p.hunterTeam ? [p.hunterTeam] : [])))];
 }
 
-export const MARKER_COLORS = { me: '#27ae60', teammate: '#2f80ed', revealed: '#eb5757', joker: '#f2994a', shownHunter: '#6d4c41' } as const;
+export const MARKER_COLORS = { me: '#27ae60', teammate: '#2f80ed', revealed: '#eb5757', joker: '#f2994a', shownHunter: '#6d4c41', caught: '#000000' } as const;
 
 export type PlayerMarker = {
   id: string;
@@ -63,7 +63,7 @@ export type PlayerMarker = {
 /** Map markers for every live position the server allowed this player to see. */
 export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
   return state.players.flatMap((p) => {
-    if (!p.position) return [];
+    if (!p.position || p.caughtAt) return [];
     const { latitude, longitude, accuracyMeters, recordedAt } = p.position;
     const me = p.playerId === state.playerId;
     return [{
@@ -76,13 +76,25 @@ export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
   });
 }
 
+/** The last real report at capture, visible to everyone, including the caught runner. */
+export function caughtMarkers(state: GameStateResponse): (PlayerMarker & { label: string })[] {
+  return state.players.flatMap((player) => player.caughtAt && player.caughtPosition ? [{
+    id: `caught-${player.playerId}`,
+    coordinate: { latitude: player.caughtPosition.latitude, longitude: player.caughtPosition.longitude },
+    title: translate('catch.marker', { name: player.name }),
+    description: translate('catch.markerTime', { time: clockTime(player.caughtAt, true) }),
+    color: MARKER_COLORS.caught,
+    label: '×',
+  }] : []);
+}
+
 /**
  * Markers for every reveal the server sent (hunters only), numbered per runner from 1 (the oldest)
  * up to the newest, which the server sends last. A zone reveal sits in the middle of its cell;
  * one outside the playground has no marker but keeps its number.
  */
 export function revealMarkers(state: GameStateResponse): (PlayerMarker & { label: string })[] {
-  return state.players.flatMap((p) => (p.reveals ?? []).flatMap((reveal, index) => {
+  return state.players.flatMap((p) => (p.caughtAt ? [] : p.reveals ?? []).flatMap((reveal, index) => {
     const coordinate = revealCoordinate(state.playground, reveal);
     if (!coordinate) return [];
     const time = clockTime(reveal.revealedAt, true);
@@ -111,7 +123,7 @@ function revealCoordinate(playground: Playground, reveal: RevealResponse): { lat
 
 /** The cells of zone reveals (runner joker), where hunters saw only the cell and not the position. */
 export function revealZones(state: GameStateResponse): { cell: string; title: string; color: string }[] {
-  return state.players.flatMap((p) => (p.reveals ?? []).flatMap((reveal) => reveal.kind === 'zone'
+  return state.players.flatMap((p) => (p.caughtAt ? [] : p.reveals ?? []).flatMap((reveal) => reveal.kind === 'zone'
     ? [{ cell: reveal.cell, title: p.name, color: ZONE_COLORS.revealed }]
     : []));
 }
@@ -124,7 +136,8 @@ function cellCenter(playground: Playground, cell: string) {
 /** Markers for what the team's used jokers showed: each runner where they were when it was used, and the queried zone with its answer. */
 export function jokerMarkers(state: GameStateHunterResponse): PlayerMarker[] {
   return state.jokers.flatMap((joker) => [
-    ...(joker.kind === 'showRunners' ? joker.positions ?? [] : []).map((position) => ({
+    ...(joker.kind === 'showRunners' ? joker.positions ?? [] : []).filter((position) =>
+      !state.players.find((player) => player.playerId === position.playerId)?.caughtAt).map((position) => ({
       id: `joker-${joker.kind}-${position.playerId}`,
       coordinate: { latitude: position.latitude, longitude: position.longitude },
       title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
@@ -239,7 +252,8 @@ export function routeMarkers(route: GameRoute): PlayerMarker[] {
 
 /** The requesting runner's own fakePosition point, once used. */
 export function fakePositionMarkers(state: GameStateRunnerResponse): PlayerMarker[] {
-  return state.jokers.flatMap((joker) => joker.kind === 'fakePosition' && joker.point ? [{
+  return state.jokers.flatMap((joker) => joker.kind === 'fakePosition' && joker.point &&
+    !state.players.find((player) => player.playerId === joker.usedBy)?.caughtAt ? [{
     id: 'joker-fakePosition',
     coordinate: joker.point,
     title: translate('joker.fakePosition.marker', { name: state.players.find((p) => p.playerId === joker.usedBy)?.name ?? '' }),
@@ -265,13 +279,14 @@ export function gameHighlights(state: GameStateResponse) {
   return [];
 }
 
-/** Every marker the player's team may see, other players' live positions last (the player's own position is the device's). */
+/** Permitted markers, with catch pins last. The device supplies the active player's own live position. */
 export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
   return [
     ...(isGameStateRunnerResponse(state) ? [...routeMarkers(state.route), ...fakePositionMarkers(state), ...shownHunterMarkers(state)] : []),
     ...revealMarkers(state),
     ...(isGameStateHunterResponse(state) ? [...jokerMarkers(state), ...compassMarkers(state)] : []),
     ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),
+    ...caughtMarkers(state),
   ];
 }
 

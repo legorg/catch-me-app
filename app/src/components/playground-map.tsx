@@ -47,9 +47,11 @@ export type PlaygroundMapProps = {
   fullscreen?: boolean;
   /** Extra space around the location button, e.g. safe-area insets under a fullscreen map. */
   controlsInset?: { bottom?: number; right?: number };
+  /** Disable the device location dot and locate button for caught spectators. */
+  locationEnabled?: boolean;
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], onDraw, onPick, fullscreen = false, controlsInset }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], onDraw, onPick, fullscreen = false, controlsInset, locationEnabled = true }: PlaygroundMapProps) {
   const center = playground?.center ?? DEFAULT_CENTER;
   const bounds = playground?.bounds;
   const { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete } = useMapRegion({ playground, editable, onSelect, onPick });
@@ -76,7 +78,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         scrollEnabled={!drawing}
         zoomEnabled={!drawing}
         // The blue dot, once the user has allowed location.
-        showsUserLocation={locationGranted}
+        showsUserLocation={locationEnabled && locationGranted}
         showsMyLocationButton={false}
         toolbarEnabled={false}
         // Panning moves the grid: it stays centered on the map.
@@ -94,7 +96,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
       </MapView>
       {(editable || onPick) && <MapCrosshair anchor={anchor} />}
       {drawing && <MapDrawingOverlay {...responder} />}
-      <MapLocateButton locating={locating} error={locateError} onLocate={locate} inset={controlsInset} />
+      {locationEnabled && <MapLocateButton locating={locating} error={locateError} onLocate={locate} inset={controlsInset} />}
     </View>
   );
 }

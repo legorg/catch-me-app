@@ -37,6 +37,13 @@ type InfoPanelProps = {
   location: LocationSharing;
 };
 
+/** Also lists catches without a reported position, which cannot have a map pin. */
+function CaughtPlayers({ state }: { state: GameStateResponse }) {
+  const t = useT();
+  const names = state.players.filter((player) => player.caughtAt).map((player) => player.name).join(', ');
+  return names ? <Text style={styles.text}>{t('catch.players', { names })}</Text> : null;
+}
+
 /** Collapsible card over the map: who you are, the route, the legend, location sharing and the exit button. */
 export default function InfoPanel({ state, me, revealScheduled, location }: InfoPanelProps) {
   const t = useT();
@@ -50,10 +57,13 @@ export default function InfoPanel({ state, me, revealScheduled, location }: Info
         })}
         {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
       </Text>
-      {revealScheduled && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
+      {revealScheduled && !me?.caughtAt && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
       <RouteLine state={state} />
       <Text style={styles.hint}>{t(texts.legend)}</Text>
-      <LocationSharingInfo location={location} />
+      <CaughtPlayers state={state} />
+      {me?.caughtAt
+        ? <Text style={styles.text}>{t('catch.sharingStopped')}</Text>
+        : <LocationSharingInfo location={location} />}
       {/* Rarely needed and final, so it sits here behind a confirmation. */}
       <Button label={t('game.exit')} variant="secondary" onPress={confirmExit} />
     </ScrollView>

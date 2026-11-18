@@ -7,6 +7,7 @@ import {
   getHealth,
   joinGame as postPlayer,
   leaveGame as deletePlayer,
+  markCaught as postCaught,
   regenerateRoute as postRoute,
   setHunterTeam as putHunterTeam,
   setReady as putReady,
@@ -89,6 +90,11 @@ export async function joinGame(code: string, name: string): Promise<JoinGameResp
 
 export async function getGameState(token: string): Promise<GameStateResponse> {
   return request((signal) => fetchGameState({ baseUrl: API_URL, auth: bearer(token), signal }));
+}
+
+/** Permanently marks this runner caught, on trust alone; retries preserve the original catch. */
+export async function markCaught(token: string): Promise<GameStateResponse> {
+  return request((signal) => postCaught({ baseUrl: API_URL, auth: bearer(token), signal }));
 }
 
 export async function setReady(token: string, ready: boolean): Promise<GameStateResponse> {

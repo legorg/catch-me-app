@@ -22,9 +22,10 @@ function DrawingBar({ hasSketches, onDone, onClear }: DrawingBarProps) {
   );
 }
 
-type HudActionsProps = { canSketch: boolean; infoOpen: boolean; onToggleInfo: () => void; onDraw: () => void };
+type CatchAction = { busy: boolean; onPress: () => void };
+type HudActionsProps = { canSketch: boolean; canUseJokers: boolean; infoOpen: boolean; onToggleInfo: () => void; onDraw: () => void; catchAction?: CatchAction };
 
-function HudActions({ canSketch, infoOpen, onToggleInfo, onDraw }: HudActionsProps) {
+function HudActions({ canSketch, canUseJokers, infoOpen, onToggleInfo, onDraw, catchAction }: HudActionsProps) {
   const t = useT();
   return (
     <View style={overlay.bar}>
@@ -35,7 +36,8 @@ function HudActions({ canSketch, infoOpen, onToggleInfo, onDraw }: HudActionsPro
         accessibilityState={{ expanded: infoOpen }}
         onPress={onToggleInfo}
       />
-      <HudIconButton icon="flash-outline" size={22} label={t('joker.button')} onPress={() => router.push('/jokers')} />
+      {canUseJokers && <HudIconButton icon="flash-outline" size={22} label={t('joker.button')} onPress={() => router.push('/jokers')} />}
+      {catchAction && <HudIconButton icon="hand-left-outline" size={22} label={t(catchAction.busy ? 'catch.sending' : 'catch.button')} disabled={catchAction.busy} accessibilityState={{ busy: catchAction.busy }} onPress={catchAction.onPress} />}
       {canSketch && <HudIconButton icon="brush-outline" size={22} label={t('sketch.draw')} onPress={onDraw} />}
     </View>
   );
@@ -44,16 +46,18 @@ function HudActions({ canSketch, infoOpen, onToggleInfo, onDraw }: HudActionsPro
 type ActionBarProps = {
   drawing: boolean;
   canSketch: boolean;
+  canUseJokers: boolean;
   hasSketches: boolean;
   infoOpen: boolean;
   onToggleInfo: () => void;
   onDraw: () => void;
   onDoneDrawing: () => void;
   onClearSketches: () => void;
+  catchAction?: CatchAction;
 };
 
 /** Bottom bar: the drawing toolbar while drawing, the normal buttons otherwise. */
-export default function ActionBar({ drawing, canSketch, hasSketches, infoOpen, onToggleInfo, onDraw, onDoneDrawing, onClearSketches }: ActionBarProps) {
+export default function ActionBar({ drawing, canSketch, canUseJokers, hasSketches, infoOpen, onToggleInfo, onDraw, onDoneDrawing, onClearSketches, catchAction }: ActionBarProps) {
   if (drawing) return <DrawingBar hasSketches={hasSketches} onDone={onDoneDrawing} onClear={onClearSketches} />;
-  return <HudActions canSketch={canSketch} infoOpen={infoOpen} onToggleInfo={onToggleInfo} onDraw={onDraw} />;
+  return <HudActions canSketch={canSketch} canUseJokers={canUseJokers} infoOpen={infoOpen} onToggleInfo={onToggleInfo} onDraw={onDraw} catchAction={catchAction} />;
 }

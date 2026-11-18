@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ApiError, getGameState, type GameStateResponse } from '@/api/client';
 import { translate } from '@/i18n';
+import { shouldAcceptGameState } from '@/game-state';
 import { secondsUntilStart } from '@/lobby';
 import { playerSession } from '@/player-session';
 
@@ -25,7 +26,8 @@ export function useGameState() {
   const focused = useIsFocused();
 
   const show = useCallback((state: GameStateResponse) => {
-    setSnapshot({ state, receivedAt: Date.now() });
+    const receivedAt = Date.now();
+    setSnapshot((previous) => shouldAcceptGameState(previous?.state, state) ? { state, receivedAt } : previous);
     setError('');
   }, []);
 
