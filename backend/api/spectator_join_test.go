@@ -32,6 +32,9 @@ func TestDirectSpectatorJoinHTTPFlow(t *testing.T) {
 		if !ok || v.Team != "spectator" || v.Role != "spectator" || string(v.Status) != phase || len(v.Jokers) != 0 || v.JoinCodes != codes {
 			t.Fatalf("incorrect direct spectator state: %+v", state.Base())
 		}
+		if v.Route != created.Game.Route {
+			t.Fatalf("spectator did not receive the runner route: %+v", v.Route)
+		}
 		var raw map[string]json.RawMessage
 		data, err := json.Marshal(state)
 		if err != nil {
@@ -40,7 +43,7 @@ func TestDirectSpectatorJoinHTTPFlow(t *testing.T) {
 		if err := json.Unmarshal(data, &raw); err != nil {
 			t.Fatal(err)
 		}
-		for _, field := range []string{"route", "routeRegenerationsLeft", "sketches", "history", "positions", "playerToken", "tokenHash"} {
+		for _, field := range []string{"routeRegenerationsLeft", "sketches", "history", "positions", "playerToken", "tokenHash"} {
 			if _, present := raw[field]; present {
 				t.Fatalf("spectator variant exposes %s", field)
 			}

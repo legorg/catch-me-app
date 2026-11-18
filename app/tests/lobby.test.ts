@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, visibleRoute } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
@@ -38,6 +38,7 @@ const hunterState: GameStateHunterResponse = { ...hunterBase, team: 'hunter', jo
 
 const spectatorState: GameStateSpectatorResponse = {
   ...hunterBase, role: 'spectator', team: 'spectator', playerId: 'd'.repeat(32),
+  route: state.route,
   players: [...state.players, { playerId: 'd'.repeat(32), name: 'Viewer', team: 'spectator', ready: false }],
   jokers: [],
 };
@@ -67,8 +68,23 @@ test('direct spectators follow lobby, start and result navigation without a play
     const snapshot = { ...spectatorState, status };
     assert.equal(canShareGameLocation(snapshot), false);
     assert.equal(canFinish(snapshot, 0, 0), false);
-    assert.deepEqual(gameMarkers(snapshot), []); // No invented viewer marker, even at game start.
+    assert.deepEqual(gameMarkers(snapshot), routeMarkers(state.route)); // Landmarks, never an invented viewer position.
   }
+});
+
+test('direct and converted spectators see the same start/target pins and cells as runners, never hunter route data', () => {
+  for (const status of ['lobby', 'countdown', 'running'] as const) {
+    for (const viewer of [spectatorState, { ...state, role: 'spectator' as const }]) {
+      const snapshot = { ...viewer, status };
+      assert.deepEqual(visibleRoute(snapshot), state.route);
+      assert.deepEqual(gameMarkers(snapshot), routeMarkers(state.route));
+      assert.deepEqual(gameHighlights(snapshot), routeHighlights(state.playground, state.route));
+    }
+    assert.equal(visibleRoute({ ...hunterState, status }), undefined);
+    assert.ok(!gameMarkers({ ...hunterState, status }).some((marker) => marker.id.startsWith('route-')));
+  }
+  const changedRoute = { ...state.route, start: { ...state.route.start, title: 'New start' } };
+  assert.deepEqual(gameMarkers({ ...spectatorState, route: changedRoute }), routeMarkers(changedRoute));
 });
 
 test('spectator rosters keep original runner outcomes separate from direct spectators', () => {
@@ -263,7 +279,8 @@ test('spectators see real reports of runners and every hunter team with separate
     // Historical snapshots must not be mixed into the real feed, even if stale data remains.
     jokers: [{ kind: 'showHunters', available: false, positions: [{ ...report, playerId: state.players[1].playerId }] }],
   };
-  const markers = gameMarkers(spectator);
+  const markers = spectatorMarkers(spectator);
+  assert.deepEqual(gameMarkers(spectator), [...routeMarkers(state.route), ...markers]);
   assert.equal(markers.length, 5);
   assert.equal(new Set(markers.map((marker) => marker.id)).size, 5);
   assert.deepEqual(markers.map((marker) => marker.color), [SPECTATOR_COLORS.runner, SPECTATOR_COLORS.hunter, SPECTATOR_COLORS.hunter, SPECTATOR_COLORS.runner, MARKER_COLORS.caught]);
@@ -282,22 +299,22 @@ test('spectators see real reports of runners and every hunter team with separate
   assert.equal(markers[4].label, '×');
   assert.match(markers[4].title, /Eve.*Caught/);
   assert.match(markers[4].description, /±5 m/);
-  assert.deepEqual(gameHighlights(spectator), []); // No route/zone overlays with ambiguous colors.
+  assert.deepEqual(gameHighlights(spectator), routeHighlights(state.playground, state.route)); // Route only, no joker/zone overlays.
   const expired = { ...spectator, players: spectator.players.map((player) => ({ ...player, position: undefined, runner: player.runner ? { ...player.runner, caughtPosition: undefined } : undefined })) };
-  assert.deepEqual(gameMarkers(expired), []); // No invented or historical fallback markers.
+  assert.deepEqual(gameMarkers(expired), routeMarkers(state.route)); // Landmarks remain without inventing reports.
 });
 
-test('spectator map never renders before start or after end, or without the explicit role', () => {
+test('spectator player reports never render before start or after end, or without the explicit role', () => {
   const report = { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: state.serverTime };
   const viewer: GameStateRunnerResponse = {
     ...state, role: 'spectator', players: [{ ...state.players[0], runner: { status: 'caught', endedAt: state.serverTime, caughtPosition: report } }],
   };
   for (const status of ['lobby', 'countdown', 'ended'] as const) {
-    assert.deepEqual(gameMarkers({ ...viewer, status }), []);
-    assert.deepEqual(gameHighlights({ ...viewer, status }), []);
+    assert.deepEqual(gameMarkers({ ...viewer, status }), routeMarkers(state.route));
+    assert.deepEqual(gameHighlights({ ...viewer, status }), routeHighlights(state.playground, state.route));
   }
   assert.deepEqual(spectatorMarkers({ ...viewer, role: 'player', status: 'running' }), []);
-  assert.equal(gameMarkers({ ...viewer, status: 'running' })[0].id, `caught-${viewer.playerId}`);
+  assert.equal(gameMarkers({ ...viewer, status: 'running' })[2].id, `caught-${viewer.playerId}`);
 });
 
 test('spectator permission disables location and finish eligibility and cannot be undone by stale responses', () => {

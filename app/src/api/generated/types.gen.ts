@@ -142,6 +142,7 @@ export type ControllerGameStateSpectatorResponse = {
     playground: ControllerPlayground;
     revealIntervalMinutes: number;
     role: ControllerRole;
+    route: ControllerGameRoute;
     serverTime: string;
     sessionId: string;
     startPositionCheckDisabled?: boolean;

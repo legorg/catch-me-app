@@ -12,7 +12,7 @@ import LobbyRouteCard from '@/components/lobby-route-card';
 import LobbyTeamCard from '@/components/lobby-team-card';
 import LocationPermissionCards from '@/components/location-permission-cards';
 import { translateParts, useT } from '@/i18n';
-import { lobbyInfo, noop, playerMarkers, playersByTeam, routeHighlights, routeMarkers } from '@/lobby';
+import { lobbyInfo, noop, playerMarkers, playersByTeam, routeHighlights, routeMarkers, visibleRoute } from '@/lobby';
 import { distanceMeters, START_RADIUS_METERS } from '@/playground';
 import { colors, styles } from '@/styles';
 import { useLobby } from '@/use-lobby';
@@ -36,14 +36,14 @@ export default function LobbyScreen() {
   const skipStartPositionCheck = state.startPositionCheckDisabled === true;
   const teams = playersByTeam(state.players);
   const isRunner = isGameStateRunnerResponse(state);
-  const route = isRunner && !spectator ? state.route : undefined;
-  // The server only sends the route to runners.
+  const route = visibleRoute(state);
+  // The server sends the same landmarks to runners and spectators, never hunters.
   const metersToStart = route && me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
   const atStart = metersToStart !== null && metersToStart <= START_RADIUS_METERS;
   const highlights = route ? routeHighlights(state.playground, route) : [];
-  const markers = spectator ? [] : [
+  const markers = [
     ...(route ? routeMarkers(route) : []),
-    ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),
+    ...(!spectator ? playerMarkers(state).filter((marker) => marker.id !== state.playerId) : []),
   ];
   const readyBlocked = lobby.needsHunterTeam || lobby.needsBackground || lobby.needsForeground;
   const readyDisabled = busy

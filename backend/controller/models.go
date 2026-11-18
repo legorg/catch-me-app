@@ -454,6 +454,8 @@ type GameStateHunterResponse struct {
 type GameStateSpectatorResponse struct {
 	GameStateBase
 	Team Team `json:"team" enum:"spectator" validate:"required,eq=spectator"`
+	// The same start and destination landmarks shown to runners, read-only.
+	Route GameRoute `json:"route"`
 	// Always empty: spectators have no personal or team jokers.
 	Jokers []JokerResponse `json:"jokers" validate:"max=0,dive"`
 }

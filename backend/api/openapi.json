@@ -1858,6 +1858,9 @@
           "role": {
             "$ref": "#/components/schemas/ControllerRole"
           },
+          "route": {
+            "$ref": "#/components/schemas/ControllerGameRoute"
+          },
           "serverTime": {
             "examples": [
               "2026-11-08T12:00:00Z"
@@ -1907,6 +1910,7 @@
           "joinCodes",
           "players",
           "team",
+          "route",
           "jokers"
         ],
         "type": "object"

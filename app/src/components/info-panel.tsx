@@ -1,10 +1,10 @@
 import { ScrollView, Text } from 'react-native';
 
-import { isGameStateRunnerResponse, type GameStateResponse, type PlayerResponse } from '@/api/types';
+import { type GameStateResponse, type PlayerResponse } from '@/api/types';
 import Button from '@/components/button';
 import LocationSharingInfo from '@/components/location-sharing-info';
 import { translateParts, useT } from '@/i18n';
-import { routeTitles } from '@/lobby';
+import { routeTitles, visibleRoute } from '@/lobby';
 import { isActivePlayer, isSpectator } from '@/game-state';
 import { overlay, styles } from '@/styles';
 import { useConfirmExit } from '@/use-confirm-exit';
@@ -18,14 +18,15 @@ const TEAM_TEXTS = {
 } as const;
 
 function RouteLine({ state }: { state: GameStateResponse }) {
-  if (!isGameStateRunnerResponse(state)) return null;
-  const titles = routeTitles(state.route);
+  const route = visibleRoute(state);
+  if (!route) return null;
+  const titles = routeTitles(route);
   return (
     <Text style={styles.text}>
       {translateParts('lobby.route', {
         start: <Text key="start" style={[styles.heading, styles.startText]}>{titles.start}</Text>,
         stop: <Text key="stop" style={[styles.heading, styles.targetText]}>{titles.stop}</Text>,
-        distance: (state.route.distanceMeters / 1000).toFixed(1),
+        distance: (route.distanceMeters / 1000).toFixed(1),
       })}
     </Text>
   );
@@ -65,7 +66,7 @@ export default function InfoPanel({ state, me, revealScheduled, location }: Info
         {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
       </Text>
       {!spectator && revealScheduled && isActivePlayer(me) && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
-      {!spectator && <RouteLine state={state} />}
+      <RouteLine state={state} />
       <Text style={styles.hint}>{t(spectator ? 'spectator.info' : texts.legend)}</Text>
       {spectator && <Text style={styles.hint}>{t('spectator.fairPlay')}</Text>}
       <RunnerOutcomes state={state} />

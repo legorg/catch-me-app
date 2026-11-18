@@ -311,17 +311,26 @@ export function shownHunterMarkers(state: GameStateRunnerResponse): PlayerMarker
   })));
 }
 
-/** Every highlighted cell the player's team may see: the route (runners) or the queried zones and zone-only reveals (hunters). */
+/** Only runners and spectators receive the shared start and destination. */
+export function visibleRoute(state: GameStateResponse): GameRoute | undefined {
+  return state.team === 'hunter' ? undefined : state.route;
+}
+
+/** Route cells for runners/spectators; queried zones and zone-only reveals for active hunters. */
 export function gameHighlights(state: GameStateResponse) {
+  const route = visibleRoute(state);
+  if (route) return routeHighlights(state.playground, route);
   if (isSpectator(state)) return [];
-  if (isGameStateRunnerResponse(state)) return routeHighlights(state.playground, state.route);
   if (isGameStateHunterResponse(state)) return [...jokerZones(state), ...revealZones(state)];
   return [];
 }
 
 /** Permitted markers, with catch pins last. The device supplies the active player's own live position. */
 export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
-  if (isSpectator(state)) return spectatorMarkers(state);
+  if (isSpectator(state)) {
+    const route = visibleRoute(state);
+    return [...(route ? routeMarkers(route) : []), ...spectatorMarkers(state)];
+  }
   return [
     ...(isGameStateRunnerResponse(state) ? [...routeMarkers(state.route), ...fakePositionMarkers(state), ...shownHunterMarkers(state)] : []),
     ...revealMarkers(state),

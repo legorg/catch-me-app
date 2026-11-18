@@ -46,6 +46,9 @@ func TestConvertedSpectatorHTTPPermissions(t *testing.T) {
 				if state.Base().Role != controller.Role(game.RoleSpectator) || state.Base().Status != "running" {
 					t.Fatalf("missing spectator permission: %+v", state.Base())
 				}
+				if runner, ok := state.Runner(); !ok || runner.Route != created.Game.Route {
+					t.Fatal("converted spectator lost the runner route")
+				}
 				for _, p := range state.Base().Players {
 					if p.PlayerID == state.Base().PlayerID && action == "caught" {
 						if p.Runner.CaughtPosition == nil || p.Position != nil {

@@ -321,7 +321,7 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	base := gameStateBase(view)
 	if view.Me.Team == game.Spectators {
 		return NewSpectatorState(GameStateSpectatorResponse{
-			GameStateBase: base, Team: Team(game.Spectators), Jokers: []JokerResponse{},
+			GameStateBase: base, Team: Team(game.Spectators), Route: gameRouteResponse(view.Lobby.Game.Route), Jokers: []JokerResponse{},
 		})
 	}
 	if view.Me.Team == game.Runners {

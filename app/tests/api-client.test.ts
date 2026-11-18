@@ -36,7 +36,7 @@ const hunterState = { ...withoutRoute, team: 'hunter', jokers: [], sketches: [] 
 
 test('the spectator code joins by the same name-and-code flow and preserves the server spectator role', async (t) => {
   const spectator = {
-    ...withoutRoute, role: 'spectator', team: 'spectator',
+    ...withoutRoute, route, role: 'spectator', team: 'spectator',
     players: [{ playerId: state.playerId, name: 'Viewer', team: 'spectator', ready: false }],
   };
   const requests: string[] = [];

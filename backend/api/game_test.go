@@ -305,8 +305,15 @@ func TestOpenAPIRoutes(t *testing.T) {
 		if !slices.Contains(variant.Required, "role") {
 			t.Fatalf("%s must document viewer permission", name)
 		}
+		if team != "hunter" {
+			if _, ok := variant.Properties["route"]; !ok || !slices.Contains(variant.Required, "route") {
+				t.Fatalf("%s must document the required runner route", name)
+			}
+		} else if _, ok := variant.Properties["route"]; ok {
+			t.Fatal("hunter schema exposes the runner route")
+		}
 		if team == "spectator" {
-			for _, hidden := range []string{"route", "routeRegenerationsLeft", "sketches"} {
+			for _, hidden := range []string{"routeRegenerationsLeft", "sketches"} {
 				if _, ok := variant.Properties[hidden]; ok {
 					t.Fatalf("direct spectator schema exposes %s", hidden)
 				}

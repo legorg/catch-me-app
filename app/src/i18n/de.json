@@ -200,7 +200,7 @@
   "spectator.runnerLegend": "Blau: Läufer",
   "spectator.hunterLegend": "Rot: Jäger",
   "spectator.outcomeLegend": "× gefangen · ✓ im Ziel (letzte Position)",
-  "spectator.info": "Du siehst die letzten echten Meldungen aller Läufer und Jägerteams, ohne Ping-Verzögerung oder falsche Positionen. Tippe auf einen Marker für Name, Team/Status und Meldezeit. × zeigt einen Fang; ✓ die eingefrorene letzte Meldung eines fertigen Läufers. Fehlende oder abgelaufene Meldungen haben keinen Marker. Route, Joker-Schnappschüsse und Skizzen werden in dieser Ansicht nicht angezeigt.",
+  "spectator.info": "Du siehst die letzten echten Meldungen aller Läufer und Jägerteams, ohne Ping-Verzögerung oder falsche Positionen. Tippe auf einen Marker für Name, Team/Status und Meldezeit. × zeigt einen Fang; ✓ die eingefrorene letzte Meldung eines fertigen Läufers. Fehlende oder abgelaufene Meldungen haben keinen Marker. Start und Ziel der Läuferroute sind wie bei Läufern markiert. Joker-Schnappschüsse und Skizzen werden nicht angezeigt.",
   "spectator.fairPlay": "Fair Play: Gib keine verborgenen Standorte an aktive Spieler weiter. Du kannst nicht ins aktive Spiel zurückwechseln.",
   "spectator.noTracking": "Dein Standort wird nicht mehr erfasst oder geteilt. Zuschauen benötigt keine Standortberechtigung.",
   "spectator.noJokers": "Zuschauer können keine Joker einsetzen oder Spielaktionen ausführen.",
