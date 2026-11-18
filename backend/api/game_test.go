@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -185,6 +186,10 @@ func TestOpenAPIRoutes(t *testing.T) {
 		Ref           string `json:"$ref"`
 		Type          json.RawMessage
 		Default       json.RawMessage
+		Minimum       *float64
+		Maximum       *float64
+		MultipleOf    *float64
+		MaxItems      *int
 		Required      []string
 		OneOf         []schema `json:"oneOf"`
 		Enum          []any
@@ -226,10 +231,38 @@ func TestOpenAPIRoutes(t *testing.T) {
 		t.Fatalf("unexpected player token scheme: %+v", scheme)
 	}
 	create := spec.Components.Schemas["ControllerCreateGameRequest"]
-	for _, field := range []string{"cellSizeMeters", "gridSize", "revealIntervalMinutes"} {
+	for field, parse := range map[string]func(int) error{
+		"cellSizeMeters":        func(v int) error { _, err := domain.ParseCellSize(v); return err },
+		"gridSize":              func(v int) error { _, err := domain.ParseGridSize(v); return err },
+		"revealIntervalMinutes": func(v int) error { _, err := domain.ParseRevealInterval(v); return err },
+	} {
 		property := create.Properties[field]
 		if !slices.Contains(create.Required, field) || string(property.Type) != `"integer"` || len(property.Default) != 0 {
 			t.Fatalf("create setting %s must be a required non-null integer without a server default", field)
+		}
+		if property.Minimum == nil || property.Maximum == nil {
+			t.Fatalf("create setting %s must document its limits", field)
+		}
+		low, high := int(*property.Minimum), int(*property.Maximum)
+		for _, v := range []int{low - 1, low, low + 1, high - 1, high, high + 1} {
+			allowed := v >= low && v <= high && (property.MultipleOf == nil || math.Mod(float64(v), *property.MultipleOf) == 0)
+			if (parse(v) == nil) != allowed {
+				t.Errorf("create setting %s: schema and domain disagree on %d", field, v)
+			}
+		}
+	}
+	for _, tc := range []struct {
+		schema, field string
+		max           int
+	}{
+		{"ControllerGameStateRunnerResponse", "jokers", 3},
+		{"ControllerGameStateHunterResponse", "jokers", 3},
+		{"ControllerGameStateSpectatorResponse", "jokers", 0},
+		{"ControllerGameStateHunterResponse", "sketches", 200},
+	} {
+		limit := spec.Components.Schemas[tc.schema].Properties[tc.field].MaxItems
+		if limit == nil || *limit != tc.max {
+			t.Errorf("%s.%s must document maxItems %d", tc.schema, tc.field, tc.max)
 		}
 	}
 	const union = "ControllerGameStateResponse"
