@@ -26,7 +26,7 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body CreateGameRequest
-	if !decodeJSON(w, r, &body, "expected a JSON object with latitude and longitude") {
+	if !decodeJSON(w, r, &body, "expected a JSON object with latitude, longitude, cellSizeMeters, gridSize, and revealIntervalMinutes") {
 		return
 	}
 	center, cellSize, gridSize, revealInterval, err := body.parse()
@@ -45,24 +45,16 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// parse checks every field; omitted settings get their defaults.
+// parse checks every field; all settings are required and must be positive.
 func (body CreateGameRequest) parse() (center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, err error) {
 	if body.Latitude == nil || body.Longitude == nil {
 		return center, cellSize, gridSize, revealInterval, &game.ValidationError{Message: "latitude and longitude are required"}
 	}
 	center, err1 := game.ParseCoordinates(*body.Latitude, *body.Longitude)
-	cellSize, err2 := parseOptional(body.CellSizeMeters, game.ParseCellSize, game.DefaultCellSize())
-	gridSize, err3 := parseOptional(body.GridSize, game.ParseGridSize, game.DefaultGridSize())
-	revealInterval, err4 := parseOptional(body.RevealIntervalMinutes, game.ParseRevealInterval, game.DefaultRevealInterval())
+	cellSize, err2 := game.ParseCellSize(body.CellSizeMeters)
+	gridSize, err3 := game.ParseGridSize(body.GridSize)
+	revealInterval, err4 := game.ParseRevealInterval(body.RevealIntervalMinutes)
 	return center, cellSize, gridSize, revealInterval, errors.Join(err1, err2, err3, err4)
-}
-
-// parseOptional parses a value that may be omitted (nil), which means fallback.
-func parseOptional[T any](value *int, parse func(int) (T, error), fallback T) (T, error) {
-	if value == nil {
-		return fallback, nil
-	}
-	return parse(*value)
 }
 
 func gameResponse(saved game.Game) GameResponse {

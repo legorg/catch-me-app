@@ -66,11 +66,11 @@ type Bounds struct {
 type CreateGameRequest struct {
 	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
 	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
-	CellSizeMeters *int     `json:"cellSizeMeters,omitempty" minimum:"100" maximum:"5000" default:"2000" example:"2000" validate:"omitempty,gte=100,lte=5000"`
+	CellSizeMeters int      `json:"cellSizeMeters" minimum:"100" maximum:"5000" example:"2000" validate:"required,gte=100,lte=5000"`
 	// Cells per side of the square grid.
-	GridSize *int `json:"gridSize,omitempty" minimum:"3" maximum:"12" default:"6" example:"6" validate:"omitempty,gte=3,lte=12"`
+	GridSize int `json:"gridSize" minimum:"3" maximum:"12" example:"6" validate:"required,gte=3,lte=12"`
 	// How often hunters receive the runners' positions.
-	RevealIntervalMinutes *int `json:"revealIntervalMinutes,omitempty" minimum:"1" maximum:"60" default:"30" example:"30" validate:"omitempty,gte=1,lte=60"`
+	RevealIntervalMinutes int `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30" validate:"required,gte=1,lte=60"`
 }
 
 type Playground struct {

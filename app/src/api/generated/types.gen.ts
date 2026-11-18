@@ -37,11 +37,11 @@ export type ControllerCoordinates = {
 };
 
 export type ControllerCreateGameRequest = {
-    cellSizeMeters?: number;
-    gridSize?: number;
+    cellSizeMeters: number;
+    gridSize: number;
     latitude: number;
     longitude: number;
-    revealIntervalMinutes?: number;
+    revealIntervalMinutes: number;
 };
 
 export type ControllerCreateGameResponse = {
@@ -373,7 +373,7 @@ export type ControllerZoneRevealResponse = {
 
 export type CreateGameData = {
     /**
-     * Both coordinates required; cellSizeMeters is 100-5000 in steps of 100 (default 2000), gridSize 3-12 cells per side (default 6), revealIntervalMinutes 1-60 (default 30); omitted/null settings get their defaults; no date-line crossings
+     * All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60); no date-line crossings
      */
     body: ControllerCreateGameRequest;
     path?: never;

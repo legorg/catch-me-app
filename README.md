@@ -102,19 +102,21 @@ curl http://localhost:8080/api/games/00112233445566778899aabbccddeeff/result
 
 Replace the example ID with an actual ended game's `sessionId`.
 
-Create a game by posting a JSON center to `/api/games`:
+Create a game by posting a JSON center and all settings to `/api/games`:
 
 ```json
 {
   "latitude": 52.52,
   "longitude": 13.405,
-  "cellSizeMeters": 2000
+  "cellSizeMeters": 2000,
+  "gridSize": 6,
+  "revealIntervalMinutes": 30
 }
 ```
 
 The response is HTTP **201**, with `game` (`sessionId`, `createdAt`, and a `playground` containing `center`, `bounds` (`north`, `south`, `east`, `west`), `rows`, `columns`, and `cellSizeMeters`) and `joinCodes` (`runner`, `hunter`).
 
-`cellSizeMeters` is an optional integer: omitted/null defaults to 2000. Explicit values must be 100–5000 in steps of 100. The backend rejects invalid sizes and computes bounds from the requested center and size rather than trusting frontend geometry.
+All five fields are required and must not be null. `cellSizeMeters` must be an integer from 100–5000 in steps of 100, `gridSize` from 3–12, and `revealIntervalMinutes` from 1–60. The app preselects 2000 m, 6 cells, and 30 minutes and sends these values explicitly; the backend supplies no defaults. The backend rejects invalid settings and computes bounds from the requested center and size rather than trusting frontend geometry.
 
 The handwritten `app/src/api/client.ts` wrapper supplies the API URL, timeouts (5 seconds; 15 seconds for creating a game and changing the route, which look up landmarks within a matching server budget: 3 s per Places call, 6 s per playground edge, 8 s per request, 12 s write timeout), readable errors, and basic runtime response validation. Its types and HTTP request functions come from generated code, not manually duplicated interfaces or URLs. Creation is not automatically retried: if the network drops after a save, an unreferenced session may remain in the database.
 
@@ -126,7 +128,7 @@ import { createGame } from '@/api/generated';
 
 const { data } = await createGame({
   baseUrl: API_URL,
-  body: { latitude: 52.52, longitude: 13.405, cellSizeMeters: 2000 },
+  body: { latitude: 52.52, longitude: 13.405, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30 },
   throwOnError: true,
 });
 console.log(data.sessionId);

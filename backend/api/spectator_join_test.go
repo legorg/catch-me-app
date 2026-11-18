@@ -14,7 +14,7 @@ import (
 func TestDirectSpectatorJoinHTTPFlow(t *testing.T) {
 	store := testStore(t)
 	handler := NewHandler(controller.NewGameController(service.NewGameService(store, centerLandmarks{}, true)))
-	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405}`), 201)
+	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30}`), 201)
 	codes := created.JoinCodes
 	if len(codes.Spectator) != 6 || codes.Spectator == codes.Runner || codes.Spectator == codes.Hunter {
 		t.Fatal("missing separate spectator invitation")

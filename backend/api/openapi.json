@@ -17,7 +17,7 @@
         "summary": "Create a square playground with adjustable grid size, cell size, and reveal interval",
         "operationId": "createGame",
         "requestBody": {
-          "description": "Both coordinates required; cellSizeMeters is 100-5000 in steps of 100 (default 2000), gridSize 3-12 cells per side (default 6), revealIntervalMinutes 1-60 (default 30); omitted/null settings get their defaults; no date-line crossings",
+          "description": "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60); no date-line crossings",
           "content": {
             "application/json": {
               "schema": {
@@ -1295,7 +1295,6 @@
       "ControllerCreateGameRequest": {
         "properties": {
           "cellSizeMeters": {
-            "default": 2000,
             "examples": [
               2000
             ],
@@ -1304,7 +1303,6 @@
             "type": "integer"
           },
           "gridSize": {
-            "default": 6,
             "examples": [
               6
             ],
@@ -1329,7 +1327,6 @@
             "type": "number"
           },
           "revealIntervalMinutes": {
-            "default": 30,
             "examples": [
               30
             ],
@@ -1340,7 +1337,10 @@
         },
         "required": [
           "latitude",
-          "longitude"
+          "longitude",
+          "cellSizeMeters",
+          "gridSize",
+          "revealIntervalMinutes"
         ],
         "type": "object"
       },
