@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ApiError, finish, markCaught, type GameStateResponse } from '@/api/client';
 import { confirm } from '@/confirm';
-import { canFinish, isActivePlayer, ownPlayer } from '@/game-state';
+import { canFinish, canShareGameLocation } from '@/game-state';
 import { useT } from '@/i18n';
 
 type Options = {
@@ -26,7 +26,7 @@ export function useRunnerActions({ token, state, receivedAt, show, fail }: Optio
 
   const submit = async (action: Action) => {
     const { token, state, receivedAt } = latest.current;
-    if (!token || state?.team !== 'runner' || state.status !== 'running' || pending.current || !isActivePlayer(ownPlayer(state))) return;
+    if (!token || state?.team !== 'runner' || !canShareGameLocation(state) || pending.current) return;
     if (action === 'finish' && (receivedAt === undefined || !canFinish(state, receivedAt, Date.now()))) {
       setError(t('finish.notEligible'));
       return;

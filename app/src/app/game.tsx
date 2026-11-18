@@ -10,7 +10,7 @@ import InfoPanel from '@/components/info-panel';
 import LoadingScreen from '@/components/loading-screen';
 import PlaygroundMap from '@/components/playground-map';
 import { compassLines, gameHighlights, gameMarkers, secondsUntil, sketchLines } from '@/lobby';
-import { canFinish, isActivePlayer, ownPlayer } from '@/game-state';
+import { canFinish, canShareGameLocation, isSpectator, ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { noop } from '@/press';
 import { dynamicStyles, overlay, styles } from '@/styles';
@@ -34,12 +34,13 @@ export default function GameScreen() {
   if (!token || !state || !snapshot || state.status === 'ended') return <LoadingScreen error={error} />;
 
   const me = ownPlayer(state);
-  const active = isActivePlayer(me);
-  const hunter = isGameStateHunterResponse(state) ? state : undefined;
+  const spectator = isSpectator(state);
+  const active = canShareGameLocation(state);
+  const hunter = active && isGameStateHunterResponse(state) ? state : undefined;
   const canSketch = !!hunter && !!me?.hunterTeam;
   const drawing = canSketch && sketching.drawing;
-  const outside = !!me?.position && cellAt(state.playground, me.position) === null;
-  const nextReveal = secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
+  const outside = active && !!me?.position && cellAt(state.playground, me.position) === null;
+  const nextReveal = spectator ? null : secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
 
   return (
     <View style={styles.screen}>
@@ -50,7 +51,7 @@ export default function GameScreen() {
       </View>
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, dynamicStyles.hudFill(insets)]}>
-        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} testMode={state.startPositionCheckDisabled === true} />
+        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} spectator={spectator} testMode={state.startPositionCheckDisabled === true} />
         <View pointerEvents="box-none" style={styles.hudZone}>
           {infoOpen && <InfoPanel state={state} me={me} revealScheduled={nextReveal !== null} location={location} />}
           <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} runnerAction={active ? runnerActions.error : ''} />

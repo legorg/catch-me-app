@@ -1,6 +1,6 @@
 import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
-import { isActivePlayer } from './game-state';
+import { isActivePlayer, isSpectator } from './game-state';
 import { cellAt, cellBounds, offsetPoint, START_RADIUS_METERS } from './playground';
 
 /**
@@ -53,13 +53,42 @@ export function hunterTeams(players: PlayerResponse[]): string[] {
 
 export const MARKER_COLORS = { me: '#27ae60', teammate: '#2f80ed', revealed: '#eb5757', joker: '#f2994a', shownHunter: '#6d4c41', caught: '#000000' } as const;
 
+export const SPECTATOR_COLORS = { runner: '#2f80ed', hunter: '#eb5757' } as const;
+
 export type PlayerMarker = {
   id: string;
   coordinate: { latitude: number; longitude: number };
   title: string;
   description: string;
   color: string;
+  label?: string;
 };
+
+/** Only the authenticated spectator feed, never reconstructed from reveals or jokers. */
+export function spectatorMarkers(state: GameStateResponse): PlayerMarker[] {
+  if (!isSpectator(state) || state.status !== 'running') return [];
+  return [
+    ...state.players.flatMap((player) => {
+      if (!player.position || player.runner?.status === 'caught') return [];
+      const { latitude, longitude, accuracyMeters, recordedAt } = player.position;
+      const finished = player.runner?.status === 'finished';
+      const name = player.playerId === state.playerId ? translate('common.you', { name: player.name }) : player.name;
+      return [{
+        id: player.playerId,
+        coordinate: { latitude, longitude },
+        title: translate(finished ? 'spectator.finishedMarker' : player.team === 'runner' ? 'spectator.runnerMarker' : 'spectator.hunterMarker', { name }),
+        description: [
+          translate(finished ? 'spectator.frozenReport' : 'spectator.latestReport'),
+          player.hunterTeam ? translate('lobby.hunterTeam', { name: player.hunterTeam }) : '',
+          translate('marker.accuracy', { meters: Math.round(accuracyMeters), time: clockTime(recordedAt, true) }),
+        ].filter(Boolean).join(' · '),
+        color: SPECTATOR_COLORS[player.team],
+        ...(finished ? { label: '✓' } : {}),
+      }];
+    }),
+    ...caughtMarkers(state),
+  ];
+}
 
 /** Map markers for every live position the server allowed this player to see. */
 export function playerMarkers(state: GameStateResponse): PlayerMarker[] {
@@ -83,7 +112,8 @@ export function caughtMarkers(state: GameStateResponse): (PlayerMarker & { label
     id: `caught-${player.playerId}`,
     coordinate: { latitude: player.runner.caughtPosition.latitude, longitude: player.runner.caughtPosition.longitude },
     title: translate('catch.marker', { name: player.name }),
-    description: translate('catch.markerTime', { time: clockTime(player.runner.endedAt, true) }),
+    description: translate('catch.markerTime', { time: clockTime(player.runner.endedAt, true) })
+      + (isSpectator(state) ? ` · ${translate('marker.accuracy', { meters: Math.round(player.runner.caughtPosition.accuracyMeters), time: clockTime(player.runner.caughtPosition.recordedAt, true) })}` : ''),
     color: MARKER_COLORS.caught,
     label: '×',
   }] : []);
@@ -275,6 +305,7 @@ export function shownHunterMarkers(state: GameStateRunnerResponse): PlayerMarker
 
 /** Every highlighted cell the player's team may see: the route (runners) or the queried zones and zone-only reveals (hunters). */
 export function gameHighlights(state: GameStateResponse) {
+  if (isSpectator(state)) return [];
   if (isGameStateRunnerResponse(state)) return routeHighlights(state.playground, state.route);
   if (isGameStateHunterResponse(state)) return [...jokerZones(state), ...revealZones(state)];
   return [];
@@ -282,6 +313,7 @@ export function gameHighlights(state: GameStateResponse) {
 
 /** Permitted markers, with catch pins last. The device supplies the active player's own live position. */
 export function gameMarkers(state: GameStateResponse): PlayerMarker[] {
+  if (isSpectator(state)) return spectatorMarkers(state);
   return [
     ...(isGameStateRunnerResponse(state) ? [...routeMarkers(state.route), ...fakePositionMarkers(state), ...shownHunterMarkers(state)] : []),
     ...revealMarkers(state),

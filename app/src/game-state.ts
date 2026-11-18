@@ -12,8 +12,12 @@ export function isActivePlayer(player: PlayerResponse | undefined): boolean {
   return player?.team === 'hunter' || player?.runner?.status === 'active';
 }
 
+export function isSpectator(state: GameStateResponse | undefined): boolean {
+  return state?.role === 'spectator';
+}
+
 export function canShareGameLocation(state: GameStateResponse | undefined): boolean {
-  return state?.status === 'running' && isActivePlayer(ownPlayer(state));
+  return state?.status === 'running' && !isSpectator(state) && isActivePlayer(ownPlayer(state));
 }
 
 /** The terminal state takes precedence over an already elapsed countdown. */
@@ -24,7 +28,7 @@ export function gameDestination(state: GameStateResponse, countdown: number | nu
 
 /** UI eligibility only; the server repeats the check on the finish request. */
 export function canFinish(state: GameStateResponse | undefined, receivedAt: number, now: number): boolean {
-  if (!state || !isGameStateRunnerResponse(state) || state.status !== 'running' || !isActivePlayer(ownPlayer(state))) return false;
+  if (!state || !isGameStateRunnerResponse(state) || !canShareGameLocation(state)) return false;
   if (state.startPositionCheckDisabled === true) return true;
   const position = ownPlayer(state)?.position;
   if (!position) return false;
@@ -38,6 +42,7 @@ export function canFinish(state: GameStateResponse | undefined, receivedAt: numb
 export function shouldAcceptGameState(previous: GameStateResponse | undefined, incoming: GameStateResponse): boolean {
   if (!previous || previous.sessionId !== incoming.sessionId || previous.playerId !== incoming.playerId) return true;
   if (previous.status === 'ended' && incoming.status !== 'ended') return false;
+  if (isSpectator(previous) && !isSpectator(incoming)) return false;
   const runner = ownPlayer(previous)?.runner;
   if (runner && runner.status !== 'active' && ownPlayer(incoming)?.runner?.status !== runner.status) return false;
   return Date.parse(incoming.serverTime) >= Date.parse(previous.serverTime);

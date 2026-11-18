@@ -5,7 +5,7 @@ import Button from '@/components/button';
 import LocationSharingInfo from '@/components/location-sharing-info';
 import { translateParts, useT } from '@/i18n';
 import { routeTitles } from '@/lobby';
-import { isActivePlayer } from '@/game-state';
+import { isActivePlayer, isSpectator } from '@/game-state';
 import { overlay, styles } from '@/styles';
 import { useConfirmExit } from '@/use-confirm-exit';
 import type { LocationSharing } from '@/use-location-sharing';
@@ -38,7 +38,7 @@ type InfoPanelProps = {
   location: LocationSharing;
 };
 
-/** Outcomes are visible even when there is no map marker (never one for finishes). */
+/** Outcomes are visible even when there is no retained position for a marker. */
 function RunnerOutcomes({ state }: { state: GameStateResponse }) {
   const t = useT();
   const caught = state.players.filter((player) => player.runner?.status === 'caught').map((player) => player.name).join(', ');
@@ -53,20 +53,23 @@ function RunnerOutcomes({ state }: { state: GameStateResponse }) {
 export default function InfoPanel({ state, me, revealScheduled, location }: InfoPanelProps) {
   const t = useT();
   const texts = TEAM_TEXTS[state.team];
+  const spectator = isSpectator(state);
   const confirmExit = useConfirmExit();
   return (
     <ScrollView style={overlay.info} contentContainerStyle={styles.gapMedium}>
       <Text style={styles.text}>
         {translateParts('lobby.youAre', {
-          team: <Text key="team" style={styles.heading}>{t(texts.team)}</Text>,
+          team: <Text key="team" style={styles.heading}>{t(spectator ? 'spectator.title' : texts.team)}</Text>,
         })}
         {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
       </Text>
-      {revealScheduled && isActivePlayer(me) && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
-      <RouteLine state={state} />
-      <Text style={styles.hint}>{t(texts.legend)}</Text>
+      {!spectator && revealScheduled && isActivePlayer(me) && <Text style={styles.hint}>{t(texts.reveal, { minutes: state.revealIntervalMinutes })}</Text>}
+      {!spectator && <RouteLine state={state} />}
+      <Text style={styles.hint}>{t(spectator ? 'spectator.info' : texts.legend)}</Text>
+      {spectator && <Text style={styles.hint}>{t('spectator.fairPlay')}</Text>}
       <RunnerOutcomes state={state} />
-      {me?.runner?.status === 'caught' || me?.runner?.status === 'finished'
+      {spectator ? <Text style={styles.text}>{t('spectator.noTracking')}</Text>
+        : me?.runner?.status === 'caught' || me?.runner?.status === 'finished'
         ? <Text style={styles.text}>{t(me.runner.status === 'caught' ? 'catch.sharingStopped' : 'finish.sharingStopped')}</Text>
         : isActivePlayer(me) && <LocationSharingInfo location={location} />}
       {/* Rarely needed and final, so it sits here behind a confirmation. */}

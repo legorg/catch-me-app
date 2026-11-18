@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, thinPoints } from '../src/lobby';
-import { canFinish, canShareGameLocation, gameDestination, isActivePlayer, shouldAcceptGameState } from '../src/game-state';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints } from '../src/lobby';
+import { canFinish, canShareGameLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { gameResultRoute } from '../src/game-result';
 import { cellBounds, distanceMeters, offsetPoint, previewPlayground } from '../src/playground';
 
@@ -177,6 +177,76 @@ test('only active players with a running game may share game locations', () => {
   assert.equal(canShareGameLocation({ ...running, players: [] }), false);
   assert.equal(isActivePlayer(undefined), false);
   assert.equal(isActivePlayer({ ...running.players[0], runner: undefined }), false);
+});
+
+test('spectators see real reports of runners and every hunter team with separate colors and frozen outcomes', () => {
+  const report = { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: '2026-11-08T12:00:58Z' };
+  const endedAt = '2026-11-08T12:01:00Z';
+  const spectator: GameStateRunnerResponse = {
+    ...state, role: 'spectator', status: 'running',
+    players: [
+      { ...state.players[0], position: report, runner: { status: 'finished', endedAt } },
+      { ...state.players[1], position: report, hunterTeam: 'Wolves' },
+      { ...state.players[1], playerId: 'd'.repeat(32), name: 'Dan', position: { ...report, latitude: 52.55 }, hunterTeam: 'Foxes' },
+      { ...state.players[2], position: { ...report, latitude: 52.56 } },
+      { ...state.players[0], playerId: 'e'.repeat(32), name: 'Eve', position: report, runner: { status: 'caught', endedAt, caughtPosition: report } },
+      { ...state.players[2], playerId: 'f'.repeat(32), name: 'No report' },
+    ],
+    // Historical snapshots must not be mixed into the real feed, even if stale data remains.
+    jokers: [{ kind: 'showHunters', available: false, positions: [{ ...report, playerId: state.players[1].playerId }] }],
+  };
+  const markers = gameMarkers(spectator);
+  assert.equal(markers.length, 5);
+  assert.equal(new Set(markers.map((marker) => marker.id)).size, 5);
+  assert.deepEqual(markers.map((marker) => marker.color), [SPECTATOR_COLORS.runner, SPECTATOR_COLORS.hunter, SPECTATOR_COLORS.hunter, SPECTATOR_COLORS.runner, MARKER_COLORS.caught]);
+  assert.equal(SPECTATOR_COLORS.runner, '#2f80ed');
+  assert.equal(SPECTATOR_COLORS.hunter, '#eb5757');
+  assert.equal(markers[0].id, spectator.playerId); // Own frozen finish report is not filtered out.
+  assert.equal(markers[0].label, '✓');
+  assert.match(markers[0].title, /Ada.*you.*Runner.*Finished/);
+  assert.match(markers[0].description, /before finishing.*no longer tracked/);
+  assert.match(markers[1].title, /Bob.*Hunter/);
+  assert.match(markers[1].description, /Wolves/);
+  assert.match(markers[2].description, /Foxes/);
+  assert.match(markers[3].title, /Cy.*Runner/);
+  assert.match(markers[3].description, /Latest report/);
+  assert.deepEqual(markers[3].coordinate, { latitude: 52.56, longitude: 13.41 });
+  assert.equal(markers[4].label, '×');
+  assert.match(markers[4].title, /Eve.*Caught/);
+  assert.match(markers[4].description, /±5 m/);
+  assert.deepEqual(gameHighlights(spectator), []); // No route/zone overlays with ambiguous colors.
+  const expired = { ...spectator, players: spectator.players.map((player) => ({ ...player, position: undefined, runner: player.runner ? { ...player.runner, caughtPosition: undefined } : undefined })) };
+  assert.deepEqual(gameMarkers(expired), []); // No invented or historical fallback markers.
+});
+
+test('spectator map never renders before start or after end, or without the explicit role', () => {
+  const report = { latitude: 52.51, longitude: 13.41, accuracyMeters: 5, recordedAt: state.serverTime };
+  const viewer: GameStateRunnerResponse = {
+    ...state, role: 'spectator', players: [{ ...state.players[0], runner: { status: 'caught', endedAt: state.serverTime, caughtPosition: report } }],
+  };
+  for (const status of ['lobby', 'countdown', 'ended'] as const) {
+    assert.deepEqual(gameMarkers({ ...viewer, status }), []);
+    assert.deepEqual(gameHighlights({ ...viewer, status }), []);
+  }
+  assert.deepEqual(spectatorMarkers({ ...viewer, role: 'player', status: 'running' }), []);
+  assert.equal(gameMarkers({ ...viewer, status: 'running' })[0].id, `caught-${viewer.playerId}`);
+});
+
+test('spectator permission disables location and finish eligibility and cannot be undone by stale responses', () => {
+  const running: GameStateRunnerResponse = { ...state, status: 'running', startPositionCheckDisabled: true };
+  // The explicit role is authoritative even if a stale player entry still says active.
+  const spectator: GameStateRunnerResponse = { ...running, role: 'spectator' };
+  assert.equal(isSpectator(undefined), false);
+  assert.equal(isSpectator(running), false);
+  assert.equal(isSpectator(spectator), true);
+  assert.equal(canShareGameLocation(spectator), false);
+  assert.equal(canFinish(spectator, 0, 0), false);
+  assert.equal(shouldAcceptGameState(running, spectator), true);
+  assert.equal(shouldAcceptGameState(spectator, { ...running, serverTime: '2026-11-08T13:00:00Z' }), false);
+  assert.equal(shouldAcceptGameState(spectator, { ...spectator, serverTime: '2026-11-08T13:00:00Z' }), true);
+  const ended = { ...spectator, status: 'ended' as const };
+  assert.equal(shouldAcceptGameState(ended, spectator), false);
+  assert.deepEqual(gameDestination(ended), gameResultRoute(spectator.sessionId));
 });
 
 test('finished runners have no ordinary, historical joker, fake-position or catch markers', () => {

@@ -5,7 +5,7 @@ import type { Coordinates, GameStateResponse, Playground } from '@/api/types';
 import Button from '@/components/button';
 import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, translate, useT } from '@/i18n';
-import { ownPlayer } from '@/game-state';
+import { isSpectator, ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
@@ -33,11 +33,11 @@ export default function JokerList({ state, error, onUse }: {
   const hasPosition = !!state.players.find((p) => p.playerId === state.playerId)?.position;
   const runnerStatus = ownPlayer(state)?.runner?.status;
 
-  if (runnerStatus === 'caught' || runnerStatus === 'finished') {
+  if (isSpectator(state) || runnerStatus === 'caught' || runnerStatus === 'finished') {
     return (
       <View style={styles.content}>
         <Text style={styles.heading}>{t('joker.title')}</Text>
-        <Text style={styles.text}>{t(runnerStatus === 'caught' ? 'catch.noJokers' : 'finish.noJokers')}</Text>
+        <Text style={styles.text}>{t(isSpectator(state) ? 'spectator.noJokers' : runnerStatus === 'caught' ? 'catch.noJokers' : 'finish.noJokers')}</Text>
       </View>
     );
   }

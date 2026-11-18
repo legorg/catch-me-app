@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { ApiError, getGameState, updatePosition, type GameStateResponse } from '@/api/client';
 import { stopBackgroundSharing } from '@/background-location';
-import { canShareGameLocation, isActivePlayer, ownPlayer } from '@/game-state';
+import { canShareGameLocation, isActivePlayer, isSpectator, ownPlayer } from '@/game-state';
 import { useLocationSharing, type Fix } from '@/use-location-sharing';
 
 type Options = {
@@ -16,7 +16,7 @@ type Options = {
 export function useGameLocation({ token, state, show, fail }: Options) {
   const active = !!token && canShareGameLocation(state);
   const me = ownPlayer(state);
-  const stopped = state?.status === 'ended' || (!!me && !isActivePlayer(me));
+  const stopped = state?.status === 'ended' || isSpectator(state) || (!!me && !isActivePlayer(me));
   // Also stop a task left registered by an earlier app run when the restored
   // session is already retired or ended (there may be no active effect to clean up).
   useEffect(() => {
