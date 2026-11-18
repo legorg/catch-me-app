@@ -404,9 +404,9 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 			hunterIDs = append(hunterIDs, p.ID.String())
 		}
 	}
-	var jokerRows []jokerRow
-	if err := tx.Where("game_id = ?", row.ID).Order("id").Find(&jokerRows).Error; err != nil {
-		return game.Lobby{}, fmt.Errorf("select jokers: %w", err)
+	jokerRows, err := selectJokers(tx, row.ID)
+	if err != nil {
+		return game.Lobby{}, err
 	}
 	// One query for the runner positions both reveals and jokers are read from.
 	// Hunter positions are only read for a used showHunters joker.
@@ -462,6 +462,15 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 		}
 	}
 	return lobby, nil
+}
+
+// selectJokers returns the game's used jokers in order of use.
+func selectJokers(tx *gorm.DB, gameID string) ([]jokerRow, error) {
+	var rows []jokerRow
+	if err := tx.Where("game_id = ?", gameID).Order("id").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("select jokers: %w", err)
+	}
+	return rows, nil
 }
 
 // positionHistory returns each player's positions recorded up to `until`, oldest first.

@@ -109,33 +109,47 @@ func (c *GameController) Timeline(w http.ResponseWriter, r *http.Request) {
 }
 
 func timelineResponse(view service.TimelineView) (TimelineResponse, error) {
-	response := TimelineResponse{ServerTime: view.Now, Events: make([]TimelineEventResponse, 0, len(view.Events))}
-	for _, e := range view.Events {
-		event, err := timelineEventResponse(view.Lobby, e)
-		if err != nil {
-			return TimelineResponse{}, err
-		}
-		response.Events = append(response.Events, TimelineEventResponse{event})
+	events, err := timelineEventResponses(view.Events, func(id game.PlayerID) (game.PlayerName, bool) {
+		p, ok := view.Lobby.Player(id)
+		return p.Name, ok
+	})
+	if err != nil {
+		return TimelineResponse{}, err
 	}
-	return response, nil
+	return TimelineResponse{ServerTime: view.Now, Events: events}, nil
+}
+
+// playerName finds the name of the player an event is about.
+type playerName func(game.PlayerID) (game.PlayerName, bool)
+
+func timelineEventResponses(events []game.Event, name playerName) ([]TimelineEventResponse, error) {
+	responses := make([]TimelineEventResponse, 0, len(events))
+	for _, e := range events {
+		event, err := timelineEventResponse(e, name)
+		if err != nil {
+			return nil, err
+		}
+		responses = append(responses, TimelineEventResponse{event})
+	}
+	return responses, nil
 }
 
 // timelineEventResponse maps one event; an unknown variant is a server error
 // rather than an event without its fields.
-func timelineEventResponse(lobby game.Lobby, event game.Event) (any, error) {
+func timelineEventResponse(event game.Event, name playerName) (any, error) {
 	switch e := event.(type) {
 	case game.StartEvent:
 		return GameStartedEventResponse{Kind: TimelineGameStarted, At: e.At}, nil
 	case game.HunterJokerEvent:
 		return HunterJokerUsedEventResponse{Kind: TimelineHunterJokerUsed, At: e.At, HunterTeam: e.Team.String(), Joker: JokerKind(e.Joker)}, nil
 	case game.RunnerJokerEvent:
-		runner, err := timelinePlayer(lobby, e.Runner)
+		runner, err := timelinePlayer(e.Runner, name)
 		return RunnerJokerUsedEventResponse{Kind: TimelineRunnerJokerUsed, At: e.At, Runner: runner, Joker: JokerKind(e.Joker)}, err
 	case game.CatchEvent:
-		runner, err := timelinePlayer(lobby, e.Runner)
+		runner, err := timelinePlayer(e.Runner, name)
 		return RunnerCaughtEventResponse{Kind: TimelineRunnerCaught, At: e.At, Runner: runner}, err
 	case game.FinishEvent:
-		runner, err := timelinePlayer(lobby, e.Runner)
+		runner, err := timelinePlayer(e.Runner, name)
 		return RunnerFinishedEventResponse{Kind: TimelineRunnerFinished, At: e.At, Runner: runner}, err
 	case game.EndEvent:
 		return GameEndedEventResponse{Kind: TimelineGameEnded, At: e.At}, nil
@@ -143,10 +157,10 @@ func timelineEventResponse(lobby game.Lobby, event game.Event) (any, error) {
 	return nil, fmt.Errorf("unknown timeline event %T", event)
 }
 
-func timelinePlayer(lobby game.Lobby, id game.PlayerID) (TimelinePlayer, error) {
-	player, ok := lobby.Player(id)
+func timelinePlayer(id game.PlayerID, name playerName) (TimelinePlayer, error) {
+	found, ok := name(id)
 	if !ok {
 		return TimelinePlayer{}, fmt.Errorf("timeline event of unknown player %s", id)
 	}
-	return TimelinePlayer{PlayerID: PlayerID(id.String()), Name: player.Name.String()}, nil
+	return TimelinePlayer{PlayerID: PlayerID(id.String()), Name: found.String()}, nil
 }

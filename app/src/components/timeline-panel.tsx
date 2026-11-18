@@ -1,10 +1,9 @@
 import { ScrollView, Text } from 'react-native';
 
 import type { TimelineEvent } from '@/api/types';
+import TimelineEntries from '@/components/timeline-entries';
 import { useT } from '@/i18n';
-import { clockTime } from '@/lobby';
 import { overlay, styles } from '@/styles';
-import { timelineKey, timelineText } from '@/timeline';
 
 type TimelinePanelProps = {
   /** Newest first. */
@@ -20,12 +19,7 @@ export default function TimelinePanel({ events, loaded }: TimelinePanelProps) {
       <Text style={styles.heading}>{t('timeline.title')}</Text>
       {!loaded ? <Text style={styles.hint}>{t('timeline.loading')}</Text>
         : events.length === 0 ? <Text style={styles.hint}>{t('timeline.empty')}</Text>
-        : events.map((event) => (
-          <Text key={timelineKey(event)} style={styles.text}>
-            <Text style={styles.hint}>{clockTime(event.at)} · </Text>
-            {timelineText(event)}
-          </Text>
-        ))}
+        : <TimelineEntries events={events} />}
     </ScrollView>
   );
 }

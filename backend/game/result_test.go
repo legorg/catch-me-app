@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 )
@@ -28,6 +29,18 @@ func TestResultIsOnlyAvailableAfterGameEnd(t *testing.T) {
 	result, err := l.Result()
 	if err != nil || result.SessionID != l.Game.SessionID || result.StartsAt != running || result.EndedAt != endedAt || len(result.Players) != len(l.Players) {
 		t.Fatalf("unexpected result: %+v %v", result, err)
+	}
+	wantEvents := []Event{
+		StartEvent{At: running},
+		FinishEvent{Runner: runner.ID, At: running},
+		CatchEvent{Runner: l.Players[1].ID, At: endedAt},
+		EndEvent{At: endedAt},
+	}
+	if !slices.Equal(result.Events, wantEvents) {
+		t.Fatalf("result events = %+v, want the whole timeline %+v", result.Events, wantEvents)
+	}
+	if got, ok := result.Player(runner.ID); !ok || got.Name != runner.Name {
+		t.Fatal("result player lookup failed")
 	}
 	for i, player := range l.Players {
 		got := result.Players[i]

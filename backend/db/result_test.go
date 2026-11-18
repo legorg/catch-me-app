@@ -18,7 +18,7 @@ func TestResultLookupPersistsAndDoesNotNeedPositionHistory(t *testing.T) {
 	saved := create(t, store)
 	ada, adaToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
 	cy, cyToken := join(t, store, saved.JoinCodes.Runner, "Cy", now.Add(time.Second))
-	hunter, _ := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(2*time.Second))
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(2*time.Second))
 	if _, err := store.Result(ctx, game.NewSessionID()); !errors.Is(err, game.ErrNotFound) {
 		t.Fatalf("unknown game: %v", err)
 	}
@@ -42,6 +42,12 @@ func TestResultLookupPersistsAndDoesNotNeedPositionHistory(t *testing.T) {
 	if _, err := store.Result(ctx, saved.SessionID); !errors.Is(err, game.ErrNotFound) {
 		t.Fatal("game with an active runner returned a result")
 	}
+	used := start.Add(20 * time.Second)
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), used, func(l *game.Lobby) error {
+		return l.UseJoker(hunter.ID, game.ShowRunners{}, used)
+	}); err != nil {
+		t.Fatal(err)
+	}
 	end := start.Add(37 * time.Second)
 	if _, err := store.UpdateLobbyByToken(ctx, cyToken.Hash(), end, func(l *game.Lobby) error {
 		return l.MarkCaught(cy.ID, end)
@@ -54,6 +60,16 @@ func TestResultLookupPersistsAndDoesNotNeedPositionHistory(t *testing.T) {
 	}
 	if result.Players[0].ID != ada.ID || result.Players[0].Runner.Status() != game.RunnerFinished || result.Players[1].ID != cy.ID || result.Players[1].Runner.Status() != game.RunnerCaught || result.Players[2].HunterTeam != hunter.HunterTeam {
 		t.Fatal("result lost join order, outcomes or hunter teams")
+	}
+	wantEvents := []game.Event{
+		game.StartEvent{At: start},
+		game.FinishEvent{Runner: ada.ID, At: start},
+		game.HunterJokerEvent{Team: hunter.HunterTeam, Joker: game.JokerShowRunners, At: used},
+		game.CatchEvent{Runner: cy.ID, At: end},
+		game.EndEvent{At: end},
+	}
+	if !reflect.DeepEqual(result.Events, wantEvents) {
+		t.Fatalf("result events = %+v, want %+v", result.Events, wantEvents)
 	}
 	if err := store.Close(); err != nil {
 		t.Fatal(err)

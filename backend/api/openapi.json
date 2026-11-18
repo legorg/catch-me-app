@@ -126,7 +126,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Game times and duration, player names, runner outcomes/times, and hunter teams in join order; no coordinates, history, join codes, or tokens; no authentication required",
+            "description": "Game times and duration, player names, runner outcomes/times, and hunter teams in join order, plus the whole event timeline oldest first; no coordinates, cells, joker results, join codes, or tokens; no authentication required",
             "content": {
               "application/json": {
                 "schema": {
@@ -1574,6 +1574,12 @@
             "format": "date-time",
             "type": "string"
           },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerTimelineEventResponse"
+            },
+            "type": "array"
+          },
           "players": {
             "items": {
               "$ref": "#/components/schemas/ControllerResultPlayerResponse"
@@ -1602,7 +1608,8 @@
           "startsAt",
           "endedAt",
           "durationSeconds",
-          "players"
+          "players",
+          "events"
         ],
         "type": "object"
       },
