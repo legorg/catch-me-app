@@ -24,15 +24,15 @@ const (
 )
 
 type TimelineResponse struct {
-	ServerTime time.Time `json:"serverTime" example:"2026-11-08T12:30:00Z" validate:"required"`
+	ServerTime time.Time `json:"serverTime" example:"2026-11-08T12:30:00Z"`
 	// Oldest first, up to serverTime.
-	Events []TimelineEventResponse `json:"events" validate:"max=1000,dive"`
+	Events []TimelineEventResponse `json:"events"`
 }
 
 // TimelinePlayer is the player an event is about.
 type TimelinePlayer struct {
-	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
-	Name     string   `json:"name" minLength:"1" maxLength:"20" example:"Ada" validate:"required,min=1,max=20"`
+	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Name     string   `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
 }
 
 // TimelineEventResponse is one timeline entry: exactly one of
@@ -51,39 +51,39 @@ func (TimelineEventResponse) JSONSchemaOneOf() []any {
 func (e TimelineEventResponse) MarshalJSON() ([]byte, error) { return marshalVariant(e.variant) }
 
 type GameStartedEventResponse struct {
-	Kind TimelineEventKind `json:"kind" enum:"gameStarted" validate:"required"`
-	At   time.Time         `json:"at" example:"2026-11-08T12:00:10Z" validate:"required"`
+	Kind TimelineEventKind `json:"kind" enum:"gameStarted"`
+	At   time.Time         `json:"at" example:"2026-11-08T12:00:10Z"`
 }
 
 type HunterJokerUsedEventResponse struct {
-	Kind       TimelineEventKind `json:"kind" enum:"hunterJokerUsed" validate:"required"`
-	At         time.Time         `json:"at" example:"2026-11-08T12:07:00Z" validate:"required"`
-	HunterTeam string            `json:"hunterTeam" minLength:"1" maxLength:"20" example:"Wolves" validate:"required,min=1,max=20"`
-	Joker      JokerKind         `json:"joker" validate:"required"`
+	Kind       TimelineEventKind `json:"kind" enum:"hunterJokerUsed"`
+	At         time.Time         `json:"at" example:"2026-11-08T12:07:00Z"`
+	HunterTeam string            `json:"hunterTeam" minLength:"1" maxLength:"20" example:"Wolves"`
+	Joker      JokerKind         `json:"joker"`
 }
 
 type RunnerJokerUsedEventResponse struct {
-	Kind   TimelineEventKind `json:"kind" enum:"runnerJokerUsed" validate:"required"`
-	At     time.Time         `json:"at" example:"2026-11-08T12:07:00Z" validate:"required"`
+	Kind   TimelineEventKind `json:"kind" enum:"runnerJokerUsed"`
+	At     time.Time         `json:"at" example:"2026-11-08T12:07:00Z"`
 	Runner TimelinePlayer    `json:"runner"`
-	Joker  JokerKind         `json:"joker" validate:"required"`
+	Joker  JokerKind         `json:"joker"`
 }
 
 type RunnerCaughtEventResponse struct {
-	Kind   TimelineEventKind `json:"kind" enum:"runnerCaught" validate:"required"`
-	At     time.Time         `json:"at" example:"2026-11-08T12:30:00Z" validate:"required"`
+	Kind   TimelineEventKind `json:"kind" enum:"runnerCaught"`
+	At     time.Time         `json:"at" example:"2026-11-08T12:30:00Z"`
 	Runner TimelinePlayer    `json:"runner"`
 }
 
 type RunnerFinishedEventResponse struct {
-	Kind   TimelineEventKind `json:"kind" enum:"runnerFinished" validate:"required"`
-	At     time.Time         `json:"at" example:"2026-11-08T12:45:00Z" validate:"required"`
+	Kind   TimelineEventKind `json:"kind" enum:"runnerFinished"`
+	At     time.Time         `json:"at" example:"2026-11-08T12:45:00Z"`
 	Runner TimelinePlayer    `json:"runner"`
 }
 
 type GameEndedEventResponse struct {
-	Kind TimelineEventKind `json:"kind" enum:"gameEnded" validate:"required"`
-	At   time.Time         `json:"at" example:"2026-11-08T13:00:10Z" validate:"required"`
+	Kind TimelineEventKind `json:"kind" enum:"gameEnded"`
+	At   time.Time         `json:"at" example:"2026-11-08T13:00:10Z"`
 }
 
 // Timeline returns the game's events to an authenticated spectator.

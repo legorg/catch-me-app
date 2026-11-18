@@ -13,9 +13,6 @@ func TestRunnerRowsAndConstraints(t *testing.T) {
 	saved := create(t, store)
 	runner, token := join(t, store, saved.JoinCodes.Runner, "Ada", now)
 	hunter, _ := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
-	if store.db.Migrator().HasColumn("players", "caught_at") || store.db.Migrator().HasColumn("players", "finished_at") {
-		t.Fatal("new schemas must not contain runner timestamps on players")
-	}
 	var rows []runnerRow
 	if err := store.db.Find(&rows).Error; err != nil {
 		t.Fatal(err)

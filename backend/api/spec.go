@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"catch-me/backend/controller"
@@ -21,7 +20,7 @@ func OpenAPI() ([]byte, error) {
 	reflector := openapi31.NewReflector()
 	reflector.DefaultOptions = append(reflector.DefaultOptions,
 		jsonschema.InterceptProp(requiredByDefault),
-		jsonschema.InterceptProp(constraintsFromValidateTags),
+		jsonschema.InterceptProp(wirePropertySchema),
 		jsonschema.InterceptSchema(discriminators),
 	)
 	spec := reflector.SpecEns()
@@ -215,9 +214,9 @@ func requiredByDefault(p jsonschema.InterceptPropParams) error {
 	return nil
 }
 
-// constraintsFromValidateTags drops nullability and derives schema constraints from the validate tags
-// the controllers already enforce; explicit schema tags take precedence.
-func constraintsFromValidateTags(p jsonschema.InterceptPropParams) error {
+// wirePropertySchema omits null from wire types and narrows enum references
+// for union variants. All other constraints come from native schema tags.
+func wirePropertySchema(p jsonschema.InterceptPropParams) error {
 	if !p.Processed || p.PropertySchema == nil {
 		return nil
 	}
@@ -235,59 +234,7 @@ func constraintsFromValidateTags(p jsonschema.InterceptPropParams) error {
 			schema.Enum = append(schema.Enum, item)
 		}
 	}
-	if schema.Ref != nil {
-		return nil
-	}
-	t := p.Field.Type
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	isString, isSlice := t.Kind() == reflect.String, t.Kind() == reflect.Slice
-	for _, rule := range strings.Split(p.Field.Tag.Get("validate"), ",") {
-		name, value, _ := strings.Cut(rule, "=")
-		number, numberErr := strconv.ParseFloat(value, 64)
-		if numberErr != nil {
-			if name == "oneof" && isString && len(schema.Enum) == 0 {
-				for _, item := range strings.Fields(value) {
-					schema.Enum = append(schema.Enum, item)
-				}
-			}
-			continue
-		}
-		count := int64(number)
-		switch {
-		case name == "gte" && schema.Minimum == nil:
-			schema.Minimum = &number
-		case name == "lte" && schema.Maximum == nil:
-			schema.Maximum = &number
-		case name == "eq" && !isString && len(schema.Enum) == 0:
-			schema.Enum = []any{number}
-		case name == "len" && isString:
-			setLength(schema, count, count)
-		case name == "min" && isString && schema.MinLength == 0:
-			schema.MinLength = count
-		case name == "max" && isString && schema.MaxLength == nil:
-			schema.MaxLength = &count
-		case name == "min" && isSlice && schema.MinItems == 0:
-			schema.MinItems = count
-		case name == "max" && isSlice && schema.MaxItems == nil:
-			schema.MaxItems = &count
-		case name == "min" && !isString && !isSlice && schema.Minimum == nil:
-			schema.Minimum = &number
-		case name == "max" && !isString && !isSlice && schema.Maximum == nil:
-			schema.Maximum = &number
-		}
-	}
 	return nil
-}
-
-func setLength(schema *jsonschema.Schema, min, max int64) {
-	if schema.MinLength == 0 {
-		schema.MinLength = min
-	}
-	if schema.MaxLength == nil {
-		schema.MaxLength = &max
-	}
 }
 
 // discriminators tells clients which property picks the variant of each union

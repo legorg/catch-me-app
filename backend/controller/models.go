@@ -46,44 +46,44 @@ func (JokerKind) Enum() []any {
 }
 
 type HealthResponse struct {
-	Status  string `json:"status" enums:"ok" example:"ok" validate:"required,oneof=ok"`
-	Service string `json:"service" enums:"catch-me-backend" example:"catch-me-backend" validate:"required,oneof=catch-me-backend"`
+	Status  string `json:"status" enum:"ok" example:"ok"`
+	Service string `json:"service" enum:"catch-me-backend" example:"catch-me-backend"`
 }
 
 type Coordinates struct {
-	Latitude  float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"gte=-80,lte=80"`
-	Longitude float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"gte=-180,lte=180"`
+	Latitude  float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
+	Longitude float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
 }
 
 type Bounds struct {
-	North float64 `json:"north" example:"52.57395922182347" validate:"gte=-90,lte=90"`
-	South float64 `json:"south" example:"52.466040778176534" validate:"gte=-90,lte=90"`
-	East  float64 `json:"east" example:"13.493678060701022" validate:"gte=-180,lte=180"`
-	West  float64 `json:"west" example:"13.316321939298977" validate:"gte=-180,lte=180"`
+	North float64 `json:"north" minimum:"-90" maximum:"90" example:"52.57395922182347"`
+	South float64 `json:"south" minimum:"-90" maximum:"90" example:"52.466040778176534"`
+	East  float64 `json:"east" minimum:"-180" maximum:"180" example:"13.493678060701022"`
+	West  float64 `json:"west" minimum:"-180" maximum:"180" example:"13.316321939298977"`
 }
 
 // Pointer fields distinguish missing/null coordinates from a valid zero.
 type CreateGameRequest struct {
-	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
-	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
-	CellSizeMeters int      `json:"cellSizeMeters" minimum:"100" maximum:"5000" example:"2000" validate:"required,gte=100,lte=5000"`
+	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
+	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
+	CellSizeMeters int      `json:"cellSizeMeters" minimum:"100" maximum:"5000" multipleOf:"100" example:"2000"`
 	// Cells per side of the square grid.
-	GridSize int `json:"gridSize" minimum:"3" maximum:"12" example:"6" validate:"required,gte=3,lte=12"`
+	GridSize int `json:"gridSize" minimum:"3" maximum:"12" example:"6"`
 	// How often hunters receive the runners' positions.
-	RevealIntervalMinutes int `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30" validate:"required,gte=1,lte=60"`
+	RevealIntervalMinutes int `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
 }
 
 type Playground struct {
 	Center         Coordinates `json:"center"`
 	Bounds         Bounds      `json:"bounds"`
-	Rows           int         `json:"rows" minimum:"3" maximum:"12" example:"6" validate:"gte=3,lte=12"`
-	Columns        int         `json:"columns" minimum:"3" maximum:"12" example:"6" validate:"gte=3,lte=12"`
-	CellSizeMeters int         `json:"cellSizeMeters" minimum:"100" maximum:"5000" example:"2000" validate:"gte=100,lte=5000"`
+	Rows           int         `json:"rows" minimum:"3" maximum:"12" example:"6"`
+	Columns        int         `json:"columns" minimum:"3" maximum:"12" example:"6"`
+	CellSizeMeters int         `json:"cellSizeMeters" minimum:"100" maximum:"5000" multipleOf:"100" example:"2000"`
 }
 
 type Landmark struct {
 	// Name of the place, e.g. a landmark.
-	Title       string      `json:"title" example:"Brandenburger Tor" validate:"max=255"`
+	Title       string      `json:"title" example:"Brandenburger Tor"`
 	Coordinates Coordinates `json:"coordinates"`
 }
 
@@ -92,22 +92,22 @@ type GameRoute struct {
 	Start Landmark `json:"start"`
 	Stop  Landmark `json:"stop"`
 	// Straight-line (great-circle) distance between start and stop.
-	DistanceMeters float64 `json:"distanceMeters" example:"10432.7" validate:"gte=0"`
+	DistanceMeters float64 `json:"distanceMeters" minimum:"0" example:"10432.7"`
 }
 
 type GameResponse struct {
-	SessionID  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
-	CreatedAt  time.Time  `json:"createdAt" example:"2026-11-08T12:00:00Z" validate:"required"`
+	SessionID  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff"`
+	CreatedAt  time.Time  `json:"createdAt" example:"2026-11-08T12:00:00Z"`
 	Playground Playground `json:"playground"`
 	// How often hunters receive the runners' positions.
-	RevealIntervalMinutes int       `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30" validate:"gte=1,lte=60"`
+	RevealIntervalMinutes int       `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
 	Route                 GameRoute `json:"route"`
 }
 
 type JoinCodes struct {
-	Runner    string `json:"runner" minLength:"6" maxLength:"6" example:"482913" validate:"required,len=6,numeric"`
-	Hunter    string `json:"hunter" minLength:"6" maxLength:"6" example:"071564" validate:"required,len=6,numeric"`
-	Spectator string `json:"spectator" minLength:"6" maxLength:"6" example:"305821" validate:"required,len=6,numeric"`
+	Runner    string `json:"runner" minLength:"6" maxLength:"6" example:"482913"`
+	Hunter    string `json:"hunter" minLength:"6" maxLength:"6" example:"071564"`
+	Spectator string `json:"spectator" minLength:"6" maxLength:"6" example:"305821"`
 }
 
 type CreateGameResponse struct {
@@ -116,34 +116,34 @@ type CreateGameResponse struct {
 }
 
 type JoinGameRequest struct {
-	Code string `json:"code" minLength:"6" maxLength:"6" example:"482913" validate:"required,len=6,numeric"`
-	Name string `json:"name" minLength:"1" maxLength:"20" example:"Ada" validate:"required,min=1,max=20"`
+	Code string `json:"code" minLength:"6" maxLength:"6" example:"482913"`
+	Name string `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
 }
 
 // Pointer field distinguishes a missing value from false.
 type SetReadyRequest struct {
-	Ready *bool `json:"ready" example:"true" validate:"required"`
+	Ready *bool `json:"ready" example:"true"`
 }
 
 type SetHunterTeamRequest struct {
-	Name string `json:"name" minLength:"1" maxLength:"20" example:"Wolves" validate:"required,min=1,max=20"`
+	Name string `json:"name" minLength:"1" maxLength:"20" example:"Wolves"`
 }
 
 type PlayerResponse struct {
-	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
-	Name     string   `json:"name" minLength:"1" maxLength:"20" example:"Ada" validate:"required,min=1,max=20"`
-	Team     Team     `json:"team" validate:"required"`
+	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Name     string   `json:"name" minLength:"1" maxLength:"20" example:"Ada"`
+	Team     Team     `json:"team"`
 	// Present for hunters who have chosen a hunter team.
-	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves" validate:"omitempty,max=20"`
+	HunterTeam string `json:"hunterTeam,omitempty" maxLength:"20" example:"Wolves"`
 	Ready      bool   `json:"ready" example:"false"`
 	// Latest permitted report: own/hunter teammates', or runner teammates' while
 	// running. Spectators receive all real latest reports only while running,
 	// including finished runners' frozen last reports; caught reports use caughtPosition.
-	Position *PositionResponse `json:"position,omitempty" validate:"omitempty"`
+	Position *PositionResponse `json:"position,omitempty"`
 	// Hunters only, for runners while running: every reveal so far, oldest first.
-	Reveals []RevealResponse `json:"reveals,omitempty" validate:"omitempty,max=1000,dive"`
+	Reveals []RevealResponse `json:"reveals,omitempty"`
 	// Present for every runner, including active runners; absent for hunters.
-	Runner *RunnerStateResponse `json:"runner,omitempty" validate:"omitempty"`
+	Runner *RunnerStateResponse `json:"runner,omitempty"`
 }
 
 // RunnerStatus adds schema metadata without putting OpenAPI methods on the domain type.
@@ -155,12 +155,12 @@ func (RunnerStatus) Enum() []any {
 
 // RunnerStateResponse exposes one outcome; there is never a finish-position field.
 type RunnerStateResponse struct {
-	Status RunnerStatus `json:"status" validate:"required"`
+	Status RunnerStatus `json:"status"`
 	// Absent while active; server-recorded completion time for caught or finished runners.
-	EndedAt *time.Time `json:"endedAt,omitempty" validate:"omitempty"`
+	EndedAt *time.Time `json:"endedAt,omitempty"`
 	// Last report before declaring the catch, frozen until position retention expires.
 	// Only for caught runners with a retained report; never for active or finished runners.
-	CaughtPosition *PositionResponse `json:"caughtPosition,omitempty" validate:"omitempty"`
+	CaughtPosition *PositionResponse `json:"caughtPosition,omitempty"`
 }
 
 // RevealKind tells the variants of RevealResponse apart.
@@ -188,22 +188,22 @@ func (r RevealResponse) MarshalJSON() ([]byte, error) { return marshalVariant(r.
 
 // PositionRevealResponse shows where the runner was at the reveal time.
 type PositionRevealResponse struct {
-	Kind       RevealKind       `json:"kind" enum:"position" validate:"required,eq=position"`
-	RevealedAt time.Time        `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
+	Kind       RevealKind       `json:"kind" enum:"position"`
+	RevealedAt time.Time        `json:"revealedAt" example:"2026-11-08T12:05:00Z"`
 	Position   PositionResponse `json:"position"`
 }
 
 // ZoneRevealResponse shows only the cell the runner was in (zoneOnly joker).
 type ZoneRevealResponse struct {
-	Kind       RevealKind `json:"kind" enum:"zone" validate:"required,eq=zone"`
-	RevealedAt time.Time  `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
-	Cell       Cell       `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" example:"C4" validate:"required,min=2,max=3"`
+	Kind       RevealKind `json:"kind" enum:"zone"`
+	RevealedAt time.Time  `json:"revealedAt" example:"2026-11-08T12:05:00Z"`
+	Cell       Cell       `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" minLength:"2" maxLength:"3" example:"C4"`
 }
 
 // OutsideRevealResponse is a zoneOnly reveal of a runner outside the playground: no cell, no position.
 type OutsideRevealResponse struct {
-	Kind       RevealKind `json:"kind" enum:"outside" validate:"required,eq=outside"`
-	RevealedAt time.Time  `json:"revealedAt" example:"2026-11-08T12:05:00Z" validate:"required"`
+	Kind       RevealKind `json:"kind" enum:"outside"`
+	RevealedAt time.Time  `json:"revealedAt" example:"2026-11-08T12:05:00Z"`
 }
 
 // marshalVariant writes the variant a union holds; an empty union is a bug.
@@ -216,15 +216,15 @@ func marshalVariant(variant any) ([]byte, error) {
 
 type PositionResponse struct {
 	Coordinates
-	AccuracyMeters float64   `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"gte=0,lte=10000"`
-	RecordedAt     time.Time `json:"recordedAt" example:"2026-11-08T12:04:58Z" validate:"required"`
+	AccuracyMeters float64   `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8"`
+	RecordedAt     time.Time `json:"recordedAt" example:"2026-11-08T12:04:58Z"`
 }
 
 // Pointer fields distinguish missing values from zero.
 type UpdatePositionRequest struct {
-	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
-	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
-	AccuracyMeters *float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8" validate:"required,gte=0,lte=10000"`
+	Latitude       *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
+	Longitude      *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
+	AccuracyMeters *float64 `json:"accuracyMeters" minimum:"0" maximum:"10000" example:"8"`
 }
 
 // UseJokerRequest is the joker to use: exactly one of ShowRunnersRequest,
@@ -233,7 +233,7 @@ type UpdatePositionRequest struct {
 // joker needs.
 type UseJokerRequest struct {
 	// Which joker; it picks the variant.
-	Kind    JokerKind `json:"kind" validate:"required"`
+	Kind    JokerKind `json:"kind"`
 	variant any
 }
 
@@ -284,48 +284,48 @@ func decodeStrict[T any](data []byte) (T, error) {
 func (u UseJokerRequest) Variant() any { return u.variant }
 
 type ShowRunnersRequest struct {
-	Kind JokerKind `json:"kind" enum:"showRunners" validate:"required,eq=showRunners"`
+	Kind JokerKind `json:"kind" enum:"showRunners"`
 }
 
 type QueryZoneRequest struct {
-	Kind JokerKind `json:"kind" enum:"queryZone" validate:"required,eq=queryZone"`
+	Kind JokerKind `json:"kind" enum:"queryZone"`
 	// The cell to query: column A-L, then row 1-12, within the game's grid.
-	Cell Cell `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" example:"C4" validate:"required,min=2,max=3"`
+	Cell Cell `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" minLength:"2" maxLength:"3" example:"C4"`
 }
 
 type ZoneOnlyRequest struct {
-	Kind JokerKind `json:"kind" enum:"zoneOnly" validate:"required,eq=zoneOnly"`
+	Kind JokerKind `json:"kind" enum:"zoneOnly"`
 }
 
 // Pointer fields distinguish missing coordinates from a valid zero.
 type FakePositionRequest struct {
-	Kind JokerKind `json:"kind" enum:"fakePosition" validate:"required,eq=fakePosition"`
+	Kind JokerKind `json:"kind" enum:"fakePosition"`
 	// The point hunters see at the next reveal; it must lie inside the playground.
-	Latitude  *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
-	Longitude *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
+	Latitude  *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
+	Longitude *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
 }
 
 type ShowHuntersRequest struct {
-	Kind JokerKind `json:"kind" enum:"showHunters" validate:"required,eq=showHunters"`
+	Kind JokerKind `json:"kind" enum:"showHunters"`
 }
 
 type CompassRequest struct {
-	Kind JokerKind `json:"kind" enum:"compass" validate:"required,eq=compass"`
+	Kind JokerKind `json:"kind" enum:"compass"`
 }
 
 type AddSketchRequest struct {
-	Points []SketchPointRequest `json:"points" validate:"required,min=2,max=500,dive"`
+	Points []SketchPointRequest `json:"points" minItems:"2" maxItems:"500"`
 }
 
 type SketchPointRequest struct {
-	Latitude  *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52" validate:"required,gte=-80,lte=80"`
-	Longitude *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405" validate:"required,gte=-180,lte=180"`
+	Latitude  *float64 `json:"latitude" minimum:"-80" maximum:"80" example:"52.52"`
+	Longitude *float64 `json:"longitude" minimum:"-180" maximum:"180" example:"13.405"`
 }
 
 type SketchResponse struct {
-	SketchID  SketchID      `json:"sketchId" minLength:"32" maxLength:"32" example:"0123456789abcdef0123456789abcdef" validate:"required,len=32"`
-	CreatedAt time.Time     `json:"createdAt" example:"2026-11-08T12:07:00Z" validate:"required"`
-	Points    []Coordinates `json:"points" validate:"required,min=2,max=500,dive"`
+	SketchID  SketchID      `json:"sketchId" minLength:"32" maxLength:"32" example:"0123456789abcdef0123456789abcdef"`
+	CreatedAt time.Time     `json:"createdAt" example:"2026-11-08T12:07:00Z"`
+	Points    []Coordinates `json:"points" minItems:"2" maxItems:"500"`
 }
 
 // JokerResponse is one personal or team joker of the requesting player: exactly one of
@@ -347,59 +347,59 @@ type JokerStatus struct {
 	// True while the game runs and the team has not used it yet.
 	Available bool `json:"available" example:"true"`
 	// Set once the team used it.
-	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z" validate:"omitempty"`
+	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z"`
 }
 
 type ShowRunnersJokerResponse struct {
-	Kind JokerKind `json:"kind" enum:"showRunners" validate:"required,eq=showRunners"`
+	Kind JokerKind `json:"kind" enum:"showRunners"`
 	JokerStatus
 	// Once used: each runner's position at usedAt.
-	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,max=100,dive"`
+	Positions []JokerPositionResponse `json:"positions,omitempty" maxItems:"30"`
 }
 
 type QueryZoneJokerResponse struct {
-	Kind JokerKind `json:"kind" enum:"queryZone" validate:"required,eq=queryZone"`
+	Kind JokerKind `json:"kind" enum:"queryZone"`
 	JokerStatus
 	// Once used: the queried cell and whether any runner was inside it at usedAt.
-	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-L]([1-9]|1[0-2])$" example:"C4" validate:"omitempty,min=2,max=3"`
+	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-L]([1-9]|1[0-2])$" minLength:"2" maxLength:"3" example:"C4"`
 	Found *bool `json:"found,omitempty" example:"true"`
 }
 
 type CompassJokerResponse struct {
-	Kind JokerKind `json:"kind" enum:"compass" validate:"required,eq=compass"`
+	Kind JokerKind `json:"kind" enum:"compass"`
 	JokerStatus
 	// Once used: where the hunter who used it stood, and the direction from
 	// there to each runner at usedAt, in whole degrees clockwise from true
 	// north, sorted. No positions, distances, or runner IDs.
-	Origin   *Coordinates `json:"origin,omitempty" validate:"omitempty"`
-	Bearings []int        `json:"bearings,omitempty" validate:"omitempty,max=100"`
+	Origin   *Coordinates `json:"origin,omitempty"`
+	Bearings []int        `json:"bearings,omitempty" maxItems:"30"`
 }
 
 type ZoneOnlyJokerResponse struct {
-	Kind JokerKind `json:"kind" enum:"zoneOnly" validate:"required,eq=zoneOnly"`
+	Kind JokerKind `json:"kind" enum:"zoneOnly"`
 	JokerStatus
 	// Once used: the runner who used it.
-	UsedBy PlayerID `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
+	UsedBy PlayerID `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 }
 
 type FakePositionJokerResponse struct {
-	Kind JokerKind `json:"kind" enum:"fakePosition" validate:"required,eq=fakePosition"`
+	Kind JokerKind `json:"kind" enum:"fakePosition"`
 	JokerStatus
 	// Once used: the requesting runner and the point hunters see at their next reveal. Once per runner, not shared.
-	UsedBy PlayerID     `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
-	Point  *Coordinates `json:"point,omitempty" validate:"omitempty"`
+	UsedBy PlayerID     `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Point  *Coordinates `json:"point,omitempty"`
 }
 
 type ShowHuntersJokerResponse struct {
-	Kind JokerKind `json:"kind" enum:"showHunters" validate:"required,eq=showHunters"`
+	Kind JokerKind `json:"kind" enum:"showHunters"`
 	JokerStatus
 	// Once used: the runner who used it and each hunter's position at usedAt.
-	UsedBy    PlayerID                `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"omitempty,len=32"`
-	Positions []JokerPositionResponse `json:"positions,omitempty" validate:"omitempty,max=100,dive"`
+	UsedBy    PlayerID                `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Positions []JokerPositionResponse `json:"positions,omitempty" maxItems:"30"`
 }
 
 type JokerPositionResponse struct {
-	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
+	PlayerID PlayerID `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 	PositionResponse
 }
 
@@ -407,57 +407,57 @@ type JokerPositionResponse struct {
 type GameStateBase struct {
 	// Viewing permission, independent of original team. Caught/finished runners
 	// become spectators automatically; only while running may they see all locations.
-	Role Role `json:"role" validate:"required"`
+	Role Role `json:"role"`
 	// Development override for both Ready and finish position checks; absent during normal play.
-	StartPositionCheckDisabled bool       `json:"startPositionCheckDisabled,omitempty" example:"false" validate:"omitempty"`
-	SessionID                  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
-	Status                     GameStatus `json:"status" validate:"required"`
-	ServerTime                 time.Time  `json:"serverTime" example:"2026-11-08T12:00:00Z" validate:"required"`
+	StartPositionCheckDisabled bool       `json:"startPositionCheckDisabled,omitempty" example:"false"`
+	SessionID                  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff"`
+	Status                     GameStatus `json:"status"`
+	ServerTime                 time.Time  `json:"serverTime" example:"2026-11-08T12:00:00Z"`
 	// Scheduled start, present during the countdown, while running, and after the end.
-	StartsAt *time.Time `json:"startsAt,omitempty" example:"2026-11-08T12:00:10Z" validate:"omitempty"`
+	StartsAt *time.Time `json:"startsAt,omitempty" example:"2026-11-08T12:00:10Z"`
 	// Server-recorded end time, present only once every runner is caught or finished.
-	EndedAt *time.Time `json:"endedAt,omitempty" example:"2026-11-08T13:00:10Z" validate:"omitempty"`
+	EndedAt *time.Time `json:"endedAt,omitempty" example:"2026-11-08T13:00:10Z"`
 	// Next time hunters receive the runners' positions, present while running.
-	NextRevealAt *time.Time `json:"nextRevealAt,omitempty" example:"2026-11-08T12:05:10Z" validate:"omitempty"`
+	NextRevealAt *time.Time `json:"nextRevealAt,omitempty" example:"2026-11-08T12:05:10Z"`
 	// How often hunters receive the runners' positions.
-	RevealIntervalMinutes int              `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30" validate:"gte=1,lte=60"`
+	RevealIntervalMinutes int              `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
 	Playground            Playground       `json:"playground"`
-	PlayerID              PlayerID         `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677" validate:"required,len=32"`
+	PlayerID              PlayerID         `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 	JoinCodes             JoinCodes        `json:"joinCodes"`
-	Players               []PlayerResponse `json:"players" validate:"max=100,dive"`
+	Players               []PlayerResponse `json:"players" maxItems:"30"`
 }
 
 // GameStateRunnerResponse is the game as seen by a runner.
 type GameStateRunnerResponse struct {
 	GameStateBase
-	Team Team `json:"team" enum:"runner" validate:"required,eq=runner"`
+	Team Team `json:"team" enum:"runner"`
 	// The game's route between two landmarks; hunters have to find them.
 	Route GameRoute `json:"route"`
 	// How often the runners together may still regenerate the route.
-	RouteRegenerationsLeft int `json:"routeRegenerationsLeft" minimum:"0" maximum:"2" example:"2" validate:"gte=0,lte=2"`
+	RouteRegenerationsLeft int `json:"routeRegenerationsLeft" minimum:"0" maximum:"2" example:"2"`
 	// Shared runner team jokers and the requesting runner's personal fake position joker.
-	Jokers []JokerResponse `json:"jokers" validate:"max=2,dive"`
+	Jokers []JokerResponse `json:"jokers" maxItems:"3"`
 }
 
 // GameStateHunterResponse is the game as seen by a hunter.
 type GameStateHunterResponse struct {
 	GameStateBase
-	Team Team `json:"team" enum:"hunter" validate:"required,eq=hunter"`
+	Team Team `json:"team" enum:"hunter"`
 	// The hunter team's jokers; empty for hunters without a team.
-	Jokers []JokerResponse `json:"jokers" validate:"max=2,dive"`
+	Jokers []JokerResponse `json:"jokers" maxItems:"3"`
 	// The hunter team's sketches while running, oldest first.
-	Sketches []SketchResponse `json:"sketches" validate:"max=1000,dive"`
+	Sketches []SketchResponse `json:"sketches" maxItems:"200"`
 }
 
 // GameStateSpectatorResponse is a direct spectator's read-only view. Converted
 // runners keep the runner variant and original affiliation, with role spectator.
 type GameStateSpectatorResponse struct {
 	GameStateBase
-	Team Team `json:"team" enum:"spectator" validate:"required,eq=spectator"`
+	Team Team `json:"team" enum:"spectator"`
 	// The same start and destination landmarks shown to runners, read-only.
 	Route GameRoute `json:"route"`
 	// Always empty: spectators have no personal or team jokers.
-	Jokers []JokerResponse `json:"jokers" validate:"max=0,dive"`
+	Jokers []JokerResponse `json:"jokers" maxItems:"0"`
 }
 
 // GameStateResponse is the game as seen by the requesting player: exactly one
@@ -556,10 +556,10 @@ func (s *GameStateResponse) UnmarshalJSON(data []byte) error {
 }
 
 type JoinGameResponse struct {
-	PlayerToken string            `json:"playerToken" minLength:"64" maxLength:"64" example:"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff" validate:"required,len=64"`
+	PlayerToken string            `json:"playerToken" minLength:"64" maxLength:"64" example:"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"`
 	State       GameStateResponse `json:"state"`
 }
 
 type APIError struct {
-	Error string `json:"error" example:"cell size must be 100 to 5000 meters in steps of 100 meters" validate:"required"`
+	Error string `json:"error" example:"cell size must be 100 to 5000 meters in steps of 100 meters"`
 }

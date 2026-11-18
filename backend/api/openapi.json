@@ -1288,7 +1288,7 @@
             "items": {
               "type": "integer"
             },
-            "maxItems": 100,
+            "maxItems": 30,
             "type": "array"
           },
           "kind": {
@@ -1363,6 +1363,7 @@
             ],
             "maximum": 5000,
             "minimum": 100,
+            "multipleOf": 100,
             "type": "integer"
           },
           "gridSize": {
@@ -1577,7 +1578,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerResultPlayerResponse"
             },
-            "maxItems": 100,
+            "maxItems": 30,
             "type": "array"
           },
           "sessionId": {
@@ -1667,7 +1668,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerJokerResponse"
             },
-            "maxItems": 2,
+            "maxItems": 3,
             "type": "array"
           },
           "nextRevealAt": {
@@ -1689,7 +1690,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerPlayerResponse"
             },
-            "maxItems": 100,
+            "maxItems": 30,
             "type": "array"
           },
           "playground": {
@@ -1725,7 +1726,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerSketchResponse"
             },
-            "maxItems": 1000,
+            "maxItems": 200,
             "type": "array"
           },
           "startPositionCheckDisabled": {
@@ -1805,7 +1806,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerJokerResponse"
             },
-            "maxItems": 2,
+            "maxItems": 3,
             "type": "array"
           },
           "nextRevealAt": {
@@ -1827,7 +1828,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerPlayerResponse"
             },
-            "maxItems": 100,
+            "maxItems": 30,
             "type": "array"
           },
           "playground": {
@@ -1948,7 +1949,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerPlayerResponse"
             },
-            "maxItems": 100,
+            "maxItems": 30,
             "type": "array"
           },
           "playground": {
@@ -2280,7 +2281,6 @@
             "examples": [
               "Brandenburger Tor"
             ],
-            "maxLength": 255,
             "type": "string"
           }
         },
@@ -2350,7 +2350,6 @@
             "items": {
               "$ref": "#/components/schemas/ControllerRevealResponse"
             },
-            "maxItems": 1000,
             "type": "array"
           },
           "runner": {
@@ -2379,6 +2378,7 @@
             ],
             "maximum": 5000,
             "minimum": 100,
+            "multipleOf": 100,
             "type": "integer"
           },
           "center": {
@@ -2806,7 +2806,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerJokerPositionResponse"
             },
-            "maxItems": 100,
+            "maxItems": 30,
             "type": "array"
           },
           "usedAt": {
@@ -2863,7 +2863,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerJokerPositionResponse"
             },
-            "maxItems": 100,
+            "maxItems": 30,
             "type": "array"
           },
           "usedAt": {
@@ -3025,7 +3025,6 @@
             "items": {
               "$ref": "#/components/schemas/ControllerTimelineEventResponse"
             },
-            "maxItems": 1000,
             "type": "array"
           },
           "serverTime": {
