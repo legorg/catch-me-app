@@ -32,7 +32,7 @@ func (Team) Enum() []any { return []any{game.Runners, game.Hunters} }
 type GameStatus game.Status
 
 func (GameStatus) Enum() []any {
-	return []any{game.StatusLobby, game.StatusCountdown, game.StatusRunning}
+	return []any{game.StatusLobby, game.StatusCountdown, game.StatusRunning, game.StatusEnded}
 }
 
 type JokerKind game.JokerKind
@@ -404,8 +404,10 @@ type GameStateBase struct {
 	SessionID                  SessionID  `json:"sessionId" minLength:"32" maxLength:"32" example:"00112233445566778899aabbccddeeff" validate:"required,len=32"`
 	Status                     GameStatus `json:"status" validate:"required"`
 	ServerTime                 time.Time  `json:"serverTime" example:"2026-11-08T12:00:00Z" validate:"required"`
-	// Scheduled start, present during the countdown and once running.
+	// Scheduled start, present during the countdown, while running, and after the end.
 	StartsAt *time.Time `json:"startsAt,omitempty" example:"2026-11-08T12:00:10Z" validate:"omitempty"`
+	// Server-recorded end time, present only once every runner is caught or finished.
+	EndedAt *time.Time `json:"endedAt,omitempty" example:"2026-11-08T13:00:10Z" validate:"omitempty"`
 	// Next time hunters receive the runners' positions, present while running.
 	NextRevealAt *time.Time `json:"nextRevealAt,omitempty" example:"2026-11-08T12:05:10Z" validate:"omitempty"`
 	// How often hunters receive the runners' positions.

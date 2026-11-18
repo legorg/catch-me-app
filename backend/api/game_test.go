@@ -195,7 +195,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		values []any
 	}{
 		{"ControllerTeam", []any{"runner", "hunter"}},
-		{"ControllerGameStatus", []any{"lobby", "countdown", "running"}},
+		{"ControllerGameStatus", []any{"lobby", "countdown", "running", "ended"}},
 		{"ControllerJokerKind", []any{"showRunners", "queryZone", "zoneOnly", "fakePosition", "showHunters", "compass"}},
 	} {
 		if got := spec.Components.Schemas[tc.name].Enum; !slices.Equal(got, tc.values) {
@@ -260,6 +260,9 @@ func TestOpenAPIRoutes(t *testing.T) {
 		variant := spec.Components.Schemas[name]
 		if got := variant.Properties["team"].Enum; len(got) != 1 || got[0] != team || !slices.Contains(variant.Required, "team") {
 			t.Fatalf("%s must have team %q only: %+v", name, team, variant.Properties["team"])
+		}
+		if _, ok := variant.Properties["endedAt"]; !ok || slices.Contains(variant.Required, "endedAt") {
+			t.Fatalf("%s must document the optional game end time", name)
 		}
 	}
 }

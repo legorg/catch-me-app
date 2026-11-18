@@ -348,6 +348,9 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 	if !g.StartsAt.IsZero() {
 		response.StartsAt = &g.StartsAt
 	}
+	if !g.EndedAt.IsZero() {
+		response.EndedAt = &g.EndedAt
+	}
 	if next := g.NextReveal(view.Now); !next.IsZero() {
 		response.NextRevealAt = &next
 	}

@@ -78,6 +78,7 @@ export type ControllerGameRoute = {
 };
 
 export type ControllerGameStateHunterResponse = {
+    endedAt?: string;
     joinCodes: ControllerJoinCodes;
     jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
@@ -101,6 +102,7 @@ export type ControllerGameStateResponse = ({
 } & ControllerGameStateHunterResponse);
 
 export type ControllerGameStateRunnerResponse = {
+    endedAt?: string;
     joinCodes: ControllerJoinCodes;
     jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
@@ -118,7 +120,7 @@ export type ControllerGameStateRunnerResponse = {
     team: 'runner';
 };
 
-export type ControllerGameStatus = 'lobby' | 'countdown' | 'running';
+export type ControllerGameStatus = 'lobby' | 'countdown' | 'running' | 'ended';
 
 export type ControllerHealthResponse = {
     service: 'catch-me-backend';
@@ -435,7 +437,7 @@ export type MarkCaughtError = MarkCaughtErrors[keyof MarkCaughtErrors];
 
 export type MarkCaughtResponses = {
     /**
-     * runner.status is caught with runner.endedAt and optional runner.caughtPosition; retries preserve the original time and position. Everyone sees the catch immediately; further positions and joker uses are rejected
+     * runner.status is caught with runner.endedAt and optional runner.caughtPosition; retries preserve the original time and position, including after game end. Everyone sees the catch immediately; further positions and joker uses are rejected. The last active runner ends the game atomically, returning status ended and endedAt
      */
     200: ControllerGameStateResponse;
 };
@@ -472,7 +474,7 @@ export type FinishError = FinishErrors[keyof FinishErrors];
 
 export type FinishResponses = {
     /**
-     * runner.status is finished with runner.endedAt; retries preserve the original server time. Requires a stored report within 50 m and at most 30 seconds old, unless the development start/finish override is enabled. No finish coordinates are exposed; further position reports and jokers are rejected
+     * runner.status is finished with runner.endedAt; retries preserve the original server time, including after game end. Requires a stored report within 50 m and at most 30 seconds old, unless the development start/finish override is enabled. No finish coordinates are exposed; further position reports and jokers are rejected. The last active runner ends the game atomically, returning status ended and endedAt
      */
     200: ControllerGameStateResponse;
 };
@@ -505,7 +507,7 @@ export type GetGameStateError = GetGameStateErrors[keyof GetGameStateErrors];
 
 export type GetGameStateResponses = {
     /**
-     * Current game state; each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
+     * Current game state, including status ended and endedAt once every runner is caught or finished; each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
      */
     200: ControllerGameStateResponse;
 };
@@ -632,7 +634,7 @@ export type UpdatePositionErrors = {
      */
     405: ControllerApiError;
     /**
-     * Caught or finished runners cannot report positions
+     * Game ended, or a caught or finished runner cannot report positions
      */
     409: ControllerApiError;
     /**

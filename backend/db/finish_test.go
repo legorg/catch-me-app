@@ -16,6 +16,14 @@ func TestFinishPersistenceAndHistoricalJokers(t *testing.T) {
 	store := open(t, path)
 	saved := create(t, store)
 	runner, token := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	// Keep another runner active so hunter jokers remain usable after Ada finishes.
+	if _, err := store.UpdateLobbyByJoinCode(ctx, saved.JoinCodes.Runner, now, func(l *game.Lobby) error {
+		name, _ := game.ParsePlayerName("Cy")
+		_, err := l.Join(saved.JoinCodes.Runner, name, game.NewPlayerToken(), now)
+		return err // No report: Cy must not add a position to the joker snapshots.
+	}); err != nil {
+		t.Fatal(err)
+	}
 	before, beforeToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
 	after, afterToken := join(t, store, saved.JoinCodes.Hunter, "Dan", now.Add(2*time.Second))
 	wolves, _ := game.ParseHunterTeamName("Wolves")

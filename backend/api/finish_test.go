@@ -46,7 +46,7 @@ func TestFinishHTTPFlow(t *testing.T) {
 			}
 			state := decode[controller.GameStateResponse](t, send(t, handler, "POST", "/api/me/finish", runner.PlayerToken, ""), 200)
 			finished := ownEntry(state)
-			if finished.Runner == nil || finished.Runner.Status != controller.RunnerStatus(game.RunnerFinished) || finished.Runner.EndedAt == nil || state.Base().Status != "running" || state.Base().StartPositionCheckDisabled != skip {
+			if finished.Runner == nil || finished.Runner.Status != controller.RunnerStatus(game.RunnerFinished) || finished.Runner.EndedAt == nil || state.Base().Status != "ended" || state.Base().EndedAt == nil || !state.Base().EndedAt.Equal(*finished.Runner.EndedAt) || state.Base().StartPositionCheckDisabled != skip {
 				t.Fatalf("unexpected finish state: %+v", state)
 			}
 			for _, token := range []string{runner.PlayerToken, hunter.PlayerToken} {

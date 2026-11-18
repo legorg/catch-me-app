@@ -27,6 +27,9 @@ func TestFinishUsesServerTimeAndSharedOverride(t *testing.T) {
 		if err != nil || view.Me.ID != runner.ID || view.Me.Runner.Status() != game.RunnerFinished || view.Me.Runner.EndedAt() != at || view.Now != at || view.StartPositionCheckDisabled != skip {
 			t.Fatalf("finish must use authenticated player/server settings: %+v %v", view, err)
 		}
+		if view.Lobby.Game.Status(at) != game.StatusEnded || !view.Lobby.Game.EndedAt.Equal(at) {
+			t.Fatal("the last finish must end the game using server time")
+		}
 		if _, err := s.State(ctx, token); err != nil {
 			t.Fatal(err)
 		}

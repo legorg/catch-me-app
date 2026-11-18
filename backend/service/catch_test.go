@@ -22,6 +22,9 @@ func TestMarkCaughtUsesAuthenticatedPlayerAndServerTime(t *testing.T) {
 	if err != nil || view.Me.ID != runner.ID || view.Me.Runner.Status() != game.RunnerCaught || view.Me.Runner.EndedAt() != at || view.Now != at {
 		t.Fatalf("catch must use the authenticated player and server time: %+v %v", view, err)
 	}
+	if view.Lobby.Game.Status(at) != game.StatusEnded || !view.Lobby.Game.EndedAt.Equal(at) {
+		t.Fatal("the last catch must end the game using server time")
+	}
 	if _, err := s.State(ctx, token); err != nil {
 		t.Fatalf("caught runner must remain able to read game state: %v", err)
 	}

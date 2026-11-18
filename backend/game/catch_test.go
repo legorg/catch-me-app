@@ -43,8 +43,8 @@ func TestMarkCaughtRules(t *testing.T) {
 	if err := l.MarkCaught(l.Players[1].ID, at); err != nil {
 		t.Fatal(err)
 	}
-	if l.Game.Status(at) != StatusRunning {
-		t.Fatal("even catching every runner must not end the game yet")
+	if l.Game.Status(at) != StatusEnded || !l.Game.EndedAt.Equal(at) {
+		t.Fatal("catching every runner must end the game at the final catch")
 	}
 }
 

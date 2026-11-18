@@ -17,12 +17,15 @@ const (
 	StatusLobby     Status = "lobby"
 	StatusCountdown Status = "countdown"
 	StatusRunning   Status = "running"
+	StatusEnded     Status = "ended"
 )
 
-// Status is derived from the scheduled start, so time-based transitions need
-// no background job: a countdown that has elapsed simply reads as running.
+// Status is derived from the scheduled start and persisted end time. Countdown
+// expiry needs no background job; a recorded end always remains terminal.
 func (g Game) Status(now time.Time) Status {
 	switch {
+	case !g.EndedAt.IsZero():
+		return StatusEnded
 	case g.StartsAt.IsZero():
 		return StatusLobby
 	case now.Before(g.StartsAt):
@@ -186,6 +189,9 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 	if err != nil {
 		return err
 	}
+	if l.Game.Status(now) == StatusEnded {
+		return &RuleError{Message: "game has ended"}
+	}
 	if !player.active() {
 		return &RuleError{Message: "caught or finished runners cannot report positions"}
 	}
@@ -227,7 +233,7 @@ func (l *Lobby) Leave(id PlayerID, now time.Time) error {
 }
 
 func (l Lobby) requireNotStarted(now time.Time) error {
-	if l.Game.Status(now) == StatusRunning {
+	if status := l.Game.Status(now); status == StatusRunning || status == StatusEnded {
 		return &RuleError{Message: "game has already started"}
 	}
 	return nil

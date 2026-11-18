@@ -13,8 +13,15 @@ func (l *Lobby) MarkCaught(id PlayerID, now time.Time) error {
 	if player.Team != Runners {
 		return &RuleError{Message: "only runners can mark themselves caught"}
 	}
+	if l.Game.Status(now) == StatusEnded && player.Runner.Status() == RunnerCaught {
+		return nil // A lost response to the final catch must remain retryable.
+	}
 	if l.Game.Status(now) != StatusRunning {
 		return &RuleError{Message: "you can only mark yourself caught while the game is running"}
 	}
-	return player.Runner.end(RunnerCaught, now)
+	if err := player.Runner.end(RunnerCaught, now); err != nil {
+		return err
+	}
+	l.endIfAllRunnersDone(now)
+	return nil
 }

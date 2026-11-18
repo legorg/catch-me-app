@@ -9,6 +9,9 @@ func (l *Lobby) Finish(id PlayerID, now time.Time, skipPositionCheck bool) error
 	if err != nil {
 		return err
 	}
+	if p.Team == Runners && l.Game.Status(now) == StatusEnded && p.Runner.Status() == RunnerFinished {
+		return nil // Do not recheck location after an already accepted finish.
+	}
 	if p.Team != Runners || l.Game.Status(now) != StatusRunning {
 		return &RuleError{Message: "only runners in a running game can finish"}
 	}
@@ -20,5 +23,9 @@ func (l *Lobby) Finish(id PlayerID, now time.Time, skipPositionCheck bool) error
 			return err
 		}
 	}
-	return p.Runner.end(RunnerFinished, now)
+	if err := p.Runner.end(RunnerFinished, now); err != nil {
+		return err
+	}
+	l.endIfAllRunnersDone(now)
+	return nil
 }

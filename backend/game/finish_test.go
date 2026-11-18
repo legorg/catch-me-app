@@ -108,8 +108,8 @@ func TestFinishRulesAndRetirement(t *testing.T) {
 			t.Fatal("available joker after finish")
 		}
 	}
-	if l.Game.Status(running) != StatusRunning {
-		t.Fatal("finish must not end the game yet")
+	if l.Game.Status(running) != StatusEnded || !l.Game.EndedAt.Equal(running) {
+		t.Fatal("finishing the last active runner must end the game")
 	}
 }
 

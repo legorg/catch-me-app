@@ -29,6 +29,7 @@ type gameRow struct {
 	RunnerCode            string `gorm:"uniqueIndex;not null"`
 	HunterCode            string `gorm:"uniqueIndex;not null"`
 	StartsAt              time.Time
+	EndedAt               *time.Time
 	StartTitle            string
 	StartLat, StartLon    float64
 	StopTitle             string
@@ -160,6 +161,9 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
 			RouteRegenerations: g.RouteRegenerations,
 		}
+		if !g.EndedAt.IsZero() {
+			row.EndedAt = &g.EndedAt
+		}
 		if err := tx.Create(&row).Error; err != nil {
 			return fmt.Errorf("insert game: %w", err)
 		}
@@ -226,6 +230,11 @@ func (s *Store) DeletePositionsBefore(ctx context.Context, cutoff time.Time) err
 // saveLobby writes changed games and players. A changed position is a new row;
 // positions are never updated.
 func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
+	if !before.Game.EndedAt.Equal(after.Game.EndedAt) {
+		if err := tx.Model(&gameRow{ID: after.Game.SessionID.String()}).Update("ended_at", after.Game.EndedAt).Error; err != nil {
+			return fmt.Errorf("update end time: %w", err)
+		}
+	}
 	if !before.Game.StartsAt.Equal(after.Game.StartsAt) {
 		if err := tx.Model(&gameRow{ID: after.Game.SessionID.String()}).Update("starts_at", after.Game.StartsAt).Error; err != nil {
 			return fmt.Errorf("update start time: %w", err)
@@ -632,6 +641,9 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 		SessionID: id, CreatedAt: row.CreatedAt.UTC(), Playground: playground, RevealInterval: revealInterval,
 		JoinCodes: game.JoinCodes{Runner: runner, Hunter: hunter}, StartsAt: row.StartsAt.UTC(),
 	}}
+	if row.EndedAt != nil {
+		lobby.Game.EndedAt = row.EndedAt.UTC()
+	}
 	start, err1 := game.ParseCoordinates(row.StartLat, row.StartLon)
 	stop, err2 := game.ParseCoordinates(row.StopLat, row.StopLon)
 	regenerations, err3 := game.ParseRouteRegenerations(row.RouteRegenerations)
