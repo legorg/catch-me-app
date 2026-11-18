@@ -140,8 +140,8 @@ type PlayerResponse struct {
 	// running. Spectators receive all real latest reports only while running,
 	// including finished runners' frozen last reports; caught reports use caughtPosition.
 	Position *PositionResponse `json:"position,omitempty"`
-	// Hunters only, for runners while running: every reveal so far, oldest first.
-	Reveals []RevealResponse `json:"reveals,omitempty"`
+	// Hunters only, for runners while running: the latest 256 reveals, oldest first.
+	Reveals []RevealResponse `json:"reveals,omitempty" maxItems:"256"`
 	// Present for every runner, including active runners; absent for hunters.
 	Runner *RunnerStateResponse `json:"runner,omitempty"`
 }
