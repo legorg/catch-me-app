@@ -20,7 +20,7 @@ import { useLobby } from '@/use-lobby';
 export default function LobbyScreen() {
   const t = useT();
   const lobby = useLobby();
-  const { token, snapshot, state, error, countdown, busy, me, location, sharing } = lobby;
+  const { token, snapshot, state, error, countdown, busy, me, location, sharing, spectator } = lobby;
 
   if (!token || !state || !snapshot || state.status === 'ended') {
     // A ScrollView must exist from the first render, or the large header never links to it.
@@ -36,12 +36,12 @@ export default function LobbyScreen() {
   const skipStartPositionCheck = state.startPositionCheckDisabled === true;
   const teams = playersByTeam(state.players);
   const isRunner = isGameStateRunnerResponse(state);
-  const route = isRunner ? state.route : undefined;
+  const route = isRunner && !spectator ? state.route : undefined;
   // The server only sends the route to runners.
   const metersToStart = route && me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
   const atStart = metersToStart !== null && metersToStart <= START_RADIUS_METERS;
   const highlights = route ? routeHighlights(state.playground, route) : [];
-  const markers = [
+  const markers = spectator ? [] : [
     ...(route ? routeMarkers(route) : []),
     ...playerMarkers(state).filter((marker) => marker.id !== state.playerId),
   ];
@@ -59,15 +59,15 @@ export default function LobbyScreen() {
           <Text style={styles.text}>{t('lobby.testModeText')}</Text>
         </View>}
         <Text accessibilityLiveRegion="polite" style={styles.text}>
-          {lobbyInfo(countdown !== null, skipStartPositionCheck)}
+          {spectator ? t('spectator.lobbyInfo') : lobbyInfo(countdown !== null, skipStartPositionCheck)}
         </Text>
         <View style={styles.mapContainer}>
-          <FullscreenMap playground={state.playground} editable={false} onSelect={noop} highlights={highlights} markers={markers} />
+          <FullscreenMap playground={state.playground} editable={false} onSelect={noop} highlights={highlights} markers={markers} locationEnabled={!spectator} />
         </View>
         {state.team === 'hunter' && <Text style={styles.hint}>
           {t('lobby.legendHunter')}
         </Text>}
-        {state.team !== 'spectator' && <LocationPermissionCards
+        {!spectator && state.team !== 'spectator' && <LocationPermissionCards
           location={location}
           team={state.team}
           skipStartPositionCheck={skipStartPositionCheck}
@@ -81,14 +81,15 @@ export default function LobbyScreen() {
         <View style={styles.card}>
           <Text style={styles.text}>
             {translateParts('lobby.youAre', {
-              team: <Text key="team" style={styles.heading}>{t(state.team === 'runner' ? 'team.runner' : 'team.hunter')}</Text>,
+              team: <Text key="team" style={styles.heading}>{t(spectator ? 'spectator.title' : state.team === 'runner' ? 'team.runner' : 'team.hunter')}</Text>,
             })}
             {me ? ` · ${me.name}` : ''}{me?.hunterTeam ? ` · ${t('lobby.hunterTeam', { name: me.hunterTeam })}` : ''}
           </Text>
         </View>
+        {spectator && <Text style={styles.hint}>{t('spectator.fairPlay')}</Text>}
         <JoinCodes codes={state.joinCodes} />
-        {__DEV__ && <DebugAddPlayer codes={state.joinCodes} />}
-        {isRunner && <LobbyRouteCard
+        {__DEV__ && !spectator && <DebugAddPlayer codes={state.joinCodes} />}
+        {isRunner && !spectator && <LobbyRouteCard
           state={state}
           skipStartPositionCheck={skipStartPositionCheck}
           atStart={atStart}
@@ -97,7 +98,7 @@ export default function LobbyScreen() {
           changingRoute={lobby.changingRoute}
           onRegenerate={lobby.changeRoute}
         />}
-        {state.team === 'hunter' && me && <HunterTeamCard
+        {!spectator && state.team === 'hunter' && me && <HunterTeamCard
           me={me}
           players={state.players}
           needsHunterTeam={lobby.needsHunterTeam}
@@ -109,8 +110,9 @@ export default function LobbyScreen() {
         />}
         <LobbyTeamCard team="runner" players={teams.runner} playerId={state.playerId} />
         <LobbyTeamCard team="hunter" players={teams.hunter} playerId={state.playerId} />
+        <LobbyTeamCard team="spectator" players={teams.spectator} playerId={state.playerId} />
         {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
-        {me && <LobbyActions ready={me.ready} busy={busy} readyDisabled={readyDisabled} onToggleReady={lobby.toggleReady} onLeave={lobby.leave} />}
+        {me && <LobbyActions ready={me.ready} busy={busy} readyDisabled={readyDisabled} spectator={spectator} onToggleReady={lobby.toggleReady} onLeave={lobby.leave} />}
       </KeyboardScrollView>
     </>
   );

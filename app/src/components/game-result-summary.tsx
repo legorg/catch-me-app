@@ -13,7 +13,7 @@ function PlayerResult({ player }: { player: ResultPlayerResponse }) {
       <Text style={[styles.text, styles.boldText]}>{player.name}</Text>
       {player.runner
         ? <Text style={styles.text}>{t(player.runner.status === 'caught' ? 'result.caughtAt' : 'result.finishedAt', { time: formatResultTime(player.runner.endedAt) })}</Text>
-        : <Text style={styles.text}>{player.hunterTeam ? t('result.hunterTeam', { name: player.hunterTeam }) : t('result.noHunterTeam')}</Text>}
+        : <Text style={styles.text}>{player.team === 'spectator' ? t('result.spectator') : player.hunterTeam ? t('result.hunterTeam', { name: player.hunterTeam }) : t('result.noHunterTeam')}</Text>}
     </View>
   );
 }
@@ -36,6 +36,10 @@ export default function GameResultSummary({ result }: { result: GameResultRespon
         <Text accessibilityRole="header" style={styles.heading}>{t('team.hunters')}</Text>
         {result.players.filter((p) => p.team === 'hunter').map((p) => <PlayerResult key={p.playerId} player={p} />)}
       </View>
+      {result.players.some((player) => player.team === 'spectator') && <View style={styles.card}>
+        <Text accessibilityRole="header" style={styles.heading}>{t('team.spectators')}</Text>
+        {result.players.filter((p) => p.team === 'spectator').map((p) => <PlayerResult key={p.playerId} player={p} />)}
+      </View>}
       <Text style={styles.hint}>{t('result.summaryOnly')}</Text>
     </>
   );

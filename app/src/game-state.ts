@@ -20,6 +20,12 @@ export function canShareGameLocation(state: GameStateResponse | undefined): bool
   return state?.status === 'running' && !isSpectator(state) && isActivePlayer(ownPlayer(state));
 }
 
+/** Spectators neither track nor ready up, even before the game starts. */
+export function canShareLobbyLocation(state: GameStateResponse | undefined): boolean {
+  return !!state && (state.status === 'lobby' || state.status === 'countdown')
+    && !isSpectator(state) && isActivePlayer(ownPlayer(state));
+}
+
 /** The terminal state takes precedence over an already elapsed countdown. */
 export function gameDestination(state: GameStateResponse, countdown: number | null = null) {
   if (state.status === 'ended') return gameResultRoute(state.sessionId);

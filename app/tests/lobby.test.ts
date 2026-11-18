@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { GameStateHunterResponse, GameStateRunnerResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints } from '../src/lobby';
-import { canFinish, canShareGameLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
+import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints } from '../src/lobby';
+import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
+import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
 import { cellBounds, distanceMeters, offsetPoint, previewPlayground } from '../src/playground';
 
@@ -34,6 +35,73 @@ const state: GameStateRunnerResponse = {
 
 const { route: _route, routeRegenerationsLeft: _routeRegenerationsLeft, ...hunterBase } = state;
 const hunterState: GameStateHunterResponse = { ...hunterBase, team: 'hunter', jokers: [], sketches: [] };
+
+const spectatorState: GameStateSpectatorResponse = {
+  ...hunterBase, role: 'spectator', team: 'spectator', playerId: 'd'.repeat(32),
+  players: [...state.players, { playerId: 'd'.repeat(32), name: 'Viewer', team: 'spectator', ready: false }],
+  jokers: [],
+};
+
+test('only playing lobby participants may track, request location access or ready up', () => {
+  assert.equal(canShareLobbyLocation(undefined), false);
+  for (const phase of ['lobby', 'countdown'] as const) {
+    assert.equal(canShareLobbyLocation({ ...state, status: phase }), true);
+    assert.equal(canShareLobbyLocation({ ...hunterState, playerId: state.players[1].playerId, status: phase }), true);
+    assert.equal(canShareLobbyLocation({ ...spectatorState, status: phase }), false);
+    assert.equal(canShareLobbyLocation({ ...state, role: 'spectator', status: phase }), false); // Even with a stale active player entry.
+    assert.equal(canShareLobbyLocation({ ...state, players: [], status: phase }), false);
+  }
+  for (const status of ['running', 'ended'] as const) {
+    assert.equal(canShareLobbyLocation({ ...state, status }), false);
+    assert.equal(canShareLobbyLocation({ ...spectatorState, status }), false);
+  }
+});
+
+test('direct spectators follow lobby, start and result navigation without a playing role', () => {
+  assert.equal(gameDestination({ ...spectatorState, status: 'lobby' }), '/lobby');
+  assert.equal(gameDestination(spectatorState, 5), '/lobby');
+  assert.equal(gameDestination(spectatorState, 0), '/game');
+  assert.equal(gameDestination({ ...spectatorState, status: 'running' }), '/game');
+  assert.deepEqual(gameDestination({ ...spectatorState, status: 'ended' }, 0), gameResultRoute(state.sessionId));
+  for (const status of ['lobby', 'countdown', 'running', 'ended'] as const) {
+    const snapshot = { ...spectatorState, status };
+    assert.equal(canShareGameLocation(snapshot), false);
+    assert.equal(canFinish(snapshot, 0, 0), false);
+    assert.deepEqual(gameMarkers(snapshot), []); // No invented viewer marker, even at game start.
+  }
+});
+
+test('spectator rosters keep original runner outcomes separate from direct spectators', () => {
+  const players = spectatorState.players.map((player) => player.playerId === state.playerId
+    ? { ...player, runner: { status: 'finished' as const, endedAt: state.serverTime } } : player);
+  const teams = playersByTeam(players);
+  assert.deepEqual(teams.spectator.map((player) => player.name), ['Viewer']);
+  assert.deepEqual(teams.runner.map((player) => player.name), ['Ada', 'Cy']);
+  assert.deepEqual(teams.hunter.map((player) => player.name), ['Bob']);
+  assert.equal(teams.runner.length + teams.hunter.length + teams.spectator.length, players.length);
+});
+
+test('each localized invitation shares only the selected six-digit code and its affiliation', () => {
+  const original = getLanguage();
+  try {
+    for (const language of ['en', 'de'] as const) {
+      setLanguage(language);
+      for (const team of ['runner', 'hunter', 'spectator'] as const) {
+        const message = joinInvitationMessage(state.joinCodes, team);
+        assert.ok(message.includes(state.joinCodes[team]));
+        assert.ok(message.includes('Catch me!'));
+        assert.ok(!message.includes(state.sessionId));
+        assert.equal(message.match(/\d{6}/g)?.length, 1);
+        for (const other of ['runner', 'hunter', 'spectator'] as const) {
+          if (other !== team) assert.ok(!message.includes(state.joinCodes[other]));
+        }
+        if (team === 'spectator') assert.match(message, language === 'de' ? /Zuschauer/ : /Spectators/);
+      }
+    }
+  } finally {
+    setLanguage(original);
+  }
+});
 
 test('the route can only change in the lobby, with changes left and no runner ready', () => {
   const unready = state.players.map((p) => ({ ...p, ready: false }));

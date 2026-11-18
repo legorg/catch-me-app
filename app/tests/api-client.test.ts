@@ -34,6 +34,28 @@ const state = {
 const { route: _route, ...withoutRoute } = state;
 const hunterState = { ...withoutRoute, team: 'hunter', jokers: [], sketches: [] };
 
+test('the spectator code joins by the same name-and-code flow and preserves the server spectator role', async (t) => {
+  const spectator = {
+    ...withoutRoute, role: 'spectator', team: 'spectator',
+    players: [{ playerId: state.playerId, name: 'Viewer', team: 'spectator', ready: false }],
+  };
+  const requests: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    requests.push(`${request.method} ${new URL(request.url).pathname}`);
+    if (request.method === 'POST') {
+      assert.deepEqual(await request.json(), { code: created.joinCodes.spectator, name: 'Viewer' });
+      return Response.json({ playerToken: token, state: spectator });
+    }
+    assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
+    return Response.json(spectator);
+  });
+  const joined = await joinGame(created.joinCodes.spectator, ' Viewer ');
+  assert.deepEqual(joined.state, spectator);
+  assert.equal(joined.playerToken, token);
+  assert.deepEqual(await getGameState(token), spectator);
+  assert.deepEqual(requests, ['POST /api/players', 'GET /api/me/game']);
+});
+
 const gameResult = {
   sessionId: created.game.sessionId,
   startsAt: '2026-11-18T12:00:00Z', endedAt: '2026-11-18T13:00:00Z', durationSeconds: 3600,

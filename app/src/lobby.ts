@@ -1,4 +1,4 @@
-import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
+import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type JoinCodes, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
 import { isActivePlayer, isSpectator } from './game-state';
 import { cellAt, cellBounds, offsetPoint, START_RADIUS_METERS } from './playground';
@@ -43,7 +43,15 @@ export function playersByTeam(players: PlayerResponse[]) {
   return {
     runner: players.filter((p) => p.team === 'runner'),
     hunter: players.filter((p) => p.team === 'hunter'),
+    spectator: players.filter((p) => p.team === 'spectator'),
   };
+}
+
+export const TEAM_LABELS = { runner: 'team.runners', hunter: 'team.hunters', spectator: 'team.spectators' } as const;
+
+/** Share just the selected invitation, never other codes, game IDs or credentials. */
+export function joinInvitationMessage(codes: JoinCodes, team: keyof JoinCodes): string {
+  return translate('joinCodes.invitation', { team: translate(TEAM_LABELS[team]), code: codes[team] });
 }
 
 /** Existing hunter team names, in the order their first member joined. */

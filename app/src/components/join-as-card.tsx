@@ -6,7 +6,7 @@ import NameInput from '@/components/name-input';
 import { useT } from '@/i18n';
 import { styles } from '@/styles';
 
-/** Card for the game creator to join their own game as runner or hunter. */
+/** The creator has the same playing/watching choices as any invited participant. */
 export default function JoinAsCard({ codes, name, onNameChange, busy, onJoin }: {
   codes: JoinCodes;
   name: string;
@@ -23,6 +23,7 @@ export default function JoinAsCard({ codes, name, onNameChange, busy, onJoin }: 
       <View style={styles.row}>
         <Button label={t('create.joinAsRunner')} onPress={() => onJoin(codes.runner)} disabled={disabled} />
         <Button label={t('create.joinAsHunter')} onPress={() => onJoin(codes.hunter)} disabled={disabled} />
+        <Button label={t('create.joinAsSpectator')} onPress={() => onJoin(codes.spectator)} disabled={disabled} />
       </View>
     </View>
   );
