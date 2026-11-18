@@ -91,3 +91,24 @@ func TestSketchesAreVisibleToTheirTeamOnly(t *testing.T) {
 		t.Fatalf("clearing must not touch other hunter teams: %+v", got)
 	}
 }
+
+func TestSketchTeamComparisonIgnoresCase(t *testing.T) {
+	l, _, bob, dan, eve, running := jokerLobby(t)
+	if err := l.AddSketch(bob.ID, sketchLine(t, 2), running); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AddSketch(eve.ID, sketchLine(t, 2), running); err != nil {
+		t.Fatal(err)
+	}
+	i := l.index(dan.ID)
+	l.Players[i].HunterTeam, _ = ParseHunterTeamName("pAcK")
+	if got := l.SketchesFor(l.Players[i], running); len(got) != 1 || got[0].Team != bob.HunterTeam {
+		t.Fatalf("team spelling must not hide sketches: %+v", got)
+	}
+	if err := l.ClearSketches(dan.ID, running); err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Sketches) != 1 || l.Sketches[0].Team != eve.HunterTeam {
+		t.Fatal("clearing must remove only the own team's sketches, ignoring case")
+	}
+}

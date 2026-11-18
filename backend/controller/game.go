@@ -82,13 +82,12 @@ func gameRouteResponse(route game.Route) GameRoute {
 }
 
 func landmarkResponse(l game.Landmark) Landmark {
-	return Landmark{Title: l.Title, Coordinates: Coordinates{Latitude: l.Coordinates.Latitude(), Longitude: l.Coordinates.Longitude()}}
+	return Landmark{Title: l.Title, Coordinates: coordinatesResponse(l.Coordinates)}
 }
 
 func playgroundResponse(p game.Playground) Playground {
-	center := p.Center()
 	return Playground{
-		Center: Coordinates{Latitude: center.Latitude(), Longitude: center.Longitude()},
+		Center: coordinatesResponse(p.Center()),
 		Bounds: Bounds(p.Bounds()),
 		Rows:   p.Rows(), Columns: p.Columns(), CellSizeMeters: p.CellSize().Meters(),
 	}
@@ -158,9 +157,13 @@ func allowMethods(w http.ResponseWriter, r *http.Request, methods ...string) boo
 	return false
 }
 
+func coordinatesResponse(c game.Coordinates) Coordinates {
+	return Coordinates{Latitude: c.Latitude(), Longitude: c.Longitude()}
+}
+
 func positionResponse(p game.Position) PositionResponse {
 	return PositionResponse{
-		Coordinates:    Coordinates{Latitude: p.Coordinates.Latitude(), Longitude: p.Coordinates.Longitude()},
+		Coordinates:    coordinatesResponse(p.Coordinates),
 		AccuracyMeters: p.AccuracyMeters, RecordedAt: p.RecordedAt,
 	}
 }

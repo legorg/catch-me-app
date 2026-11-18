@@ -42,7 +42,7 @@ func (l Lobby) VisibleTo(viewer Player, now time.Time) []visiblePlayer {
 			visible = append(visible, v)
 			continue
 		}
-		sameHunterTeam := viewer.Team == Hunters && p.Team == Hunters && !viewer.HunterTeam.IsZero() && p.HunterTeam == viewer.HunterTeam
+		sameHunterTeam := viewer.Team == Hunters && p.Team == Hunters && !viewer.HunterTeam.IsZero() && p.HunterTeam.sameAs(viewer.HunterTeam)
 		switch {
 		case p.ID == viewer.ID, sameHunterTeam, running && viewer.Team == Runners && p.Team == Runners:
 			v.Position = p.Position

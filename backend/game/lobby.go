@@ -57,6 +57,15 @@ func (l Lobby) Player(id PlayerID) (Player, bool) {
 	return Player{}, false
 }
 
+// requirePlayer returns the stored player for an action. The pointer must not
+// be kept across changes to the Players slice.
+func (l *Lobby) requirePlayer(id PlayerID) (*Player, error) {
+	if i := l.index(id); i >= 0 {
+		return &l.Players[i], nil
+	}
+	return nil, ErrUnauthorized
+}
+
 func (l Lobby) PlayerByToken(hash TokenHash) (Player, bool) {
 	i := slices.IndexFunc(l.Players, func(p Player) bool { return p.TokenHash == hash })
 	if i < 0 {
@@ -127,14 +136,14 @@ func (l *Lobby) SetHunterTeam(id PlayerID, name HunterTeamName, now time.Time) e
 	if err := l.requireNotStarted(now); err != nil {
 		return err
 	}
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
+	player, err := l.requirePlayer(id)
+	if err != nil {
+		return err
 	}
 	switch {
-	case l.Players[i].Team != Hunters:
+	case player.Team != Hunters:
 		return &RuleError{Message: "only hunters choose a hunter team"}
-	case l.Players[i].Ready:
+	case player.Ready:
 		return &RuleError{Message: "set yourself not ready before changing your team"}
 	}
 	for _, p := range l.Players {
@@ -143,7 +152,7 @@ func (l *Lobby) SetHunterTeam(id PlayerID, name HunterTeamName, now time.Time) e
 			break
 		}
 	}
-	l.Players[i].HunterTeam = name
+	player.HunterTeam = name
 	return nil
 }
 
@@ -153,19 +162,19 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 	if err := l.requireNotStarted(now); err != nil {
 		return err
 	}
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
+	player, err := l.requirePlayer(id)
+	if err != nil {
+		return err
 	}
-	if ready && l.Players[i].Team == Hunters && l.Players[i].HunterTeam.IsZero() {
+	if ready && player.Team == Hunters && player.HunterTeam.IsZero() {
 		return &RuleError{Message: "choose a hunter team to get ready"}
 	}
 	if ready && !skipStartCheck {
-		if err := l.requireAtStart(l.Players[i], now); err != nil {
+		if err := l.requireAtStart(*player, now); err != nil {
 			return err
 		}
 	}
-	l.Players[i].Ready = ready
+	player.Ready = ready
 	l.reschedule(now)
 	return nil
 }
@@ -173,11 +182,10 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 // UpdatePosition stores a player's latest location. Before the start, a ready
 // runner who moves away from the start becomes not ready (unless skipStartCheck).
 func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, skipStartCheck bool) error {
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
+	player, err := l.requirePlayer(id)
+	if err != nil {
+		return err
 	}
-	player := &l.Players[i]
 	if !player.active() {
 		return &RuleError{Message: "caught or finished runners cannot report positions"}
 	}

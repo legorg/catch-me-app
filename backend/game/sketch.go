@@ -2,7 +2,6 @@ package game
 
 import (
 	"slices"
-	"strings"
 	"time"
 )
 
@@ -67,7 +66,7 @@ func (l *Lobby) ClearSketches(id PlayerID, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	l.Sketches = slices.DeleteFunc(slices.Clone(l.Sketches), func(s Sketch) bool { return sameHunterTeam(s.Team, me.HunterTeam) })
+	l.Sketches = slices.DeleteFunc(slices.Clone(l.Sketches), func(s Sketch) bool { return s.Team.sameAs(me.HunterTeam) })
 	return nil
 }
 
@@ -97,11 +96,9 @@ func (l Lobby) sketcher(id PlayerID, now time.Time) (Player, error) {
 func (l Lobby) teamSketches(team HunterTeamName) []Sketch {
 	var sketches []Sketch
 	for _, s := range l.Sketches {
-		if sameHunterTeam(s.Team, team) {
+		if s.Team.sameAs(team) {
 			sketches = append(sketches, s)
 		}
 	}
 	return sketches
 }
-
-func sameHunterTeam(a, b HunterTeamName) bool { return strings.EqualFold(a.String(), b.String()) }

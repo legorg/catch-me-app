@@ -92,15 +92,14 @@ func (l *Lobby) UseJoker(id PlayerID, choice JokerChoice, now time.Time) error {
 	if choice == nil {
 		return &ValidationError{Message: "unknown joker"}
 	}
-	i := l.index(id)
-	if i < 0 {
-		return ErrUnauthorized
-	}
-	me := l.Players[i]
-	if err := l.mayUseJoker(me, choice.Kind(), now); err != nil {
+	me, err := l.requirePlayer(id)
+	if err != nil {
 		return err
 	}
-	use, err := choice.apply(*l, me, now)
+	if err := l.mayUseJoker(*me, choice.Kind(), now); err != nil {
+		return err
+	}
+	use, err := choice.apply(*l, *me, now)
 	if err != nil {
 		return err
 	}

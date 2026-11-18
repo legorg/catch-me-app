@@ -412,7 +412,8 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 		case game.JokerCompass:
 			joker := CompassJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.CompassUse); ok {
-				joker.Origin = &Coordinates{Latitude: use.Origin.Latitude(), Longitude: use.Origin.Longitude()}
+				origin := coordinatesResponse(use.Origin)
+				joker.Origin = &origin
 				joker.Bearings = use.Bearings
 			}
 			jokers = append(jokers, JokerResponse{joker})
@@ -426,7 +427,8 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 			joker := FakePositionJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
 			if use, ok := j.Use.(game.FakePositionUse); ok {
 				joker.UsedBy = PlayerID(use.Runner.String())
-				joker.Point = &Coordinates{Latitude: use.Point.Latitude(), Longitude: use.Point.Longitude()}
+				point := coordinatesResponse(use.Point)
+				joker.Point = &point
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerShowHunters:
@@ -454,7 +456,7 @@ func sketchResponses(view service.PlayerView) []SketchResponse {
 	for _, s := range view.Lobby.SketchesFor(view.Me, view.Now) {
 		sketch := SketchResponse{SketchID: SketchID(s.ID.String()), CreatedAt: s.CreatedAt}
 		for _, p := range s.Line.Points() {
-			sketch.Points = append(sketch.Points, Coordinates{Latitude: p.Latitude(), Longitude: p.Longitude()})
+			sketch.Points = append(sketch.Points, coordinatesResponse(p))
 		}
 		sketches = append(sketches, sketch)
 	}
