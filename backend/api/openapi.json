@@ -1578,6 +1578,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerTimelineEventResponse"
             },
+            "maxItems": 122,
             "type": "array"
           },
           "players": {
@@ -2357,6 +2358,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerRevealResponse"
             },
+            "maxItems": 256,
             "type": "array"
           },
           "runner": {
@@ -3030,6 +3032,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerTimelineEventResponse"
             },
+            "maxItems": 122,
             "type": "array"
           },
           "serverTime": {

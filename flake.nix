@@ -9,11 +9,16 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
-      devShells = forAllSystems (pkgs: {
+      devShells = forAllSystems (pkgs: rec {
+        # Node only, for CI jobs whose native builds run on EAS.
+        ci = pkgs.mkShellNoCC {
+          packages = [ pkgs.nodejs_24 ];
+        };
+
         # NoCC so the Nix Apple SDK doesn't shadow Xcode for `expo run:ios`.
         default = pkgs.mkShellNoCC {
+          inputsFrom = [ ci ];
           packages = [
-            pkgs.nodejs_24
             pkgs.jdk17
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.cocoapods ];
 

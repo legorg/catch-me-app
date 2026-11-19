@@ -25,8 +25,9 @@ const (
 
 type TimelineResponse struct {
 	ServerTime time.Time `json:"serverTime" example:"2026-11-08T12:30:00Z"`
-	// Oldest first, up to serverTime.
-	Events []TimelineEventResponse `json:"events"`
+	// Oldest first, up to serverTime. At most start + 3 jokers per player
+	// (30) + one outcome per player + end: 1 + 90 + 30 + 1.
+	Events []TimelineEventResponse `json:"events" maxItems:"122"`
 }
 
 // TimelinePlayer is the player an event is about.

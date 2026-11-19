@@ -208,8 +208,12 @@ func (l Lobby) runnerUse(runner PlayerID, kind JokerKind) JokerUse {
 	return nil
 }
 
-// revealsForHunters are the runner's reveals as hunters see them: the reveal
-// after each of the runner's joker uses is replaced by what that joker shows.
+// maxHunterReveals bounds the reveals sent per runner; games have no time limit.
+const maxHunterReveals = 256
+
+// revealsForHunters are the runner's latest maxHunterReveals reveals as hunters
+// see them: the reveal after each of the runner's joker uses is replaced by
+// what that joker shows.
 func (l Lobby) revealsForHunters(runner PlayerID) []HunterReveal {
 	var acting []revealJokerUse
 	for _, use := range l.Jokers {
@@ -217,8 +221,9 @@ func (l Lobby) revealsForHunters(runner PlayerID) []HunterReveal {
 			acting = append(acting, u)
 		}
 	}
+	all := l.Reveals[runner]
 	var reveals []HunterReveal
-	for _, r := range l.Reveals[runner] {
+	for _, r := range all[max(0, len(all)-maxHunterReveals):] {
 		j := slices.IndexFunc(acting, func(use revealJokerUse) bool { return l.Game.NextReveal(use.UsedAt()).Equal(r.At) })
 		if j < 0 {
 			reveals = append(reveals, PositionReveal{At: r.At, Position: r.Position})
