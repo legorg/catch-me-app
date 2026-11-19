@@ -1,21 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { Modal, Pressable, View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { ReactNode } from 'react';
+import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import PlaygroundMap, { type PlaygroundMapProps } from './playground-map';
 import { useT } from '../i18n';
-import { colors, dynamicStyles, fullscreenStyles as styles } from '../styles';
+import { colors, dynamicStyles, fullscreenStyles as styles, mapStyles } from '../styles';
 import { useMapFullscreen } from '../use-map-fullscreen';
 
-/** The playground map with a button that opens it fullscreen. */
-export default function FullscreenMap(props: PlaygroundMapProps) {
+type FullscreenMapProps = PlaygroundMapProps & { fullscreenFooter?: ReactNode };
+
+/** The playground map with a fullscreen button and optional controls below the fullscreen map. */
+export default function FullscreenMap({ fullscreenFooter, ...props }: FullscreenMapProps) {
   const t = useT();
   const { open, setOpen, inlineKey, close } = useMapFullscreen();
   return (
     <>
       <View>
-        <PlaygroundMap key={inlineKey} {...props} />
+        {/* Keep the space, but do not animate a second native map behind the modal. */}
+        {open ? <View style={mapStyles.map} /> : <PlaygroundMap key={inlineKey} {...props} />}
         <Pressable accessibilityRole="button" accessibilityLabel={t('map.fullscreen')} onPress={() => setOpen(true)} style={[styles.toggle, dynamicStyles.fullscreenToggle()]}>
           <Ionicons name="expand" size={22} color={colors.accent} />
         </Pressable>
@@ -23,14 +27,14 @@ export default function FullscreenMap(props: PlaygroundMapProps) {
       <Modal visible={open} animationType="slide" onRequestClose={close}>
         {/* A modal is its own native window, so it needs its own provider for the insets. */}
         <SafeAreaProvider>
-          <FullscreenContent {...props} onClose={close} />
+          <FullscreenContent {...props} fullscreenFooter={fullscreenFooter} onClose={close} />
         </SafeAreaProvider>
       </Modal>
     </>
   );
 }
 
-function FullscreenContent({ onClose, ...props }: PlaygroundMapProps & { onClose: () => void }) {
+function FullscreenContent({ onClose, fullscreenFooter, ...props }: FullscreenMapProps & { onClose: () => void }) {
   const t = useT();
   const insets = useSafeAreaInsets();
   return (
@@ -46,7 +50,13 @@ function FullscreenContent({ onClose, ...props }: PlaygroundMapProps & { onClose
       >
         <Ionicons name="contract" size={22} color={colors.accent} />
       </Pressable>
+      {fullscreenFooter && (
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.footer}>
+          <ScrollView style={styles.footerScroll} contentContainerStyle={styles.footerContent}>
+            {fullscreenFooter}
+          </ScrollView>
+        </SafeAreaView>
+      )}
     </View>
   );
 }
-

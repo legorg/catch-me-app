@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 
 import type { GameResultResponse } from '@/api/types';
 import Button from '@/components/button';
-import PlaygroundMap from '@/components/playground-map';
+import FullscreenMap from '@/components/fullscreen-map';
 import { useT } from '@/i18n';
 import { formatDuration, noop } from '@/lobby';
 import { REPLAY_SPEEDS } from '@/replay';
@@ -30,16 +30,12 @@ function Scrubber({ value, max, onSeek }: { value: number; max: number; onSeek: 
   );
 }
 
-/** Plays the ended game back on the map: every runner and hunter moving with a short tail. */
-export default function GameReplay({ result }: { result: GameResultResponse }) {
+/** Shared controls; the replay clock stays in GameReplay when the fullscreen modal opens/closes. */
+function ReplayControls({ replay }: { replay: ReturnType<typeof useReplay> }) {
   const t = useT();
-  const { at, duration, running, speed, setSpeed, toggle, seek, markers, lines, highlights, legend } = useReplay(result);
+  const { at, duration, running, speed, setSpeed, toggle, seek, legend } = replay;
   return (
-    <View style={styles.card}>
-      <Text accessibilityRole="header" style={styles.heading}>{t('replay.title')}</Text>
-      <View style={styles.mapContainer}>
-        <PlaygroundMap playground={result.playground} editable={false} onSelect={noop} highlights={highlights} markers={markers} lines={lines} locationEnabled={false} />
-      </View>
+    <View style={styles.gapSmall}>
       <View style={replayStyles.legend}>
         {legend.map((entry) => (
           <View key={entry.key} style={replayStyles.legendItem}>
@@ -50,12 +46,29 @@ export default function GameReplay({ result }: { result: GameResultResponse }) {
       </View>
       <Scrubber value={at} max={duration} onSeek={seek} />
       <Text style={styles.text}>{t('replay.time', { at: formatDuration(Math.floor(at / 1000)), total: formatDuration(Math.floor(duration / 1000)) })}</Text>
-      <Button label={t(running ? 'replay.pause' : 'replay.play')} onPress={toggle} />
       <View style={styles.row}>
+        <Button label={t(running ? 'replay.pause' : 'replay.play')} onPress={toggle} />
         {REPLAY_SPEEDS.map((option) => (
           <Button key={option} label={t('replay.speed', { speed: option })} variant={option === speed ? 'primary' : 'secondary'} onPress={() => setSpeed(option)} />
         ))}
       </View>
+    </View>
+  );
+}
+
+/** Plays the ended game back inline or fullscreen, using the same clock and controls. */
+export default function GameReplay({ result }: { result: GameResultResponse }) {
+  const t = useT();
+  const replay = useReplay(result);
+  const { markers, lines, highlights } = replay;
+  const controls = <ReplayControls replay={replay} />;
+  return (
+    <View style={styles.card}>
+      <Text accessibilityRole="header" style={styles.heading}>{t('replay.title')}</Text>
+      <View style={styles.mapContainer}>
+        <FullscreenMap playground={result.playground} editable={false} onSelect={noop} highlights={highlights} markers={markers} lines={lines} locationEnabled={false} fullscreenFooter={controls} />
+      </View>
+      {controls}
       <Text style={styles.hint}>{t('replay.legend')}</Text>
     </View>
   );

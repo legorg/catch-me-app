@@ -102,6 +102,8 @@ curl http://localhost:8080/api/games/00112233445566778899aabbccddeeff/result
 
 Replace the example ID with an actual ended game's `sessionId`.
 
+The replay map has an expand button for fullscreen viewing. The fullscreen view keeps the team legend, scrubber, play/pause and speed controls below the map, with safe-area spacing and scrolling when space is tight. Opening/closing it preserves the replay time, speed and playing state; no result refetch is needed. Native fullscreen behavior still needs device testing.
+
 Create a game by posting a JSON center and all settings to `/api/games`:
 
 ```json

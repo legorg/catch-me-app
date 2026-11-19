@@ -143,6 +143,9 @@ export const mapStyles = StyleSheet.create({
 export const fullscreenStyles = StyleSheet.create({
   full: { flex: 1, backgroundColor: colors.background },
   toggle: { position: 'absolute', backgroundColor: colors.background, borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: 0.92 },
+  footer: { maxHeight: '50%', backgroundColor: colors.card },
+  footerScroll: { flexGrow: 0 },
+  footerContent: { padding: 12 },
 });
 
 /** Result replay: a tall touch area around a thin rail. */
@@ -154,4 +157,3 @@ export const replayStyles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 12, height: 12, borderRadius: 6 },
 });
-
