@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -29,6 +30,9 @@ func TestResultIsOnlyAvailableAfterGameEnd(t *testing.T) {
 	result, err := l.Result(nil)
 	if err != nil || result.SessionID != l.Game.SessionID || result.StartsAt != running || result.EndedAt != endedAt || len(result.Players) != len(l.Players) {
 		t.Fatalf("unexpected result: %+v %v", result, err)
+	}
+	if result.Route != l.Game.Route || !reflect.DeepEqual(result.Playground, l.Game.Playground) {
+		t.Fatal("result lost the playground or route")
 	}
 	wantEvents := []Event{
 		StartEvent{At: running},

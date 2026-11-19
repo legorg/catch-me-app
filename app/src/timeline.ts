@@ -20,7 +20,7 @@ function isTimelinePlayer(value: unknown): value is TimelinePlayer {
 }
 
 /** Also used for the events of a game result. */
-export function isTimelineEvent(value: unknown): value is TimelineEvent {
+function isTimelineEvent(value: unknown): value is TimelineEvent {
   if (!isObject(value) || !isTimestamp(value.at)) return false;
   switch (value.kind) {
     case 'gameStarted':

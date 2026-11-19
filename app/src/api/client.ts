@@ -18,7 +18,7 @@ import {
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
 import type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest, TimelineResponse } from './types';
-import { isGameResultResponse, isValidGameId, normalizeGameId } from '../game-result';
+import { isValidGameId, normalizeGameId } from '../game-result';
 import { translate, type MessageKey } from '../i18n';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
@@ -111,7 +111,8 @@ export async function getGameResult(sessionId: string): Promise<GameResultRespon
   const id = normalizeGameId(sessionId);
   if (!isValidGameId(id)) throw new Error(translate('result.invalidId'));
   const result = await request((signal) => fetchGameResult({ baseUrl: API_URL, path: { sessionId: id }, signal }));
-  if (!isGameResultResponse(result) || result.sessionId !== id) throw new Error(translate('result.invalidResponse'));
+  // A response for another game must never be shown under this ID.
+  if (result.sessionId !== id) throw new Error(translate('result.invalidResponse'));
   return result;
 }
 

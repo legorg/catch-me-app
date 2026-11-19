@@ -16,8 +16,11 @@ type GameResultResponse struct {
 	StartsAt  time.Time `json:"startsAt" example:"2026-11-18T12:00:00Z"`
 	EndedAt   time.Time `json:"endedAt" example:"2026-11-18T13:00:00Z"`
 	// Whole seconds between start and end, rounded down.
-	DurationSeconds int64                  `json:"durationSeconds" minimum:"0" example:"3600"`
-	Players         []ResultPlayerResponse `json:"players" maxItems:"30"`
+	DurationSeconds int64      `json:"durationSeconds" minimum:"0" example:"3600"`
+	Playground      Playground `json:"playground"`
+	// The shared runner route, public once the game has ended.
+	Route   GameRoute              `json:"route"`
+	Players []ResultPlayerResponse `json:"players" maxItems:"30"`
 	// The whole timeline, oldest first, with no coordinates, cells or joker results.
 	Events []TimelineEventResponse `json:"events" maxItems:"122"`
 }
@@ -77,6 +80,8 @@ func gameResultResponse(result game.Result) (GameResultResponse, error) {
 	response := GameResultResponse{
 		SessionID: SessionID(result.SessionID.String()), StartsAt: result.StartsAt, EndedAt: result.EndedAt,
 		DurationSeconds: int64(result.EndedAt.Sub(result.StartsAt) / time.Second),
+		Playground:      playgroundResponse(result.Playground),
+		Route:           gameRouteResponse(result.Route),
 		Players:         make([]ResultPlayerResponse, 0, len(result.Players)),
 		Events:          events,
 	}

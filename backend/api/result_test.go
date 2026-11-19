@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -82,7 +83,10 @@ func TestPublicGameResultHTTPFlow(t *testing.T) {
 	// An exact JSON allowlist prevents leaking any present or future gameplay
 	// fields, including catch locations, route coordinates, join codes and hashes.
 	raw := decode[map[string]json.RawMessage](t, response, 200)
-	assertResultFields(t, raw, "sessionId", "startsAt", "endedAt", "durationSeconds", "players", "events")
+	assertResultFields(t, raw, "sessionId", "startsAt", "endedAt", "durationSeconds", "playground", "route", "players", "events")
+	if !reflect.DeepEqual(result.Playground, created.Game.Playground) || !reflect.DeepEqual(result.Route, created.Game.Route) {
+		t.Fatalf("result playground/route differ from the created game: %+v %+v", result.Playground, result.Route)
+	}
 	var events []map[string]json.RawMessage
 	if err := json.Unmarshal(raw["events"], &events); err != nil {
 		t.Fatal(err)

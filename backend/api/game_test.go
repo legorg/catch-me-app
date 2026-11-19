@@ -342,7 +342,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		name   string
 		fields []string
 	}{
-		{"ControllerGameResultResponse", []string{"sessionId", "startsAt", "endedAt", "durationSeconds", "players", "events"}},
+		{"ControllerGameResultResponse", []string{"sessionId", "startsAt", "endedAt", "durationSeconds", "playground", "route", "players", "events"}},
 		{"ControllerResultPlayerResponse", []string{"playerId", "name", "team", "hunterTeam", "runner", "track"}},
 		{"ControllerRunnerResultResponse", []string{"status", "endedAt"}},
 	} {

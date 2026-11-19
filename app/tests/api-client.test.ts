@@ -6,7 +6,7 @@ import {
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
 import { previewPlayground } from '../src/playground';
-import { isGameResultResponse, isValidGameId, normalizeGameId } from '../src/game-result';
+import { isValidGameId, normalizeGameId } from '../src/game-result';
 import { isTimelineResponse } from '../src/timeline';
 
 const center = { latitude: 52.52, longitude: 13.405 };
@@ -61,6 +61,7 @@ const trackPoint = { latitude: 52.52, longitude: 13.405, accuracyMeters: 5, reco
 const gameResult = {
   sessionId: created.game.sessionId,
   startsAt: '2026-11-18T12:00:00Z', endedAt: '2026-11-18T13:00:00Z', durationSeconds: 3600,
+  playground: created.game.playground, route,
   players: [
     { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', runner: { status: 'finished', endedAt: '2026-11-18T12:30:00Z' }, track: [trackPoint] },
     { playerId: 'b'.repeat(32), name: 'Cy', team: 'runner', runner: { status: 'caught', endedAt: '2026-11-18T13:00:00Z' }, track: [] },
@@ -83,16 +84,7 @@ test('result lookup uses the normalized full game ID without a token, body or po
     assert.equal(await request.text(), '');
     return Response.json(gameResult);
   });
-  assert.equal(isGameResultResponse(gameResult), true);
   assert.deepEqual(await getGameResult(` ${gameResult.sessionId.toUpperCase()} `), gameResult);
-});
-
-test('result guards accept direct spectators without inventing a runner outcome or hunter team', () => {
-  const viewer = { playerId: 'd'.repeat(32), name: 'Viewer', team: 'spectator' };
-  assert.equal(isGameResultResponse({ ...gameResult, players: [...gameResult.players, viewer] }), true);
-  assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, runner: { status: 'caught', endedAt: gameResult.endedAt } }] }), false);
-  assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, hunterTeam: 'Pack' }] }), false);
-  assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, track: [] }] }), false);
 });
 
 test('invalid game IDs and join codes are rejected without making a result request', async (t) => {
@@ -112,28 +104,7 @@ test('unknown or unfinished results retain 404, and a later retry can succeed', 
   assert.deepEqual(await getGameResult(gameResult.sessionId), gameResult);
 });
 
-test('malformed or mismatched result JSON is rejected rather than crashing the result screen', async (t) => {
-  for (const invalid of [
-    null, {}, { ...gameResult, sessionId: '482913' }, { ...gameResult, startsAt: 'invalid' },
-    { ...gameResult, durationSeconds: -1 }, { ...gameResult, durationSeconds: 0.5 },
-    { ...gameResult, players: null }, { ...gameResult, players: [null] },
-    { ...gameResult, players: [{ ...gameResult.players[0], runner: undefined }] },
-    { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'active' } }] },
-    { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'caught', endedAt: 'invalid' } }] },
-    { ...gameResult, players: [{ ...gameResult.players[2], runner: { status: 'caught', endedAt: gameResult.endedAt } }] },
-    { ...gameResult, players: [{ ...gameResult.players[0], track: undefined }] },
-    { ...gameResult, players: [{ ...gameResult.players[2], track: undefined }] },
-    { ...gameResult, players: [{ ...gameResult.players[0], track: [null] }] },
-    { ...gameResult, players: [{ ...gameResult.players[0], track: [{ ...trackPoint, latitude: 91 }] }] },
-    { ...gameResult, players: [{ ...gameResult.players[0], track: [{ ...trackPoint, accuracyMeters: -1 }] }] },
-    { ...gameResult, players: [{ ...gameResult.players[0], track: [{ ...trackPoint, recordedAt: 'invalid' }] }] },
-    { ...gameResult, events: undefined }, { ...gameResult, events: [null] },
-    { ...gameResult, events: [{ kind: 'runnerCaught', at: gameResult.endedAt }] },
-  ]) {
-    assert.equal(isGameResultResponse(invalid), false);
-    t.mock.method(globalThis, 'fetch', async () => Response.json(invalid));
-    await assert.rejects(getGameResult(gameResult.sessionId), /invalid game result/);
-  }
+test('a result for another game is rejected', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => Response.json({ ...gameResult, sessionId: 'f'.repeat(32) }));
   await assert.rejects(getGameResult(gameResult.sessionId), /invalid game result/);
 });

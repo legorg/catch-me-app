@@ -6,13 +6,17 @@ import "time"
 // track; the reports in between are dropped to keep the result small.
 const TrackMinInterval = 5 * time.Second
 
-// Result is the public summary of an ended game: participants, outcomes, the
-// coordinate-free timeline and every runner's and hunter's real track. It
-// carries no credentials, joker results, reveals or sketches.
+// Result is the public summary of an ended game: playground, route,
+// participants, outcomes, the coordinate-free timeline and every runner's and
+// hunter's real track. It carries no credentials, joker results, reveals or
+// sketches.
 type Result struct {
 	SessionID         SessionID
 	StartsAt, EndedAt time.Time
-	Players           []ResultPlayer
+	Playground        Playground
+	// Route is public once the game has ended, including the stop hunters never saw.
+	Route   Route
+	Players []ResultPlayer
 	// Events is the whole timeline, oldest first.
 	Events []Event
 }
@@ -39,6 +43,7 @@ func (l Lobby) Result(histories map[PlayerID][]Position) (Result, error) {
 	}
 	result := Result{
 		SessionID: l.Game.SessionID, StartsAt: l.Game.StartsAt, EndedAt: l.Game.EndedAt,
+		Playground: l.Game.Playground, Route: l.Game.Route,
 		Players: make([]ResultPlayer, 0, len(l.Players)),
 		Events:  l.timeline(l.Game.EndedAt),
 	}
