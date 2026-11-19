@@ -13,9 +13,10 @@ const (
 	// Start and finish share the same report freshness and landmark radius.
 	startPositionMaxAge = 30 * time.Second
 	startRadiusMeters   = 50
-	// PositionRetention is how long reported positions and sketches are kept after
-	// a game's start (or creation, if it never started), for a replay after the game.
-	PositionRetention = 7 * 24 * time.Hour
+	// GameRetention is how long a game is kept with all its players, positions,
+	// jokers and sketches: after its end, or, if it never ended, after its start
+	// (or creation, if it never started).
+	GameRetention = 7 * 24 * time.Hour
 )
 
 // Position is a player's latest reported location. RecordedAt is the server

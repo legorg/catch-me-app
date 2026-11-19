@@ -76,13 +76,10 @@ func TestGameEndIsAtomicAndSurvivesReopening(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.DeletePositionsBefore(ctx, start.Add(time.Nanosecond)); err != nil {
-		t.Fatal(err)
-	}
 	l := load(t, store, saved.JoinCodes.Runner, later)
 	p, _ := l.Player(runner.ID)
-	if !l.Game.EndedAt.Equal(endedAt) || !p.Runner.EndedAt().Equal(endedAt) || !p.Position.IsZero() {
-		t.Fatal("retries and position retention must preserve game and runner outcomes")
+	if !l.Game.EndedAt.Equal(endedAt) || !p.Runner.EndedAt().Equal(endedAt) {
+		t.Fatal("retries must preserve game and runner outcomes")
 	}
 }
 

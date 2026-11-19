@@ -211,18 +211,32 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 	return lobby, err
 }
 
-// DeletePositionsBefore deletes the positions and sketches of games that
-// started (or, if never started, were created) before cutoff. A zero start sorts first.
-func (s *Store) DeletePositionsBefore(ctx context.Context, cutoff time.Time) error {
+// DeleteGamesBefore deletes games that ended before cutoff, or, if they never
+// ended, started (or, if never started, were created) before cutoff, with all
+// their players, runner states, positions, jokers and sketches. A zero start
+// sorts first. It also deletes orphaned rows whose game or player is gone, e.g.
+// left over from older schemas without enforced foreign keys.
+func (s *Store) DeleteGamesBefore(ctx context.Context, cutoff time.Time) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		err := tx.Where(`player_id IN (SELECT players.id FROM players JOIN games ON games.id = players.game_id
-			WHERE max(games.created_at, games.starts_at) < ?)`, cutoff.UTC()).Delete(&positionRow{}).Error
+		err := tx.Where("coalesce(ended_at, max(created_at, starts_at)) < ?", cutoff.UTC()).Delete(&gameRow{}).Error
 		if err != nil {
-			return fmt.Errorf("delete positions: %w", err)
+			return fmt.Errorf("delete games: %w", err)
 		}
-		err = tx.Where(`game_id IN (SELECT id FROM games WHERE max(created_at, starts_at) < ?)`, cutoff.UTC()).Delete(&sketchRow{}).Error
-		if err != nil {
-			return fmt.Errorf("delete sketches: %w", err)
+		// Children first, so a removed player's rows are orphaned in the same pass.
+		orphans := []struct {
+			row   any
+			where string
+		}{
+			{&playerRow{}, "game_id NOT IN (SELECT id FROM games)"},
+			{&jokerRow{}, "game_id NOT IN (SELECT id FROM games)"},
+			{&sketchRow{}, "game_id NOT IN (SELECT id FROM games)"},
+			{&runnerRow{}, "player_id NOT IN (SELECT id FROM players)"},
+			{&positionRow{}, "player_id NOT IN (SELECT id FROM players)"},
+		}
+		for _, o := range orphans {
+			if err := tx.Where(o.where).Delete(o.row).Error; err != nil {
+				return fmt.Errorf("delete orphaned rows: %w", err)
+			}
 		}
 		return nil
 	})

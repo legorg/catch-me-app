@@ -53,7 +53,7 @@ func TestSpectatorCodeAndIdentitySurviveReopening(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := store.Result(ctx, saved.SessionID)
-	if err != nil || len(result.Players) != 1 || result.Players[0].Team != game.Spectators || result.Players[0].ID != id {
+	if err != nil || len(result.Players) != 1 || result.Players[0].Team != game.Spectators || result.Players[0].ID != id || result.Players[0].Track != nil {
 		t.Fatalf("spectator result affiliation lost: %+v, %v", result, err)
 	}
 }

@@ -245,7 +245,6 @@ func TestLobbyPersists(t *testing.T) {
 }
 
 func TestPositionsAndReveals(t *testing.T) {
-	ctx := context.Background()
 	store := open(t, ":memory:")
 	saved := create(t, store)
 	runner, token := join(t, store, saved.JoinCodes.Runner, "Ada", now)
@@ -279,13 +278,6 @@ func TestPositionsAndReveals(t *testing.T) {
 
 	if count(t, store) != 3 {
 		t.Fatal("every reported position must be kept")
-	}
-	// Retention counts from the start, not from the report.
-	if err := store.DeletePositionsBefore(ctx, start); err != nil || count(t, store) != 3 {
-		t.Fatalf("positions deleted before their retention ended: %v", err)
-	}
-	if err := store.DeletePositionsBefore(ctx, start.Add(time.Nanosecond)); err != nil || count(t, store) != 0 {
-		t.Fatalf("expired positions kept: %v", err)
 	}
 }
 
@@ -621,7 +613,7 @@ func TestShowHuntersJokerIsStoredAndShowsWhereTheHuntersWereAtTheUse(t *testing.
 	}
 }
 
-func TestSketchesPersistUntilClearedOrExpired(t *testing.T) {
+func TestSketchesPersistUntilCleared(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")
 	saved := create(t, store)
@@ -656,20 +648,9 @@ func TestSketchesPersistUntilClearedOrExpired(t *testing.T) {
 	if got := load(t, store, saved.JoinCodes.Hunter, at).Sketches; len(got) != 0 {
 		t.Fatalf("cleared sketches still stored: %+v", got)
 	}
-
-	if err := update(func(l *game.Lobby) error { return l.AddSketch(hunter.ID, line, at) }); err != nil {
-		t.Fatal(err)
-	}
-	// Retention counts from the start, like positions.
-	if err := store.DeletePositionsBefore(ctx, start); err != nil || len(load(t, store, saved.JoinCodes.Hunter, at).Sketches) != 1 {
-		t.Fatalf("sketch deleted before its retention ended: %v", err)
-	}
-	if err := store.DeletePositionsBefore(ctx, start.Add(time.Nanosecond)); err != nil || len(load(t, store, saved.JoinCodes.Hunter, at).Sketches) != 0 {
-		t.Fatalf("expired sketch kept: %v", err)
-	}
 }
 
-func TestPositionsOfUnstartedGamesAndLeavingPlayers(t *testing.T) {
+func TestLeavingDeletesPositions(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")
 	saved := create(t, store)
@@ -681,9 +662,77 @@ func TestPositionsOfUnstartedGamesAndLeavingPlayers(t *testing.T) {
 	if count(t, store) != 1 {
 		t.Fatal("leaving must delete the player's positions")
 	}
-	// A game that never started expires counting from its creation.
-	if err := store.DeletePositionsBefore(ctx, now.Add(time.Nanosecond)); err != nil || count(t, store) != 0 {
-		t.Fatalf("positions of an unstarted game kept: %v", err)
+}
+
+func TestDeleteGamesBefore(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	rows := func(model any) int64 {
+		t.Helper()
+		var n int64
+		if err := store.db.Model(model).Count(&n).Error; err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	// Ended: retention counts from the end.
+	ended := create(t, store)
+	_, runnerToken := join(t, store, ended.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, ended.JoinCodes.Hunter, "Bob", now)
+	start, end := now.Add(time.Minute), now.Add(time.Hour)
+	if _, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), start, func(l *game.Lobby) error {
+		l.Game.StartsAt = start
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	line, _ := game.NewSketchLine([]game.Coordinates{ended.Playground.Center(), ended.Route.Start.Coordinates})
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), start, func(l *game.Lobby) error {
+		if err := l.UseJoker(hunter.ID, game.ShowRunners{}, start); err != nil {
+			return err
+		}
+		return l.AddSketch(hunter.ID, line, start)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateLobbyByToken(ctx, runnerToken.Hash(), end, func(l *game.Lobby) error {
+		me, _ := l.PlayerByToken(runnerToken.Hash())
+		return l.MarkCaught(me.ID, end)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Never started: retention counts from the creation. Never ended: from the start.
+	unstarted := fixture(t, 52.52, 2000, strings.Repeat("b", 32))
+	unstarted.CreatedAt = end
+	running := fixture(t, 52.52, 2000, strings.Repeat("c", 32))
+	running.CreatedAt, running.StartsAt = now, end
+	for _, g := range []game.Game{unstarted, running} {
+		if err := store.Create(ctx, g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// An orphan left over from a schema without enforced foreign keys.
+	if err := store.db.Exec("PRAGMA foreign_keys = OFF").Error; err != nil {
+		t.Fatal(err)
+	}
+	orphan := positionRow{PlayerID: strings.Repeat("d", 32), Latitude: 52.52, Longitude: 13.405, RecordedAt: now}
+	if err := store.db.Create(&orphan).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteGamesBefore(ctx, end); err != nil {
+		t.Fatal(err)
+	}
+	if rows(&gameRow{}) != 3 || rows(&playerRow{}) != 2 || rows(&runnerRow{}) != 1 || rows(&jokerRow{}) != 1 || rows(&sketchRow{}) != 1 || count(t, store) != 2 {
+		t.Fatal("games deleted before their retention ended, or orphan kept")
+	}
+	if err := store.DeleteGamesBefore(ctx, end.Add(time.Nanosecond)); err != nil {
+		t.Fatal(err)
+	}
+	if rows(&gameRow{}) != 0 || rows(&playerRow{}) != 0 || rows(&runnerRow{}) != 0 || rows(&jokerRow{}) != 0 || rows(&sketchRow{}) != 0 || count(t, store) != 0 {
+		t.Fatal("expired games or their data kept")
 	}
 }
 

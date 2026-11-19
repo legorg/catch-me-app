@@ -10,7 +10,7 @@ import (
 	"catch-me/backend/game"
 )
 
-func TestCatchSurvivesReopeningAndObeysPositionRetention(t *testing.T) {
+func TestCatchSurvivesReopening(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "caught.sqlite")
 	store := open(t, path)
@@ -57,15 +57,6 @@ func TestCatchSurvivesReopeningAndObeysPositionRetention(t *testing.T) {
 	for _, v := range lobby.VisibleTo(hunter, later) {
 		if v.ID == runner.ID && (v.Runner.Status() != game.RunnerCaught || v.Runner.EndedAt() != at || v.CaughtPosition != actual || !v.Position.IsZero() || len(v.Reveals) != 0) {
 			t.Fatalf("hunter must only get the frozen catch: %+v", v)
-		}
-	}
-	if err := store.DeletePositionsBefore(ctx, start.Add(time.Nanosecond)); err != nil {
-		t.Fatal(err)
-	}
-	lobby = load(t, store, saved.JoinCodes.Hunter, later)
-	for _, v := range lobby.VisibleTo(hunter, later) {
-		if v.ID == runner.ID && (v.Runner.Status() != game.RunnerCaught || v.Runner.EndedAt() != at || !v.CaughtPosition.IsZero()) {
-			t.Fatalf("retention must remove the catch coordinates, not the caught status: %+v", v)
 		}
 	}
 }

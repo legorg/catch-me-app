@@ -86,7 +86,7 @@ func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStart
 		return err
 	}
 	games := service.NewGameService(store, googleplaces.NewClient(googleplaces.DefaultBaseURL, googlePlacesAPIKey, ""), skipStartPositionCheck)
-	go deleteExpiredPositions(ctx, games)
+	go deleteExpiredGames(ctx, games)
 
 	server := &http.Server{
 		Handler:           api.NewHandler(controller.NewGameController(games)),
@@ -121,12 +121,12 @@ func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStart
 	}
 }
 
-// deleteExpiredPositions enforces the position retention at startup
+// deleteExpiredGames enforces the game retention at startup
 // and hourly until shutdown.
-func deleteExpiredPositions(ctx context.Context, games *service.GameService) {
+func deleteExpiredGames(ctx context.Context, games *service.GameService) {
 	for {
-		if err := games.DeleteExpiredPositions(ctx); err != nil && ctx.Err() == nil {
-			slog.Error("delete expired positions", "err", err)
+		if err := games.DeleteExpiredGames(ctx); err != nil && ctx.Err() == nil {
+			slog.Error("delete expired games", "err", err)
 		}
 		select {
 		case <-ctx.Done():

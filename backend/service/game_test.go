@@ -46,10 +46,10 @@ func (r *memoryRepository) Result(ctx context.Context, id game.SessionID) (game.
 	if !ok {
 		return game.Result{}, game.ErrNotFound
 	}
-	return lobby.Result()
+	return lobby.Result(nil)
 }
 
-func (r *memoryRepository) DeletePositionsBefore(ctx context.Context, cutoff time.Time) error {
+func (r *memoryRepository) DeleteGamesBefore(ctx context.Context, cutoff time.Time) error {
 	r.calls++
 	r.cutoff = cutoff
 	return r.err
@@ -112,10 +112,10 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestDeleteExpiredPositions(t *testing.T) {
+func TestDeleteExpiredGames(t *testing.T) {
 	r := newMemoryRepository()
 	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
-	if err := newService(r, now).DeleteExpiredPositions(context.Background()); err != nil || !r.cutoff.Equal(now.Add(-game.PositionRetention)) {
+	if err := newService(r, now).DeleteExpiredGames(context.Background()); err != nil || !r.cutoff.Equal(now.Add(-game.GameRetention)) {
 		t.Fatalf("wrong retention cutoff %v: %v", r.cutoff, err)
 	}
 }

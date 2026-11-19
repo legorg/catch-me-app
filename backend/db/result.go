@@ -9,8 +9,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// Result loads only the game, participants and used jokers, never positions,
-// reveals or sketches. Unfinished games are excluded by the database query.
+// Result loads the game, participants, used jokers and the runners' and
+// hunters' positions from start to end, never reveals or sketches. Unfinished
+// games are excluded by the database query.
 func (s *Store) Result(ctx context.Context, id game.SessionID) (game.Result, error) {
 	var result game.Result
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -40,8 +41,45 @@ func (s *Store) Result(ctx context.Context, id game.SessionID) (game.Result, err
 			}
 			lobby.Jokers = append(lobby.Jokers, use)
 		}
-		result, err = lobby.Result()
+		histories, err := gameTracks(tx, lobby)
+		if err != nil {
+			return err
+		}
+		result, err = lobby.Result(histories)
 		return err
 	})
 	return result, err
+}
+
+// gameTracks returns the runners' and hunters' positions recorded from start
+// to end, oldest first. Reports from the lobby and countdown are not read.
+func gameTracks(tx *gorm.DB, lobby game.Lobby) (map[game.PlayerID][]game.Position, error) {
+	var ids []string
+	for _, p := range lobby.Players {
+		if p.Team == game.Runners || p.Team == game.Hunters {
+			ids = append(ids, p.ID.String())
+		}
+	}
+	histories := map[game.PlayerID][]game.Position{}
+	if len(ids) == 0 {
+		return histories, nil
+	}
+	var rows []positionRow
+	err := tx.Where("player_id IN ? AND recorded_at >= ? AND recorded_at <= ?", ids, lobby.Game.StartsAt, lobby.Game.EndedAt).
+		Order("player_id, recorded_at, id").Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("select positions: %w", err)
+	}
+	for _, row := range rows {
+		id, err := game.ParsePlayerID(row.PlayerID)
+		if err != nil {
+			return nil, fmt.Errorf("parse stored position: %v", err)
+		}
+		position, err := parsePosition(row)
+		if err != nil {
+			return nil, fmt.Errorf("parse stored position: %v", err)
+		}
+		histories[id] = append(histories[id], position)
+	}
+	return histories, nil
 }

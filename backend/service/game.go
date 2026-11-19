@@ -25,16 +25,18 @@ const (
 // It exposes domain values, not database rows or SQL errors.
 type GameRepository interface {
 	Create(context.Context, game.Game) error
-	// Result returns a coordinate/credential-free summary of an ended game;
-	// unknown and unfinished games both return game.ErrNotFound.
+	// Result returns the credential-free summary of an ended game, with each
+	// runner's and hunter's track from start to end; unknown and unfinished
+	// games both return game.ErrNotFound.
 	Result(context.Context, game.SessionID) (game.Result, error)
 	// UpdateLobby* load a lobby as of now (including reveals), apply change, and
 	// save atomically. A nil change only loads.
 	UpdateLobbyByJoinCode(context.Context, game.JoinCode, time.Time, func(*game.Lobby) error) (game.Lobby, error)
 	UpdateLobbyByToken(context.Context, game.TokenHash, time.Time, func(*game.Lobby) error) (game.Lobby, error)
-	// DeletePositionsBefore deletes the positions and sketches of games that
-	// started (or, if never started, were created) before cutoff.
-	DeletePositionsBefore(context.Context, time.Time) error
+	// DeleteGamesBefore deletes games that ended before cutoff, or, if they
+	// never ended, started (or, if never started, were created) before cutoff,
+	// with all their data, plus orphaned rows.
+	DeleteGamesBefore(context.Context, time.Time) error
 }
 
 // LandmarkFinder lists landmarks located inside bounds (one grid cell).
@@ -272,9 +274,9 @@ func (s *GameService) Leave(ctx context.Context, token game.PlayerToken) error {
 	return err
 }
 
-// DeleteExpiredPositions enforces game.PositionRetention for positions and sketches.
-func (s *GameService) DeleteExpiredPositions(ctx context.Context) error {
-	return s.repository.DeletePositionsBefore(ctx, s.now().Add(-game.PositionRetention))
+// DeleteExpiredGames enforces game.GameRetention: whole games with all their data.
+func (s *GameService) DeleteExpiredGames(ctx context.Context) error {
+	return s.repository.DeleteGamesBefore(ctx, s.now().Add(-game.GameRetention))
 }
 
 func (s *GameService) updateAsPlayer(ctx context.Context, token game.PlayerToken, change func(*game.Lobby, game.Player, time.Time) error) (PlayerView, error) {

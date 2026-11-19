@@ -125,20 +125,4 @@ func TestFinishPersistenceAndHistoricalJokers(t *testing.T) {
 			}
 		}
 	}
-	if err := store.DeletePositionsBefore(ctx, start.Add(time.Nanosecond)); err != nil {
-		t.Fatal(err)
-	}
-	lobby = load(t, store, saved.JoinCodes.Hunter, later)
-	p, _ = lobby.Player(runner.ID)
-	if p.Runner.Status() != game.RunnerFinished || p.Runner.EndedAt() != at || !p.Position.IsZero() {
-		t.Fatal("retention must remove positions, not finish status")
-	}
-	if p.Role() != game.RoleSpectator {
-		t.Fatal("position expiry removed spectator permission")
-	}
-	for _, v := range lobby.VisibleTo(p, later) {
-		if !v.Position.IsZero() || !v.CaughtPosition.IsZero() {
-			t.Fatal("spectator feed resurrected expired positions")
-		}
-	}
 }
