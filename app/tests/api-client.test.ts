@@ -57,13 +57,14 @@ test('the spectator code joins by the same name-and-code flow and preserves the 
   assert.deepEqual(requests, ['POST /api/players', 'GET /api/me/game']);
 });
 
+const trackPoint = { latitude: 52.52, longitude: 13.405, accuracyMeters: 5, recordedAt: '2026-11-18T12:00:05Z' };
 const gameResult = {
   sessionId: created.game.sessionId,
   startsAt: '2026-11-18T12:00:00Z', endedAt: '2026-11-18T13:00:00Z', durationSeconds: 3600,
   players: [
-    { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', runner: { status: 'finished', endedAt: '2026-11-18T12:30:00Z' } },
-    { playerId: 'b'.repeat(32), name: 'Cy', team: 'runner', runner: { status: 'caught', endedAt: '2026-11-18T13:00:00Z' } },
-    { playerId: 'c'.repeat(32), name: 'Bob', team: 'hunter', hunterTeam: 'Pack' },
+    { playerId: 'a'.repeat(32), name: 'Ada', team: 'runner', runner: { status: 'finished', endedAt: '2026-11-18T12:30:00Z' }, track: [trackPoint] },
+    { playerId: 'b'.repeat(32), name: 'Cy', team: 'runner', runner: { status: 'caught', endedAt: '2026-11-18T13:00:00Z' }, track: [] },
+    { playerId: 'c'.repeat(32), name: 'Bob', team: 'hunter', hunterTeam: 'Pack', track: [trackPoint, { ...trackPoint, recordedAt: '2026-11-18T12:00:10Z' }] },
   ],
   events: [
     { kind: 'gameStarted', at: '2026-11-18T12:00:00Z' },
@@ -91,6 +92,7 @@ test('result guards accept direct spectators without inventing a runner outcome 
   assert.equal(isGameResultResponse({ ...gameResult, players: [...gameResult.players, viewer] }), true);
   assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, runner: { status: 'caught', endedAt: gameResult.endedAt } }] }), false);
   assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, hunterTeam: 'Pack' }] }), false);
+  assert.equal(isGameResultResponse({ ...gameResult, players: [{ ...viewer, track: [] }] }), false);
 });
 
 test('invalid game IDs and join codes are rejected without making a result request', async (t) => {
@@ -119,6 +121,12 @@ test('malformed or mismatched result JSON is rejected rather than crashing the r
     { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'active' } }] },
     { ...gameResult, players: [{ ...gameResult.players[0], runner: { status: 'caught', endedAt: 'invalid' } }] },
     { ...gameResult, players: [{ ...gameResult.players[2], runner: { status: 'caught', endedAt: gameResult.endedAt } }] },
+    { ...gameResult, players: [{ ...gameResult.players[0], track: undefined }] },
+    { ...gameResult, players: [{ ...gameResult.players[2], track: undefined }] },
+    { ...gameResult, players: [{ ...gameResult.players[0], track: [null] }] },
+    { ...gameResult, players: [{ ...gameResult.players[0], track: [{ ...trackPoint, latitude: 91 }] }] },
+    { ...gameResult, players: [{ ...gameResult.players[0], track: [{ ...trackPoint, accuracyMeters: -1 }] }] },
+    { ...gameResult, players: [{ ...gameResult.players[0], track: [{ ...trackPoint, recordedAt: 'invalid' }] }] },
     { ...gameResult, events: undefined }, { ...gameResult, events: [null] },
     { ...gameResult, events: [{ kind: 'runnerCaught', at: gameResult.endedAt }] },
   ]) {

@@ -343,7 +343,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		fields []string
 	}{
 		{"ControllerGameResultResponse", []string{"sessionId", "startsAt", "endedAt", "durationSeconds", "players", "events"}},
-		{"ControllerResultPlayerResponse", []string{"playerId", "name", "team", "hunterTeam", "runner"}},
+		{"ControllerResultPlayerResponse", []string{"playerId", "name", "team", "hunterTeam", "runner", "track"}},
 		{"ControllerRunnerResultResponse", []string{"status", "endedAt"}},
 	} {
 		definition := spec.Components.Schemas[tc.name]

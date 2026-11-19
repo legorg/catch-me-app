@@ -113,15 +113,24 @@ func TestPublicGameResultHTTPFlow(t *testing.T) {
 			t.Fatal(err)
 		}
 		if team == "runner" {
-			assertResultFields(t, p, "playerId", "name", "team", "runner")
+			assertResultFields(t, p, "playerId", "name", "team", "runner", "track")
 			var runner map[string]json.RawMessage
 			if err := json.Unmarshal(p["runner"], &runner); err != nil {
 				t.Fatal(err)
 			}
 			assertResultFields(t, runner, "status", "endedAt")
 		} else {
-			assertResultFields(t, p, "playerId", "name", "team", "hunterTeam")
+			assertResultFields(t, p, "playerId", "name", "team", "hunterTeam", "track")
 		}
+		// Each player reported once in the lobby, which lies inside the backdated game.
+		var track []map[string]json.RawMessage
+		if err := json.Unmarshal(p["track"], &track); err != nil || len(track) != 1 {
+			t.Fatalf("track missing: %s %v", p["track"], err)
+		}
+		assertResultFields(t, track[0], "latitude", "longitude", "accuracyMeters", "recordedAt")
+	}
+	if track := byName["Bob"].Track; track == nil || len(*track) != 1 || (*track)[0].Latitude != 52.52 || (*track)[0].AccuracyMeters != 5 {
+		t.Fatalf("hunter track wrong: %+v", track)
 	}
 	// The public lookup must not interpret an unrelated/invalid bearer token.
 	public := decode[controller.GameResultResponse](t, send(t, handler, "GET", path, "invalid", ""), 200)

@@ -725,7 +725,8 @@ func TestDeleteGamesBefore(t *testing.T) {
 	if err := store.DeleteGamesBefore(ctx, end); err != nil {
 		t.Fatal(err)
 	}
-	if rows(&gameRow{}) != 3 || rows(&playerRow{}) != 2 || rows(&runnerRow{}) != 1 || rows(&jokerRow{}) != 1 || rows(&sketchRow{}) != 1 || count(t, store) != 2 {
+	// The orphan goes on the first pass; Ada's lobby report stays with her game.
+	if rows(&gameRow{}) != 3 || rows(&playerRow{}) != 2 || rows(&runnerRow{}) != 1 || rows(&jokerRow{}) != 1 || rows(&sketchRow{}) != 1 || count(t, store) != 1 {
 		t.Fatal("games deleted before their retention ended, or orphan kept")
 	}
 	if err := store.DeleteGamesBefore(ctx, end.Add(time.Nanosecond)); err != nil {

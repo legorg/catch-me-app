@@ -31,7 +31,7 @@ export const createGame = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * Get the public, coordinate-free result of an ended game by its full game ID
+ * Get the public result of an ended game, including player tracks, by its full game ID
  */
 export const getGameResult = <ThrowOnError extends boolean = false>(options: Options<GetGameResultData, ThrowOnError>) => (options.client ?? client).get<GetGameResultResponses, GetGameResultErrors, ThrowOnError>({ url: '/api/games/{sessionId}/result', ...options });
 

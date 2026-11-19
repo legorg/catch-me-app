@@ -28,6 +28,10 @@ type ResultPlayerResponse struct {
 	Team       Team                  `json:"team"`
 	HunterTeam string                `json:"hunterTeam,omitempty" maxLength:"20" example:"Pack"`
 	Runner     *RunnerResultResponse `json:"runner,omitempty"`
+	// Real reports from start to end, oldest first, at least 5 seconds apart
+	// (the last report is always included). Present, possibly empty, for
+	// runners and hunters; absent for spectators.
+	Track *[]PositionResponse `json:"track,omitempty"`
 }
 
 // RunnerOutcome is the terminal subset of RunnerStatus used in public results.
@@ -77,7 +81,7 @@ func gameResultResponse(result game.Result) (GameResultResponse, error) {
 		Events:          events,
 	}
 	for _, p := range result.Players {
-		player := ResultPlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team)}
+		player := ResultPlayerResponse{PlayerID: PlayerID(p.ID.String()), Name: p.Name.String(), Team: Team(p.Team), Track: trackResponse(p.Track)}
 		if p.Team == game.Runners {
 			player.Runner = &RunnerResultResponse{Status: RunnerOutcome(p.Runner.Status()), EndedAt: p.Runner.EndedAt()}
 		} else if p.Team == game.Hunters {
@@ -86,4 +90,16 @@ func gameResultResponse(result game.Result) (GameResultResponse, error) {
 		response.Players = append(response.Players, player)
 	}
 	return response, nil
+}
+
+// trackResponse keeps an empty track as [] and a missing one (spectators) absent.
+func trackResponse(track []game.Position) *[]PositionResponse {
+	if track == nil {
+		return nil
+	}
+	positions := make([]PositionResponse, 0, len(track))
+	for _, p := range track {
+		positions = append(positions, positionResponse(p))
+	}
+	return &positions
 }

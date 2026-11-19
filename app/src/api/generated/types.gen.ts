@@ -277,6 +277,7 @@ export type ControllerResultPlayerResponse = {
     playerId: string;
     runner?: ControllerRunnerResultResponse;
     team: ControllerTeam;
+    track?: Array<ControllerPositionResponse>;
 };
 
 export type ControllerRevealResponse = ({
@@ -493,7 +494,7 @@ export type GetGameResultErrors = {
      */
     400: ControllerApiError;
     /**
-     * Game not found or not ended
+     * Game not found, not ended, or already deleted (7 days after its end)
      */
     404: ControllerApiError;
     /**
@@ -510,7 +511,7 @@ export type GetGameResultError = GetGameResultErrors[keyof GetGameResultErrors];
 
 export type GetGameResultResponses = {
     /**
-     * Game times and duration, player names, runner outcomes/times, and hunter teams in join order, plus the whole event timeline oldest first; no coordinates, cells, joker results, join codes, or tokens; no authentication required
+     * Game times and duration, player names, runner outcomes/times, hunter teams, and each runner's and hunter's real track from start to end (thinned to 5 seconds) in join order, plus the whole event timeline oldest first; no joker results, reveals, sketches, route, join codes, or tokens; no authentication required
      */
     200: ControllerGameResultResponse;
 };

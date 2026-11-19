@@ -18,6 +18,7 @@ export type {
   ControllerJokerResponse as JokerResponse,
   ControllerPlayerResponse as PlayerResponse,
   ControllerPlayground as Playground,
+  ControllerPositionResponse as PositionResponse,
   ControllerRevealResponse as RevealResponse,
   ControllerResultPlayerResponse as ResultPlayerResponse,
   ControllerRunnerStatus as RunnerStatus,

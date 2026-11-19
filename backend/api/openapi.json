@@ -106,7 +106,7 @@
     },
     "/api/games/{sessionId}/result": {
       "get": {
-        "summary": "Get the public, coordinate-free result of an ended game by its full game ID",
+        "summary": "Get the public result of an ended game, including player tracks, by its full game ID",
         "operationId": "getGameResult",
         "parameters": [
           {
@@ -126,7 +126,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Game times and duration, player names, runner outcomes/times, and hunter teams in join order, plus the whole event timeline oldest first; no coordinates, cells, joker results, join codes, or tokens; no authentication required",
+            "description": "Game times and duration, player names, runner outcomes/times, hunter teams, and each runner's and hunter's real track from start to end (thinned to 5 seconds) in join order, plus the whole event timeline oldest first; no joker results, reveals, sketches, route, join codes, or tokens; no authentication required",
             "content": {
               "application/json": {
                 "schema": {
@@ -146,7 +146,7 @@
             }
           },
           "404": {
-            "description": "Game not found or not ended",
+            "description": "Game not found, not ended, or already deleted (7 days after its end)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2585,6 +2585,12 @@
           },
           "team": {
             "$ref": "#/components/schemas/ControllerTeam"
+          },
+          "track": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerPositionResponse"
+            },
+            "type": "array"
           }
         },
         "required": [
