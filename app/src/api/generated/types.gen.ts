@@ -513,7 +513,7 @@ export type GetGameResultError = GetGameResultErrors[keyof GetGameResultErrors];
 
 export type GetGameResultResponses = {
     /**
-     * Game times and duration, playground, route (start and stop), player names, runner outcomes/times, hunter teams, and each runner's and hunter's real track from start to end (thinned to 5 seconds) in join order, plus the whole event timeline oldest first; no joker results, reveals, sketches, join codes, or tokens; no authentication required
+     * Game times and duration, playground, route (start and stop), player names, runner outcomes/times, hunter teams, and each runner's and hunter's real track from start to end (thinned to 5 seconds, then evenly sampled to at most 120962 points, preserving first and last reports) in join order, plus the whole event timeline oldest first; no joker results, reveals, sketches, join codes, or tokens; no authentication required
      */
     200: ControllerGameResultResponse;
 };

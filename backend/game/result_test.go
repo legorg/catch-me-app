@@ -96,3 +96,46 @@ func TestResultTracks(t *testing.T) {
 		t.Fatal("direct spectators have no track")
 	}
 }
+
+func TestTrackPointLimit(t *testing.T) {
+	l, _, _, _, _, start := jokerLobby(t)
+	for _, count := range []int{MaxTrackPoints - 1, MaxTrackPoints, MaxTrackPoints + 1, 2*MaxTrackPoints + 17} {
+		history := make([]Position, count)
+		for i := range history {
+			at := start.Add(time.Duration(i) * TrackMinInterval)
+			if i == count-1 {
+				at = at.Add(-time.Second) // Keep the final report even below the usual interval.
+			}
+			history[i], _ = NewPosition(l.Game.Playground.Center(), 5, at)
+		}
+		before := slices.Clone(history)
+		got := track(history, start, history[count-1].RecordedAt)
+		if len(got) != min(count, MaxTrackPoints) {
+			t.Fatalf("%d reports: got %d track points", count, len(got))
+		}
+		if got[0] != history[0] || got[len(got)-1] != history[count-1] {
+			t.Fatalf("%d reports: track lost its first or last report", count)
+		}
+		if count > MaxTrackPoints {
+			for i, point := range got {
+				if point != history[int(int64(i)*int64(count-1)/int64(MaxTrackPoints-1))] {
+					t.Fatalf("%d reports: track is not sampled evenly at %d", count, i)
+				}
+			}
+		}
+		for i := 1; i < len(got); i++ {
+			if !got[i].RecordedAt.After(got[i-1].RecordedAt) {
+				t.Fatalf("%d reports: track is not strictly chronological at %d", count, i)
+			}
+			if i < len(got)-1 && got[i].RecordedAt.Sub(got[i-1].RecordedAt) < TrackMinInterval {
+				t.Fatalf("%d reports: track cadence is too short at %d", count, i)
+			}
+		}
+		if count <= MaxTrackPoints && !slices.Equal(got, history) {
+			t.Fatalf("%d reports: track below the limit was changed", count)
+		}
+		if !slices.Equal(history, before) {
+			t.Fatal("track sampling modified stored history")
+		}
+	}
+}

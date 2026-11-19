@@ -12,4 +12,6 @@ WORKDIR /app
 COPY --from=build /out/devfixture ./devfixture
 # Match the backend's user so SQLite journal files have compatible ownership.
 USER 53111:53111
+# One-shot tool: completion is reported by the exit code, not a service probe.
+HEALTHCHECK NONE
 ENTRYPOINT ["/app/devfixture"]

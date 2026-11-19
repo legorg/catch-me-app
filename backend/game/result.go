@@ -6,6 +6,10 @@ import "time"
 // track; the reports in between are dropped to keep the result small.
 const TrackMinInterval = 5 * time.Second
 
+// MaxTrackPoints allows a week at the normal cadence, plus the first and last
+// reports. Longer tracks are sampled more coarsely, without limiting game time.
+const MaxTrackPoints = int(7*24*time.Hour/TrackMinInterval) + 2
+
 // Result is the public summary of an ended game: playground, route,
 // participants, outcomes, the coordinate-free timeline and every runner's and
 // hunter's real track. It carries no credentials, joker results, reveals or
@@ -28,8 +32,8 @@ type ResultPlayer struct {
 	HunterTeam HunterTeamName
 	Runner     RunnerState
 	// Track holds the real reports from start to end, oldest first, thinned to
-	// TrackMinInterval. Runners and hunters always have one (possibly empty);
-	// direct spectators report no positions and have none (nil).
+	// TrackMinInterval and capped at MaxTrackPoints. Runners and hunters always
+	// have one (possibly empty); direct spectators have none (nil).
 	Track []Position
 }
 
@@ -59,7 +63,8 @@ func (l Lobby) Result(histories map[PlayerID][]Position) (Result, error) {
 
 // track keeps the reports from start to end (inclusive) that are at least
 // TrackMinInterval after the previously kept one, plus the last report, so a
-// track always ends where the player was last seen.
+// track always ends where the player was last seen. If the track exceeds
+// MaxTrackPoints, sample evenly across its indices, preserving both endpoints.
 func track(history []Position, start, end time.Time) []Position {
 	kept := []Position{}
 	var last Position
@@ -74,6 +79,13 @@ func track(history []Position, start, end time.Time) []Position {
 	}
 	if !last.IsZero() && kept[len(kept)-1] != last {
 		kept = append(kept, last)
+	}
+	if len(kept) > MaxTrackPoints {
+		lastIndex := len(kept) - 1
+		for i := range MaxTrackPoints {
+			kept[i] = kept[int(int64(i)*int64(lastIndex)/int64(MaxTrackPoints-1))]
+		}
+		kept = kept[:MaxTrackPoints]
 	}
 	return kept
 }

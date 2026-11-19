@@ -259,10 +259,18 @@ func TestOpenAPIRoutes(t *testing.T) {
 		{"ControllerGameStateHunterResponse", "jokers", 3},
 		{"ControllerGameStateSpectatorResponse", "jokers", 0},
 		{"ControllerGameStateHunterResponse", "sketches", 200},
+		{"ControllerResultPlayerResponse", "track", domain.MaxTrackPoints},
 	} {
 		limit := spec.Components.Schemas[tc.schema].Properties[tc.field].MaxItems
 		if limit == nil || *limit != tc.max {
 			t.Errorf("%s.%s must document maxItems %d", tc.schema, tc.field, tc.max)
+		}
+	}
+	for name, definition := range spec.Components.Schemas {
+		for field, property := range definition.Properties {
+			if string(property.Type) == `"array"` && property.MaxItems == nil {
+				t.Errorf("%s.%s must document maxItems", name, field)
+			}
 		}
 	}
 	const union = "ControllerGameStateResponse"

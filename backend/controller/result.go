@@ -33,8 +33,9 @@ type ResultPlayerResponse struct {
 	Runner     *RunnerResultResponse `json:"runner,omitempty"`
 	// Real reports from start to end, oldest first, at least 5 seconds apart
 	// (the last report is always included). Present, possibly empty, for
-	// runners and hunters; absent for spectators.
-	Track *[]PositionResponse `json:"track,omitempty"`
+	// runners and hunters; absent for spectators. At most 120962 points;
+	// longer tracks are sampled more coarsely, preserving first and last reports.
+	Track *[]PositionResponse `json:"track,omitempty" maxItems:"120962"`
 }
 
 // RunnerOutcome is the terminal subset of RunnerStatus used in public results.

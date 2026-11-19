@@ -126,7 +126,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Game times and duration, playground, route (start and stop), player names, runner outcomes/times, hunter teams, and each runner's and hunter's real track from start to end (thinned to 5 seconds) in join order, plus the whole event timeline oldest first; no joker results, reveals, sketches, join codes, or tokens; no authentication required",
+            "description": "Game times and duration, playground, route (start and stop), player names, runner outcomes/times, hunter teams, and each runner's and hunter's real track from start to end (thinned to 5 seconds, then evenly sampled to at most 120962 points, preserving first and last reports) in join order, plus the whole event timeline oldest first; no joker results, reveals, sketches, join codes, or tokens; no authentication required",
             "content": {
               "application/json": {
                 "schema": {
@@ -2600,6 +2600,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerPositionResponse"
             },
+            "maxItems": 120962,
             "type": "array"
           }
         },
