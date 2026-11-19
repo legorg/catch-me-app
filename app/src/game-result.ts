@@ -1,12 +1,12 @@
 import { getLanguage } from './i18n';
-import { isHexId } from './json-guards';
 
 export function normalizeGameId(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/** Game IDs: 32 lowercase hexadecimal characters. */
 export function isValidGameId(value: string): boolean {
-  return isHexId(value);
+  return /^[a-f0-9]{32}$/.test(value);
 }
 
 export function gameResultRoute(sessionId: string) {

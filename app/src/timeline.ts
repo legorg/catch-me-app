@@ -1,46 +1,5 @@
-import type { JokerKind, TimelineEvent, TimelinePlayer, TimelineResponse } from './api/types';
+import type { TimelineEvent, TimelineResponse } from './api/types';
 import { translate } from './i18n';
-import { isHexId, isObject, isTimestamp } from './json-guards';
-
-// Every joker kind; the type check reports a missing one.
-const JOKER_KINDS = {
-  showRunners: true, queryZone: true, zoneOnly: true, fakePosition: true, showHunters: true, compass: true,
-} satisfies Record<JokerKind, true>;
-
-function isJokerKind(value: unknown): value is JokerKind {
-  return typeof value === 'string' && Object.hasOwn(JOKER_KINDS, value);
-}
-
-function isName(value: unknown): value is string {
-  return typeof value === 'string' && !!value.trim();
-}
-
-function isTimelinePlayer(value: unknown): value is TimelinePlayer {
-  return isObject(value) && isHexId(value.playerId) && isName(value.name);
-}
-
-/** Also used for the events of a game result. */
-function isTimelineEvent(value: unknown): value is TimelineEvent {
-  if (!isObject(value) || !isTimestamp(value.at)) return false;
-  switch (value.kind) {
-    case 'gameStarted':
-    case 'gameEnded':
-      return true;
-    case 'hunterJokerUsed':
-      return isName(value.hunterTeam) && isJokerKind(value.joker);
-    case 'runnerJokerUsed':
-      return isTimelinePlayer(value.runner) && isJokerKind(value.joker);
-    case 'runnerCaught':
-    case 'runnerFinished':
-      return isTimelinePlayer(value.runner);
-  }
-  return false;
-}
-
-/** Generated TypeScript types alone do not validate the JSON received at runtime. */
-export function isTimelineResponse(value: unknown): value is TimelineResponse {
-  return isObject(value) && isTimestamp(value.serverTime) && Array.isArray(value.events) && value.events.every(isTimelineEvent);
-}
 
 /** A slower, older response must not replace a newer timeline. */
 export function shouldAcceptTimeline(previous: TimelineResponse | null, incoming: TimelineResponse): boolean {

@@ -7,7 +7,6 @@ import {
 import { isGameStateHunterResponse } from '../src/api/types';
 import { previewPlayground } from '../src/playground';
 import { isValidGameId, normalizeGameId } from '../src/game-result';
-import { isTimelineResponse } from '../src/timeline';
 
 const center = { latitude: 52.52, longitude: 13.405 };
 const route = {
@@ -129,32 +128,12 @@ test('the timeline is fetched with the token and returned as sent', async (t) =>
     assert.equal(request.headers.get('Authorization'), `Bearer ${token}`);
     return Response.json(timeline);
   });
-  assert.equal(isTimelineResponse(timeline), true);
   assert.deepEqual(await getTimeline(token), timeline);
-  assert.equal(isTimelineResponse({ ...timeline, events: [] }), true);
 });
 
 test('active players keep the 409 of the timeline request', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'only spectators can see the timeline' }, { status: 409 }));
   await assert.rejects(getTimeline(token), (err: unknown) => err instanceof ApiError && err.status === 409);
-});
-
-test('malformed timeline JSON is rejected rather than crashing the timeline', async (t) => {
-  const [started, hunterJoker, runnerJoker, caught] = timeline.events;
-  for (const invalid of [
-    null, {}, { ...timeline, serverTime: 'invalid' }, { ...timeline, events: null }, { ...timeline, events: [null] },
-    { ...timeline, events: [{ ...started, at: 'invalid' }] },
-    { ...timeline, events: [{ ...started, kind: 'teleported' }] },
-    { ...timeline, events: [{ ...hunterJoker, hunterTeam: ' ' }] },
-    { ...timeline, events: [{ ...hunterJoker, joker: 'teleport' }] },
-    { ...timeline, events: [{ ...runnerJoker, runner: undefined }] },
-    { ...timeline, events: [{ ...caught, runner: { ...ada, playerId: '482913' } }] },
-    { ...timeline, events: [{ ...caught, runner: { ...ada, name: '' } }] },
-  ]) {
-    assert.equal(isTimelineResponse(invalid), false);
-    t.mock.method(globalThis, 'fetch', async () => Response.json(invalid));
-    await assert.rejects(getTimeline(token), /invalid timeline/);
-  }
 });
 
 test('create posts the center and all settings as JSON, with defaults', async (t) => {

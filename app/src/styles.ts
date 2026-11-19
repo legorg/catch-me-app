@@ -76,6 +76,7 @@ export const dynamicStyles = {
   languageMenu: (anchor: { top: number; right: number }): ViewStyle => ({ top: anchor.top, right: anchor.right }),
   /** Android draws edge-to-edge and the start screen has no header, so its title must clear the status bar itself. */
   homeTitle: (topInset: number): ViewStyle => ({ paddingTop: topInset }),
+  replayProgress: (share: number): ViewStyle => ({ width: `${share * 100}%` }),
 };
 
 /** Game screen overlay (HUD, info panel, pills, icon buttons). */
@@ -133,6 +134,8 @@ export const mapStyles = StyleSheet.create({
   pinTailBorder: { position: 'absolute', top: 26, left: 8, width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: colors.white },
   pinTail: { position: 'absolute', top: 28, left: 11, width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 10, borderLeftColor: 'transparent', borderRightColor: 'transparent' },
   pinNumber: { fontSize: 14, fontWeight: '800', color: colors.white },
+  dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  dotLabel: { fontSize: 9, fontWeight: '800', color: colors.white },
   label: { fontSize: 11, color: colors.background, backgroundColor: colors.white, padding: 2, borderRadius: 3, fontWeight: '700' },
 });
 
@@ -140,5 +143,15 @@ export const mapStyles = StyleSheet.create({
 export const fullscreenStyles = StyleSheet.create({
   full: { flex: 1, backgroundColor: colors.background },
   toggle: { position: 'absolute', backgroundColor: colors.background, borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: 0.92 },
+});
+
+/** Result replay: a tall touch area around a thin rail. */
+export const replayStyles = StyleSheet.create({
+  scrubber: { height: 32, justifyContent: 'center' },
+  rail: { height: 6, borderRadius: 3, backgroundColor: colors.background, overflow: 'hidden' },
+  progress: { height: '100%', backgroundColor: colors.accent },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 6 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 12, height: 12, borderRadius: 6 },
 });
 

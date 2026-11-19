@@ -38,7 +38,7 @@
     "typecheck": "tsc --noEmit",
     "knip": "knip",
     "api:generate": "openapi-ts",
-    "test:api": "tsx --test tests/api-client.test.ts tests/playground.test.ts tests/lobby.test.ts tests/i18n.test.ts tests/timeline.test.ts",
+    "test:api": "tsx --test tests/api-client.test.ts tests/playground.test.ts tests/lobby.test.ts tests/i18n.test.ts tests/timeline.test.ts tests/replay.test.ts",
     "test:lint-rules": "node --test eslint-rules/*.test.js"
   },
   "private": true,

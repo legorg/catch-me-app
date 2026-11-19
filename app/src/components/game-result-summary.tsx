@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 
 import type { GameResultResponse, ResultPlayerResponse } from '@/api/types';
+import GameReplay from '@/components/game-replay';
 import TimelineEntries from '@/components/timeline-entries';
 import { formatResultTime } from '@/game-result';
 import { useT } from '@/i18n';
@@ -29,6 +30,7 @@ export default function GameResultSummary({ result }: { result: GameResultRespon
         <Text style={styles.text}>{t('result.endedAt', { time: formatResultTime(result.endedAt) })}</Text>
         <Text style={styles.text}>{t('result.duration', { time: formatDuration(result.durationSeconds) })}</Text>
       </View>
+      <GameReplay result={result} />
       <View style={styles.card}>
         <Text accessibilityRole="header" style={styles.heading}>{t('team.runners')}</Text>
         {result.players.filter((p) => p.team === 'runner').map((p) => <PlayerResult key={p.playerId} player={p} />)}

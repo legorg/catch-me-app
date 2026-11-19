@@ -14,6 +14,16 @@ services:
       - game_data:/data
     stop_grace_period: 10s
 
+  # Explicit one-off development tool; never started by a normal compose up.
+  devfixture:
+    profiles: ["tools"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.devfixture
+    command: ["-db", "/data/catch-me.sqlite"]
+    volumes:
+      - game_data:/data
+
   app:
     build:
       context: .

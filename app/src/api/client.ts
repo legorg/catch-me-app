@@ -23,7 +23,6 @@ import { translate, type MessageKey } from '../i18n';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
 } from '../playground';
-import { isTimelineResponse } from '../timeline';
 
 export type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse, TimelineEvent, TimelineResponse } from './types';
 
@@ -101,9 +100,7 @@ export async function getGameState(token: string): Promise<GameStateResponse> {
 
 /** The game's events up to the server time, oldest first; only spectators get them (others 409). */
 export async function getTimeline(token: string): Promise<TimelineResponse> {
-  const timeline = await request((signal) => fetchTimeline({ baseUrl: API_URL, auth: bearer(token), signal }));
-  if (!isTimelineResponse(timeline)) throw new Error(translate('timeline.invalidResponse'));
-  return timeline;
+  return request((signal) => fetchTimeline({ baseUrl: API_URL, auth: bearer(token), signal }));
 }
 
 /** No token, joining, or location permission is needed to look up an ended game. */

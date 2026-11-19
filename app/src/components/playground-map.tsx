@@ -24,6 +24,8 @@ export type MapMarker = {
   color: string;
   /** A number or short text shown inside the pin. */
   label?: string;
+  /** A small dot centered on the coordinate instead of a pin, e.g. a moving player in the replay. */
+  dot?: boolean;
 };
 
 type MapLine = { id: string; coordinates: Coordinates[]; color: string };

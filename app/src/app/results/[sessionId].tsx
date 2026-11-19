@@ -24,10 +24,10 @@ function ResultContent({ sessionId }: { sessionId: string }) {
         <Text selectable style={styles.text}>{sessionId}</Text>
         <Text style={styles.hint}>{t('result.keepIdPrivate')}</Text>
       </View>
-      {busy && <>
-        <ActivityIndicator color={colors.accent} />
-        <Text accessibilityLiveRegion="polite" style={styles.text}>{t('result.loading')}</Text>
-      </>}
+      {busy && <View style={styles.card}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text accessibilityLiveRegion="polite" style={[styles.text, styles.centerText]}>{t('result.loading')}</Text>
+      </View>}
       {!!error && <View style={styles.card}>
         <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{message}</Text>
         {valid && <Button label={t('result.retry')} onPress={retry} />}

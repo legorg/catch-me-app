@@ -12,8 +12,20 @@ const PIN_OFFSET = Platform.OS === 'ios' ? { x: 0, y: -20 } : undefined;
 const NUMBERED_PIN_ANCHOR = Platform.OS === 'ios' ? undefined : { x: 0.5, y: 1 };
 const NUMBERED_PIN_OFFSET = Platform.OS === 'ios' ? { x: 0, y: -20 } : undefined;
 
+// A dot's middle is the coordinate: Apple Maps centers custom views already, Google Maps needs the anchor.
+const DOT_ANCHOR = Platform.OS === 'ios' ? undefined : { x: 0.5, y: 0.5 };
+
 /** The native pin cannot hold text, so a numbered marker is drawn: a round head with the number and a pointed tail. */
-export default function MapPin({ coordinate, title, description, color, label }: Omit<MapMarker, 'id'>) {
+export default function MapPin({ coordinate, title, description, color, label, dot }: Omit<MapMarker, 'id'>) {
+  if (dot) {
+    return (
+      <Marker coordinate={coordinate} title={title} description={description} anchor={DOT_ANCHOR} tracksViewChanges={false}>
+        <View style={[styles.dot, dynamicStyles.pinHead(color)]}>
+          {label !== undefined && <Text style={styles.dotLabel}>{label}</Text>}
+        </View>
+      </Marker>
+    );
+  }
   if (label === undefined) {
     return <Marker coordinate={coordinate} title={title} description={description} pinColor={color} centerOffset={PIN_OFFSET} />;
   }
