@@ -4,6 +4,7 @@ import Button from '@/components/button';
 import FullscreenMap from '@/components/fullscreen-map';
 import JoinAsCard from '@/components/join-as-card';
 import JoinCodes from '@/components/join-codes';
+import JokerSettingsCard from '@/components/joker-settings-card';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import SettingCard from '@/components/setting-card';
 import { formatNumber, useT } from '@/i18n';
@@ -33,6 +34,7 @@ export default function CreateScreen() {
           value={game.cellSizeText} onChange={game.setCellSizeText} editable={!busy} error={game.sizeError} keyboardType="decimal-pad" maxLength={8} />
         <SettingCard title={t('create.revealInterval')} label={t('create.revealIntervalLabel')} hint={t('create.revealIntervalHint')}
           value={game.revealIntervalText} onChange={game.setRevealIntervalText} editable={!busy} error={game.revealIntervalError} maxLength={2} />
+        <JokerSettingsCard settings={game.jokers} onChange={game.setJokerAllowance} disabled={busy} />
       </>}
       <View style={styles.mapContainer}>
         {/* Remounts once when the position arrives, so the map opens there. */}

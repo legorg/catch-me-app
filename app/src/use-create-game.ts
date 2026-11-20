@@ -2,7 +2,9 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { createGame, joinGame, type Coordinates, type CreateGameResponse } from '@/api/client';
+import type { JokerSettings } from '@/api/types';
 import { useT, type MessageKey } from '@/i18n';
+import { DEFAULT_JOKER_SETTINGS, withAllowance, type JokerKind } from '@/joker-settings';
 import { playerSession } from '@/player-session';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_CENTER, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES,
@@ -23,6 +25,7 @@ export function useCreateGame() {
   const [cellSizeText, setCellSizeText] = useState(String(DEFAULT_CELL_SIZE_METERS / 1000));
   const [gridSizeText, setGridSizeText] = useState(String(DEFAULT_GRID_SIZE));
   const [revealIntervalText, setRevealIntervalText] = useState(String(DEFAULT_REVEAL_INTERVAL_MINUTES));
+  const [jokers, setJokers] = useState<JokerSettings>(DEFAULT_JOKER_SETTINGS);
   const [created, setCreated] = useState<CreateGameResponse | null>(null);
   const [name, setName] = useState('');
   const [status, setStatus] = useState<Status>({ message: { key: 'create.pickCenter' }, error: false, busy: false });
@@ -79,7 +82,7 @@ export function useCreateGame() {
   const create = () => {
     void run(async () => {
       if (!selected || cellSize === null || gridSize === null || revealInterval === null || cannotCreate) return;
-      setCreated(await createGame(selected, cellSize, gridSize, revealInterval));
+      setCreated(await createGame(selected, cellSize, gridSize, revealInterval, jokers));
       setStatus((s) => ({ ...s, message: { key: 'create.created' } }));
     }, 'create.creating');
   };
@@ -97,6 +100,7 @@ export function useCreateGame() {
     cellSizeText, setCellSizeText, sizeError,
     gridSizeText, setGridSizeText, gridSizeError,
     revealIntervalText, setRevealIntervalText, revealIntervalError,
+    jokers, setJokerAllowance: (kind: JokerKind, allowance: number) => setJokers((current) => withAllowance(current, kind, allowance)),
     name, setName, busy, message: status.message, error: status.error, cannotCreate,
     selectCenter, create, joinAs,
   };

@@ -17,9 +17,10 @@ import {
   updatePosition as putPosition,
 } from './generated/sdk.gen';
 import { client } from './generated/client.gen';
-import type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest, TimelineResponse } from './types';
+import type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest, JokerSettings, TimelineResponse } from './types';
 import { isValidGameId, normalizeGameId } from '../game-result';
 import { translate, type MessageKey } from '../i18n';
+import { DEFAULT_JOKER_SETTINGS, isValidJokerAllowance } from '../joker-settings';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
 } from '../playground';
@@ -69,6 +70,7 @@ export async function createGame(
   cellSizeMeters = DEFAULT_CELL_SIZE_METERS,
   gridSize = DEFAULT_GRID_SIZE,
   revealIntervalMinutes = DEFAULT_REVEAL_INTERVAL_MINUTES,
+  jokers: JokerSettings = DEFAULT_JOKER_SETTINGS,
 ): Promise<CreateGameResponse> {
   if (!isValidCellSize(cellSizeMeters)) {
     throw new Error(translate('playground.cellSizeInvalid'));
@@ -79,14 +81,10 @@ export async function createGame(
   if (!isValidRevealInterval(revealIntervalMinutes)) {
     throw new Error(translate('playground.revealIntervalInvalid'));
   }
-  const body = {
-    ...center, cellSizeMeters, gridSize, revealIntervalMinutes,
-    jokers: {
-      showRunners: { allowance: 1 }, queryZone: { allowance: 1 }, compass: { allowance: 1 },
-      trap: { allowance: 1 }, zoneOnly: { allowance: 1 }, fakePosition: { allowance: 1 },
-      showHunters: { allowance: 1 },
-    },
-  };
+  if (!Object.values(jokers).every((setting) => isValidJokerAllowance(setting.allowance))) {
+    throw new Error(translate('playground.jokerAllowanceInvalid'));
+  }
+  const body = { ...center, cellSizeMeters, gridSize, revealIntervalMinutes, jokers };
   return request((signal) => postGame({ baseUrl: API_URL, body, signal }), LANDMARK_TIMEOUT_MS, 'client.createTimeout');
 }
 

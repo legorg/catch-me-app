@@ -5,6 +5,7 @@ import {
   API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, finish, getGameResult, getGameState, getTimeline, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
+import { DEFAULT_JOKER_SETTINGS, HUNTER_JOKER_KINDS, RUNNER_JOKER_KINDS, withAllowance } from '../src/joker-settings';
 import { previewPlayground } from '../src/playground';
 import { isValidGameId, normalizeGameId } from '../src/game-result';
 
@@ -166,6 +167,20 @@ test('custom settings are sent', async (t) => {
   }
 });
 
+test('chosen joker allowances are sent for every kind, including 0', async (t) => {
+  let settings = DEFAULT_JOKER_SETTINGS;
+  for (const [kind, allowance] of [['showRunners', 0], ['trap', 5], ['fakePosition', 3]] as const) {
+    settings = withAllowance(settings, kind, allowance);
+  }
+  assert.equal(DEFAULT_JOKER_SETTINGS.showRunners.allowance, 1); // The defaults stay unchanged.
+  assert.deepEqual(Object.keys(settings).sort(), [...HUNTER_JOKER_KINDS, ...RUNNER_JOKER_KINDS].sort());
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    assert.deepEqual((await request.json()).jokers, { ...jokers, showRunners: { allowance: 0 }, trap: { allowance: 5 }, fakePosition: { allowance: 3 } });
+    return Response.json(created, { status: 201 });
+  });
+  await createGame(center, 2000, 6, 30, settings);
+});
+
 test('invalid input is rejected before a request', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => { assert.fail('should not fetch'); });
   for (const size of [0, 99, 1550, 5100, NaN, Infinity]) {
@@ -176,6 +191,9 @@ test('invalid input is rejected before a request', async (t) => {
   }
   for (const minutes of [0, 61, 0.5, NaN]) {
     await assert.rejects(createGame(center, 2000, 6, minutes), /reveal interval/);
+  }
+  for (const allowance of [-1, 6, 1.5, NaN]) {
+    await assert.rejects(createGame(center, 2000, 6, 30, withAllowance(DEFAULT_JOKER_SETTINGS, 'compass', allowance)), /joker allowance/);
   }
   for (const code of ['', '123', '12345A', 'K7M2QX', '1234567', '123 45']) {
     await assert.rejects(joinGame(code, 'Ada'), /join code/);

@@ -15,6 +15,7 @@ export type {
   ControllerJoinCodes as JoinCodes,
   ControllerJoinGameResponse as JoinGameResponse,
   ControllerJokerResponse as JokerResponse,
+  ControllerJokerSettings as JokerSettings,
   ControllerPlayerResponse as PlayerResponse,
   ControllerPlayground as Playground,
   ControllerRevealResponse as RevealResponse,

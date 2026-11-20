@@ -7,15 +7,12 @@ import Button from '@/components/button';
 import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, useT } from '@/i18n';
 import { isSpectator, ownPlayer } from '@/game-state';
+import { JOKER_TITLE_KEYS as TITLE_KEYS } from '@/joker-settings';
 import { remainingUses, trapStatus, type JokerUse } from '@/lobby';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
 
-const TITLE_KEYS = {
-  showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title', fakePosition: 'joker.fakePosition.title',
-  showHunters: 'joker.showHunters.title', compass: 'joker.compass.title', trap: 'joker.trap.title',
-} as const;
 const TEXT_KEYS = {
   showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text', fakePosition: 'joker.fakePosition.text',
   showHunters: 'joker.showHunters.text', compass: 'joker.compass.text', trap: 'joker.trap.text',
