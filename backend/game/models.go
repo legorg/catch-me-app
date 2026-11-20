@@ -75,6 +75,7 @@ type Game struct {
 	Playground Playground
 	// RevealInterval is how often hunters receive the runners' positions.
 	RevealInterval RevealInterval
+	JokerSettings  JokerSettings
 	JoinCodes      JoinCodes
 	Route          Route
 	// RouteRegenerations is how often the runners replaced the route.

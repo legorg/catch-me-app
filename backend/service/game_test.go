@@ -110,6 +110,9 @@ func TestCreate(t *testing.T) {
 	if first.JoinCodes.Runner == (game.JoinCode{}) || first.JoinCodes.Runner == first.JoinCodes.Hunter {
 		t.Fatal("join codes missing")
 	}
+	if first.JokerSettings != game.DefaultJokerSettings() || second.JokerSettings != game.DefaultJokerSettings() {
+		t.Fatal("new games must default to one use per joker kind")
+	}
 }
 
 func TestDeleteExpiredGames(t *testing.T) {

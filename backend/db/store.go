@@ -40,6 +40,20 @@ type gameRow struct {
 	Players            []playerRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 	Jokers             []jokerRow  `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 	Sketches           []sketchRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+
+	JokerSettings jokerSettingsRow `gorm:"embedded;embeddedPrefix:joker_"`
+}
+
+// Pointers preserve an explicit allowance of 0 when GORM inserts a row with
+// default:1. Older games receive 1 for each newly added column in AutoMigrate.
+type jokerSettingsRow struct {
+	ShowRunnersAllowance  *int `gorm:"not null;default:1"`
+	QueryZoneAllowance    *int `gorm:"not null;default:1"`
+	CompassAllowance      *int `gorm:"not null;default:1"`
+	TrapAllowance         *int `gorm:"not null;default:1"`
+	ZoneOnlyAllowance     *int `gorm:"not null;default:1"`
+	FakePositionAllowance *int `gorm:"not null;default:1"`
+	ShowHuntersAllowance  *int `gorm:"not null;default:1"`
 }
 
 // The route_start, route_end, and route_regenerations_left columns of older
@@ -162,6 +176,7 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 			StartTitle: g.Route.Start.Title, StartLat: g.Route.Start.Coordinates.Latitude(), StartLon: g.Route.Start.Coordinates.Longitude(),
 			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
 			RouteRegenerations: g.RouteRegenerations,
+			JokerSettings:      toJokerSettingsRow(g.JokerSettings),
 		}
 		if !g.EndedAt.IsZero() {
 			row.EndedAt = &g.EndedAt
@@ -702,7 +717,8 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 	gridSize, err6 := game.ParseGridSize(row.GridSize)
 	revealInterval, err7 := game.ParseRevealInterval(row.RevealIntervalMinutes)
 	spectator, err8 := game.ParseJoinCode(row.SpectatorCode)
-	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8); err != nil {
+	jokerSettings, err9 := parseJokerSettings(row.JokerSettings)
+	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9); err != nil {
 		return game.Lobby{}, err
 	}
 	playground, err := game.NewPlayground(center, cellSize, gridSize)
@@ -710,7 +726,7 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 		return game.Lobby{}, err
 	}
 	lobby := game.Lobby{Game: game.Game{
-		SessionID: id, CreatedAt: row.CreatedAt.UTC(), Playground: playground, RevealInterval: revealInterval,
+		SessionID: id, CreatedAt: row.CreatedAt.UTC(), Playground: playground, RevealInterval: revealInterval, JokerSettings: jokerSettings,
 		JoinCodes: game.JoinCodes{Runner: runner, Hunter: hunter, Spectator: spectator}, StartsAt: row.StartsAt.UTC(),
 	}}
 	if row.EndedAt != nil {

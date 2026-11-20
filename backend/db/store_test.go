@@ -39,7 +39,7 @@ func fixture(t *testing.T, latitude float64, meters int, id string) game.Game {
 		Start: game.Landmark{Title: "Start", Coordinates: boundsCenter(p.CellBounds(p.SouthEdgeCells()[0]))},
 		Stop:  game.Landmark{Title: "Stop", Coordinates: boundsCenter(p.CellBounds(p.NorthEdgeCells()[0]))},
 	}
-	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, RevealInterval: game.DefaultRevealInterval(), JoinCodes: game.NewJoinCodes(), Route: route}
+	return game.Game{SessionID: sessionID, CreatedAt: now, Playground: p, RevealInterval: game.DefaultRevealInterval(), JokerSettings: game.DefaultJokerSettings(), JoinCodes: game.NewJoinCodes(), Route: route}
 }
 
 // withSettings is g with another grid size and reveal interval.
