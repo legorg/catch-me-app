@@ -59,7 +59,7 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
 	// An unused joker has no result; "no" must be sent as false, not left out.
-	want := `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":false,"usedAt":"2026-11-08T12:00:00Z","cell":"A1","found":false},{"kind":"compass","available":true},{"kind":"trap","available":true}]`
+	want := `[{"kind":"showRunners","available":true,"remaining":1},{"kind":"queryZone","available":false,"remaining":0,"usedAt":"2026-11-08T12:00:00Z","cell":"A1","found":false},{"kind":"compass","available":true,"remaining":1},{"kind":"trap","available":true,"remaining":1}]`
 	if got := jsonOf(t, bobState.Jokers); got != want {
 		t.Fatalf("jokers:\n got %s\nwant %s", got, want)
 	}
@@ -107,7 +107,7 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 		t.Fatalf("only the reveal after the joker shows just the cell:\n got %s\nwant %s", got, want)
 	}
 	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
-	want = `{"kind":"zoneOnly","available":false,"usedAt":"2026-11-08T12:01:01Z","usedBy":"` + ada.ID.String() + `"}`
+	want = `{"kind":"zoneOnly","available":false,"remaining":0,"usedAt":"2026-11-08T12:01:01Z","usedBy":"` + ada.ID.String() + `"}`
 	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 3 || got != want {
 		t.Fatalf("every runner sees who used the runner joker:\n got %s\nwant %s", got, want)
 	}
@@ -138,12 +138,12 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 		t.Fatalf("hunters must see the chosen point like a normal reveal:\n got %s\nwant %s", got, want)
 	}
 	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()
-	want = `{"kind":"fakePosition","available":false,"usedAt":"2026-11-08T12:00:01Z","usedBy":"` + ada.ID.String() + `","point":{"latitude":52.53,"longitude":13.415}}`
+	want = `{"kind":"fakePosition","available":false,"remaining":0,"usedAt":"2026-11-08T12:00:01Z","usedBy":"` + ada.ID.String() + `","point":{"latitude":52.53,"longitude":13.415}}`
 	if got := jsonOf(t, adaState.Jokers[1]); got != want {
 		t.Fatalf("runners see the point they showed:\n got %s\nwant %s", got, want)
 	}
 	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
-	if got := jsonOf(t, cyState.Jokers[1]); got != `{"kind":"fakePosition","available":true}` {
+	if got := jsonOf(t, cyState.Jokers[1]); got != `{"kind":"fakePosition","available":true,"remaining":1}` {
 		t.Fatalf("another runner gets their own unspent joker, not Ada's point: %s", got)
 	}
 }
@@ -161,7 +161,7 @@ func TestGameStateShowsTheHunterPositionsToRunnersOnly(t *testing.T) {
 	}
 
 	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()
-	want := `{"kind":"showHunters","available":false,"usedAt":"2026-11-08T12:00:00Z","usedBy":"` + ada.ID.String() + `",` +
+	want := `{"kind":"showHunters","available":false,"remaining":0,"usedAt":"2026-11-08T12:00:00Z","usedBy":"` + ada.ID.String() + `",` +
 		`"positions":[{"playerId":"` + bob.ID.String() + `","latitude":52.52,"longitude":13.405,"accuracyMeters":5,"recordedAt":"2026-11-08T11:59:59Z"}]}`
 	if got := jsonOf(t, adaState.Jokers[2]); len(adaState.Jokers) != 3 || got != want {
 		t.Fatalf("runners see where the hunters were:\n got %s\nwant %s", got, want)
@@ -172,7 +172,7 @@ func TestGameStateShowsTheHunterPositionsToRunnersOnly(t *testing.T) {
 		}
 	}
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	if got := jsonOf(t, bobState.Jokers); got != `[{"kind":"showRunners","available":true},{"kind":"queryZone","available":true},{"kind":"compass","available":true},{"kind":"trap","available":true}]` {
+	if got := jsonOf(t, bobState.Jokers); got != `[{"kind":"showRunners","available":true,"remaining":1},{"kind":"queryZone","available":true,"remaining":1},{"kind":"compass","available":true,"remaining":1},{"kind":"trap","available":true,"remaining":1}]` {
 		t.Fatalf("hunters are not told: %s", got)
 	}
 }
@@ -192,7 +192,7 @@ func TestGameStateShowsOnlyTheCompassDirections(t *testing.T) {
 	}
 
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	want := `{"kind":"compass","available":false,"usedAt":"2026-11-08T12:00:00Z","origin":{"latitude":52.52,"longitude":13.405},"bearings":[0]}`
+	want := `{"kind":"compass","available":false,"remaining":0,"usedAt":"2026-11-08T12:00:00Z","origin":{"latitude":52.52,"longitude":13.405},"bearings":[0]}`
 	if got := jsonOf(t, bobState.Jokers[2]); got != want {
 		t.Fatalf("hunters see only the origin and the directions:\n got %s\nwant %s", got, want)
 	}
@@ -212,18 +212,18 @@ func TestGameStateShowsTheTrapToItsHunterTeamOnly(t *testing.T) {
 		Jokers:  []game.JokerUse{game.TrapUse{Team: pack, At: now.Add(-30 * time.Minute), Point: point}},
 	}
 	bobState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	want := `{"kind":"trap","available":false,"usedAt":"2026-11-08T11:30:00Z","point":{"latitude":52.52,"longitude":13.405},"activeAt":"2026-11-08T11:50:00Z"}`
+	want := `{"kind":"trap","available":false,"remaining":0,"usedAt":"2026-11-08T11:30:00Z","point":{"latitude":52.52,"longitude":13.405},"activeAt":"2026-11-08T11:50:00Z"}`
 	if got := jsonOf(t, bobState.Jokers[3]); got != want {
 		t.Fatalf("an untriggered trap:\n got %s\nwant %s", got, want)
 	}
 	lobby.Jokers[0] = game.TrapUse{Team: pack, At: now.Add(-30 * time.Minute), Point: point, TriggeredAt: now.Add(-time.Minute)}
 	bobState, _ = gameStateResponse(service.PlayerView{Lobby: lobby, Me: bob, Now: now}).Hunter()
-	want = `{"kind":"trap","available":false,"usedAt":"2026-11-08T11:30:00Z","point":{"latitude":52.52,"longitude":13.405},"activeAt":"2026-11-08T11:50:00Z","triggeredAt":"2026-11-08T11:59:00Z"}`
+	want = `{"kind":"trap","available":false,"remaining":0,"usedAt":"2026-11-08T11:30:00Z","point":{"latitude":52.52,"longitude":13.405},"activeAt":"2026-11-08T11:50:00Z","triggeredAt":"2026-11-08T11:59:00Z"}`
 	if got := jsonOf(t, bobState.Jokers[3]); got != want {
 		t.Fatalf("a triggered trap tells only when, not who or where:\n got %s\nwant %s", got, want)
 	}
 	eveState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: eve, Now: now}).Hunter()
-	if got := jsonOf(t, eveState.Jokers[3]); got != `{"kind":"trap","available":true}` {
+	if got := jsonOf(t, eveState.Jokers[3]); got != `{"kind":"trap","available":true,"remaining":1}` {
 		t.Fatalf("another hunter team sees nothing of it: %s", got)
 	}
 	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()

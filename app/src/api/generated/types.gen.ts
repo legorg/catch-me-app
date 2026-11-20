@@ -24,6 +24,7 @@ export type ControllerCompassJokerResponse = {
     bearings?: Array<number>;
     kind: 'compass';
     origin?: ControllerCoordinates;
+    remaining: number;
     usedAt?: string;
 };
 
@@ -39,7 +40,7 @@ export type ControllerCoordinates = {
 export type ControllerCreateGameRequest = {
     cellSizeMeters: number;
     gridSize: number;
-    jokers: ControllerJokerSettingsRequest;
+    jokers: ControllerJokerSettings;
     latitude: number;
     longitude: number;
     revealIntervalMinutes: number;
@@ -54,6 +55,7 @@ export type ControllerFakePositionJokerResponse = {
     available: boolean;
     kind: 'fakePosition';
     point?: ControllerCoordinates;
+    remaining: number;
     usedAt?: string;
     usedBy?: string;
 };
@@ -71,6 +73,7 @@ export type ControllerGameEndedEventResponse = {
 
 export type ControllerGameResponse = {
     createdAt: string;
+    jokerSettings: ControllerJokerSettings;
     playground: ControllerPlayground;
     revealIntervalMinutes: number;
     route: ControllerGameRoute;
@@ -102,6 +105,7 @@ export type ControllerGameStartedEventResponse = {
 export type ControllerGameStateHunterResponse = {
     endedAt?: string;
     joinCodes: ControllerJoinCodes;
+    jokerSettings: ControllerJokerSettings;
     jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
     playerId: string;
@@ -129,6 +133,7 @@ export type ControllerGameStateResponse = ({
 export type ControllerGameStateRunnerResponse = {
     endedAt?: string;
     joinCodes: ControllerJoinCodes;
+    jokerSettings: ControllerJokerSettings;
     jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
     playerId: string;
@@ -149,6 +154,7 @@ export type ControllerGameStateRunnerResponse = {
 export type ControllerGameStateSpectatorResponse = {
     endedAt?: string;
     joinCodes: ControllerJoinCodes;
+    jokerSettings: ControllerJokerSettings;
     jokers: Array<ControllerJokerResponse>;
     nextRevealAt?: string;
     playerId: string;
@@ -195,10 +201,6 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
-export type ControllerJokerAllowanceRequest = {
-    allowance: number;
-};
-
 export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters' | 'compass' | 'trap';
 
 export type ControllerJokerPositionResponse = {
@@ -225,14 +227,18 @@ export type ControllerJokerResponse = ({
     kind: 'showHunters';
 } & ControllerShowHuntersJokerResponse);
 
-export type ControllerJokerSettingsRequest = {
-    compass: ControllerJokerAllowanceRequest;
-    fakePosition: ControllerJokerAllowanceRequest;
-    queryZone: ControllerJokerAllowanceRequest;
-    showHunters: ControllerJokerAllowanceRequest;
-    showRunners: ControllerJokerAllowanceRequest;
-    trap: ControllerTrapSettingsRequest;
-    zoneOnly: ControllerJokerAllowanceRequest;
+export type ControllerJokerSetting = {
+    allowance: number;
+};
+
+export type ControllerJokerSettings = {
+    compass: ControllerJokerSetting;
+    fakePosition: ControllerJokerSetting;
+    queryZone: ControllerJokerSetting;
+    showHunters: ControllerJokerSetting;
+    showRunners: ControllerJokerSetting;
+    trap: ControllerTrapSetting;
+    zoneOnly: ControllerJokerSetting;
 };
 
 export type ControllerLandmark = {
@@ -282,6 +288,7 @@ export type ControllerQueryZoneJokerResponse = {
     cell?: string;
     found?: boolean;
     kind: 'queryZone';
+    remaining: number;
     usedAt?: string;
 };
 
@@ -355,6 +362,7 @@ export type ControllerShowHuntersJokerResponse = {
     available: boolean;
     kind: 'showHunters';
     positions?: Array<ControllerJokerPositionResponse>;
+    remaining: number;
     usedAt?: string;
     usedBy?: string;
 };
@@ -367,6 +375,7 @@ export type ControllerShowRunnersJokerResponse = {
     available: boolean;
     kind: 'showRunners';
     positions?: Array<ControllerJokerPositionResponse>;
+    remaining: number;
     usedAt?: string;
 };
 
@@ -418,6 +427,7 @@ export type ControllerTrapJokerResponse = {
     available: boolean;
     kind: 'trap';
     point?: ControllerCoordinates;
+    remaining: number;
     triggeredAt?: string;
     usedAt?: string;
 };
@@ -428,7 +438,7 @@ export type ControllerTrapRequest = {
     longitude: number;
 };
 
-export type ControllerTrapSettingsRequest = {
+export type ControllerTrapSetting = {
     allowance: number;
 };
 
@@ -465,6 +475,7 @@ export type ControllerUseJokerRequest = (({
 export type ControllerZoneOnlyJokerResponse = {
     available: boolean;
     kind: 'zoneOnly';
+    remaining: number;
     usedAt?: string;
     usedBy?: string;
 };
@@ -520,7 +531,7 @@ export type CreateGameError = CreateGameErrors[keyof CreateGameErrors];
 
 export type CreateGameResponses = {
     /**
-     * Game saved, with one join code per team
+     * Game saved with its jokerSettings and runner/hunter/spectator join codes
      */
     201: ControllerCreateGameResponse;
 };
@@ -703,7 +714,7 @@ export type GetGameStateError = GetGameStateErrors[keyof GetGameStateErrors];
 
 export type GetGameStateResponses = {
     /**
-     * Current game state, including status ended and endedAt once every runner is caught or finished; each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
+     * Current game state with immutable jokerSettings and remaining uses for each permitted team/personal joker; includes status ended and endedAt once every runner is caught or finished. Each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
      */
     200: ControllerGameStateResponse;
 };
@@ -760,7 +771,7 @@ export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamRe
 
 export type ActivateJokerData = {
     /**
-     * The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers (including a trap at a point inside the playground) once per hunter team
+     * The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, uses spend the configured allowance: fakePosition per runner, other runner jokers shared by all runners, hunter jokers (including a trap at a point inside the playground) per hunter team. A runner may have only one pending reveal joker
      */
     body: ControllerUseJokerRequest;
     path?: never;
@@ -799,7 +810,7 @@ export type ActivateJokerError = ActivateJokerErrors[keyof ActivateJokerErrors];
 
 export type ActivateJokerResponses = {
     /**
-     * Updated game state, with what the joker showed
+     * Updated game state with remaining uses and what the joker showed
      */
     200: ControllerGameStateResponse;
 };

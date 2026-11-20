@@ -70,8 +70,8 @@ type CreateGameRequest struct {
 	// Cells per side of the square grid.
 	GridSize int `json:"gridSize" minimum:"3" maximum:"12" example:"6"`
 	// How often hunters receive the runners' positions.
-	RevealIntervalMinutes int                   `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
-	Jokers                *JokerSettingsRequest `json:"jokers"`
+	RevealIntervalMinutes int            `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
+	Jokers                *JokerSettings `json:"jokers"`
 }
 
 type Playground struct {
@@ -101,8 +101,9 @@ type GameResponse struct {
 	CreatedAt  time.Time  `json:"createdAt" example:"2026-11-08T12:00:00Z"`
 	Playground Playground `json:"playground"`
 	// How often hunters receive the runners' positions.
-	RevealIntervalMinutes int       `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
-	Route                 GameRoute `json:"route"`
+	RevealIntervalMinutes int           `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
+	Route                 GameRoute     `json:"route"`
+	JokerSettings         JokerSettings `json:"jokerSettings"`
 }
 
 type JoinCodes struct {
@@ -355,9 +356,11 @@ func (j JokerResponse) MarshalJSON() ([]byte, error) { return marshalVariant(j.v
 
 // JokerStatus is what every joker response has.
 type JokerStatus struct {
-	// True while the game runs and the team has not used it yet.
+	// True while the game runs, the player is active and their team/personal allowance is not exhausted.
 	Available bool `json:"available" example:"true"`
-	// Set once the team used it.
+	// Remaining uses in the requesting player's ownership scope, even before start or after retirement.
+	Remaining int `json:"remaining" minimum:"0" maximum:"5" example:"1"`
+	// Time of the first permitted personal/team use; absent while unused.
 	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z"`
 }
 
@@ -408,7 +411,7 @@ type ZoneOnlyJokerResponse struct {
 type FakePositionJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"fakePosition"`
 	JokerStatus
-	// Once used: the requesting runner and the point hunters see at their next reveal. Once per runner, not shared.
+	// Once used: the requesting runner and the point hunters see at their next reveal. Personal, not shared.
 	UsedBy PlayerID     `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 	Point  *Coordinates `json:"point,omitempty"`
 }
@@ -448,6 +451,8 @@ type GameStateBase struct {
 	PlayerID              PlayerID         `json:"playerId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 	JoinCodes             JoinCodes        `json:"joinCodes"`
 	Players               []PlayerResponse `json:"players" maxItems:"30"`
+	// Immutable configuration for all joker kinds, without other teams' usage history.
+	JokerSettings JokerSettings `json:"jokerSettings"`
 }
 
 // GameStateRunnerResponse is the game as seen by a runner.

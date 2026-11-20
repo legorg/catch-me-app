@@ -6,36 +6,50 @@ import (
 	"catch-me/backend/game"
 )
 
-// Pointers distinguish missing/null settings from an explicit allowance of 0.
-type JokerAllowanceRequest struct {
+// JokerSetting is one kind's setting in creation requests and responses.
+// The pointer distinguishes a missing/null request value from an explicit 0.
+type JokerSetting struct {
 	Allowance *int `json:"allowance" minimum:"0" maximum:"5" example:"1"`
 }
 
-// Trap settings can gain kind-specific fields without changing other kinds.
-type TrapSettingsRequest struct{ JokerAllowanceRequest }
+// TrapSetting can gain kind-specific fields without changing other kinds.
+type TrapSetting struct{ JokerSetting }
 
-type JokerSettingsRequest struct {
-	ShowRunners  *JokerAllowanceRequest `json:"showRunners"`
-	QueryZone    *JokerAllowanceRequest `json:"queryZone"`
-	Compass      *JokerAllowanceRequest `json:"compass"`
-	Trap         *TrapSettingsRequest   `json:"trap"`
-	ZoneOnly     *JokerAllowanceRequest `json:"zoneOnly"`
-	FakePosition *JokerAllowanceRequest `json:"fakePosition"`
-	ShowHunters  *JokerAllowanceRequest `json:"showHunters"`
+// JokerSettings is the game's configuration, not team or personal usage history.
+type JokerSettings struct {
+	ShowRunners  *JokerSetting `json:"showRunners"`
+	QueryZone    *JokerSetting `json:"queryZone"`
+	Compass      *JokerSetting `json:"compass"`
+	Trap         *TrapSetting  `json:"trap"`
+	ZoneOnly     *JokerSetting `json:"zoneOnly"`
+	FakePosition *JokerSetting `json:"fakePosition"`
+	ShowHunters  *JokerSetting `json:"showHunters"`
 }
 
-func (body *JokerSettingsRequest) parse() (game.JokerSettings, error) {
+func jokerSettingsResponse(s game.JokerSettings) JokerSettings {
+	setting := func(a game.JokerAllowance) *JokerSetting {
+		allowance := a.Max()
+		return &JokerSetting{Allowance: &allowance}
+	}
+	return JokerSettings{
+		ShowRunners: setting(s.ShowRunners), QueryZone: setting(s.QueryZone), Compass: setting(s.Compass),
+		Trap: &TrapSetting{JokerSetting: *setting(s.Trap.JokerAllowance)}, ZoneOnly: setting(s.ZoneOnly),
+		FakePosition: setting(s.FakePosition), ShowHunters: setting(s.ShowHunters),
+	}
+}
+
+func (body *JokerSettings) parse() (game.JokerSettings, error) {
 	if body == nil {
 		return game.JokerSettings{}, &game.ValidationError{Message: "jokers are required"}
 	}
 	var settings game.JokerSettings
-	var trap *JokerAllowanceRequest
+	var trap *JokerSetting
 	if body.Trap != nil {
-		trap = &body.Trap.JokerAllowanceRequest
+		trap = &body.Trap.JokerSetting
 	}
 	fields := []struct {
 		kind   game.JokerKind
-		input  *JokerAllowanceRequest
+		input  *JokerSetting
 		target *game.JokerAllowance
 	}{
 		{game.JokerShowRunners, body.ShowRunners, &settings.ShowRunners},

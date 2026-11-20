@@ -232,20 +232,33 @@ func TestOpenAPIRoutes(t *testing.T) {
 		t.Fatalf("unexpected player token scheme: %+v", scheme)
 	}
 	create := spec.Components.Schemas["ControllerCreateGameRequest"]
-	if !slices.Contains(create.Required, "jokers") || create.Properties["jokers"].Ref != "#/components/schemas/ControllerJokerSettingsRequest" {
+	if !slices.Contains(create.Required, "jokers") || create.Properties["jokers"].Ref != "#/components/schemas/ControllerJokerSettings" {
 		t.Fatal("creation must require the joker settings object")
 	}
-	settings := spec.Components.Schemas["ControllerJokerSettingsRequest"]
+	settings := spec.Components.Schemas["ControllerJokerSettings"]
 	for _, kind := range []string{"showRunners", "queryZone", "compass", "trap", "zoneOnly", "fakePosition", "showHunters"} {
 		if !slices.Contains(settings.Required, kind) || settings.Properties[kind].Ref == "" {
 			t.Fatalf("joker settings must require an object for %s", kind)
 		}
 	}
-	for _, name := range []string{"ControllerJokerAllowanceRequest", "ControllerTrapSettingsRequest"} {
+	for _, name := range []string{"ControllerJokerSetting", "ControllerTrapSetting"} {
 		setting := spec.Components.Schemas[name]
 		allowance := setting.Properties["allowance"]
 		if !slices.Contains(setting.Required, "allowance") || string(allowance.Type) != `"integer"` || allowance.Minimum == nil || *allowance.Minimum != 0 || allowance.Maximum == nil || *allowance.Maximum != 5 || len(allowance.Default) != 0 {
 			t.Fatalf("%s must require allowance 0-5 without a server default", name)
+		}
+	}
+	for _, name := range []string{"ControllerGameResponse", "ControllerGameStateRunnerResponse", "ControllerGameStateHunterResponse", "ControllerGameStateSpectatorResponse"} {
+		response := spec.Components.Schemas[name]
+		if !slices.Contains(response.Required, "jokerSettings") || response.Properties["jokerSettings"].Ref != "#/components/schemas/ControllerJokerSettings" {
+			t.Fatalf("%s must include required joker settings", name)
+		}
+	}
+	for _, name := range []string{"ControllerShowRunnersJokerResponse", "ControllerQueryZoneJokerResponse", "ControllerCompassJokerResponse", "ControllerTrapJokerResponse", "ControllerZoneOnlyJokerResponse", "ControllerFakePositionJokerResponse", "ControllerShowHuntersJokerResponse"} {
+		response := spec.Components.Schemas[name]
+		remaining := response.Properties["remaining"]
+		if !slices.Contains(response.Required, "remaining") || string(remaining.Type) != `"integer"` || remaining.Minimum == nil || *remaining.Minimum != 0 || remaining.Maximum == nil || *remaining.Maximum != 5 {
+			t.Fatalf("%s must require remaining uses with limits 0-5", name)
 		}
 	}
 	for field, parse := range map[string]func(int) error{

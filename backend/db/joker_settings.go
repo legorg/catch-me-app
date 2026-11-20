@@ -8,8 +8,8 @@ import (
 
 func toJokerSettingsRow(s game.JokerSettings) jokerSettingsRow {
 	pointer := func(a game.JokerAllowance) *int {
-		uses := a.Uses()
-		return &uses
+		allowance := a.Max()
+		return &allowance
 	}
 	return jokerSettingsRow{
 		ShowRunnersAllowance: pointer(s.ShowRunners), QueryZoneAllowance: pointer(s.QueryZone),

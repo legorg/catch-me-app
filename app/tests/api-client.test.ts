@@ -20,7 +20,7 @@ const route = {
   distanceMeters: 5873.4,
 };
 const created = {
-  game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center), revealIntervalMinutes: 30, route },
+  game: { sessionId: '00112233445566778899aabbccddeeff', createdAt: '2026-11-08T12:00:00Z', playground: previewPlayground(center), revealIntervalMinutes: 30, route, jokerSettings: jokers },
   joinCodes: { runner: '482913', hunter: '071564', spectator: '305821' },
 };
 const token = 'ab'.repeat(32);
@@ -29,6 +29,7 @@ const state = {
   status: 'lobby',
   serverTime: '2026-11-08T12:00:00Z',
   playground: created.game.playground,
+  jokerSettings: jokers,
   playerId: '8899aabbccddeeff0011223344556677',
   team: 'runner',
   joinCodes: { runner: '482913', hunter: '071564', spectator: '305821' },
@@ -282,6 +283,21 @@ test('the game state is returned as sent', async (t) => {
   assert.deepEqual(await getGameState(token), hunterState);
 });
 
+test('joker settings and remaining uses are returned without client-side recomputation', async (t) => {
+  const snapshot = {
+    ...hunterState,
+    status: 'running',
+    jokerSettings: { ...jokers, showRunners: { allowance: 3 }, queryZone: { allowance: 0 } },
+    jokers: [
+      { kind: 'showRunners', available: true, remaining: 2, usedAt: '2026-11-08T12:07:00Z', positions: [] },
+      { kind: 'queryZone', available: false, remaining: 0 },
+    ],
+  };
+  t.mock.method(globalThis, 'fetch', async () => Response.json(snapshot));
+  assert.deepEqual(await getGameState(token), snapshot);
+  assert.deepEqual(await activateJoker(token, { kind: 'showRunners' }), snapshot);
+});
+
 test('API errors keep the message and status', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'missing or invalid player token' }, { status: 401 }));
   await assert.rejects(getGameState(token), (err: unknown) =>
@@ -294,9 +310,9 @@ test('using a joker posts its kind with the token and returns the state', async 
   const used = {
     ...hunterState,
     jokers: [{
-      kind: 'showRunners', available: false, usedAt: '2026-11-08T12:07:00Z',
+      kind: 'showRunners', available: false, remaining: 0, usedAt: '2026-11-08T12:07:00Z',
       positions: [{ playerId: state.playerId, latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' }],
-    }, { kind: 'queryZone', available: false, usedAt: '2026-11-08T12:08:00Z', cell: 'C4', found: false }],
+    }, { kind: 'queryZone', available: false, remaining: 0, usedAt: '2026-11-08T12:08:00Z', cell: 'C4', found: false }],
   };
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     assert.equal(new URL(request.url).pathname, '/api/me/jokers');

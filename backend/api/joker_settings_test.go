@@ -97,7 +97,7 @@ func TestCreateGamePersistsExplicitJokerAllowances(t *testing.T) {
 			if allZero {
 				want = 0
 			}
-			if got := lobby.Game.JokerSettings.Allowance(kind).Uses(); got != want {
+			if got := lobby.Game.JokerSettings.Allowance(kind).Max(); got != want {
 				t.Fatalf("%s allowance: got %d, want %d", kind, got, want)
 			}
 		}

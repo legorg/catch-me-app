@@ -19,12 +19,12 @@ func jokerWithKind(t *testing.T, l Lobby, viewer Player, kind JokerKind, at time
 	return jokerState{}
 }
 
-func settingsWithAllowance(uses int) JokerSettings {
-	a := JokerAllowance{uses: uses}
-	return JokerSettings{
-		ShowRunners: a, QueryZone: a, Compass: a, Trap: TrapSettings{JokerAllowance: a},
-		ZoneOnly: a, FakePosition: a, ShowHunters: a,
+func settingsWithAllowance(max int) JokerSettings {
+	var s JokerSettings
+	for _, a := range s.allowances() {
+		a.max = max
 	}
+	return s
 }
 
 func TestEveryJokerEnforcesItsAllowance(t *testing.T) {

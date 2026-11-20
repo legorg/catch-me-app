@@ -29,7 +29,7 @@
         },
         "responses": {
           "201": {
-            "description": "Game saved, with one join code per team",
+            "description": "Game saved with its jokerSettings and runner/hunter/spectator join codes",
             "content": {
               "application/json": {
                 "schema": {
@@ -369,7 +369,7 @@
         "operationId": "getGameState",
         "responses": {
           "200": {
-            "description": "Current game state, including status ended and endedAt once every runner is caught or finished; each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object",
+            "description": "Current game state with immutable jokerSettings and remaining uses for each permitted team/personal joker; includes status ended and endedAt once every runner is caught or finished. Each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object",
             "content": {
               "application/json": {
                 "schema": {
@@ -515,7 +515,7 @@
         "summary": "Use a joker",
         "operationId": "activateJoker",
         "requestBody": {
-          "description": "The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers (including a trap at a point inside the playground) once per hunter team",
+          "description": "The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, uses spend the configured allowance: fakePosition per runner, other runner jokers shared by all runners, hunter jokers (including a trap at a point inside the playground) per hunter team. A runner may have only one pending reveal joker",
           "content": {
             "application/json": {
               "schema": {
@@ -527,7 +527,7 @@
         },
         "responses": {
           "200": {
-            "description": "Updated game state, with what the joker showed",
+            "description": "Updated game state with remaining uses and what the joker showed",
             "content": {
               "application/json": {
                 "schema": {
@@ -1300,6 +1300,14 @@
           "origin": {
             "$ref": "#/components/schemas/ControllerCoordinates"
           },
+          "remaining": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
           "usedAt": {
             "examples": [
               "2026-11-08T12:07:00Z"
@@ -1310,7 +1318,8 @@
         },
         "required": [
           "kind",
-          "available"
+          "available",
+          "remaining"
         ],
         "type": "object"
       },
@@ -1375,7 +1384,7 @@
             "type": "integer"
           },
           "jokers": {
-            "$ref": "#/components/schemas/ControllerJokerSettingsRequest"
+            "$ref": "#/components/schemas/ControllerJokerSettings"
           },
           "latitude": {
             "examples": [
@@ -1444,6 +1453,14 @@
           "point": {
             "$ref": "#/components/schemas/ControllerCoordinates"
           },
+          "remaining": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
           "usedAt": {
             "examples": [
               "2026-11-08T12:07:00Z"
@@ -1462,7 +1479,8 @@
         },
         "required": [
           "kind",
-          "available"
+          "available",
+          "remaining"
         ],
         "type": "object"
       },
@@ -1529,6 +1547,9 @@
             "format": "date-time",
             "type": "string"
           },
+          "jokerSettings": {
+            "$ref": "#/components/schemas/ControllerJokerSettings"
+          },
           "playground": {
             "$ref": "#/components/schemas/ControllerPlayground"
           },
@@ -1557,7 +1578,8 @@
           "createdAt",
           "playground",
           "revealIntervalMinutes",
-          "route"
+          "route",
+          "jokerSettings"
         ],
         "type": "object"
       },
@@ -1684,6 +1706,9 @@
           "joinCodes": {
             "$ref": "#/components/schemas/ControllerJoinCodes"
           },
+          "jokerSettings": {
+            "$ref": "#/components/schemas/ControllerJokerSettings"
+          },
           "jokers": {
             "items": {
               "$ref": "#/components/schemas/ControllerJokerResponse"
@@ -1782,6 +1807,7 @@
           "playerId",
           "joinCodes",
           "players",
+          "jokerSettings",
           "team",
           "jokers",
           "sketches"
@@ -1821,6 +1847,9 @@
           },
           "joinCodes": {
             "$ref": "#/components/schemas/ControllerJoinCodes"
+          },
+          "jokerSettings": {
+            "$ref": "#/components/schemas/ControllerJokerSettings"
           },
           "jokers": {
             "items": {
@@ -1924,6 +1953,7 @@
           "playerId",
           "joinCodes",
           "players",
+          "jokerSettings",
           "team",
           "route",
           "routeRegenerationsLeft",
@@ -1942,6 +1972,9 @@
           },
           "joinCodes": {
             "$ref": "#/components/schemas/ControllerJoinCodes"
+          },
+          "jokerSettings": {
+            "$ref": "#/components/schemas/ControllerJokerSettings"
           },
           "jokers": {
             "items": {
@@ -2037,6 +2070,7 @@
           "playerId",
           "joinCodes",
           "players",
+          "jokerSettings",
           "team",
           "route",
           "jokers"
@@ -2193,22 +2227,6 @@
         ],
         "type": "object"
       },
-      "ControllerJokerAllowanceRequest": {
-        "properties": {
-          "allowance": {
-            "examples": [
-              1
-            ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "allowance"
-        ],
-        "type": "object"
-      },
       "ControllerJokerKind": {
         "enum": [
           "showRunners",
@@ -2313,28 +2331,44 @@
         ],
         "type": "object"
       },
-      "ControllerJokerSettingsRequest": {
+      "ControllerJokerSetting": {
+        "properties": {
+          "allowance": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowance"
+        ],
+        "type": "object"
+      },
+      "ControllerJokerSettings": {
         "properties": {
           "compass": {
-            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+            "$ref": "#/components/schemas/ControllerJokerSetting"
           },
           "fakePosition": {
-            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+            "$ref": "#/components/schemas/ControllerJokerSetting"
           },
           "queryZone": {
-            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+            "$ref": "#/components/schemas/ControllerJokerSetting"
           },
           "showHunters": {
-            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+            "$ref": "#/components/schemas/ControllerJokerSetting"
           },
           "showRunners": {
-            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+            "$ref": "#/components/schemas/ControllerJokerSetting"
           },
           "trap": {
-            "$ref": "#/components/schemas/ControllerTrapSettingsRequest"
+            "$ref": "#/components/schemas/ControllerTrapSetting"
           },
           "zoneOnly": {
-            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+            "$ref": "#/components/schemas/ControllerJokerSetting"
           }
         },
         "required": [
@@ -2587,6 +2621,14 @@
             ],
             "type": "string"
           },
+          "remaining": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
           "usedAt": {
             "examples": [
               "2026-11-08T12:07:00Z"
@@ -2597,7 +2639,8 @@
         },
         "required": [
           "kind",
-          "available"
+          "available",
+          "remaining"
         ],
         "type": "object"
       },
@@ -2885,6 +2928,14 @@
             "maxItems": 30,
             "type": "array"
           },
+          "remaining": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
           "usedAt": {
             "examples": [
               "2026-11-08T12:07:00Z"
@@ -2903,7 +2954,8 @@
         },
         "required": [
           "kind",
-          "available"
+          "available",
+          "remaining"
         ],
         "type": "object"
       },
@@ -2942,6 +2994,14 @@
             "maxItems": 30,
             "type": "array"
           },
+          "remaining": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
           "usedAt": {
             "examples": [
               "2026-11-08T12:07:00Z"
@@ -2952,7 +3012,8 @@
         },
         "required": [
           "kind",
-          "available"
+          "available",
+          "remaining"
         ],
         "type": "object"
       },
@@ -3146,6 +3207,14 @@
           "point": {
             "$ref": "#/components/schemas/ControllerCoordinates"
           },
+          "remaining": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
           "triggeredAt": {
             "examples": [
               "2026-11-08T12:41:30Z"
@@ -3163,7 +3232,8 @@
         },
         "required": [
           "kind",
-          "available"
+          "available",
+          "remaining"
         ],
         "type": "object"
       },
@@ -3199,7 +3269,7 @@
         ],
         "type": "object"
       },
-      "ControllerTrapSettingsRequest": {
+      "ControllerTrapSetting": {
         "properties": {
           "allowance": {
             "examples": [
@@ -3340,6 +3410,14 @@
             ],
             "type": "string"
           },
+          "remaining": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
           "usedAt": {
             "examples": [
               "2026-11-08T12:07:00Z"
@@ -3358,7 +3436,8 @@
         },
         "required": [
           "kind",
-          "available"
+          "available",
+          "remaining"
         ],
         "type": "object"
       },

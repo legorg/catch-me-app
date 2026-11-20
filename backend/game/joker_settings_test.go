@@ -6,15 +6,15 @@ import (
 )
 
 func TestParseJokerAllowance(t *testing.T) {
-	for _, uses := range []int{-1, 0, 1, 2, 3, 4, 5, 6} {
-		allowance, err := ParseJokerAllowance(uses)
-		if uses < 0 || uses > 5 {
+	for _, max := range []int{-1, 0, 1, 2, 3, 4, 5, 6} {
+		allowance, err := ParseJokerAllowance(max)
+		if max < 0 || max > 5 {
 			var validation *ValidationError
 			if !errors.As(err, &validation) {
-				t.Fatalf("allowance %d: expected validation error, got %v", uses, err)
+				t.Fatalf("allowance %d: expected validation error, got %v", max, err)
 			}
-		} else if err != nil || allowance.Uses() != uses {
-			t.Fatalf("allowance %d: got %d, %v", uses, allowance.Uses(), err)
+		} else if err != nil || allowance.Max() != max {
+			t.Fatalf("allowance %d: got %d, %v", max, allowance.Max(), err)
 		}
 	}
 }
@@ -22,30 +22,34 @@ func TestParseJokerAllowance(t *testing.T) {
 func TestJokerSettingsDefaultsAndZero(t *testing.T) {
 	defaults := DefaultJokerSettings()
 	var zero JokerSettings
-	for _, kind := range append(append([]JokerKind{}, hunterJokers...), runnerJokers...) {
-		if defaults.Allowance(kind).Uses() != 1 || zero.Allowance(kind).Uses() != 0 {
+	kinds := append(append([]JokerKind{}, hunterJokers...), runnerJokers...)
+	if len(zero.allowances()) != len(kinds) {
+		t.Fatal("every joker kind needs exactly one allowance field")
+	}
+	for _, kind := range kinds {
+		if defaults.Allowance(kind).Max() != 1 || zero.Allowance(kind).Max() != 0 {
 			t.Fatalf("%s: defaults must allow one use; zero must disable", kind)
 		}
 	}
-	if defaults.Allowance("unknown").Uses() != 0 {
+	if defaults.Allowance("unknown").Max() != 0 {
 		t.Fatal("unknown joker must not receive an allowance")
 	}
 }
 
 func TestJokerSettingsAllowancesAreIndependent(t *testing.T) {
 	s := JokerSettings{
-		ShowRunners: JokerAllowance{uses: 0}, QueryZone: JokerAllowance{uses: 1},
-		Compass: JokerAllowance{uses: 2}, Trap: TrapSettings{JokerAllowance: JokerAllowance{uses: 3}},
-		ZoneOnly: JokerAllowance{uses: 4}, FakePosition: JokerAllowance{uses: 5},
-		ShowHunters: JokerAllowance{uses: 2},
+		ShowRunners: JokerAllowance{max: 0}, QueryZone: JokerAllowance{max: 1},
+		Compass: JokerAllowance{max: 2}, Trap: TrapSettings{JokerAllowance: JokerAllowance{max: 3}},
+		ZoneOnly: JokerAllowance{max: 4}, FakePosition: JokerAllowance{max: 5},
+		ShowHunters: JokerAllowance{max: 2},
 	}
 	want := map[JokerKind]int{
 		JokerShowRunners: 0, JokerQueryZone: 1, JokerCompass: 2, JokerTrap: 3,
 		JokerZoneOnly: 4, JokerFakePosition: 5, JokerShowHunters: 2,
 	}
-	for kind, uses := range want {
-		if got := s.Allowance(kind).Uses(); got != uses {
-			t.Fatalf("%s allowance: got %d, want %d", kind, got, uses)
+	for kind, max := range want {
+		if got := s.Allowance(kind).Max(); got != max {
+			t.Fatalf("%s allowance: got %d, want %d", kind, got, max)
 		}
 	}
 }

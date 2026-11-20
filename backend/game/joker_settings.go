@@ -1,17 +1,17 @@
 package game
 
-// JokerAllowance is the configured number of uses, not the remaining uses.
-// Its zero value disables the joker; defaults must be chosen explicitly.
-type JokerAllowance struct{ uses int }
+// JokerAllowance is how often a joker may be used in total, not how often it
+// is left. Its zero value disables the joker; defaults must be chosen explicitly.
+type JokerAllowance struct{ max int }
 
-func ParseJokerAllowance(uses int) (JokerAllowance, error) {
-	if uses < 0 || uses > 5 {
+func ParseJokerAllowance(max int) (JokerAllowance, error) {
+	if max < 0 || max > 5 {
 		return JokerAllowance{}, &ValidationError{Message: "joker allowance must be between 0 and 5"}
 	}
-	return JokerAllowance{uses: uses}, nil
+	return JokerAllowance{max: max}, nil
 }
 
-func (a JokerAllowance) Uses() int { return a.uses }
+func (a JokerAllowance) Max() int { return a.max }
 
 // TrapSettings can grow independently of the settings of other joker kinds.
 // Radius and activation delay currently remain fixed gameplay constants.
@@ -30,33 +30,28 @@ type JokerSettings struct {
 	ShowHunters  JokerAllowance
 }
 
-func DefaultJokerSettings() JokerSettings {
-	a := JokerAllowance{uses: 1}
-	return JokerSettings{
-		ShowRunners: a, QueryZone: a, Compass: a, Trap: TrapSettings{JokerAllowance: a},
-		ZoneOnly: a, FakePosition: a, ShowHunters: a,
+// allowances is the only mapping from kinds to their allowance fields.
+func (s *JokerSettings) allowances() map[JokerKind]*JokerAllowance {
+	return map[JokerKind]*JokerAllowance{
+		JokerShowRunners: &s.ShowRunners, JokerQueryZone: &s.QueryZone, JokerCompass: &s.Compass,
+		JokerTrap: &s.Trap.JokerAllowance, JokerZoneOnly: &s.ZoneOnly,
+		JokerFakePosition: &s.FakePosition, JokerShowHunters: &s.ShowHunters,
 	}
+}
+
+func DefaultJokerSettings() JokerSettings {
+	var s JokerSettings
+	for _, a := range s.allowances() {
+		a.max = 1
+	}
+	return s
 }
 
 // Allowance returns zero for unknown kinds; settings never grant access to a
 // joker outside the player's permitted kinds.
 func (s JokerSettings) Allowance(kind JokerKind) JokerAllowance {
-	switch kind {
-	case JokerShowRunners:
-		return s.ShowRunners
-	case JokerQueryZone:
-		return s.QueryZone
-	case JokerCompass:
-		return s.Compass
-	case JokerTrap:
-		return s.Trap.JokerAllowance
-	case JokerZoneOnly:
-		return s.ZoneOnly
-	case JokerFakePosition:
-		return s.FakePosition
-	case JokerShowHunters:
-		return s.ShowHunters
-	default:
-		return JokerAllowance{}
+	if a, ok := s.allowances()[kind]; ok {
+		return *a
 	}
+	return JokerAllowance{}
 }

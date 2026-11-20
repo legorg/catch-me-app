@@ -62,6 +62,7 @@ func gameResponse(saved game.Game) GameResponse {
 	response := GameResponse{
 		SessionID: SessionID(saved.SessionID.String()), CreatedAt: saved.CreatedAt,
 		Playground: playgroundResponse(saved.Playground), RevealIntervalMinutes: saved.RevealInterval.Minutes(),
+		JokerSettings: jokerSettingsResponse(saved.JokerSettings),
 	}
 	response.Route = gameRouteResponse(saved.Route)
 	return response

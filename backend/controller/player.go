@@ -355,6 +355,7 @@ func gameStateBase(view service.PlayerView) GameStateBase {
 		ServerTime:                 view.Now,
 		Playground:                 playgroundResponse(g.Playground),
 		RevealIntervalMinutes:      g.RevealInterval.Minutes(),
+		JokerSettings:              jokerSettingsResponse(g.JokerSettings),
 		PlayerID:                   PlayerID(view.Me.ID.String()),
 		// Every available code, so authenticated participants can invite others.
 		JoinCodes: JoinCodes{Runner: g.JoinCodes.Runner.String(), Hunter: g.JoinCodes.Hunter.String(), Spectator: g.JoinCodes.Spectator.String()},
@@ -408,7 +409,7 @@ func revealResponse(r game.HunterReveal) RevealResponse {
 func jokerResponses(view service.PlayerView) []JokerResponse {
 	jokers := make([]JokerResponse, 0)
 	for _, j := range view.Lobby.JokersFor(view.Me, view.Now) {
-		status := JokerStatus{Available: j.Available}
+		status := JokerStatus{Available: j.Available, Remaining: j.Remaining}
 		var result game.JokerUse
 		if len(j.Uses) > 0 {
 			result = j.Uses[0]

@@ -121,7 +121,7 @@ func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
 			return &RuleError{Message: "runners do not have this joker"}
 		case l.Game.Status(now) != StatusRunning:
 			return &RuleError{Message: "jokers can only be used while the game is running"}
-		case len(l.jokerUses(me, kind)) >= l.Game.JokerSettings.Allowance(kind).Uses():
+		case len(l.jokerUses(me, kind)) >= l.Game.JokerSettings.Allowance(kind).Max():
 			return &RuleError{Message: "no uses of this joker remaining"}
 		case slices.Contains(revealJokers, kind) && l.hasPendingJoker(me.ID, now):
 			return &RuleError{Message: "your last joker has not acted yet; wait for the next reveal"}
@@ -135,7 +135,7 @@ func (l Lobby) mayUseJoker(me Player, kind JokerKind, now time.Time) error {
 		return &RuleError{Message: "hunters do not have this joker"}
 	case l.Game.Status(now) != StatusRunning:
 		return &RuleError{Message: "jokers can only be used while the game is running"}
-	case len(l.jokerUses(me, kind)) >= l.Game.JokerSettings.Allowance(kind).Uses():
+	case len(l.jokerUses(me, kind)) >= l.Game.JokerSettings.Allowance(kind).Max():
 		return &RuleError{Message: "no uses of this joker remaining for your hunter team"}
 	}
 	return nil
@@ -182,7 +182,7 @@ func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
 	states := make([]jokerState, 0, len(kinds))
 	for _, kind := range kinds {
 		uses := l.jokerUses(viewer, kind)
-		remaining := max(0, l.Game.JokerSettings.Allowance(kind).Uses()-len(uses))
+		remaining := max(0, l.Game.JokerSettings.Allowance(kind).Max()-len(uses))
 		state := jokerState{
 			Kind: kind, Available: running && viewer.active() && remaining > 0,
 			Remaining: remaining, Uses: uses,
