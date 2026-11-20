@@ -14,10 +14,10 @@
   "paths": {
     "/api/games": {
       "post": {
-        "summary": "Create a square playground with adjustable grid size, cell size, and reveal interval",
+        "summary": "Create a square playground with adjustable grid size, cell size, reveal interval, and joker settings",
         "operationId": "createGame",
         "requestBody": {
-          "description": "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60); no date-line crossings",
+          "description": "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults",
           "content": {
             "application/json": {
               "schema": {
@@ -1374,6 +1374,9 @@
             "minimum": 3,
             "type": "integer"
           },
+          "jokers": {
+            "$ref": "#/components/schemas/ControllerJokerSettingsRequest"
+          },
           "latitude": {
             "examples": [
               52.52
@@ -1404,7 +1407,8 @@
           "longitude",
           "cellSizeMeters",
           "gridSize",
-          "revealIntervalMinutes"
+          "revealIntervalMinutes",
+          "jokers"
         ],
         "type": "object"
       },
@@ -2189,6 +2193,22 @@
         ],
         "type": "object"
       },
+      "ControllerJokerAllowanceRequest": {
+        "properties": {
+          "allowance": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowance"
+        ],
+        "type": "object"
+      },
       "ControllerJokerKind": {
         "enum": [
           "showRunners",
@@ -2290,6 +2310,41 @@
           {
             "$ref": "#/components/schemas/ControllerShowHuntersJokerResponse"
           }
+        ],
+        "type": "object"
+      },
+      "ControllerJokerSettingsRequest": {
+        "properties": {
+          "compass": {
+            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+          },
+          "fakePosition": {
+            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+          },
+          "queryZone": {
+            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+          },
+          "showHunters": {
+            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+          },
+          "showRunners": {
+            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+          },
+          "trap": {
+            "$ref": "#/components/schemas/ControllerTrapSettingsRequest"
+          },
+          "zoneOnly": {
+            "$ref": "#/components/schemas/ControllerJokerAllowanceRequest"
+          }
+        },
+        "required": [
+          "showRunners",
+          "queryZone",
+          "compass",
+          "trap",
+          "zoneOnly",
+          "fakePosition",
+          "showHunters"
         ],
         "type": "object"
       },
@@ -3141,6 +3196,22 @@
           "kind",
           "latitude",
           "longitude"
+        ],
+        "type": "object"
+      },
+      "ControllerTrapSettingsRequest": {
+        "properties": {
+          "allowance": {
+            "examples": [
+              1
+            ],
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowance"
         ],
         "type": "object"
       },

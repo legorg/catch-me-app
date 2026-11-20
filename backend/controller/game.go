@@ -26,15 +26,15 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body CreateGameRequest
-	if !decodeJSON(w, r, &body, "expected a JSON object with latitude, longitude, cellSizeMeters, gridSize, and revealIntervalMinutes") {
+	if !decodeJSON(w, r, &body, "expected a JSON object with latitude, longitude, cellSizeMeters, gridSize, revealIntervalMinutes, and jokers") {
 		return
 	}
-	center, cellSize, gridSize, revealInterval, err := body.parse()
+	center, cellSize, gridSize, revealInterval, jokers, err := body.parse()
 	if err != nil {
 		writeGameError(w, err, "invalid game")
 		return
 	}
-	saved, err := c.service.Create(r.Context(), center, cellSize, gridSize, revealInterval)
+	saved, err := c.service.Create(r.Context(), center, cellSize, gridSize, revealInterval, jokers)
 	if err != nil {
 		writeGameError(w, err, "could not save game")
 		return
@@ -45,16 +45,17 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// parse checks every field; all settings are required and must be positive.
-func (body CreateGameRequest) parse() (center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, err error) {
+// parse checks every required field, including explicit per-kind allowances.
+func (body CreateGameRequest) parse() (center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, jokers game.JokerSettings, err error) {
 	if body.Latitude == nil || body.Longitude == nil {
-		return center, cellSize, gridSize, revealInterval, &game.ValidationError{Message: "latitude and longitude are required"}
+		return center, cellSize, gridSize, revealInterval, jokers, &game.ValidationError{Message: "latitude and longitude are required"}
 	}
 	center, err1 := game.ParseCoordinates(*body.Latitude, *body.Longitude)
 	cellSize, err2 := game.ParseCellSize(body.CellSizeMeters)
 	gridSize, err3 := game.ParseGridSize(body.GridSize)
 	revealInterval, err4 := game.ParseRevealInterval(body.RevealIntervalMinutes)
-	return center, cellSize, gridSize, revealInterval, errors.Join(err1, err2, err3, err4)
+	jokers, err5 := body.Jokers.parse()
+	return center, cellSize, gridSize, revealInterval, jokers, errors.Join(err1, err2, err3, err4, err5)
 }
 
 func gameResponse(saved game.Game) GameResponse {

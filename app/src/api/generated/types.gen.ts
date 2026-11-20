@@ -39,6 +39,7 @@ export type ControllerCoordinates = {
 export type ControllerCreateGameRequest = {
     cellSizeMeters: number;
     gridSize: number;
+    jokers: ControllerJokerSettingsRequest;
     latitude: number;
     longitude: number;
     revealIntervalMinutes: number;
@@ -194,6 +195,10 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
+export type ControllerJokerAllowanceRequest = {
+    allowance: number;
+};
+
 export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters' | 'compass' | 'trap';
 
 export type ControllerJokerPositionResponse = {
@@ -219,6 +224,16 @@ export type ControllerJokerResponse = ({
 } & ControllerFakePositionJokerResponse) | ({
     kind: 'showHunters';
 } & ControllerShowHuntersJokerResponse);
+
+export type ControllerJokerSettingsRequest = {
+    compass: ControllerJokerAllowanceRequest;
+    fakePosition: ControllerJokerAllowanceRequest;
+    queryZone: ControllerJokerAllowanceRequest;
+    showHunters: ControllerJokerAllowanceRequest;
+    showRunners: ControllerJokerAllowanceRequest;
+    trap: ControllerTrapSettingsRequest;
+    zoneOnly: ControllerJokerAllowanceRequest;
+};
 
 export type ControllerLandmark = {
     coordinates: ControllerCoordinates;
@@ -413,6 +428,10 @@ export type ControllerTrapRequest = {
     longitude: number;
 };
 
+export type ControllerTrapSettingsRequest = {
+    allowance: number;
+};
+
 export type ControllerTrapTriggeredEventResponse = {
     at: string;
     hunterTeam: string;
@@ -462,7 +481,7 @@ export type ControllerZoneRevealResponse = {
 
 export type CreateGameData = {
     /**
-     * All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60); no date-line crossings
+     * All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults
      */
     body: ControllerCreateGameRequest;
     path?: never;

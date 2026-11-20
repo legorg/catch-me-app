@@ -79,7 +79,14 @@ export async function createGame(
   if (!isValidRevealInterval(revealIntervalMinutes)) {
     throw new Error(translate('playground.revealIntervalInvalid'));
   }
-  const body = { ...center, cellSizeMeters, gridSize, revealIntervalMinutes };
+  const body = {
+    ...center, cellSizeMeters, gridSize, revealIntervalMinutes,
+    jokers: {
+      showRunners: { allowance: 1 }, queryZone: { allowance: 1 }, compass: { allowance: 1 },
+      trap: { allowance: 1 }, zoneOnly: { allowance: 1 }, fakePosition: { allowance: 1 },
+      showHunters: { allowance: 1 },
+    },
+  };
   return request((signal) => postGame({ baseUrl: API_URL, body, signal }), LANDMARK_TIMEOUT_MS, 'client.createTimeout');
 }
 

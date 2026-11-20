@@ -70,7 +70,8 @@ type CreateGameRequest struct {
 	// Cells per side of the square grid.
 	GridSize int `json:"gridSize" minimum:"3" maximum:"12" example:"6"`
 	// How often hunters receive the runners' positions.
-	RevealIntervalMinutes int `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
+	RevealIntervalMinutes int                   `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
+	Jokers                *JokerSettingsRequest `json:"jokers"`
 }
 
 type Playground struct {

@@ -52,6 +52,8 @@ The public API contract is separate from database rows. Changing a table must no
 
 The schema is the table structs at the top of **`backend/db/store.go`** (`games`, `players`, `runners`, `positions`, `jokers`, `sketches`). There is no code generation. Startup runs GORM's `AutoMigrate`, which creates missing tables, columns, and indexes but never drops existing columns. Shared player data stays in `players`; only runners have a one-to-one `runners` row with a single `active`/`caught`/`finished` status and common `ended_at`. Players reference their game, and runner states and positions their player, with `ON DELETE CASCADE`. Positions are only inserted, never updated. The `players` table stores only a SHA-256 hash of each player token. Times are stored as UTC text in SQLite's sortable format. GORM's SQL logging is off, because it would contain player positions.
 
+Joker uses are append-only rows with a non-unique `joker_scope` index (`game_id`, `team`, `kind`); the domain enforces the configured allowance inside the serialized lobby transaction. **Older development databases:** AutoMigrate does not remove the former `joker_once` unique index. Before testing multiple uses, explicitly remove only that obsolete index from the intended development database (`DROP INDEX IF EXISTS joker_once;`); no game data needs to be deleted. There is no automatic index-removal migration. The creation API requires explicit per-kind allowances (0–5); the app currently sends 1 for every kind. Configuration UI and the remaining-count/multiple-result responses are still pending.
+
 The runner-state refactoring targets fresh development databases: there is no migration from the old `players.caught_at` / `finished_at` fields. AutoMigrate does not transfer that data or remove old columns; existing games without `runners` rows are incompatible. Local databases are never reset automatically; obtain explicit authorization before deleting saved data. Each runner in the public API has `runner: {status, endedAt?, caughtPosition?}`; hunters have no `runner` object. Status is `active`, `caught`, or `finished`; only caught runners can expose a catch position, and neither active nor finished runners do. The old top-level `caughtAt`, `finishedAt`, and `caughtPosition` fields are removed. Backend and app must use the matching API/client version.
 
 The SQLite driver remains pure Go (`modernc.org/sqlite`, plugged into GORM's official SQLite dialect) and the API still builds with `CGO_ENABLED=0`. GORM's dialect also pulls in the cgo driver `mattn/go-sqlite3` as a dependency; it is never used.
@@ -112,13 +114,22 @@ Create a game by posting a JSON center and all settings to `/api/games`:
   "longitude": 13.405,
   "cellSizeMeters": 2000,
   "gridSize": 6,
-  "revealIntervalMinutes": 30
+  "revealIntervalMinutes": 30,
+  "jokers": {
+    "showRunners": { "allowance": 1 },
+    "queryZone": { "allowance": 1 },
+    "compass": { "allowance": 1 },
+    "trap": { "allowance": 1 },
+    "zoneOnly": { "allowance": 1 },
+    "fakePosition": { "allowance": 1 },
+    "showHunters": { "allowance": 1 }
+  }
 }
 ```
 
 The response is HTTP **201**, with `game` (`sessionId`, `createdAt`, and a `playground` containing `center`, `bounds` (`north`, `south`, `east`, `west`), `rows`, `columns`, and `cellSizeMeters`) and `joinCodes` (`runner`, `hunter`).
 
-All five fields are required and must not be null. `cellSizeMeters` must be an integer from 100–5000 in steps of 100, `gridSize` from 3–12, and `revealIntervalMinutes` from 1–60. The app preselects 2000 m, 6 cells, and 30 minutes and sends these values explicitly; the backend supplies no defaults. The backend rejects invalid settings and computes bounds from the requested center and size rather than trusting frontend geometry.
+All six top-level fields are required and must not be null. `cellSizeMeters` must be an integer from 100–5000 in steps of 100, `gridSize` from 3–12, and `revealIntervalMinutes` from 1–60. `jokers` must contain a non-null settings object for each of the seven kinds above, with a required integer `allowance` from 0–5; 0 disables the kind. Unknown fields, including future trap-radius/delay fields, are rejected until implemented. The app preselects 2000 m, 6 cells, 30 minutes and one use per joker, sending these values explicitly; the backend supplies no defaults. The backend rejects invalid settings and computes bounds from the requested center and size rather than trusting frontend geometry.
 
 The handwritten `app/src/api/client.ts` wrapper supplies the API URL, timeouts (5 seconds; 15 seconds for creating a game and changing the route, which look up landmarks within a matching server budget: 3 s per Places call, 6 s per playground edge, 8 s per request, 12 s write timeout), readable errors, and a check that a game result belongs to the requested game ID. Backend and app are deployed together, so responses are not deeply validated at runtime. Its types and HTTP request functions come from generated code, not manually duplicated interfaces or URLs. Creation is not automatically retried: if the network drops after a save, an unreferenced session may remain in the database.
 
@@ -130,7 +141,14 @@ import { createGame } from '@/api/generated';
 
 const { data } = await createGame({
   baseUrl: API_URL,
-  body: { latitude: 52.52, longitude: 13.405, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30 },
+  body: {
+    latitude: 52.52, longitude: 13.405, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30,
+    jokers: {
+      showRunners: { allowance: 1 }, queryZone: { allowance: 1 }, compass: { allowance: 1 },
+      trap: { allowance: 1 }, zoneOnly: { allowance: 1 }, fakePosition: { allowance: 1 },
+      showHunters: { allowance: 1 },
+    },
+  },
   throwOnError: true,
 });
 console.log(data.sessionId);

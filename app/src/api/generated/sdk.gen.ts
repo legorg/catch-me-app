@@ -19,7 +19,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Create a square playground with adjustable grid size, cell size, and reveal interval
+ * Create a square playground with adjustable grid size, cell size, reveal interval, and joker settings
  */
 export const createGame = <ThrowOnError extends boolean = false>(options: Options<CreateGameData, ThrowOnError>) => (options.client ?? client).post<CreateGameResponses, CreateGameErrors, ThrowOnError>({
     url: '/api/games',

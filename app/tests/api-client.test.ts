@@ -9,6 +9,11 @@ import { previewPlayground } from '../src/playground';
 import { isValidGameId, normalizeGameId } from '../src/game-result';
 
 const center = { latitude: 52.52, longitude: 13.405 };
+const jokers = {
+  showRunners: { allowance: 1 }, queryZone: { allowance: 1 }, compass: { allowance: 1 },
+  trap: { allowance: 1 }, zoneOnly: { allowance: 1 }, fakePosition: { allowance: 1 },
+  showHunters: { allowance: 1 },
+};
 const route = {
   start: { title: 'Siegessäule', coordinates: { latitude: 52.4741, longitude: 13.3302 } },
   stop: { title: 'Brandenburger Tor', coordinates: { latitude: 52.5163, longitude: 13.3777 } },
@@ -143,7 +148,7 @@ test('create posts the center and all settings as JSON, with defaults', async (t
     assert.equal(url.pathname, '/api/games');
     assert.equal(request.method, 'POST');
     assert.equal(request.headers.get('Content-Type'), 'application/json');
-    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30 });
+    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30, jokers });
     return Response.json(created, { status: 201 });
   });
   assert.deepEqual(await createGame(center), created);
@@ -153,7 +158,7 @@ test('custom settings are sent', async (t) => {
   for (const [size, cells, minutes] of [[100, 3, 1], [1500, 6, 30], [5000, 12, 60]]) {
     const response = { ...created, game: { ...created.game, playground: previewPlayground(center, size, cells), revealIntervalMinutes: minutes } };
     t.mock.method(globalThis, 'fetch', async (request: Request) => {
-      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size, gridSize: cells, revealIntervalMinutes: minutes });
+      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size, gridSize: cells, revealIntervalMinutes: minutes, jokers });
       return Response.json(response, { status: 201 });
     });
     assert.deepEqual(await createGame(center, size, cells, minutes), response);

@@ -86,18 +86,19 @@ type positionRow struct {
 }
 
 // jokerRow is one used joker. What it showed is derived from the positions at UsedAt.
-// A hunter team can use each kind once; Team is stored lowercase so spelling does not matter.
+// Allowances are enforced by the domain within the serialized lobby transaction.
+// Team is stored lowercase so spelling does not matter.
 // Shared runner jokers have an empty Team and Name. Personal fake position
-// jokers use the runner's ID as Team (the uniqueness scope). All runner jokers
+// jokers use the runner's ID as Team (the personal ownership scope). All runner jokers
 // record who used them in PlayerID; hunter jokers have an empty PlayerID.
 // Cell is the queried cell (queryZone), empty otherwise. Latitude and
 // Longitude are the shown point (fakePosition), the origin (compass), or the
 // trap's point (trap), zero otherwise.
 type jokerRow struct {
 	ID                  uint64    `gorm:"primaryKey"`
-	GameID              string    `gorm:"not null;uniqueIndex:joker_once"`
-	Team                string    `gorm:"not null;uniqueIndex:joker_once"`
-	Kind                string    `gorm:"not null;uniqueIndex:joker_once"`
+	GameID              string    `gorm:"not null;index:joker_scope"`
+	Team                string    `gorm:"not null;index:joker_scope"`
+	Kind                string    `gorm:"not null;index:joker_scope"`
 	Name                string    `gorm:"not null"`
 	PlayerID            string    `gorm:"not null;default:''"`
 	Cell                string    `gorm:"not null;default:''"`
