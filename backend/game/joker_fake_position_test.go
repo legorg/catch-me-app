@@ -28,7 +28,7 @@ func TestFakePositionJokerRules(t *testing.T) {
 	if err := l.UseJoker(runner.ID, fake(point), revealed); err != nil {
 		t.Fatal(err)
 	}
-	if got := l.JokersFor(cy, revealed)[1]; !got.Available || got.Use != nil {
+	if got := l.JokersFor(cy, revealed)[1]; !got.Available || len(got.Uses) != 0 {
 		t.Fatalf("another runner still has their own joker: %+v", got)
 	}
 	otherPoint := cellCenter(l.Game.Playground, Cell{column: 1, row: 0})
@@ -39,7 +39,7 @@ func TestFakePositionJokerRules(t *testing.T) {
 		runner Player
 		point  Coordinates
 	}{{runner, point}, {cy, otherPoint}} {
-		if got := l.JokersFor(tc.runner, revealed)[1]; got.Available || got.Use != (FakePositionUse{Runner: tc.runner.ID, At: revealed, Point: tc.point}) {
+		if got := l.JokersFor(tc.runner, revealed)[1]; got.Available || len(got.Uses) != 1 || got.Uses[0] != (FakePositionUse{Runner: tc.runner.ID, At: revealed, Point: tc.point}) {
 			t.Fatalf("each runner sees their own use and point: %+v", got)
 		}
 		if err := l.UseJoker(tc.runner.ID, fake(point), revealed.Add(revealInterval)); !errors.As(err, &rule) {

@@ -50,7 +50,7 @@ func TestGameStateShowsTheQueriedZoneAndItsAnswer(t *testing.T) {
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
 	center, _ := game.ParseCoordinates(52.52, 13.405)
 	playground, _ := game.NewPlayground(center, game.DefaultCellSize(), game.DefaultGridSize())
-	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), Playground: playground, RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), Playground: playground, RevealInterval: game.DefaultRevealInterval(), JokerSettings: game.DefaultJokerSettings()}, Players: []game.Player{ada, bob}}
 	a1, _ := game.ParseCell("A1")
 	choice := game.QueryZone{Cell: a1}
 	if err := lobby.UseJoker(bob.ID, choice, now); err != nil {
@@ -86,7 +86,7 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
 	cy := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, cy, bob}}
+	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute, JokerSettings: game.DefaultJokerSettings()}, Players: []game.Player{ada, cy, bob}}
 	first, second := start.Add(time.Minute), start.Add(2*time.Minute)
 	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}, {Position: position, At: second}}}
@@ -122,7 +122,7 @@ func TestGameStateShowsTheFakePointAsANormalReveal(t *testing.T) {
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
 	cy := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute}, Players: []game.Player{ada, bob, cy}}
+	lobby := game.Lobby{Game: game.Game{StartsAt: start, Playground: playground, RevealInterval: everyMinute, JokerSettings: game.DefaultJokerSettings()}, Players: []game.Player{ada, bob, cy}}
 	first := start.Add(time.Minute)
 	position, _ := game.NewPosition(center, 5, first.Add(-time.Second))
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{ada.ID: {{Position: position, At: first}}}
@@ -155,7 +155,7 @@ func TestGameStateShowsTheHunterPositionsToRunnersOnly(t *testing.T) {
 	position, _ := game.NewPosition(where, 5, now.Add(-time.Second))
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack, Position: position}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
-	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval(), JokerSettings: game.DefaultJokerSettings()}, Players: []game.Player{ada, bob}}
 	if err := lobby.UseJoker(ada.ID, game.ShowHunters{}, now); err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestGameStateShowsOnlyTheCompassDirections(t *testing.T) {
 	runnerAt, _ := game.NewPosition(north, 5, now.Add(-time.Second))
 	bob := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: pack, Position: hunterAt}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners, Position: runnerAt}
-	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval()}, Players: []game.Player{ada, bob}}
+	lobby := game.Lobby{Game: game.Game{StartsAt: now.Add(-time.Minute), RevealInterval: game.DefaultRevealInterval(), JokerSettings: game.DefaultJokerSettings()}, Players: []game.Player{ada, bob}}
 	if err := lobby.UseJoker(bob.ID, game.Compass{}, now); err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestGameStateShowsTheTrapToItsHunterTeamOnly(t *testing.T) {
 	eve := game.Player{ID: game.NewPlayerID(), Team: game.Hunters, HunterTeam: wolves}
 	ada := game.Player{ID: game.NewPlayerID(), Team: game.Runners}
 	lobby := game.Lobby{
-		Game:    game.Game{StartsAt: now.Add(-time.Hour), RevealInterval: game.DefaultRevealInterval()},
+		Game:    game.Game{StartsAt: now.Add(-time.Hour), RevealInterval: game.DefaultRevealInterval(), JokerSettings: game.DefaultJokerSettings()},
 		Players: []game.Player{ada, bob, eve},
 		Jokers:  []game.JokerUse{game.TrapUse{Team: pack, At: now.Add(-30 * time.Minute), Point: point}},
 	}

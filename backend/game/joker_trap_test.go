@@ -26,13 +26,16 @@ func TestTrapJokerRules(t *testing.T) {
 		t.Fatalf("a hunter team can place one trap: %v", err)
 	}
 	got := l.JokersFor(dan, at)[3]
-	if use, ok := got.Use.(TrapUse); got.Available || !ok || use != (TrapUse{Team: bob.HunterTeam, At: at, Point: point}) {
+	if len(got.Uses) != 1 {
+		t.Fatalf("expected one placed trap: %+v", got)
+	}
+	if use, ok := got.Uses[0].(TrapUse); got.Available || !ok || use != (TrapUse{Team: bob.HunterTeam, At: at, Point: point}) {
 		t.Fatalf("a teammate sees the placed, not yet triggered trap: %+v", got)
 	}
-	if !got.Use.(TrapUse).ActiveAt().Equal(at.Add(20 * time.Minute)) {
+	if !got.Uses[0].(TrapUse).ActiveAt().Equal(at.Add(20 * time.Minute)) {
 		t.Fatal("a trap becomes active 20 minutes after placement")
 	}
-	if other := l.JokersFor(eve, at)[3]; !other.Available || other.Use != nil {
+	if other := l.JokersFor(eve, at)[3]; !other.Available || len(other.Uses) != 0 {
 		t.Fatalf("another hunter team sees nothing of it: %+v", other)
 	}
 	for _, j := range l.JokersFor(runner, at) {

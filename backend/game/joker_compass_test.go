@@ -29,7 +29,7 @@ func TestCompassShowsOnlyTheDirectionsFromTheHunter(t *testing.T) {
 	if err := l.UseJoker(dan.ID, Compass{}, at); !errors.As(err, &rule) {
 		t.Fatalf("a hunter without a position must be refused: %v", err)
 	}
-	if got := l.JokersFor(bob, at)[2]; !got.Available || got.Use != nil {
+	if got := l.JokersFor(bob, at)[2]; !got.Available || len(got.Uses) != 0 {
 		t.Fatalf("a refused compass stays available: %+v", got)
 	}
 	if err := l.UseJoker(bob.ID, Compass{}, at); err != nil {
@@ -38,11 +38,15 @@ func TestCompassShowsOnlyTheDirectionsFromTheHunter(t *testing.T) {
 	if err := l.UseJoker(bob.ID, Compass{}, at.Add(time.Second)); !errors.As(err, &rule) {
 		t.Fatalf("a team can use the compass once: %v", err)
 	}
-	got, ok := l.JokersFor(dan, at)[2].Use.(CompassUse)
+	uses := l.JokersFor(dan, at)[2].Uses
+	if len(uses) != 1 {
+		t.Fatalf("expected one compass use: %+v", uses)
+	}
+	got, ok := uses[0].(CompassUse)
 	if !ok || got.Origin != center || !got.At.Equal(at) || !slices.Equal(got.Bearings, []int{0, 90}) {
 		t.Fatalf("the team must see the directions from Bob's position, sorted: %+v", got)
 	}
-	if other := l.JokersFor(eve, at)[2]; !other.Available || other.Use != nil {
+	if other := l.JokersFor(eve, at)[2]; !other.Available || len(other.Uses) != 0 {
 		t.Fatalf("another hunter team sees nothing of it: %+v", other)
 	}
 	for _, j := range l.JokersFor(runner, at) {

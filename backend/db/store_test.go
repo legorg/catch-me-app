@@ -518,7 +518,7 @@ func TestPersonalFakePositionsSurviveReopening(t *testing.T) {
 		point  game.Coordinates
 	}{{ada, adaPoint}, {cy, cyPoint}} {
 		use := lobby.JokersFor(tc.player, at)[1]
-		if use.Available || use.Use != (game.FakePositionUse{Runner: tc.player.ID, At: usedAt, Point: tc.point}) {
+		if use.Available || len(use.Uses) != 1 || use.Uses[0] != (game.FakePositionUse{Runner: tc.player.ID, At: usedAt, Point: tc.point}) {
 			t.Fatalf("each runner must get their own stored use: %+v", use)
 		}
 		for _, visible := range lobby.VisibleTo(hunter, at) {

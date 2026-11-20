@@ -25,7 +25,7 @@ func TestZoneOnlyJokerRules(t *testing.T) {
 	if err := l.UseJoker(cy.ID, zoneOnly, at.Add(time.Minute)); !errors.As(err, &rule) {
 		t.Fatalf("the runners share one use: %v", err)
 	}
-	if got := l.JokersFor(cy, at); len(got) != 3 || got[0].Available || got[0].Use != (ZoneOnlyUse{Runner: runner.ID, At: at}) || !got[1].Available {
+	if got := l.JokersFor(cy, at); len(got) != 3 || got[0].Available || len(got[0].Uses) != 1 || got[0].Uses[0] != (ZoneOnlyUse{Runner: runner.ID, At: at}) || !got[1].Available {
 		t.Fatalf("every runner sees who used it and when: %+v", got)
 	}
 	for _, j := range l.JokersFor(bob, at) {

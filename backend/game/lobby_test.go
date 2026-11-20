@@ -16,7 +16,7 @@ func newLobby() Lobby {
 	center, _ := ParseCoordinates(52.52, 13.405)
 	playground, _ := NewPlayground(center, DefaultCellSize(), DefaultGridSize())
 	route := Route{Start: Landmark{Coordinates: boundsCenter(playground.CellBounds(Cell{column: 2, row: DefaultGridSize().Cells() - 1}))}, Stop: Landmark{Coordinates: boundsCenter(playground.CellBounds(Cell{column: 3}))}}
-	return Lobby{Game: Game{SessionID: NewSessionID(), JoinCodes: NewJoinCodes(), Playground: playground, RevealInterval: DefaultRevealInterval(), Route: route}}
+	return Lobby{Game: Game{SessionID: NewSessionID(), JoinCodes: NewJoinCodes(), Playground: playground, RevealInterval: DefaultRevealInterval(), JokerSettings: DefaultJokerSettings(), Route: route}}
 }
 
 // boundsCenter is the middle of the bounds.

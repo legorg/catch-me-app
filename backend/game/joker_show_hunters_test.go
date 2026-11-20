@@ -42,12 +42,12 @@ func TestShowHuntersShowsEveryHunterToAllRunnersOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := l.JokersFor(cy, at)
-	if len(got) != 3 || got[2].Kind != JokerShowHunters || got[2].Available {
+	if len(got) != 3 || got[2].Kind != JokerShowHunters || got[2].Available || len(got[2].Uses) != 1 {
 		t.Fatalf("every runner sees the used joker: %+v", got)
 	}
-	use, ok := got[2].Use.(ShowHuntersUse)
+	use, ok := got[2].Uses[0].(ShowHuntersUse)
 	if !ok || use.Runner != runner.ID || !use.At.Equal(at) || len(use.Positions) != 3 {
-		t.Fatalf("the use must show every hunter of every hunter team: %+v", got[2].Use)
+		t.Fatalf("the use must show every hunter of every hunter team: %+v", got[2].Uses[0])
 	}
 	for i, hunter := range []Player{bob, dan, eve} {
 		if use.Positions[i].PlayerID != hunter.ID || use.Positions[i].Position != hunter.Position {
@@ -55,7 +55,7 @@ func TestShowHuntersShowsEveryHunterToAllRunnersOnly(t *testing.T) {
 		}
 	}
 	for _, j := range l.JokersFor(bob, at) {
-		if j.Kind == JokerShowHunters || j.Use != nil {
+		if j.Kind == JokerShowHunters || len(j.Uses) != 0 {
 			t.Fatalf("hunters are not told about runner jokers: %+v", j)
 		}
 	}

@@ -48,17 +48,20 @@ func TestJokersAreVisibleToTheirTeamOnly(t *testing.T) {
 	if got := only(l.JokersFor(bob, running.Add(-time.Second))); got.Available {
 		t.Fatal("not available before the game runs")
 	}
-	if got := only(l.JokersFor(bob, at)); !got.Available || got.Use != nil {
+	if got := only(l.JokersFor(bob, at)); !got.Available || len(got.Uses) != 0 {
 		t.Fatalf("unused joker: %+v", got)
 	}
 	if err := l.UseJoker(bob.ID, showRunners, at); err != nil {
 		t.Fatal(err)
 	}
 	used := only(l.JokersFor(dan, at))
-	if use, ok := used.Use.(ShowRunnersUse); used.Available || !ok || use.Team != bob.HunterTeam || !use.At.Equal(at) || len(use.Positions) != 2 {
+	if len(used.Uses) != 1 {
+		t.Fatalf("expected one shared use: %+v", used)
+	}
+	if use, ok := used.Uses[0].(ShowRunnersUse); used.Available || !ok || use.Team != bob.HunterTeam || !use.At.Equal(at) || len(use.Positions) != 2 {
 		t.Fatalf("a teammate must see the result of the use: %+v", used)
 	}
-	if got := only(l.JokersFor(eve, at)); !got.Available || got.Use != nil {
+	if got := only(l.JokersFor(eve, at)); !got.Available || len(got.Uses) != 0 {
 		t.Fatalf("another hunter team sees nothing of it: %+v", got)
 	}
 	if got := l.JokersFor(runner, at); len(got) != 3 || got[0].Kind != JokerZoneOnly || got[1].Kind != JokerFakePosition || got[2].Kind != JokerShowHunters || !got[0].Available {

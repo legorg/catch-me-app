@@ -26,7 +26,7 @@ func TestQueryZoneAnswersOnlyYesOrNo(t *testing.T) {
 	if err := l.UseJoker(bob.ID, occupied, at); err != nil {
 		t.Fatal(err)
 	}
-	if got := query(l.JokersFor(dan, at)); got.Available || got.Use != (QueryZoneUse{Team: bob.HunterTeam, At: at, Cell: Cell{column: 2, row: 5}, Found: true}) {
+	if got := query(l.JokersFor(dan, at)); got.Available || len(got.Uses) != 1 || got.Uses[0] != (QueryZoneUse{Team: bob.HunterTeam, At: at, Cell: Cell{column: 2, row: 5}, Found: true}) {
 		t.Fatalf("a teammate must see yes for C6, without any positions: %+v", got)
 	}
 	if got := l.JokersFor(dan, at)[0]; !got.Available {
@@ -36,13 +36,13 @@ func TestQueryZoneAnswersOnlyYesOrNo(t *testing.T) {
 	if err := l.UseJoker(dan.ID, empty, at); !errors.As(err, &rule) {
 		t.Fatalf("a team can query a zone once: %v", err)
 	}
-	if got := query(l.JokersFor(eve, at)); !got.Available || got.Use != nil {
+	if got := query(l.JokersFor(eve, at)); !got.Available || len(got.Uses) != 0 {
 		t.Fatalf("another hunter team sees nothing of it: %+v", got)
 	}
 	if err := l.UseJoker(eve.ID, empty, at); err != nil {
 		t.Fatal(err)
 	}
-	if got := query(l.JokersFor(eve, at)); got.Use != (QueryZoneUse{Team: eve.HunterTeam, At: at, Cell: Cell{}, Found: false}) {
+	if got := query(l.JokersFor(eve, at)); len(got.Uses) != 1 || got.Uses[0] != (QueryZoneUse{Team: eve.HunterTeam, At: at, Cell: Cell{}, Found: false}) {
 		t.Fatalf("no runner is in A1: %+v", got)
 	}
 	if err := l.UseJoker(runner.ID, empty, at); !errors.As(err, &rule) {
