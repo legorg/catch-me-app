@@ -219,10 +219,9 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	type gameJokers struct {
 		Team   string `json:"team"`
 		Jokers []struct {
-			Kind      string  `json:"kind"`
-			Available bool    `json:"available"`
-			UsedAt    *string `json:"usedAt"`
-			Found     *bool   `json:"found"`
+			Kind      string            `json:"kind"`
+			Available bool              `json:"available"`
+			Uses      []json.RawMessage `json:"uses"`
 		} `json:"jokers"`
 	}
 	runnerGame := decode[gameJokers](t, send(t, handler, "GET", "/api/me/game", runner.PlayerToken, ""), 200)
@@ -245,7 +244,7 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
 	hunterGame := decode[gameJokers](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
 	if j := hunterGame.Jokers; len(j) != 4 || j[0].Kind != "showRunners" || j[1].Kind != "queryZone" || j[2].Kind != "compass" || j[3].Kind != "trap" ||
-		j[0].Available || j[1].Available || j[2].Available || j[3].Available || j[0].UsedAt != nil || j[1].Found != nil {
+		j[0].Available || j[1].Available || j[2].Available || j[3].Available || j[0].Uses == nil || len(j[0].Uses) != 0 || len(j[1].Uses) != 0 {
 		t.Fatalf("a hunter team has all its jokers, unavailable before the game runs: %+v", j)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"queryZone","cell":"C4"}`), 409)

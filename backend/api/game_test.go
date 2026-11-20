@@ -256,9 +256,9 @@ func TestOpenAPIRoutes(t *testing.T) {
 	}
 	for _, name := range []string{"ControllerShowRunnersJokerResponse", "ControllerQueryZoneJokerResponse", "ControllerCompassJokerResponse", "ControllerTrapJokerResponse", "ControllerZoneOnlyJokerResponse", "ControllerFakePositionJokerResponse", "ControllerShowHuntersJokerResponse"} {
 		response := spec.Components.Schemas[name]
-		remaining := response.Properties["remaining"]
-		if !slices.Contains(response.Required, "remaining") || string(remaining.Type) != `"integer"` || remaining.Minimum == nil || *remaining.Minimum != 0 || remaining.Maximum == nil || *remaining.Maximum != 5 {
-			t.Fatalf("%s must require remaining uses with limits 0-5", name)
+		uses := response.Properties["uses"]
+		if _, old := response.Properties["remaining"]; old || !slices.Contains(response.Required, "uses") || uses.MaxItems == nil || *uses.MaxItems != 5 {
+			t.Fatalf("%s must require a use list of at most 5 entries and no derived remaining count", name)
 		}
 	}
 	for field, parse := range map[string]func(int) error{

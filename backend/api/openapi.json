@@ -369,7 +369,7 @@
         "operationId": "getGameState",
         "responses": {
           "200": {
-            "description": "Current game state with immutable jokerSettings and remaining uses for each permitted team/personal joker; includes status ended and endedAt once every runner is caught or finished. Each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object",
+            "description": "Current game state with immutable jokerSettings and, for each permitted team/personal joker, every use with its result; includes status ended and endedAt once every runner is caught or finished. Each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object",
             "content": {
               "application/json": {
                 "schema": {
@@ -527,7 +527,7 @@
         },
         "responses": {
           "200": {
-            "description": "Updated game state with remaining uses and what the joker showed",
+            "description": "Updated game state with every use of the joker and what it showed",
             "content": {
               "application/json": {
                 "schema": {
@@ -1284,42 +1284,24 @@
             ],
             "type": "boolean"
           },
-          "bearings": {
-            "items": {
-              "type": "integer"
-            },
-            "maxItems": 30,
-            "type": "array"
-          },
           "kind": {
             "enum": [
               "compass"
             ],
             "type": "string"
           },
-          "origin": {
-            "$ref": "#/components/schemas/ControllerCoordinates"
-          },
-          "remaining": {
-            "examples": [
-              1
-            ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "usedAt": {
-            "examples": [
-              "2026-11-08T12:07:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerCompassUseResponse"
+            },
+            "maxItems": 5,
+            "type": "array"
           }
         },
         "required": [
           "kind",
           "available",
-          "remaining"
+          "uses"
         ],
         "type": "object"
       },
@@ -1334,6 +1316,33 @@
         },
         "required": [
           "kind"
+        ],
+        "type": "object"
+      },
+      "ControllerCompassUseResponse": {
+        "properties": {
+          "bearings": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 30,
+            "type": "array"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usedAt",
+          "origin",
+          "bearings"
         ],
         "type": "object"
       },
@@ -1450,37 +1459,18 @@
             ],
             "type": "string"
           },
-          "point": {
-            "$ref": "#/components/schemas/ControllerCoordinates"
-          },
-          "remaining": {
-            "examples": [
-              1
-            ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "usedAt": {
-            "examples": [
-              "2026-11-08T12:07:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
-          },
-          "usedBy": {
-            "examples": [
-              "8899aabbccddeeff0011223344556677"
-            ],
-            "maxLength": 32,
-            "minLength": 32,
-            "type": "string"
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerFakePositionUseResponse"
+            },
+            "maxItems": 5,
+            "type": "array"
           }
         },
         "required": [
           "kind",
           "available",
-          "remaining"
+          "uses"
         ],
         "type": "object"
       },
@@ -1513,6 +1503,34 @@
           "kind",
           "latitude",
           "longitude"
+        ],
+        "type": "object"
+      },
+      "ControllerFakePositionUseResponse": {
+        "properties": {
+          "point": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedBy": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "usedAt",
+          "usedBy",
+          "point"
         ],
         "type": "object"
       },
@@ -2600,47 +2618,24 @@
             ],
             "type": "boolean"
           },
-          "cell": {
-            "examples": [
-              "C4"
-            ],
-            "maxLength": 3,
-            "minLength": 2,
-            "pattern": "^[A-L]([1-9]|1[0-2])$",
-            "type": "string"
-          },
-          "found": {
-            "examples": [
-              true
-            ],
-            "type": "boolean"
-          },
           "kind": {
             "enum": [
               "queryZone"
             ],
             "type": "string"
           },
-          "remaining": {
-            "examples": [
-              1
-            ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "usedAt": {
-            "examples": [
-              "2026-11-08T12:07:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerQueryZoneUseResponse"
+            },
+            "maxItems": 5,
+            "type": "array"
           }
         },
         "required": [
           "kind",
           "available",
-          "remaining"
+          "uses"
         ],
         "type": "object"
       },
@@ -2665,6 +2660,38 @@
         "required": [
           "kind",
           "cell"
+        ],
+        "type": "object"
+      },
+      "ControllerQueryZoneUseResponse": {
+        "properties": {
+          "cell": {
+            "examples": [
+              "C4"
+            ],
+            "maxLength": 3,
+            "minLength": 2,
+            "pattern": "^[A-L]([1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "found": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usedAt",
+          "cell",
+          "found"
         ],
         "type": "object"
       },
@@ -2921,20 +2948,43 @@
             ],
             "type": "string"
           },
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerShowHuntersUseResponse"
+            },
+            "maxItems": 5,
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "available",
+          "uses"
+        ],
+        "type": "object"
+      },
+      "ControllerShowHuntersRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "showHunters"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ControllerShowHuntersUseResponse": {
+        "properties": {
           "positions": {
             "items": {
               "$ref": "#/components/schemas/ControllerJokerPositionResponse"
             },
             "maxItems": 30,
             "type": "array"
-          },
-          "remaining": {
-            "examples": [
-              1
-            ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
           },
           "usedAt": {
             "examples": [
@@ -2953,23 +3003,9 @@
           }
         },
         "required": [
-          "kind",
-          "available",
-          "remaining"
-        ],
-        "type": "object"
-      },
-      "ControllerShowHuntersRequest": {
-        "properties": {
-          "kind": {
-            "enum": [
-              "showHunters"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind"
+          "usedAt",
+          "usedBy",
+          "positions"
         ],
         "type": "object"
       },
@@ -2987,33 +3023,18 @@
             ],
             "type": "string"
           },
-          "positions": {
+          "uses": {
             "items": {
-              "$ref": "#/components/schemas/ControllerJokerPositionResponse"
+              "$ref": "#/components/schemas/ControllerShowRunnersUseResponse"
             },
-            "maxItems": 30,
+            "maxItems": 5,
             "type": "array"
-          },
-          "remaining": {
-            "examples": [
-              1
-            ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "usedAt": {
-            "examples": [
-              "2026-11-08T12:07:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
           }
         },
         "required": [
           "kind",
           "available",
-          "remaining"
+          "uses"
         ],
         "type": "object"
       },
@@ -3028,6 +3049,29 @@
         },
         "required": [
           "kind"
+        ],
+        "type": "object"
+      },
+      "ControllerShowRunnersUseResponse": {
+        "properties": {
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerJokerPositionResponse"
+            },
+            "maxItems": 30,
+            "type": "array"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usedAt",
+          "positions"
         ],
         "type": "object"
       },
@@ -3185,13 +3229,6 @@
       },
       "ControllerTrapJokerResponse": {
         "properties": {
-          "activeAt": {
-            "examples": [
-              "2026-11-08T12:27:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
-          },
           "available": {
             "examples": [
               true
@@ -3204,36 +3241,18 @@
             ],
             "type": "string"
           },
-          "point": {
-            "$ref": "#/components/schemas/ControllerCoordinates"
-          },
-          "remaining": {
-            "examples": [
-              1
-            ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "triggeredAt": {
-            "examples": [
-              "2026-11-08T12:41:30Z"
-            ],
-            "format": "date-time",
-            "type": "string"
-          },
-          "usedAt": {
-            "examples": [
-              "2026-11-08T12:07:00Z"
-            ],
-            "format": "date-time",
-            "type": "string"
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerTrapUseResponse"
+            },
+            "maxItems": 5,
+            "type": "array"
           }
         },
         "required": [
           "kind",
           "available",
-          "remaining"
+          "uses"
         ],
         "type": "object"
       },
@@ -3313,6 +3332,40 @@
           "kind",
           "at",
           "hunterTeam"
+        ],
+        "type": "object"
+      },
+      "ControllerTrapUseResponse": {
+        "properties": {
+          "activeAt": {
+            "examples": [
+              "2026-11-08T12:27:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "point": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "triggeredAt": {
+            "examples": [
+              "2026-11-08T12:41:30Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usedAt",
+          "point",
+          "activeAt"
         ],
         "type": "object"
       },
@@ -3410,14 +3463,37 @@
             ],
             "type": "string"
           },
-          "remaining": {
-            "examples": [
-              1
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerZoneOnlyUseResponse"
+            },
+            "maxItems": 5,
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "available",
+          "uses"
+        ],
+        "type": "object"
+      },
+      "ControllerZoneOnlyRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "zoneOnly"
             ],
-            "maximum": 5,
-            "minimum": 0,
-            "type": "integer"
-          },
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ControllerZoneOnlyUseResponse": {
+        "properties": {
           "usedAt": {
             "examples": [
               "2026-11-08T12:07:00Z"
@@ -3435,23 +3511,8 @@
           }
         },
         "required": [
-          "kind",
-          "available",
-          "remaining"
-        ],
-        "type": "object"
-      },
-      "ControllerZoneOnlyRequest": {
-        "properties": {
-          "kind": {
-            "enum": [
-              "zoneOnly"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind"
+          "usedAt",
+          "usedBy"
         ],
         "type": "object"
       },

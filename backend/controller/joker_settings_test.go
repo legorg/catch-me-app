@@ -32,7 +32,7 @@ func TestJokerSettingsResponseIncludesEveryConfiguredAllowance(t *testing.T) {
 	}
 }
 
-func TestGameStateSettingsAndRemainingUsesRespectOwnershipAndPhase(t *testing.T) {
+func TestGameStateSettingsAndUsesRespectOwnershipAndPhase(t *testing.T) {
 	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 	pack, _ := game.ParseHunterTeamName("Pack")
 	wolves, _ := game.ParseHunterTeamName("Wolves")
@@ -62,12 +62,12 @@ func TestGameStateSettingsAndRemainingUsesRespectOwnershipAndPhase(t *testing.T)
 		}
 		return state
 	}
-	assertRemaining := func(player game.Player, kind game.JokerKind, remaining int, available bool, at time.Time) {
+	assertUses := func(player game.Player, kind game.JokerKind, uses int, available bool, at time.Time) {
 		t.Helper()
 		var state struct {
 			Jokers []struct {
 				Kind      game.JokerKind
-				Remaining *int
+				Uses      []json.RawMessage
 				Available bool
 			}
 		}
@@ -76,7 +76,7 @@ func TestGameStateSettingsAndRemainingUsesRespectOwnershipAndPhase(t *testing.T)
 		}
 		for _, joker := range state.Jokers {
 			if joker.Kind == kind {
-				if joker.Remaining == nil || *joker.Remaining != remaining || joker.Available != available {
+				if joker.Uses == nil || len(joker.Uses) != uses || joker.Available != available {
 					t.Fatalf("incorrect %s status for %s: %+v", kind, player.ID, joker)
 				}
 				return
@@ -95,8 +95,8 @@ func TestGameStateSettingsAndRemainingUsesRespectOwnershipAndPhase(t *testing.T)
 			}
 		}
 	}
-	assertRemaining(bob, game.JokerShowRunners, 2, false, now.Add(-2*time.Minute))
-	assertRemaining(bob, game.JokerQueryZone, 0, false, now)
+	assertUses(bob, game.JokerShowRunners, 0, false, now.Add(-2*time.Minute))
+	assertUses(bob, game.JokerQueryZone, 0, false, now)
 	for _, use := range []struct {
 		player game.Player
 		choice game.JokerChoice
@@ -109,21 +109,21 @@ func TestGameStateSettingsAndRemainingUsesRespectOwnershipAndPhase(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	assertRemaining(bob, game.JokerShowRunners, 1, true, now)
-	assertRemaining(dan, game.JokerShowRunners, 1, true, now)
-	assertRemaining(eve, game.JokerShowRunners, 2, true, now)
-	assertRemaining(ada, game.JokerShowHunters, 1, true, now)
-	assertRemaining(cy, game.JokerShowHunters, 1, true, now)
-	assertRemaining(ada, game.JokerFakePosition, 1, true, now)
-	assertRemaining(cy, game.JokerFakePosition, 2, true, now)
+	assertUses(bob, game.JokerShowRunners, 1, true, now)
+	assertUses(dan, game.JokerShowRunners, 1, true, now)
+	assertUses(eve, game.JokerShowRunners, 0, true, now)
+	assertUses(ada, game.JokerShowHunters, 1, true, now)
+	assertUses(cy, game.JokerShowHunters, 1, true, now)
+	assertUses(ada, game.JokerFakePosition, 1, true, now)
+	assertUses(cy, game.JokerFakePosition, 0, true, now)
 	if err := lobby.MarkCaught(ada.ID, now.Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	assertRemaining(ada, game.JokerFakePosition, 1, false, now.Add(time.Second))
+	assertUses(ada, game.JokerFakePosition, 1, false, now.Add(time.Second))
 	if err := lobby.MarkCaught(cy.ID, now.Add(2*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	assertRemaining(bob, game.JokerShowRunners, 1, false, now.Add(2*time.Second))
-	assertRemaining(eve, game.JokerShowRunners, 2, false, now.Add(2*time.Second))
+	assertUses(bob, game.JokerShowRunners, 1, false, now.Add(2*time.Second))
+	assertUses(eve, game.JokerShowRunners, 0, false, now.Add(2*time.Second))
 	assertState(viewer, now.Add(2*time.Second))
 }

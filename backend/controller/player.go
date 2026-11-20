@@ -409,74 +409,69 @@ func revealResponse(r game.HunterReveal) RevealResponse {
 func jokerResponses(view service.PlayerView) []JokerResponse {
 	jokers := make([]JokerResponse, 0)
 	for _, j := range view.Lobby.JokersFor(view.Me, view.Now) {
-		status := JokerStatus{Available: j.Available, Remaining: j.Remaining}
-		var result game.JokerUse
-		if len(j.Uses) > 0 {
-			result = j.Uses[0]
-			usedAt := result.UsedAt()
-			status.UsedAt = &usedAt
-		}
+		status, kind := JokerStatus{Available: j.Available}, JokerKind(j.Kind)
+		var joker any
 		switch j.Kind {
 		case game.JokerShowRunners:
-			joker := ShowRunnersJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
-			if use, ok := result.(game.ShowRunnersUse); ok {
-				joker.Positions = jokerPositionResponses(use.Positions)
-			}
-			jokers = append(jokers, JokerResponse{joker})
+			joker = ShowRunnersJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.ShowRunnersUse) ShowRunnersUseResponse {
+				return ShowRunnersUseResponse{JokerUseBase: useBase(u), Positions: jokerPositionResponses(u.Positions)}
+			})}
 		case game.JokerQueryZone:
-			joker := QueryZoneJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
-			if use, ok := result.(game.QueryZoneUse); ok {
-				found := use.Found
-				joker.Cell, joker.Found = Cell(use.Cell.String()), &found
-			}
-			jokers = append(jokers, JokerResponse{joker})
+			joker = QueryZoneJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.QueryZoneUse) QueryZoneUseResponse {
+				return QueryZoneUseResponse{JokerUseBase: useBase(u), Cell: Cell(u.Cell.String()), Found: u.Found}
+			})}
 		case game.JokerCompass:
-			joker := CompassJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
-			if use, ok := result.(game.CompassUse); ok {
-				origin := coordinatesResponse(use.Origin)
-				joker.Origin = &origin
-				joker.Bearings = use.Bearings
-			}
-			jokers = append(jokers, JokerResponse{joker})
+			joker = CompassJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.CompassUse) CompassUseResponse {
+				return CompassUseResponse{JokerUseBase: useBase(u), Origin: coordinatesResponse(u.Origin), Bearings: append([]int{}, u.Bearings...)}
+			})}
 		case game.JokerTrap:
-			joker := TrapJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
-			if use, ok := result.(game.TrapUse); ok {
-				point, activeAt := coordinatesResponse(use.Point), use.ActiveAt()
-				joker.Point, joker.ActiveAt = &point, &activeAt
-				if !use.TriggeredAt.IsZero() {
-					triggeredAt := use.TriggeredAt
-					joker.TriggeredAt = &triggeredAt
+			joker = TrapJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.TrapUse) TrapUseResponse {
+				use := TrapUseResponse{JokerUseBase: useBase(u), Point: coordinatesResponse(u.Point), ActiveAt: u.ActiveAt()}
+				if !u.TriggeredAt.IsZero() {
+					triggeredAt := u.TriggeredAt
+					use.TriggeredAt = &triggeredAt
 				}
-			}
-			jokers = append(jokers, JokerResponse{joker})
+				return use
+			})}
 		case game.JokerZoneOnly:
-			joker := ZoneOnlyJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
-			if use, ok := result.(game.ZoneOnlyUse); ok {
-				joker.UsedBy = PlayerID(use.Runner.String())
-			}
-			jokers = append(jokers, JokerResponse{joker})
+			joker = ZoneOnlyJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.ZoneOnlyUse) ZoneOnlyUseResponse {
+				return ZoneOnlyUseResponse{runnerUseBase(u, u.Runner)}
+			})}
 		case game.JokerFakePosition:
-			joker := FakePositionJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
-			if use, ok := result.(game.FakePositionUse); ok {
-				joker.UsedBy = PlayerID(use.Runner.String())
-				point := coordinatesResponse(use.Point)
-				joker.Point = &point
-			}
-			jokers = append(jokers, JokerResponse{joker})
+			joker = FakePositionJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.FakePositionUse) FakePositionUseResponse {
+				return FakePositionUseResponse{RunnerJokerUseBase: runnerUseBase(u, u.Runner), Point: coordinatesResponse(u.Point)}
+			})}
 		case game.JokerShowHunters:
-			joker := ShowHuntersJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
-			if use, ok := result.(game.ShowHuntersUse); ok {
-				joker.UsedBy = PlayerID(use.Runner.String())
-				joker.Positions = jokerPositionResponses(use.Positions)
-			}
-			jokers = append(jokers, JokerResponse{joker})
+			joker = ShowHuntersJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.ShowHuntersUse) ShowHuntersUseResponse {
+				return ShowHuntersUseResponse{RunnerJokerUseBase: runnerUseBase(u, u.Runner), Positions: jokerPositionResponses(u.Positions)}
+			})}
+		default:
+			continue
 		}
+		jokers = append(jokers, JokerResponse{joker})
 	}
 	return jokers
 }
 
+// usesOf converts every use of one kind; the domain lists only that kind's uses.
+func usesOf[U game.JokerUse, R any](uses []game.JokerUse, convert func(U) R) []R {
+	responses := make([]R, 0, len(uses))
+	for _, use := range uses {
+		if u, ok := use.(U); ok {
+			responses = append(responses, convert(u))
+		}
+	}
+	return responses
+}
+
+func useBase(u game.JokerUse) JokerUseBase { return JokerUseBase{UsedAt: u.UsedAt()} }
+
+func runnerUseBase(u game.JokerUse, runner game.PlayerID) RunnerJokerUseBase {
+	return RunnerJokerUseBase{JokerUseBase: useBase(u), UsedBy: PlayerID(runner.String())}
+}
+
 func jokerPositionResponses(positions []game.JokerPosition) []JokerPositionResponse {
-	var responses []JokerPositionResponse
+	responses := make([]JokerPositionResponse, 0, len(positions))
 	for _, p := range positions {
 		responses = append(responses, JokerPositionResponse{PlayerID: PlayerID(p.PlayerID.String()), PositionResponse: positionResponse(p.Position)})
 	}

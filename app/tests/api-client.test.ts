@@ -283,14 +283,14 @@ test('the game state is returned as sent', async (t) => {
   assert.deepEqual(await getGameState(token), hunterState);
 });
 
-test('joker settings and remaining uses are returned without client-side recomputation', async (t) => {
+test('joker settings and use lists are returned as sent', async (t) => {
   const snapshot = {
     ...hunterState,
     status: 'running',
     jokerSettings: { ...jokers, showRunners: { allowance: 3 }, queryZone: { allowance: 0 } },
     jokers: [
-      { kind: 'showRunners', available: true, remaining: 2, usedAt: '2026-11-08T12:07:00Z', positions: [] },
-      { kind: 'queryZone', available: false, remaining: 0 },
+      { kind: 'showRunners', available: true, uses: [{ usedAt: '2026-11-08T12:07:00Z', positions: [] }] },
+      { kind: 'queryZone', available: false, uses: [] },
     ],
   };
   t.mock.method(globalThis, 'fetch', async () => Response.json(snapshot));
@@ -310,9 +310,11 @@ test('using a joker posts its kind with the token and returns the state', async 
   const used = {
     ...hunterState,
     jokers: [{
-      kind: 'showRunners', available: false, remaining: 0, usedAt: '2026-11-08T12:07:00Z',
-      positions: [{ playerId: state.playerId, latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' }],
-    }, { kind: 'queryZone', available: false, remaining: 0, usedAt: '2026-11-08T12:08:00Z', cell: 'C4', found: false }],
+      kind: 'showRunners', available: false, uses: [{
+        usedAt: '2026-11-08T12:07:00Z',
+        positions: [{ playerId: state.playerId, latitude: 52.5, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' }],
+      }],
+    }, { kind: 'queryZone', available: false, uses: [{ usedAt: '2026-11-08T12:08:00Z', cell: 'C4', found: false }] }],
   };
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     assert.equal(new URL(request.url).pathname, '/api/me/jokers');

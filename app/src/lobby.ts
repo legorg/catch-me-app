@@ -172,38 +172,55 @@ function cellCenter(playground: Playground, cell: string) {
   return { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 };
 }
 
-/** Markers for what the team's used jokers showed: each runner where they were when it was used, and the queried zone with its answer. */
+/** Markers for what the team's used jokers showed: each runner where they were at every use, and every queried zone with its answer. */
 export function jokerMarkers(state: GameStateHunterResponse): PlayerMarker[] {
-  return state.jokers.flatMap((joker) => [
-    ...(joker.kind === 'showRunners' ? joker.positions ?? [] : []).filter((position) =>
+  return [
+    ...jokerUses(state.jokers, 'showRunners').flatMap((use, index) => use.positions.filter((position) =>
       isActivePlayer(state.players.find((player) => player.playerId === position.playerId))).map((position) => ({
-      id: `joker-${joker.kind}-${position.playerId}`,
+      id: `joker-showRunners-${index}-${position.playerId}`,
       coordinate: { latitude: position.latitude, longitude: position.longitude },
       title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
-      description: translate('joker.marker', { time: clockTime(joker.usedAt ?? position.recordedAt, true) }),
+      description: translate('joker.marker', { time: clockTime(use.usedAt, true) }),
       color: MARKER_COLORS.joker,
-    })),
-    ...queriedZones([joker]).map((zone) => ({
-      id: `joker-${joker.kind}-${zone.cell}`,
-      coordinate: cellCenter(state.playground, zone.cell),
-      title: zone.title,
-      description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
-      color: zone.color,
-    })),
-  ]);
+    }))),
+    ...jokerUses(state.jokers, 'queryZone').map((use, index) => {
+      const { cell, title, color } = queriedZone(use);
+      return {
+        id: `joker-queryZone-${index}`,
+        coordinate: cellCenter(state.playground, cell),
+        title,
+        description: translate('joker.marker', { time: clockTime(use.usedAt, true) }),
+        color,
+      };
+    }),
+  ];
 }
 
 /** The cells the team queried, colored by the answer: green with a runner inside, red without. */
 export function jokerZones(state: GameStateHunterResponse): { cell: string; title: string; color: string }[] {
-  return queriedZones(state.jokers);
+  return jokerUses(state.jokers, 'queryZone').map(queriedZone);
 }
 
-function queriedZones(jokers: GameStateHunterResponse['jokers']) {
-  return jokers.flatMap((joker) => joker.kind === 'queryZone' && joker.cell && joker.found !== undefined ? [{
-    cell: joker.cell,
-    title: translate(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell }),
-    color: joker.found ? ZONE_COLORS.found : ZONE_COLORS.empty,
-  }] : []);
+function queriedZone(use: JokerUse<'queryZone'>) {
+  return {
+    cell: use.cell,
+    title: translate(use.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: use.cell }),
+    color: use.found ? ZONE_COLORS.found : ZONE_COLORS.empty,
+  };
+}
+
+type Joker = GameStateResponse['jokers'][number];
+
+export type JokerUse<K extends Joker['kind']> = Extract<Joker, { kind: K }>['uses'][number];
+
+/** Every use of one joker kind the player may see, oldest first. */
+function jokerUses<K extends Joker['kind']>(jokers: Joker[], kind: K): JokerUse<K>[] {
+  return jokers.flatMap((joker) => (joker.kind === kind ? joker.uses as JokerUse<K>[] : []));
+}
+
+/** Uses left of one joker: the game's allowance minus the uses the player's team (or the player, for personal jokers) spent. */
+export function remainingUses(state: GameStateResponse, joker: Joker): number {
+  return Math.max(0, state.jokerSettings[joker.kind].allowance - joker.uses.length);
 }
 
 export const ZONE_COLORS = { found: '#27ae60', empty: '#eb5757', revealed: '#f2c94c' } as const;
@@ -231,26 +248,22 @@ const ARROWHEAD_SHARE = 0.25;
  */
 export function compassLines(state: GameStateHunterResponse): { id: string; coordinates: { latitude: number; longitude: number }[]; color: string }[] {
   const length = state.playground.cellSizeMeters;
-  return state.jokers.flatMap((joker) => {
-    if (joker.kind !== 'compass' || !joker.origin) return [];
-    const origin = joker.origin;
-    return (joker.bearings ?? []).map((bearing, index) => {
-      const tip = offsetPoint(origin, bearing, length);
-      const barb = (side: number) => offsetPoint(tip, bearing + 180 + side * ARROWHEAD_DEGREES, length * ARROWHEAD_SHARE);
-      return { id: `joker-compass-${index}`, coordinates: [origin, tip, barb(-1), tip, barb(1)], color: MARKER_COLORS.joker };
-    });
-  });
+  return jokerUses(state.jokers, 'compass').flatMap(({ origin, bearings }, use) => bearings.map((bearing, index) => {
+    const tip = offsetPoint(origin, bearing, length);
+    const barb = (side: number) => offsetPoint(tip, bearing + 180 + side * ARROWHEAD_DEGREES, length * ARROWHEAD_SHARE);
+    return { id: `joker-compass-${use}-${index}`, coordinates: [origin, tip, barb(-1), tip, barb(1)], color: MARKER_COLORS.joker };
+  }));
 }
 
-/** Where the hunter stood when the team used the compass, the arrows' common start. */
+/** Where the hunter stood at each compass use, the start of that use's arrows. */
 export function compassMarkers(state: GameStateHunterResponse): PlayerMarker[] {
-  return state.jokers.flatMap((joker) => joker.kind === 'compass' && joker.origin ? [{
-    id: 'joker-compass',
-    coordinate: joker.origin,
+  return jokerUses(state.jokers, 'compass').map((use, index) => ({
+    id: `joker-compass-${index}`,
+    coordinate: use.origin,
     title: translate('joker.compass.title'),
-    description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
+    description: translate('joker.marker', { time: clockTime(use.usedAt, true) }),
     color: MARKER_COLORS.joker,
-  }] : []);
+  }));
 }
 
 /** How close a runner must come to trigger a trap; the server uses the same radius. */
@@ -260,22 +273,20 @@ export const TRAP_COLORS = { waiting: '#828282', active: '#f2994a', triggered: '
 
 export type TrapStatus = keyof typeof TRAP_COLORS;
 
-type HunterJoker = GameStateHunterResponse['jokers'][number];
-
 /** Whether a placed trap still waits for its activation, is active, or was triggered, at the server time serverNow (ms). */
-export function trapStatus(joker: Extract<HunterJoker, { kind: 'trap' }>, serverNow: number): TrapStatus {
-  if (joker.triggeredAt) return 'triggered';
-  return joker.activeAt && Date.parse(joker.activeAt) <= serverNow ? 'active' : 'waiting';
+export function trapStatus(trap: JokerUse<'trap'>, serverNow: number): TrapStatus {
+  if (trap.triggeredAt) return 'triggered';
+  return Date.parse(trap.activeAt) <= serverNow ? 'active' : 'waiting';
 }
 
-/** The team's placed trap as a circle of the trigger radius, colored by its status. */
+/** Every trap the team placed as a circle of the trigger radius, colored by its status. */
 export function trapCircles(state: GameStateHunterResponse, serverNow: number): { id: string; center: { latitude: number; longitude: number }; radius: number; color: string }[] {
-  return state.jokers.flatMap((joker) => joker.kind === 'trap' && joker.point ? [{
-    id: 'joker-trap',
-    center: joker.point,
+  return jokerUses(state.jokers, 'trap').map((trap, index) => ({
+    id: `joker-trap-${index}`,
+    center: trap.point,
     radius: TRAP_RADIUS_METERS,
-    color: TRAP_COLORS[trapStatus(joker, serverNow)],
-  }] : []);
+    color: TRAP_COLORS[trapStatus(trap, serverNow)],
+  }));
 }
 
 /** The server's clock now: its time in the response plus the time elapsed locally since it arrived. */
@@ -319,24 +330,26 @@ export function routeMarkers(route: GameRoute): PlayerMarker[] {
   ];
 }
 
-/** The requesting runner's own fakePosition point, once used. */
+/** The requesting runner's own fakePosition points, one per use. */
 export function fakePositionMarkers(state: GameStateRunnerResponse): PlayerMarker[] {
-  return state.jokers.flatMap((joker) => joker.kind === 'fakePosition' && joker.point &&
-    isActivePlayer(state.players.find((player) => player.playerId === joker.usedBy)) ? [{
-    id: 'joker-fakePosition',
-    coordinate: joker.point,
-    title: translate('joker.fakePosition.marker', { name: state.players.find((p) => p.playerId === joker.usedBy)?.name ?? '' }),
-    description: translate('joker.marker', { time: clockTime(joker.usedAt ?? '', true) }),
-    color: MARKER_COLORS.joker,
-  }] : []);
+  return jokerUses(state.jokers, 'fakePosition').flatMap((use, index) => {
+    const runner = state.players.find((player) => player.playerId === use.usedBy);
+    return isActivePlayer(runner) ? [{
+      id: `joker-fakePosition-${index}`,
+      coordinate: use.point,
+      title: translate('joker.fakePosition.marker', { name: runner?.name ?? '' }),
+      description: translate('joker.marker', { time: clockTime(use.usedAt, true) }),
+      color: MARKER_COLORS.joker,
+    }] : [];
+  });
 }
 
 export function shownHunterMarkers(state: GameStateRunnerResponse): PlayerMarker[] {
-  return state.jokers.flatMap((joker) => (joker.kind === 'showHunters' ? joker.positions ?? [] : []).map((position) => ({
-    id: `joker-${joker.kind}-${position.playerId}`,
+  return jokerUses(state.jokers, 'showHunters').flatMap((use, index) => use.positions.map((position) => ({
+    id: `joker-showHunters-${index}-${position.playerId}`,
     coordinate: { latitude: position.latitude, longitude: position.longitude },
     title: state.players.find((p) => p.playerId === position.playerId)?.name ?? '',
-    description: translate('joker.showHunters.marker', { time: clockTime(joker.usedAt ?? position.recordedAt, true) }),
+    description: translate('joker.showHunters.marker', { time: clockTime(use.usedAt, true) }),
     color: MARKER_COLORS.shownHunter,
   })));
 }

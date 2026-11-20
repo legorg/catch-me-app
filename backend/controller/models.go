@@ -343,8 +343,10 @@ type SketchResponse struct {
 // JokerResponse is one personal or team joker of the requesting player: exactly one of
 // ShowRunnersJokerResponse, QueryZoneJokerResponse, CompassJokerResponse,
 // TrapJokerResponse, ZoneOnlyJokerResponse, FakePositionJokerResponse, and
-// ShowHuntersJokerResponse, told apart by kind. Each has only its joker's
-// result fields, present once the player or team used it.
+// ShowHuntersJokerResponse, told apart by kind. Each lists every use of its
+// owner (the hunter team, the runner team, or the requesting runner for
+// fakePosition), oldest first, with that joker's result fields. Remaining uses
+// are the game's jokerSettings allowance minus the number of uses.
 type JokerResponse struct{ variant any }
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
@@ -356,72 +358,111 @@ func (j JokerResponse) MarshalJSON() ([]byte, error) { return marshalVariant(j.v
 
 // JokerStatus is what every joker response has.
 type JokerStatus struct {
-	// True while the game runs, the player is active and their team/personal allowance is not exhausted.
+	// True while the game runs, the player is active and the allowance is not used up.
 	Available bool `json:"available" example:"true"`
-	// Remaining uses in the requesting player's ownership scope, even before start or after retirement.
-	Remaining int `json:"remaining" minimum:"0" maximum:"5" example:"1"`
-	// Time of the first permitted personal/team use; absent while unused.
-	UsedAt *time.Time `json:"usedAt,omitempty" example:"2026-11-08T12:07:00Z"`
+}
+
+// JokerUseBase is what every joker use has.
+type JokerUseBase struct {
+	UsedAt time.Time `json:"usedAt" example:"2026-11-08T12:07:00Z"`
+}
+
+// RunnerJokerUseBase is what every runner joker use has.
+type RunnerJokerUseBase struct {
+	JokerUseBase
+	// The runner who used it.
+	UsedBy PlayerID `json:"usedBy" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
 }
 
 type ShowRunnersJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"showRunners"`
 	JokerStatus
-	// Once used: each runner's position at usedAt.
-	Positions []JokerPositionResponse `json:"positions,omitempty" maxItems:"30"`
+	Uses []ShowRunnersUseResponse `json:"uses" maxItems:"5"`
+}
+
+type ShowRunnersUseResponse struct {
+	JokerUseBase
+	// Each runner's position at usedAt.
+	Positions []JokerPositionResponse `json:"positions" maxItems:"30"`
 }
 
 type QueryZoneJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"queryZone"`
 	JokerStatus
-	// Once used: the queried cell and whether any runner was inside it at usedAt.
-	Cell  Cell  `json:"cell,omitempty" pattern:"^[A-L]([1-9]|1[0-2])$" minLength:"2" maxLength:"3" example:"C4"`
-	Found *bool `json:"found,omitempty" example:"true"`
+	Uses []QueryZoneUseResponse `json:"uses" maxItems:"5"`
+}
+
+type QueryZoneUseResponse struct {
+	JokerUseBase
+	// The queried cell and whether any runner was inside it at usedAt.
+	Cell  Cell `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" minLength:"2" maxLength:"3" example:"C4"`
+	Found bool `json:"found" example:"true"`
 }
 
 type CompassJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"compass"`
 	JokerStatus
-	// Once used: where the hunter who used it stood, and the direction from
-	// there to each runner at usedAt, in whole degrees clockwise from true
-	// north, sorted. No positions, distances, or runner IDs.
-	Origin   *Coordinates `json:"origin,omitempty"`
-	Bearings []int        `json:"bearings,omitempty" maxItems:"30"`
+	Uses []CompassUseResponse `json:"uses" maxItems:"5"`
+}
+
+// CompassUseResponse never holds the runners' positions, distances, or IDs.
+type CompassUseResponse struct {
+	JokerUseBase
+	// Where the hunter who used it stood.
+	Origin Coordinates `json:"origin"`
+	// The direction from origin to each runner at usedAt, in whole degrees
+	// clockwise from true north, sorted.
+	Bearings []int `json:"bearings" maxItems:"30"`
 }
 
 type TrapJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"trap"`
 	JokerStatus
-	// Once used: the trap's point (it triggers within 100 m), when it becomes
-	// active (20 minutes after usedAt), and, once a runner's report after
-	// activeAt came within 100 m, that report's time. Never which runner
-	// triggered it or where they were.
-	Point       *Coordinates `json:"point,omitempty"`
-	ActiveAt    *time.Time   `json:"activeAt,omitempty" example:"2026-11-08T12:27:00Z"`
-	TriggeredAt *time.Time   `json:"triggeredAt,omitempty" example:"2026-11-08T12:41:30Z"`
+	Uses []TrapUseResponse `json:"uses" maxItems:"5"`
+}
+
+// TrapUseResponse never tells which runner triggered it or where they were.
+type TrapUseResponse struct {
+	JokerUseBase
+	// The trap's point; it triggers within 100 m.
+	Point Coordinates `json:"point"`
+	// When it becomes active, 20 minutes after usedAt.
+	ActiveAt time.Time `json:"activeAt" example:"2026-11-08T12:27:00Z"`
+	// Once a runner's report after activeAt came within 100 m: that report's time.
+	TriggeredAt *time.Time `json:"triggeredAt,omitempty" example:"2026-11-08T12:41:30Z"`
 }
 
 type ZoneOnlyJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"zoneOnly"`
 	JokerStatus
-	// Once used: the runner who used it.
-	UsedBy PlayerID `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Uses []ZoneOnlyUseResponse `json:"uses" maxItems:"5"`
 }
 
+type ZoneOnlyUseResponse struct{ RunnerJokerUseBase }
+
+// FakePositionJokerResponse lists only the requesting runner's own uses.
 type FakePositionJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"fakePosition"`
 	JokerStatus
-	// Once used: the requesting runner and the point hunters see at their next reveal. Personal, not shared.
-	UsedBy PlayerID     `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
-	Point  *Coordinates `json:"point,omitempty"`
+	Uses []FakePositionUseResponse `json:"uses" maxItems:"5"`
+}
+
+type FakePositionUseResponse struct {
+	RunnerJokerUseBase
+	// The point hunters see at the next reveal after usedAt.
+	Point Coordinates `json:"point"`
 }
 
 type ShowHuntersJokerResponse struct {
 	Kind JokerKind `json:"kind" enum:"showHunters"`
 	JokerStatus
-	// Once used: the runner who used it and each hunter's position at usedAt.
-	UsedBy    PlayerID                `json:"usedBy,omitempty" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
-	Positions []JokerPositionResponse `json:"positions,omitempty" maxItems:"30"`
+	Uses []ShowHuntersUseResponse `json:"uses" maxItems:"5"`
+}
+
+type ShowHuntersUseResponse struct {
+	RunnerJokerUseBase
+	// Each hunter's position at usedAt.
+	Positions []JokerPositionResponse `json:"positions" maxItems:"30"`
 }
 
 type JokerPositionResponse struct {

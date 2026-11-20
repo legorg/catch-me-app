@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
@@ -235,19 +235,19 @@ test('catch markers replace live, ping, zone-reveal and historical joker markers
   const players = [caught, state.players[1], { ...state.players[2], position }];
   const hunters: GameStateHunterResponse = {
     ...hunterState, players,
-    jokers: [{ kind: 'showRunners', available: false, remaining: 0, usedAt: at, positions: [
+    jokers: [{ kind: 'showRunners', available: false, uses: [{ usedAt: at, positions: [
       { ...position, playerId: caught.playerId }, { ...position, playerId: state.players[2].playerId },
-    ] }],
+    ] }] }],
   };
   assert.deepEqual(revealMarkers(hunters), []);
   assert.deepEqual(gameHighlights(hunters), []);
   assert.deepEqual(playerMarkers(hunters).map((marker) => marker.id), [state.players[2].playerId]);
   assert.deepEqual(jokerMarkers(hunters).map((marker) => marker.title), ['Cy']);
   assert.deepEqual(gameMarkers(hunters).map((marker) => marker.id), [
-    `joker-showRunners-${state.players[2].playerId}`, state.players[2].playerId, `caught-${caught.playerId}`,
+    `joker-showRunners-0-${state.players[2].playerId}`, state.players[2].playerId, `caught-${caught.playerId}`,
   ]);
   const runners: GameStateRunnerResponse = {
-    ...state, players, jokers: [{ kind: 'fakePosition', available: false, remaining: 0, usedAt: at, usedBy: caught.playerId, point: position }],
+    ...state, players, jokers: [{ kind: 'fakePosition', available: false, uses: [{ usedAt: at, usedBy: caught.playerId, point: position }] }],
   };
   assert.deepEqual(fakePositionMarkers(runners), []);
 });
@@ -282,7 +282,7 @@ test('spectators see real reports of runners and every hunter team with separate
       { ...state.players[2], playerId: 'f'.repeat(32), name: 'No report' },
     ],
     // Historical snapshots must not be mixed into the real feed, even if stale data remains.
-    jokers: [{ kind: 'showHunters', available: false, remaining: 0, positions: [{ ...report, playerId: state.players[1].playerId }] }],
+    jokers: [{ kind: 'showHunters', available: false, uses: [{ usedAt: endedAt, usedBy: state.playerId, positions: [{ ...report, playerId: state.players[1].playerId }] }] }],
   };
   const markers = spectatorMarkers(spectator);
   assert.deepEqual(gameMarkers(spectator), [...routeMarkers(state.route), ...markers]);
@@ -348,8 +348,8 @@ test('finished runners have no ordinary, historical joker, fake-position or catc
     position, reveals: [{ kind: 'position' as const, revealedAt: at, position }],
   };
   const players = [finished, state.players[1]];
-  const runners: GameStateRunnerResponse = { ...state, players, jokers: [{ kind: 'fakePosition', available: false, remaining: 0, usedBy: finished.playerId, point: position }] };
-  const hunters: GameStateHunterResponse = { ...hunterState, players, jokers: [{ kind: 'showRunners', available: false, remaining: 0, positions: [{ ...position, playerId: finished.playerId }] }] };
+  const runners: GameStateRunnerResponse = { ...state, players, jokers: [{ kind: 'fakePosition', available: false, uses: [{ usedAt: at, usedBy: finished.playerId, point: position }] }] };
+  const hunters: GameStateHunterResponse = { ...hunterState, players, jokers: [{ kind: 'showRunners', available: false, uses: [{ usedAt: at, positions: [{ ...position, playerId: finished.playerId }] }] }] };
   assert.deepEqual(playerMarkers(runners), []);
   assert.deepEqual(revealMarkers(hunters), []);
   assert.deepEqual(caughtMarkers(runners), []);
@@ -450,68 +450,81 @@ test('a zone reveal is highlighted and marked in the middle of its cell', () => 
   assert.deepEqual(gameHighlights(running).map((h) => [h.cell, h.title, h.color]), [['C4', 'Ada', ZONE_COLORS.revealed]]);
 });
 
-test('a used joker becomes one marker per runner it showed', () => {
+test('a used joker becomes one marker per runner it showed, for every use', () => {
   const position = (playerId: string, latitude: number) => ({ playerId, latitude, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' });
   const markers = jokerMarkers({
     ...hunterState,
-    jokers: [{ kind: 'showRunners', available: false, remaining: 0, usedAt: '2026-11-08T12:07:00Z', positions: [position(state.players[0].playerId, 52.5), position(state.players[2].playerId, 52.6)] }],
+    jokers: [{ kind: 'showRunners', available: true, uses: [
+      { usedAt: '2026-11-08T12:07:00Z', positions: [position(state.players[0].playerId, 52.5), position(state.players[2].playerId, 52.6)] },
+      { usedAt: '2026-11-08T12:37:00Z', positions: [position(state.players[0].playerId, 52.55)] },
+    ] }],
   });
   assert.deepEqual(markers.map((m) => [m.title, m.coordinate.latitude, m.color]), [
     ['Ada', 52.5, MARKER_COLORS.joker],
     ['Cy', 52.6, MARKER_COLORS.joker],
+    ['Ada', 52.55, MARKER_COLORS.joker],
   ]);
+  assert.equal(new Set(markers.map((m) => m.id)).size, 3); // Later snapshots keep earlier ones.
   assert.match(markers[0].description, /Joker/);
-  assert.deepEqual(jokerMarkers({ ...hunterState, jokers: [{ kind: 'showRunners', available: true, remaining: 1 }] }), []);
+  assert.deepEqual(jokerMarkers({ ...hunterState, jokers: [{ kind: 'showRunners', available: true, uses: [] }] }), []);
 });
 
-test('a queried zone is highlighted and marked in its center, colored by the answer', () => {
-  const jokers = [
-    { kind: 'queryZone' as const, available: false, remaining: 0, usedAt: '2026-11-08T12:07:00Z', cell: 'A1', found: true },
-    { kind: 'queryZone' as const, available: false, remaining: 0, usedAt: '2026-11-08T12:08:00Z', cell: 'F6', found: false },
-  ];
+test('every queried zone is highlighted and marked in its center, colored by its answer', () => {
+  const jokers = [{ kind: 'queryZone' as const, available: false, uses: [
+    { usedAt: '2026-11-08T12:07:00Z', cell: 'A1', found: true },
+    { usedAt: '2026-11-08T12:08:00Z', cell: 'F6', found: false },
+    { usedAt: '2026-11-08T12:09:00Z', cell: 'A1', found: false },
+  ] }];
   const zones = jokerZones({ ...hunterState, jokers });
-  assert.deepEqual(zones.map((z) => [z.cell, z.color]), [['A1', ZONE_COLORS.found], ['F6', ZONE_COLORS.empty]]);
+  assert.deepEqual(zones.map((z) => [z.cell, z.color]), [['A1', ZONE_COLORS.found], ['F6', ZONE_COLORS.empty], ['A1', ZONE_COLORS.empty]]);
   assert.match(zones[0].title, /at least one runner/);
   assert.match(zones[1].title, /no runner/);
-  const [marker] = jokerMarkers({ ...hunterState, jokers: [jokers[0]] });
+  const markers = jokerMarkers({ ...hunterState, jokers });
   const b = cellBounds(state.playground, 'A1');
-  assert.deepEqual(marker.coordinate, { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 });
-  assert.equal(marker.color, ZONE_COLORS.found);
-  assert.deepEqual(jokerZones({ ...hunterState, jokers: [{ kind: 'queryZone', available: true, remaining: 1 }] }), []);
+  assert.deepEqual(markers[0].coordinate, { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 });
+  assert.equal(markers[0].color, ZONE_COLORS.found);
+  assert.equal(new Set(markers.map((m) => m.id)).size, 3); // The same cell queried twice keeps both answers.
+  assert.deepEqual(jokerZones({ ...hunterState, jokers: [{ kind: 'queryZone', available: true, uses: [] }] }), []);
 });
 
-test('the personal fake position is a marker for its runner, once used', () => {
-  const point = { latitude: 52.53, longitude: 13.41 };
-  const [marker, ...rest] = fakePositionMarkers({
+test('each personal fake position is a marker for its runner', () => {
+  const points = [{ latitude: 52.53, longitude: 13.41 }, { latitude: 52.54, longitude: 13.42 }];
+  const markers = fakePositionMarkers({
     ...state,
-    jokers: [{ kind: 'fakePosition', available: false, remaining: 0, usedAt: '2026-11-08T12:07:00Z', usedBy: state.players[0].playerId, point }],
+    jokers: [{ kind: 'fakePosition', available: false, uses: points.map((point, i) => ({ usedAt: `2026-11-08T12:0${7 + i}:00Z`, usedBy: state.players[0].playerId, point })) }],
   });
-  assert.equal(rest.length, 0);
-  assert.deepEqual(marker.coordinate, point);
-  assert.equal(marker.color, MARKER_COLORS.joker);
-  assert.match(marker.title, /Ada/);
-  assert.deepEqual(fakePositionMarkers({ ...state, jokers: [{ kind: 'fakePosition', available: true, remaining: 1 }] }), []);
+  assert.deepEqual(markers.map((m) => m.coordinate), points);
+  assert.equal(new Set(markers.map((m) => m.id)).size, 2);
+  assert.equal(markers[0].color, MARKER_COLORS.joker);
+  assert.match(markers[0].title, /Ada/);
+  assert.deepEqual(fakePositionMarkers({ ...state, jokers: [{ kind: 'fakePosition', available: true, uses: [] }] }), []);
 });
 
-test('the shown hunters are markers in their own color for every runner, once used', () => {
+test('the shown hunters are markers in their own color for every runner and use', () => {
   const position = { playerId: state.players[1].playerId, latitude: 52.51, longitude: 13.4, accuracyMeters: 5, recordedAt: '2026-11-08T12:06:58Z' };
   const running = {
     ...state,
-    jokers: [{ kind: 'showHunters' as const, available: false, remaining: 0, usedAt: '2026-11-08T12:07:00Z', usedBy: state.players[0].playerId, positions: [position] }],
+    jokers: [{ kind: 'showHunters' as const, available: false, uses: [
+      { usedAt: '2026-11-08T12:07:00Z', usedBy: state.players[0].playerId, positions: [position] },
+      { usedAt: '2026-11-08T12:37:00Z', usedBy: state.players[2].playerId, positions: [{ ...position, latitude: 52.55 }] },
+    ] }],
   };
-  assert.deepEqual(shownHunterMarkers(running).map((m) => [m.title, m.coordinate.latitude, m.color]), [['Bob', 52.51, MARKER_COLORS.shownHunter]]);
+  assert.deepEqual(shownHunterMarkers(running).map((m) => [m.title, m.coordinate.latitude, m.color]), [['Bob', 52.51, MARKER_COLORS.shownHunter], ['Bob', 52.55, MARKER_COLORS.shownHunter]]);
   assert.notEqual(MARKER_COLORS.shownHunter, MARKER_COLORS.joker);
-  assert.ok(gameMarkers(running).some((m) => m.id === `joker-showHunters-${position.playerId}`));
-  assert.deepEqual(shownHunterMarkers({ ...state, jokers: [{ kind: 'showHunters', available: true, remaining: 1 }] }), []);
+  assert.ok(gameMarkers(running).some((m) => m.id === `joker-showHunters-1-${position.playerId}`));
+  assert.deepEqual(shownHunterMarkers({ ...state, jokers: [{ kind: 'showHunters', available: true, uses: [] }] }), []);
 });
 
 test('the compass becomes one cell-long arrow per direction from the origin, without names', () => {
   const origin = { latitude: 52.52, longitude: 13.405 };
   const running = {
     ...hunterState,
-    jokers: [{ kind: 'compass' as const, available: false, remaining: 0, usedAt: '2026-11-08T12:07:00Z', origin, bearings: [0, 90] }],
+    jokers: [{ kind: 'compass' as const, available: false, uses: [
+      { usedAt: '2026-11-08T12:07:00Z', origin, bearings: [0, 90] },
+      { usedAt: '2026-11-08T12:37:00Z', origin: { latitude: 52.5, longitude: 13.4 }, bearings: [180] },
+    ] }],
   };
-  const [north, east, ...rest] = compassLines(running);
+  const [north, east, south, ...rest] = compassLines(running);
   assert.equal(rest.length, 0);
   assert.deepEqual(north.coordinates[0], origin);
   assert.equal(north.color, MARKER_COLORS.joker);
@@ -521,27 +534,39 @@ test('the compass becomes one cell-long arrow per direction from the origin, wit
   assert.ok(tipNorth.latitude > origin.latitude && Math.abs(tipNorth.longitude - origin.longitude) < 1e-9);
   const tipEast = east.coordinates[1];
   assert.ok(tipEast.longitude > origin.longitude && Math.abs(tipEast.latitude - origin.latitude) < 1e-9);
+  assert.ok(south.coordinates[1].latitude < 52.5);
   // Shaft, then both barbs from the tip.
   assert.equal(north.coordinates.length, 5);
   assert.deepEqual(north.coordinates[3], tipNorth);
-  const [marker] = compassMarkers(running);
-  assert.deepEqual(marker.coordinate, origin);
-  assert.ok(gameMarkers(running).some((m) => m.id === 'joker-compass'));
-  assert.deepEqual(compassLines({ ...hunterState, jokers: [{ kind: 'compass', available: true, remaining: 1 }] }), []);
+  assert.equal(new Set([north, east, south].map((line) => line.id)).size, 3);
+  const markers = compassMarkers(running);
+  assert.deepEqual(markers.map((m) => m.coordinate), [origin, { latitude: 52.5, longitude: 13.4 }]);
+  assert.ok(gameMarkers(running).some((m) => m.id === 'joker-compass-1'));
+  assert.deepEqual(compassLines({ ...hunterState, jokers: [{ kind: 'compass', available: true, uses: [] }] }), []);
 });
 
-test('the trap is a circle of the trigger radius, colored waiting, active, then triggered, and no pin', () => {
+test('every trap is a circle of the trigger radius, colored waiting, active, then triggered, and no pin', () => {
   const point = { latitude: 52.52, longitude: 13.405 };
-  const trap = { kind: 'trap' as const, available: false, remaining: 0, usedAt: '2026-11-08T12:00:00Z', point, activeAt: '2026-11-08T12:20:00Z' };
-  const placed = { ...hunterState, jokers: [trap] };
+  const trap = { usedAt: '2026-11-08T12:00:00Z', point, activeAt: '2026-11-08T12:20:00Z' };
+  const placed = { ...hunterState, jokers: [{ kind: 'trap' as const, available: false, uses: [trap] }] };
   const at = (iso: string) => Date.parse(iso);
-  assert.deepEqual(trapCircles(placed, at('2026-11-08T12:19:59Z')), [{ id: 'joker-trap', center: point, radius: TRAP_RADIUS_METERS, color: TRAP_COLORS.waiting }]);
+  assert.deepEqual(trapCircles(placed, at('2026-11-08T12:19:59Z')), [{ id: 'joker-trap-0', center: point, radius: TRAP_RADIUS_METERS, color: TRAP_COLORS.waiting }]);
   assert.equal(trapCircles(placed, at('2026-11-08T12:20:00Z'))[0].color, TRAP_COLORS.active);
-  const triggered = { ...hunterState, jokers: [{ ...trap, triggeredAt: '2026-11-08T12:31:00Z' }] };
-  assert.equal(trapCircles(triggered, at('2026-11-08T12:31:00Z'))[0].color, TRAP_COLORS.triggered);
-  assert.ok(!gameMarkers(triggered).some((m) => m.id.includes('trap')));
-  assert.deepEqual(trapCircles({ ...hunterState, jokers: [{ kind: 'trap', available: true, remaining: 1 }] }, at('2026-11-08T12:31:00Z')), []);
+  const other = { usedAt: '2026-11-08T12:10:00Z', point: { latitude: 52.53, longitude: 13.41 }, activeAt: '2026-11-08T12:30:00Z' };
+  const both = { ...hunterState, jokers: [{ kind: 'trap' as const, available: true, uses: [{ ...trap, triggeredAt: '2026-11-08T12:31:00Z' }, other] }] };
+  assert.deepEqual(trapCircles(both, at('2026-11-08T12:31:00Z')).map((c) => [c.id, c.color]), [['joker-trap-0', TRAP_COLORS.triggered], ['joker-trap-1', TRAP_COLORS.active]]);
+  assert.ok(!gameMarkers(both).some((m) => m.id.includes('trap')));
+  assert.deepEqual(trapCircles({ ...hunterState, jokers: [{ kind: 'trap', available: true, uses: [] }] }, at('2026-11-08T12:31:00Z')), []);
   assert.equal(serverNow({ ...hunterState, serverTime: '2026-11-08T12:00:00Z' }, 1000, 3500), at('2026-11-08T12:00:02.5Z'));
+});
+
+test('remaining uses are the allowance minus the uses, never negative', () => {
+  const settings = { ...state.jokerSettings, showRunners: { allowance: 3 }, queryZone: { allowance: 0 } };
+  const snapshot = { ...hunterState, jokerSettings: settings };
+  const use = { usedAt: '2026-11-08T12:07:00Z', positions: [] };
+  assert.equal(remainingUses(snapshot, { kind: 'showRunners', available: true, uses: [use] }), 2);
+  assert.equal(remainingUses(snapshot, { kind: 'showRunners', available: false, uses: [use, use, use, use] }), 0);
+  assert.equal(remainingUses(snapshot, { kind: 'queryZone', available: false, uses: [] }), 0);
 });
 
 test('sketches become lines in the sketch color, in the order the server sent them', () => {

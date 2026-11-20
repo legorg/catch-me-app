@@ -47,7 +47,7 @@ func TestEveryJokerEnforcesItsAllowance(t *testing.T) {
 				for used := 0; used <= allowance; used++ {
 					at := running.Add(time.Duration(used) * revealInterval)
 					state := jokerWithKind(t, l, actor, kind, at)
-					if state.Remaining != allowance-used || len(state.Uses) != used || state.Available != (used < allowance) {
+					if len(state.Uses) != used || state.Available != (used < allowance) {
 						t.Fatalf("before use %d: %+v", used, state)
 					}
 					err := l.UseJoker(actor.ID, choices[kind], at)
@@ -79,10 +79,10 @@ func TestMultipleUsesKeepTheirOwnershipAndResults(t *testing.T) {
 	}
 	// Team spelling cannot create a new allowance or hide a team result.
 	dan.HunterTeam, _ = ParseHunterTeamName("pack")
-	if got := jokerWithKind(t, l, dan, JokerShowRunners, first); got.Remaining != 0 || len(got.Uses) != 2 {
+	if got := jokerWithKind(t, l, dan, JokerShowRunners, first); len(got.Uses) != 2 {
 		t.Fatalf("hunter teammates must share all uses: %+v", got)
 	}
-	if got := jokerWithKind(t, l, eve, JokerShowRunners, first); got.Remaining != 2 || len(got.Uses) != 0 {
+	if got := jokerWithKind(t, l, eve, JokerShowRunners, first); len(got.Uses) != 0 {
 		t.Fatalf("another hunter team must have an independent allowance/history: %+v", got)
 	}
 	var rule *RuleError
@@ -98,7 +98,7 @@ func TestMultipleUsesKeepTheirOwnershipAndResults(t *testing.T) {
 		}
 	}
 	for _, viewer := range []Player{runner, cy} {
-		if got := jokerWithKind(t, l, viewer, JokerShowHunters, first); got.Remaining != 0 || len(got.Uses) != 2 {
+		if got := jokerWithKind(t, l, viewer, JokerShowHunters, first); len(got.Uses) != 2 {
 			t.Fatalf("runner teammates must share all uses: %+v", got)
 		}
 	}
@@ -116,10 +116,10 @@ func TestMultipleUsesKeepTheirOwnershipAndResults(t *testing.T) {
 		FakePositionUse{Runner: runner.ID, At: first, Point: points[0]},
 		FakePositionUse{Runner: runner.ID, At: second, Point: points[1]},
 	}
-	if personal.Remaining != 0 || !reflect.DeepEqual(personal.Uses, want) {
+	if !reflect.DeepEqual(personal.Uses, want) {
 		t.Fatalf("personal uses must keep each time and point: %+v", personal)
 	}
-	if got := jokerWithKind(t, l, cy, JokerFakePosition, second); got.Remaining != 2 || len(got.Uses) != 0 {
+	if got := jokerWithKind(t, l, cy, JokerFakePosition, second); len(got.Uses) != 0 {
 		t.Fatalf("another runner must not spend or see personal uses: %+v", got)
 	}
 	if err := l.UseJoker(cy.ID, FakePosition{Point: points[0]}, second); err != nil {
@@ -140,7 +140,7 @@ func TestPendingRevealJokerDoesNotSpendAnotherUse(t *testing.T) {
 	}
 	for _, choice := range []JokerChoice{ZoneOnly{}, FakePosition{Point: point}} {
 		state := jokerWithKind(t, l, runner, choice.Kind(), first)
-		if !state.Available || state.Remaining == 0 {
+		if !state.Available {
 			t.Fatalf("pending joker must not exhaust the allowance: %+v", state)
 		}
 		var rule *RuleError
@@ -174,7 +174,7 @@ func TestInvalidTargetDoesNotSpendConfiguredUses(t *testing.T) {
 			t.Fatalf("invalid %s target: %v", tc.choice.Kind(), err)
 		}
 		state := jokerWithKind(t, l, tc.actor, tc.choice.Kind(), running)
-		if state.Remaining != 2 || len(state.Uses) != 0 {
+		if len(state.Uses) != 0 {
 			t.Fatalf("invalid target spent an allowance: %+v", state)
 		}
 	}
@@ -192,7 +192,7 @@ func TestCompassWithoutPositionDoesNotSpendConfiguredUses(t *testing.T) {
 	if err := l.UseJoker(bob.ID, Compass{}, running); !errors.As(err, &rule) {
 		t.Fatalf("compass without position must be rejected: %v", err)
 	}
-	if got := jokerWithKind(t, l, bob, JokerCompass, running); got.Remaining != 2 || len(got.Uses) != 0 {
+	if got := jokerWithKind(t, l, bob, JokerCompass, running); len(got.Uses) != 0 {
 		t.Fatalf("rejected compass spent an allowance: %+v", got)
 	}
 }

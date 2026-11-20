@@ -21,15 +21,18 @@ export type ControllerBounds = {
 
 export type ControllerCompassJokerResponse = {
     available: boolean;
-    bearings?: Array<number>;
     kind: 'compass';
-    origin?: ControllerCoordinates;
-    remaining: number;
-    usedAt?: string;
+    uses: Array<ControllerCompassUseResponse>;
 };
 
 export type ControllerCompassRequest = {
     kind: 'compass';
+};
+
+export type ControllerCompassUseResponse = {
+    bearings: Array<number>;
+    origin: ControllerCoordinates;
+    usedAt: string;
 };
 
 export type ControllerCoordinates = {
@@ -54,16 +57,19 @@ export type ControllerCreateGameResponse = {
 export type ControllerFakePositionJokerResponse = {
     available: boolean;
     kind: 'fakePosition';
-    point?: ControllerCoordinates;
-    remaining: number;
-    usedAt?: string;
-    usedBy?: string;
+    uses: Array<ControllerFakePositionUseResponse>;
 };
 
 export type ControllerFakePositionRequest = {
     kind: 'fakePosition';
     latitude: number;
     longitude: number;
+};
+
+export type ControllerFakePositionUseResponse = {
+    point: ControllerCoordinates;
+    usedAt: string;
+    usedBy: string;
 };
 
 export type ControllerGameEndedEventResponse = {
@@ -285,16 +291,19 @@ export type ControllerPositionRevealResponse = {
 
 export type ControllerQueryZoneJokerResponse = {
     available: boolean;
-    cell?: string;
-    found?: boolean;
     kind: 'queryZone';
-    remaining: number;
-    usedAt?: string;
+    uses: Array<ControllerQueryZoneUseResponse>;
 };
 
 export type ControllerQueryZoneRequest = {
     cell: string;
     kind: 'queryZone';
+};
+
+export type ControllerQueryZoneUseResponse = {
+    cell: string;
+    found: boolean;
+    usedAt: string;
 };
 
 export type ControllerResultPlayerResponse = {
@@ -361,26 +370,32 @@ export type ControllerSetReadyRequest = {
 export type ControllerShowHuntersJokerResponse = {
     available: boolean;
     kind: 'showHunters';
-    positions?: Array<ControllerJokerPositionResponse>;
-    remaining: number;
-    usedAt?: string;
-    usedBy?: string;
+    uses: Array<ControllerShowHuntersUseResponse>;
 };
 
 export type ControllerShowHuntersRequest = {
     kind: 'showHunters';
 };
 
+export type ControllerShowHuntersUseResponse = {
+    positions: Array<ControllerJokerPositionResponse>;
+    usedAt: string;
+    usedBy: string;
+};
+
 export type ControllerShowRunnersJokerResponse = {
     available: boolean;
     kind: 'showRunners';
-    positions?: Array<ControllerJokerPositionResponse>;
-    remaining: number;
-    usedAt?: string;
+    uses: Array<ControllerShowRunnersUseResponse>;
 };
 
 export type ControllerShowRunnersRequest = {
     kind: 'showRunners';
+};
+
+export type ControllerShowRunnersUseResponse = {
+    positions: Array<ControllerJokerPositionResponse>;
+    usedAt: string;
 };
 
 export type ControllerSketchPointRequest = {
@@ -423,13 +438,9 @@ export type ControllerTimelineResponse = {
 };
 
 export type ControllerTrapJokerResponse = {
-    activeAt?: string;
     available: boolean;
     kind: 'trap';
-    point?: ControllerCoordinates;
-    remaining: number;
-    triggeredAt?: string;
-    usedAt?: string;
+    uses: Array<ControllerTrapUseResponse>;
 };
 
 export type ControllerTrapRequest = {
@@ -446,6 +457,13 @@ export type ControllerTrapTriggeredEventResponse = {
     at: string;
     hunterTeam: string;
     kind: 'trapTriggered';
+};
+
+export type ControllerTrapUseResponse = {
+    activeAt: string;
+    point: ControllerCoordinates;
+    triggeredAt?: string;
+    usedAt: string;
 };
 
 export type ControllerUpdatePositionRequest = {
@@ -475,13 +493,16 @@ export type ControllerUseJokerRequest = (({
 export type ControllerZoneOnlyJokerResponse = {
     available: boolean;
     kind: 'zoneOnly';
-    remaining: number;
-    usedAt?: string;
-    usedBy?: string;
+    uses: Array<ControllerZoneOnlyUseResponse>;
 };
 
 export type ControllerZoneOnlyRequest = {
     kind: 'zoneOnly';
+};
+
+export type ControllerZoneOnlyUseResponse = {
+    usedAt: string;
+    usedBy: string;
 };
 
 export type ControllerZoneRevealResponse = {
@@ -714,7 +735,7 @@ export type GetGameStateError = GetGameStateErrors[keyof GetGameStateErrors];
 
 export type GetGameStateResponses = {
     /**
-     * Current game state with immutable jokerSettings and remaining uses for each permitted team/personal joker; includes status ended and endedAt once every runner is caught or finished. Each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
+     * Current game state with immutable jokerSettings and, for each permitted team/personal joker, every use with its result; includes status ended and endedAt once every runner is caught or finished. Each runner has runner.status (active/caught/finished), runner.endedAt only after completion, and runner.caughtPosition only for retained catch reports. Hunters have no runner object
      */
     200: ControllerGameStateResponse;
 };
@@ -810,7 +831,7 @@ export type ActivateJokerError = ActivateJokerErrors[keyof ActivateJokerErrors];
 
 export type ActivateJokerResponses = {
     /**
-     * Updated game state with remaining uses and what the joker showed
+     * Updated game state with every use of the joker and what it showed
      */
     200: ControllerGameStateResponse;
 };

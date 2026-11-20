@@ -1,12 +1,13 @@
+import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { JokerRequest, JokerResponse } from '@/api/client';
 import type { Coordinates, GameStateResponse, Playground } from '@/api/types';
 import Button from '@/components/button';
 import PlaygroundMap from '@/components/playground-map';
-import { getLanguage, translate, useT } from '@/i18n';
+import { getLanguage, useT } from '@/i18n';
 import { isSpectator, ownPlayer } from '@/game-state';
-import { trapStatus } from '@/lobby';
+import { remainingUses, trapStatus, type JokerUse } from '@/lobby';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
@@ -48,13 +49,16 @@ export default function JokerList({ state, error, onUse }: {
     <ScrollView contentContainerStyle={[styles.content, { gap: 12 }]}>
       <Text style={styles.heading}>{t('joker.title')}</Text>
       {state.jokers.length === 0 && <Text style={styles.hint}>{t('joker.none')}</Text>}
-      {state.jokers.map((joker) => (
-        <View key={joker.kind} style={styles.card}>
-          <Text style={styles.heading}>{t(TITLE_KEYS[joker.kind])}</Text>
-          <Text style={styles.text}>{t(TEXT_KEYS[joker.kind])}</Text>
-          {joker.usedAt
-            ? <Used joker={joker} state={state} />
-            : joker.available
+      {state.jokers.map((joker) => {
+        const allowance = state.jokerSettings[joker.kind].allowance;
+        const remaining = remainingUses(state, joker);
+        return (
+          <View key={joker.kind} style={styles.card}>
+            <Text style={styles.heading}>{t(TITLE_KEYS[joker.kind])}</Text>
+            <Text style={styles.text}>{t(TEXT_KEYS[joker.kind])}</Text>
+            <Text style={styles.hint}>{allowance === 0 ? t('joker.disabled') : t('joker.remaining', { remaining, allowance })}</Text>
+            <Uses joker={joker} state={state} />
+            {joker.available
               ? confirming === joker.kind
                 ? <>
                   {joker.kind === 'queryZone' && <CellPicker playground={state.playground} selected={cell} onSelect={setCell} disabled={busy} />}
@@ -74,9 +78,10 @@ export default function JokerList({ state, error, onUse }: {
                 : joker.kind === 'compass' && !hasPosition
                   ? <Text style={styles.hint}>{t('joker.compass.needsPosition')}</Text>
                   : <Button label={t('joker.use')} onPress={() => start(joker.kind)} />
-              : <Text style={styles.hint}>{t('joker.waitForStart')}</Text>}
-        </View>
-      ))}
+              : remaining > 0 && <Text style={styles.hint}>{t('joker.waitForStart')}</Text>}
+          </View>
+        );
+      })}
       {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
     </ScrollView>
   );
@@ -137,70 +142,78 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString(getLanguage(), { 
 
 const nameOf = (state: GameStateResponse, playerId?: string) => state.players.find((player) => player.playerId === playerId)?.name ?? '';
 
-function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse }) {
+/** Every use of the joker the player may see, oldest first, each with what it showed. */
+function Uses({ joker, state }: { joker: JokerResponse; state: GameStateResponse }) {
   const t = useT();
-  const usedAt = time(joker.usedAt ?? '');
   switch (joker.kind) {
     case 'zoneOnly':
-    case 'fakePosition': {
-      const name = nameOf(state, joker.usedBy);
-      return (
-        <View style={styles.gapTiny}>
-          <Text style={[styles.text, styles.accentText]}>{t('joker.usedBy', { name, time: usedAt })}</Text>
-          <Text style={styles.hint}>
-            {joker.kind === 'zoneOnly'
-              ? t('joker.zoneOnly.used', { name })
-              : t('joker.fakePosition.used', { name, cell: (joker.point && cellAt(state.playground, joker.point)) ?? '' })}
-          </Text>
-        </View>
-      );
-    }
+      return joker.uses.map((use, index) => (
+        <Used key={index} heading={t('joker.usedBy', { name: nameOf(state, use.usedBy), time: time(use.usedAt) })}>
+          <Text style={styles.hint}>{t('joker.zoneOnly.used', { name: nameOf(state, use.usedBy) })}</Text>
+        </Used>
+      ));
+    case 'fakePosition':
+      return joker.uses.map((use, index) => (
+        <Used key={index} heading={t('joker.usedBy', { name: nameOf(state, use.usedBy), time: time(use.usedAt) })}>
+          <Text style={styles.hint}>{t('joker.fakePosition.used', { name: nameOf(state, use.usedBy), cell: cellAt(state.playground, use.point) ?? '' })}</Text>
+        </Used>
+      ));
     case 'queryZone':
-      return (
-        <View style={styles.gapTiny}>
-          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
-          {!!joker.cell && <Text style={styles.text}>{t(joker.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: joker.cell })}</Text>}
-        </View>
-      );
+      return joker.uses.map((use, index) => (
+        <Used key={index} heading={t('joker.usedAt', { time: time(use.usedAt) })}>
+          <Text style={styles.text}>{t(use.found ? 'joker.zoneFound' : 'joker.zoneEmpty', { cell: use.cell })}</Text>
+        </Used>
+      ));
     case 'compass':
-      return (
-        <View style={styles.gapTiny}>
-          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
-          <Text style={styles.hint}>{(joker.bearings ?? []).length > 0 ? t('joker.compass.used') : t('joker.noPositions')}</Text>
-        </View>
-      );
-    case 'trap': {
-      // As of the last game state; the map's circle follows the clock between polls.
-      const status = trapStatus(joker, Date.parse(state.serverTime));
-      return (
-        <View style={styles.gapTiny}>
-          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
-          <Text style={status === 'triggered' ? [styles.text, styles.error] : styles.hint}>
-            {t(TRAP_STATUS_KEYS[status], { time: time((status === 'triggered' ? joker.triggeredAt : joker.activeAt) ?? '') })}
-          </Text>
-        </View>
-      );
-    }
-    case 'showRunners':
-    case 'showHunters': {
-      const positions = joker.positions ?? [];
-      return (
-        <View style={styles.gapTiny}>
-          <Text style={[styles.text, styles.accentText]}>
-            {joker.kind === 'showHunters'
-              ? t('joker.usedBy', { name: nameOf(state, joker.usedBy), time: usedAt })
-              : translate('joker.usedAt', { time: usedAt })}
-          </Text>
-          {positions.length === 0 && <Text style={styles.hint}>{t(joker.kind === 'showHunters' ? 'joker.showHunters.noPositions' : 'joker.noPositions')}</Text>}
-          {positions.map((p) => (
-            <Text key={p.playerId} style={styles.hint}>
-              {nameOf(state, p.playerId)} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}
+      return joker.uses.map((use, index) => (
+        <Used key={index} heading={t('joker.usedAt', { time: time(use.usedAt) })}>
+          <Text style={styles.hint}>{use.bearings.length > 0 ? t('joker.compass.used') : t('joker.noPositions')}</Text>
+        </Used>
+      ));
+    case 'trap':
+      return joker.uses.map((use, index) => {
+        // As of the last game state; the map's circle follows the clock between polls.
+        const status = trapStatus(use, Date.parse(state.serverTime));
+        return (
+          <Used key={index} heading={t('joker.usedAt', { time: time(use.usedAt) })}>
+            <Text style={status === 'triggered' ? [styles.text, styles.error] : styles.hint}>
+              {t(TRAP_STATUS_KEYS[status], { time: time(status === 'triggered' && use.triggeredAt ? use.triggeredAt : use.activeAt) })}
             </Text>
-          ))}
-        </View>
-      );
-    }
+          </Used>
+        );
+      });
+    case 'showRunners':
+      return joker.uses.map((use, index) => (
+        <Used key={index} heading={t('joker.usedAt', { time: time(use.usedAt) })}>
+          <Positions positions={use.positions} state={state} empty={t('joker.noPositions')} />
+        </Used>
+      ));
+    case 'showHunters':
+      return joker.uses.map((use, index) => (
+        <Used key={index} heading={t('joker.usedBy', { name: nameOf(state, use.usedBy), time: time(use.usedAt) })}>
+          <Positions positions={use.positions} state={state} empty={t('joker.showHunters.noPositions')} />
+        </Used>
+      ));
     default:
       return null;
   }
+}
+
+function Used({ heading, children }: { heading: string; children: ReactNode }) {
+  return (
+    <View style={styles.gapTiny}>
+      <Text style={[styles.text, styles.accentText]}>{heading}</Text>
+      {children}
+    </View>
+  );
+}
+
+function Positions({ positions, state, empty }: { positions: JokerUse<'showRunners'>['positions']; state: GameStateResponse; empty: string }) {
+  const t = useT();
+  if (positions.length === 0) return <Text style={styles.hint}>{empty}</Text>;
+  return positions.map((p) => (
+    <Text key={p.playerId} style={styles.hint}>
+      {nameOf(state, p.playerId)} · {t('marker.accuracy', { meters: Math.round(p.accuracyMeters), time: time(p.recordedAt) })}
+    </Text>
+  ));
 }

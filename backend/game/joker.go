@@ -78,12 +78,11 @@ type revealJokerUse interface {
 	reveal(r Reveal, p Playground) HunterReveal
 }
 
-// jokerState is one joker as one player sees it. Remaining and Uses are derived
-// from the configured allowance and the permitted personal or team history.
+// jokerState is one joker as one player sees it, with every use in the
+// viewer's personal or team scope, oldest first.
 type jokerState struct {
 	Kind      JokerKind
 	Available bool
-	Remaining int
 	Uses      []JokerUse
 }
 
@@ -182,12 +181,8 @@ func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
 	states := make([]jokerState, 0, len(kinds))
 	for _, kind := range kinds {
 		uses := l.jokerUses(viewer, kind)
-		remaining := max(0, l.Game.JokerSettings.Allowance(kind).Max()-len(uses))
-		state := jokerState{
-			Kind: kind, Available: running && viewer.active() && remaining > 0,
-			Remaining: remaining, Uses: uses,
-		}
-		states = append(states, state)
+		left := len(uses) < l.Game.JokerSettings.Allowance(kind).Max()
+		states = append(states, jokerState{Kind: kind, Available: running && viewer.active() && left, Uses: uses})
 	}
 	return states
 }

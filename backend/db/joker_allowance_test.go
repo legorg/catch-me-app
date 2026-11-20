@@ -136,7 +136,7 @@ func TestEveryJokerKeepsMultipleResultsAfterReopening(t *testing.T) {
 				if state.Kind == kind {
 					found = true
 				}
-				if state.Kind == kind && (state.Remaining != 0 || state.Available || !reflect.DeepEqual(state.Uses, want)) {
+				if state.Kind == kind && (state.Available || !reflect.DeepEqual(state.Uses, want)) {
 					t.Fatalf("incorrect persisted remaining uses/history: %+v", state)
 				}
 			}
