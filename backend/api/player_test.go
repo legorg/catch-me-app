@@ -244,8 +244,8 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	}
 	decode[controller.GameStateResponse](t, send(t, handler, "PUT", "/api/me/hunter-team", hunter.PlayerToken, `{"name":"Wolves"}`), 200)
 	hunterGame := decode[gameJokers](t, send(t, handler, "GET", "/api/me/game", hunter.PlayerToken, ""), 200)
-	if j := hunterGame.Jokers; len(j) != 3 || j[0].Kind != "showRunners" || j[1].Kind != "queryZone" || j[2].Kind != "compass" ||
-		j[0].Available || j[1].Available || j[2].Available || j[0].UsedAt != nil || j[1].Found != nil {
+	if j := hunterGame.Jokers; len(j) != 4 || j[0].Kind != "showRunners" || j[1].Kind != "queryZone" || j[2].Kind != "compass" || j[3].Kind != "trap" ||
+		j[0].Available || j[1].Available || j[2].Available || j[3].Available || j[0].UsedAt != nil || j[1].Found != nil {
 		t.Fatalf("a hunter team has all its jokers, unavailable before the game runs: %+v", j)
 	}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"queryZone","cell":"C4"}`), 409)
@@ -253,6 +253,11 @@ func TestUseJokerRefusesWhatTheRulesForbid(t *testing.T) {
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"compass"}`), 409)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"compass","cell":"A1"}`), 400)
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"compass"}`), 409)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, `{"kind":"trap","latitude":0,"longitude":0}`), 409)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", runner.PlayerToken, `{"kind":"trap","latitude":0,"longitude":0}`), 409)
+	for _, invalid := range []string{`{"kind":"trap"}`, `{"kind":"trap","latitude":0}`, `{"kind":"trap","latitude":95,"longitude":0}`, `{"kind":"trap","latitude":0,"longitude":0,"cell":"A1"}`} {
+		decode[controller.APIError](t, send(t, handler, "POST", "/api/me/jokers", hunter.PlayerToken, invalid), 400)
+	}
 }
 
 func TestSketchesRefuseWhatTheRulesForbid(t *testing.T) {

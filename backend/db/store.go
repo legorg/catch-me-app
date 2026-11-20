@@ -77,7 +77,8 @@ type positionRow struct {
 // jokers use the runner's ID as Team (the uniqueness scope). All runner jokers
 // record who used them in PlayerID; hunter jokers have an empty PlayerID.
 // Cell is the queried cell (queryZone), empty otherwise. Latitude and
-// Longitude are the shown point (fakePosition) or the origin (compass), zero otherwise.
+// Longitude are the shown point (fakePosition), the origin (compass), or the
+// trap's point (trap), zero otherwise.
 type jokerRow struct {
 	ID                  uint64    `gorm:"primaryKey"`
 	GameID              string    `gorm:"not null;uniqueIndex:joker_once"`
@@ -310,6 +311,9 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 		case game.CompassUse:
 			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
 			row.Latitude, row.Longitude = u.Origin.Latitude(), u.Origin.Longitude()
+		case game.TrapUse:
+			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
+			row.Latitude, row.Longitude = u.Point.Latitude(), u.Point.Longitude()
 		case game.ZoneOnlyUse:
 			row.PlayerID = u.Runner.String()
 		case game.FakePositionUse:
@@ -423,17 +427,20 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 		return game.Lobby{}, err
 	}
 	// One query for the runner positions both reveals and jokers are read from.
-	// Hunter positions are only read for a used showHunters joker.
+	// Hunter positions are only read for a used showHunters joker; traps query
+	// their own reports.
 	until, huntersUntil := time.Time{}, time.Time{}
 	if len(times) > 0 {
 		until = times[len(times)-1]
 	}
 	for _, j := range jokerRows {
-		if j.Kind == string(game.JokerShowHunters) {
+		switch {
+		case j.Kind == string(game.JokerTrap):
+		case j.Kind == string(game.JokerShowHunters):
 			if j.UsedAt.After(huntersUntil) {
 				huntersUntil = j.UsedAt
 			}
-		} else if j.UsedAt.After(until) {
+		case j.UsedAt.After(until):
 			until = j.UsedAt
 		}
 	}
@@ -450,7 +457,12 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 		return game.Lobby{}, err
 	}
 	for _, j := range jokerRows {
-		use, err := parseJoker(j, history, hunterHistory, lobby)
+		var use game.JokerUse
+		if j.Kind == string(game.JokerTrap) {
+			use, err = parseTrap(tx, j, runnerIDs)
+		} else {
+			use, err = parseJoker(j, history, hunterHistory, lobby)
+		}
 		if err != nil {
 			return game.Lobby{}, err
 		}
@@ -592,6 +604,41 @@ func parseJoker(row jokerRow, runners, hunters map[string][]positionRow, lobby g
 		return game.CompassUse{Team: team, At: at, Origin: origin, Bearings: game.CompassBearings(origin, positions)}, nil
 	}
 	return nil, fmt.Errorf("parse stored joker: unknown joker %q", kind)
+}
+
+// parseTrap rebuilds a placed trap. Whether it triggered is derived from the
+// runners' reports at or after its activation near its point; runners report
+// only while active, so these are reports of active runners.
+func parseTrap(tx *gorm.DB, row jokerRow, runnerIDs []string) (game.JokerUse, error) {
+	team, err := game.ParseHunterTeamName(row.Name)
+	if err != nil {
+		return nil, fmt.Errorf("parse stored joker: %v", err)
+	}
+	point, err := game.ParseCoordinates(row.Latitude, row.Longitude)
+	if err != nil {
+		return nil, fmt.Errorf("parse stored joker: %v", err)
+	}
+	use := game.TrapUse{Team: team, At: row.UsedAt.UTC(), Point: point}
+	if len(runnerIDs) == 0 {
+		return use, nil
+	}
+	b := game.TrapSearchBounds(point)
+	var rows []positionRow
+	err = tx.Where("player_id IN ? AND recorded_at >= ? AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?",
+		runnerIDs, use.ActiveAt(), b.South, b.North, b.West, b.East).Order("recorded_at, id").Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("select trap positions: %w", err)
+	}
+	reports := make([]game.JokerPosition, 0, len(rows))
+	for _, r := range rows {
+		position, err := parsePosition(r)
+		if err != nil {
+			return nil, fmt.Errorf("parse stored position: %v", err)
+		}
+		reports = append(reports, game.JokerPosition{Position: position})
+	}
+	use.TriggeredAt = game.TrapTriggeredAt(point, use.ActiveAt(), reports)
+	return use, nil
 }
 
 // positionsAt returns each player's last position at or before `at`, sorted by

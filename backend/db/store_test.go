@@ -572,6 +572,52 @@ func TestCompassIsStoredAndPointsToWhereTheRunnersWereAtTheUse(t *testing.T) {
 	}
 }
 
+func TestTrapIsStoredAndTriggeredByTheFirstRunnerReportNearbyAfterActivation(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	_, runnerToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	center := saved.Playground.Center()
+	// One degree of latitude is about 111,195 m.
+	near := func(northMeters float64, recorded time.Time) game.Position {
+		c, _ := game.ParseCoordinates(center.Latitude()+northMeters/111195, center.Longitude())
+		p, _ := game.NewPosition(c, 4, recorded)
+		return p
+	}
+	usedAt := start.Add(time.Minute)
+	activeAt := usedAt.Add(game.TrapActivationDelay)
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), usedAt, func(l *game.Lobby) error {
+		return l.UseJoker(hunter.ID, game.Trap{Point: center}, usedAt)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	trap := func(at time.Time) game.TrapUse {
+		t.Helper()
+		lobby := load(t, store, saved.JoinCodes.Hunter, at)
+		stored, ok := lobby.Jokers[0].(game.TrapUse)
+		if len(lobby.Jokers) != 1 || !ok || stored.Team != hunter.HunterTeam || !stored.At.Equal(usedAt) || stored.Point != center {
+			t.Fatalf("placed trap not stored with its point: %+v", lobby.Jokers)
+		}
+		return stored
+	}
+	move(t, store, runnerToken, near(0, activeAt.Add(-time.Second)))
+	move(t, store, hunterToken, near(0, activeAt.Add(time.Second)))
+	move(t, store, runnerToken, near(500, activeAt.Add(2*time.Second)))
+	if got := trap(activeAt.Add(3 * time.Second)); !got.TriggeredAt.IsZero() {
+		t.Fatalf("reports before activation, of hunters, or far away must not trigger: %+v", got)
+	}
+	move(t, store, runnerToken, near(80, activeAt.Add(4*time.Second)))
+	move(t, store, runnerToken, near(0, activeAt.Add(5*time.Second)))
+	if got := trap(activeAt.Add(6 * time.Second)); !got.TriggeredAt.Equal(activeAt.Add(4 * time.Second)) {
+		t.Fatalf("the first runner report within 100 m after activation triggers: %+v", got)
+	}
+}
+
 func TestShowHuntersJokerIsStoredAndShowsWhereTheHuntersWereAtTheUse(t *testing.T) {
 	ctx := context.Background()
 	store := open(t, ":memory:")

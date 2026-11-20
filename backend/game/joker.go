@@ -11,7 +11,7 @@ import (
 type JokerKind string
 
 // hunterJokers are the jokers every hunter team has, in display order.
-var hunterJokers = []JokerKind{JokerShowRunners, JokerQueryZone, JokerCompass}
+var hunterJokers = []JokerKind{JokerShowRunners, JokerQueryZone, JokerCompass, JokerTrap}
 
 // revealJokers are the runner jokers that act on the user's next reveal.
 var revealJokers = []JokerKind{JokerZoneOnly, JokerFakePosition}
@@ -31,7 +31,7 @@ func ParseJokerKind[S ~string](value S) (JokerKind, error) {
 }
 
 // JokerChoice is a joker to use with its target. It is sealed: the only
-// variants are ShowRunners, QueryZone, Compass, ZoneOnly, FakePosition, and ShowHunters, each with
+// variants are ShowRunners, QueryZone, Compass, Trap, ZoneOnly, FakePosition, and ShowHunters, each with
 // exactly the target its joker needs.
 type JokerChoice interface {
 	Kind() JokerKind
@@ -47,11 +47,11 @@ type JokerPosition struct {
 }
 
 // JokerUse records that a joker was used. It is sealed: every use is either a
-// hunterJokerUse (ShowRunnersUse, QueryZoneUse, CompassUse) or a runnerJokerUse
+// hunterJokerUse (ShowRunnersUse, QueryZoneUse, CompassUse, TrapUse) or a runnerJokerUse
 // (ZoneOnlyUse, FakePositionUse, ShowHuntersUse). What the hunter jokers and
 // showHunters showed is derived when loading, like reveals, from each
-// player's last position at or before the use; reveal jokers act on the
-// user's next reveal instead.
+// player's last position at or before the use; a trap from the runners'
+// reports after its activation; reveal jokers act on the user's next reveal instead.
 type JokerUse interface {
 	Kind() JokerKind
 	UsedAt() time.Time

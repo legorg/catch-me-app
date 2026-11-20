@@ -10,6 +10,7 @@ function jokerRequest(kind: JokerKind, cell: string | null, point: Coordinates |
     case 'queryZone':
       return cell ? { kind, cell } : null;
     case 'fakePosition':
+    case 'trap':
       return point && cellAt(playground, point) ? { kind, ...point } : null;
     default:
       return { kind };

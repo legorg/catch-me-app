@@ -256,7 +256,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		max           int
 	}{
 		{"ControllerGameStateRunnerResponse", "jokers", 3},
-		{"ControllerGameStateHunterResponse", "jokers", 3},
+		{"ControllerGameStateHunterResponse", "jokers", 4},
 		{"ControllerGameStateSpectatorResponse", "jokers", 0},
 		{"ControllerGameStateHunterResponse", "sketches", 200},
 		{"ControllerResultPlayerResponse", "track", domain.MaxTrackPoints},
@@ -282,7 +282,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		{"ControllerRole", []any{"player", "spectator"}},
 		{"ControllerGameStatus", []any{"lobby", "countdown", "running", "ended"}},
 		{"ControllerRunnerOutcome", []any{"caught", "finished"}},
-		{"ControllerJokerKind", []any{"showRunners", "queryZone", "zoneOnly", "fakePosition", "showHunters", "compass"}},
+		{"ControllerJokerKind", []any{"showRunners", "queryZone", "zoneOnly", "fakePosition", "showHunters", "compass", "trap"}},
 	} {
 		if got := spec.Components.Schemas[tc.name].Enum; !slices.Equal(got, tc.values) {
 			t.Fatalf("%s enum changed: %v", tc.name, got)
@@ -401,7 +401,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 		t.Fatal("spectator code must be documented and required")
 	}
 	events := spec.Components.Schemas["ControllerTimelineEventResponse"]
-	if len(events.OneOf) != 6 || events.Discriminator.PropertyName != "kind" {
+	if len(events.OneOf) != 7 || events.Discriminator.PropertyName != "kind" {
 		t.Fatalf("timeline events must be a oneOf discriminated by kind: %+v", events)
 	}
 	for _, variant := range events.OneOf {

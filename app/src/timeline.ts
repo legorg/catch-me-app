@@ -16,6 +16,8 @@ export function timelineKey(event: TimelineEvent): string {
   switch (event.kind) {
     case 'hunterJokerUsed':
       return `${event.kind}|${event.at}|${event.hunterTeam}|${event.joker}`;
+    case 'trapTriggered':
+      return `${event.kind}|${event.at}|${event.hunterTeam}`;
     case 'runnerJokerUsed':
       return `${event.kind}|${event.at}|${event.runner.playerId}|${event.joker}`;
     case 'runnerCaught':
@@ -33,6 +35,8 @@ export function timelineText(event: TimelineEvent): string {
       return translate('timeline.hunterJokerUsed', { team: event.hunterTeam, joker: translate(`joker.${event.joker}.title`) });
     case 'runnerJokerUsed':
       return translate('timeline.runnerJokerUsed', { name: event.runner.name, joker: translate(`joker.${event.joker}.title`) });
+    case 'trapTriggered':
+      return translate('timeline.trapTriggered', { team: event.hunterTeam });
     case 'runnerCaught':
       return translate('timeline.runnerCaught', { name: event.runner.name });
     case 'runnerFinished':

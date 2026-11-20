@@ -22,7 +22,7 @@ type GameResultResponse struct {
 	Route   GameRoute              `json:"route"`
 	Players []ResultPlayerResponse `json:"players" maxItems:"30"`
 	// The whole timeline, oldest first, with no coordinates, cells or joker results.
-	Events []TimelineEventResponse `json:"events" maxItems:"122"`
+	Events []TimelineEventResponse `json:"events" maxItems:"182"`
 }
 
 type ResultPlayerResponse struct {

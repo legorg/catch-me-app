@@ -6,18 +6,20 @@ import Button from '@/components/button';
 import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, translate, useT } from '@/i18n';
 import { isSpectator, ownPlayer } from '@/game-state';
+import { trapStatus } from '@/lobby';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
 
 const TITLE_KEYS = {
   showRunners: 'joker.showRunners.title', queryZone: 'joker.queryZone.title', zoneOnly: 'joker.zoneOnly.title', fakePosition: 'joker.fakePosition.title',
-  showHunters: 'joker.showHunters.title', compass: 'joker.compass.title',
+  showHunters: 'joker.showHunters.title', compass: 'joker.compass.title', trap: 'joker.trap.title',
 } as const;
 const TEXT_KEYS = {
   showRunners: 'joker.showRunners.text', queryZone: 'joker.queryZone.text', zoneOnly: 'joker.zoneOnly.text', fakePosition: 'joker.fakePosition.text',
-  showHunters: 'joker.showHunters.text', compass: 'joker.compass.text',
+  showHunters: 'joker.showHunters.text', compass: 'joker.compass.text', trap: 'joker.trap.text',
 } as const;
+const TRAP_STATUS_KEYS = { waiting: 'joker.trap.waiting', active: 'joker.trap.active', triggered: 'joker.trap.triggered' } as const;
 
 /** Personal and team jokers, each with a two-step button to use it. */
 export default function JokerList({ state, error, onUse }: {
@@ -56,11 +58,13 @@ export default function JokerList({ state, error, onUse }: {
               ? confirming === joker.kind
                 ? <>
                   {joker.kind === 'queryZone' && <CellPicker playground={state.playground} selected={cell} onSelect={setCell} disabled={busy} />}
-                  {joker.kind === 'fakePosition' && <PointPicker playground={state.playground} point={point} onPick={setPoint} />}
+                  {(joker.kind === 'fakePosition' || joker.kind === 'trap') && <PointPicker playground={state.playground} point={point} onPick={setPoint} />}
                   <Text style={[styles.text, styles.error]}>
                     {joker.kind === 'queryZone' && cell
                       ? t('joker.confirmCell', { cell })
-                      : joker.kind === 'fakePosition' && pointCell ? t('joker.confirmPoint', { cell: pointCell }) : t(confirmKey)}
+                      : joker.kind === 'fakePosition' && pointCell
+                        ? t('joker.confirmPoint', { cell: pointCell })
+                        : joker.kind === 'trap' && pointCell ? t('joker.trap.confirmPoint', { cell: pointCell }) : t(confirmKey)}
                   </Text>
                   <View style={styles.row}>
                     <Button label={t('joker.confirmYes')} disabled={busy || !ready(joker.kind)} onPress={() => use(joker.kind)} />
@@ -165,6 +169,18 @@ function Used({ joker, state }: { joker: JokerResponse; state: GameStateResponse
           <Text style={styles.hint}>{(joker.bearings ?? []).length > 0 ? t('joker.compass.used') : t('joker.noPositions')}</Text>
         </View>
       );
+    case 'trap': {
+      // As of the last game state; the map's circle follows the clock between polls.
+      const status = trapStatus(joker, Date.parse(state.serverTime));
+      return (
+        <View style={styles.gapTiny}>
+          <Text style={[styles.text, styles.accentText]}>{translate('joker.usedAt', { time: usedAt })}</Text>
+          <Text style={status === 'triggered' ? [styles.text, styles.error] : styles.hint}>
+            {t(TRAP_STATUS_KEYS[status], { time: time((status === 'triggered' ? joker.triggeredAt : joker.activeAt) ?? '') })}
+          </Text>
+        </View>
+      );
+    }
     case 'showRunners':
     case 'showHunters': {
       const positions = joker.positions ?? [];

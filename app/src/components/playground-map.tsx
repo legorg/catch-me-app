@@ -1,5 +1,5 @@
 import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Circle, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import type { Coordinates, Playground } from '../api/types';
 import { SKETCH_COLOR } from '../lobby';
@@ -30,6 +30,8 @@ export type MapMarker = {
 
 type MapLine = { id: string; coordinates: Coordinates[]; color: string };
 
+type MapCircle = { id: string; center: Coordinates; radius: number; color: string };
+
 export type PlaygroundMapProps = {
   playground: Playground | null;
   editable: boolean;
@@ -38,6 +40,8 @@ export type PlaygroundMapProps = {
   markers?: MapMarker[];
   /** Lines drawn over the grid, e.g. the team's sketches. */
   lines?: MapLine[];
+  /** Circles drawn over the grid, e.g. the team's trap; radius in meters. */
+  circles?: MapCircle[];
   /**
    * While set, finger moves draw a line instead of moving the map. Called with the line (at least two points)
    * when the finger lifts; the line stays visible until the returned promise settles.
@@ -53,7 +57,7 @@ export type PlaygroundMapProps = {
   locationEnabled?: boolean;
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], onDraw, onPick, fullscreen = false, controlsInset, locationEnabled = true }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], circles = [], onDraw, onPick, fullscreen = false, controlsInset, locationEnabled = true }: PlaygroundMapProps) {
   const center = playground?.center ?? DEFAULT_CENTER;
   const bounds = playground?.bounds;
   const { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete } = useMapRegion({ playground, editable, onSelect, onPick });
@@ -88,6 +92,10 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         onPress={onPress}
       >
         {playground && <MapGrid playground={playground} highlights={highlights} onSelect={select} />}
+        {circles.map(({ id, center: circleCenter, radius, color }) => (
+          // The key includes the color so a status change redraws the native circle.
+          <Circle key={`${id}-${color}`} center={circleCenter} radius={radius} strokeColor={color} strokeWidth={3} fillColor={`${color}40`} />
+        ))}
         {lines.map(({ id, coordinates, color }) => (
           <Polyline key={id} coordinates={coordinates} strokeColor={color} strokeWidth={4} lineCap="round" lineJoin="round" />
         ))}

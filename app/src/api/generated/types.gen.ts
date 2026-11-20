@@ -194,7 +194,7 @@ export type ControllerJoinGameResponse = {
     state: ControllerGameStateResponse;
 };
 
-export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters' | 'compass';
+export type ControllerJokerKind = 'showRunners' | 'queryZone' | 'zoneOnly' | 'fakePosition' | 'showHunters' | 'compass' | 'trap';
 
 export type ControllerJokerPositionResponse = {
     accuracyMeters: number;
@@ -211,6 +211,8 @@ export type ControllerJokerResponse = ({
 } & ControllerQueryZoneJokerResponse) | ({
     kind: 'compass';
 } & ControllerCompassJokerResponse) | ({
+    kind: 'trap';
+} & ControllerTrapJokerResponse) | ({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyJokerResponse) | ({
     kind: 'fakePosition';
@@ -377,6 +379,8 @@ export type ControllerTimelineEventResponse = ({
 } & ControllerHunterJokerUsedEventResponse) | ({
     kind: 'runnerJokerUsed';
 } & ControllerRunnerJokerUsedEventResponse) | ({
+    kind: 'trapTriggered';
+} & ControllerTrapTriggeredEventResponse) | ({
     kind: 'runnerCaught';
 } & ControllerRunnerCaughtEventResponse) | ({
     kind: 'runnerFinished';
@@ -394,6 +398,27 @@ export type ControllerTimelineResponse = {
     serverTime: string;
 };
 
+export type ControllerTrapJokerResponse = {
+    activeAt?: string;
+    available: boolean;
+    kind: 'trap';
+    point?: ControllerCoordinates;
+    triggeredAt?: string;
+    usedAt?: string;
+};
+
+export type ControllerTrapRequest = {
+    kind: 'trap';
+    latitude: number;
+    longitude: number;
+};
+
+export type ControllerTrapTriggeredEventResponse = {
+    at: string;
+    hunterTeam: string;
+    kind: 'trapTriggered';
+};
+
 export type ControllerUpdatePositionRequest = {
     accuracyMeters: number;
     latitude: number;
@@ -407,6 +432,8 @@ export type ControllerUseJokerRequest = (({
 } & ControllerQueryZoneRequest) | ({
     kind: 'compass';
 } & ControllerCompassRequest) | ({
+    kind: 'trap';
+} & ControllerTrapRequest) | ({
     kind: 'zoneOnly';
 } & ControllerZoneOnlyRequest) | ({
     kind: 'fakePosition';
@@ -714,7 +741,7 @@ export type SetHunterTeamResponse = SetHunterTeamResponses[keyof SetHunterTeamRe
 
 export type ActivateJokerData = {
     /**
-     * The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers once per hunter team
+     * The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers (including a trap at a point inside the playground) once per hunter team
      */
     body: ControllerUseJokerRequest;
     path?: never;
@@ -1012,7 +1039,7 @@ export type GetTimelineError = GetTimelineErrors[keyof GetTimelineErrors];
 
 export type GetTimelineResponses = {
     /**
-     * Game start, joker uses (joker kind with hunter team or runner), catches, finishes, and game end up to serverTime, oldest first. No coordinates, cells, or joker results. Empty before the start
+     * Game start, joker uses (joker kind with hunter team or runner), trap triggers (hunter team only, not which runner), catches, finishes, and game end up to serverTime, oldest first. No coordinates, cells, or joker results. Empty before the start
      */
     200: ControllerTimelineResponse;
 };

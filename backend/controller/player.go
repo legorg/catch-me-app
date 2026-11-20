@@ -222,6 +222,15 @@ func jokerChoice(body UseJokerRequest) (game.JokerChoice, error) {
 		return game.QueryZone{Cell: cell}, nil
 	case CompassRequest:
 		return game.Compass{}, nil
+	case TrapRequest:
+		if v.Latitude == nil || v.Longitude == nil {
+			return nil, &game.ValidationError{Message: "a point needs latitude and longitude"}
+		}
+		point, err := game.ParseCoordinates(*v.Latitude, *v.Longitude)
+		if err != nil {
+			return nil, err
+		}
+		return game.Trap{Point: point}, nil
 	case ZoneOnlyRequest:
 		return game.ZoneOnly{}, nil
 	case FakePositionRequest:
@@ -424,6 +433,17 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 				origin := coordinatesResponse(use.Origin)
 				joker.Origin = &origin
 				joker.Bearings = use.Bearings
+			}
+			jokers = append(jokers, JokerResponse{joker})
+		case game.JokerTrap:
+			joker := TrapJokerResponse{Kind: JokerKind(j.Kind), JokerStatus: status}
+			if use, ok := j.Use.(game.TrapUse); ok {
+				point, activeAt := coordinatesResponse(use.Point), use.ActiveAt()
+				joker.Point, joker.ActiveAt = &point, &activeAt
+				if !use.TriggeredAt.IsZero() {
+					triggeredAt := use.TriggeredAt
+					joker.TriggeredAt = &triggeredAt
+				}
 			}
 			jokers = append(jokers, JokerResponse{joker})
 		case game.JokerZoneOnly:

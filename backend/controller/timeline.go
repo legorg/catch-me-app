@@ -18,6 +18,7 @@ const (
 	TimelineGameStarted     TimelineEventKind = "gameStarted"
 	TimelineHunterJokerUsed TimelineEventKind = "hunterJokerUsed"
 	TimelineRunnerJokerUsed TimelineEventKind = "runnerJokerUsed"
+	TimelineTrapTriggered   TimelineEventKind = "trapTriggered"
 	TimelineRunnerCaught    TimelineEventKind = "runnerCaught"
 	TimelineRunnerFinished  TimelineEventKind = "runnerFinished"
 	TimelineGameEnded       TimelineEventKind = "gameEnded"
@@ -25,9 +26,10 @@ const (
 
 type TimelineResponse struct {
 	ServerTime time.Time `json:"serverTime" example:"2026-11-08T12:30:00Z"`
-	// Oldest first, up to serverTime. At most start + 3 jokers per player
-	// (30) + one outcome per player + end: 1 + 90 + 30 + 1.
-	Events []TimelineEventResponse `json:"events" maxItems:"122"`
+	// Oldest first, up to serverTime. At most start + 5 joker events per
+	// player (a hunter team's 4 jokers and its trap trigger; 30 players) +
+	// one outcome per player + end: 1 + 150 + 30 + 1.
+	Events []TimelineEventResponse `json:"events" maxItems:"182"`
 }
 
 // TimelinePlayer is the player an event is about.
@@ -38,14 +40,15 @@ type TimelinePlayer struct {
 
 // TimelineEventResponse is one timeline entry: exactly one of
 // GameStartedEventResponse, HunterJokerUsedEventResponse,
-// RunnerJokerUsedEventResponse, RunnerCaughtEventResponse,
-// RunnerFinishedEventResponse, and GameEndedEventResponse, told apart by kind.
+// RunnerJokerUsedEventResponse, TrapTriggeredEventResponse,
+// RunnerCaughtEventResponse, RunnerFinishedEventResponse, and
+// GameEndedEventResponse, told apart by kind.
 // No variant has coordinates, cells, or joker results.
 type TimelineEventResponse struct{ variant any }
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
 func (TimelineEventResponse) JSONSchemaOneOf() []any {
-	return []any{GameStartedEventResponse{}, HunterJokerUsedEventResponse{}, RunnerJokerUsedEventResponse{},
+	return []any{GameStartedEventResponse{}, HunterJokerUsedEventResponse{}, RunnerJokerUsedEventResponse{}, TrapTriggeredEventResponse{},
 		RunnerCaughtEventResponse{}, RunnerFinishedEventResponse{}, GameEndedEventResponse{}}
 }
 
@@ -68,6 +71,14 @@ type RunnerJokerUsedEventResponse struct {
 	At     time.Time         `json:"at" example:"2026-11-08T12:07:00Z"`
 	Runner TimelinePlayer    `json:"runner"`
 	Joker  JokerKind         `json:"joker"`
+}
+
+// TrapTriggeredEventResponse is a hunter team's trap triggered by some runner;
+// it does not say which runner or where.
+type TrapTriggeredEventResponse struct {
+	Kind       TimelineEventKind `json:"kind" enum:"trapTriggered"`
+	At         time.Time         `json:"at" example:"2026-11-08T12:41:30Z"`
+	HunterTeam string            `json:"hunterTeam" minLength:"1" maxLength:"20" example:"Wolves"`
 }
 
 type RunnerCaughtEventResponse struct {
@@ -146,6 +157,8 @@ func timelineEventResponse(event game.Event, name playerName) (any, error) {
 	case game.RunnerJokerEvent:
 		runner, err := timelinePlayer(e.Runner, name)
 		return RunnerJokerUsedEventResponse{Kind: TimelineRunnerJokerUsed, At: e.At, Runner: runner, Joker: JokerKind(e.Joker)}, err
+	case game.TrapTriggeredEvent:
+		return TrapTriggeredEventResponse{Kind: TimelineTrapTriggered, At: e.At, HunterTeam: e.Team.String()}, nil
 	case game.CatchEvent:
 		runner, err := timelinePlayer(e.Runner, name)
 		return RunnerCaughtEventResponse{Kind: TimelineRunnerCaught, At: e.At, Runner: runner}, err

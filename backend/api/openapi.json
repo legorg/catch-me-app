@@ -515,7 +515,7 @@
         "summary": "Use a joker",
         "operationId": "activateJoker",
         "requestBody": {
-          "description": "The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers once per hunter team",
+          "description": "The joker to use, picked by kind, with exactly the fields that joker needs; while the game runs, fakePosition is once per runner, other runner jokers once for all runners together, and hunter jokers (including a trap at a point inside the playground) once per hunter team",
           "content": {
             "application/json": {
               "schema": {
@@ -1026,7 +1026,7 @@
         "operationId": "getTimeline",
         "responses": {
           "200": {
-            "description": "Game start, joker uses (joker kind with hunter team or runner), catches, finishes, and game end up to serverTime, oldest first. No coordinates, cells, or joker results. Empty before the start",
+            "description": "Game start, joker uses (joker kind with hunter team or runner), trap triggers (hunter team only, not which runner), catches, finishes, and game end up to serverTime, oldest first. No coordinates, cells, or joker results. Empty before the start",
             "content": {
               "application/json": {
                 "schema": {
@@ -1578,7 +1578,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerTimelineEventResponse"
             },
-            "maxItems": 122,
+            "maxItems": 182,
             "type": "array"
           },
           "players": {
@@ -1684,7 +1684,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerJokerResponse"
             },
-            "maxItems": 3,
+            "maxItems": 4,
             "type": "array"
           },
           "nextRevealAt": {
@@ -2196,7 +2196,8 @@
           "zoneOnly",
           "fakePosition",
           "showHunters",
-          "compass"
+          "compass",
+          "trap"
         ],
         "type": "string"
       },
@@ -2262,6 +2263,7 @@
             "queryZone": "#/components/schemas/ControllerQueryZoneJokerResponse",
             "showHunters": "#/components/schemas/ControllerShowHuntersJokerResponse",
             "showRunners": "#/components/schemas/ControllerShowRunnersJokerResponse",
+            "trap": "#/components/schemas/ControllerTrapJokerResponse",
             "zoneOnly": "#/components/schemas/ControllerZoneOnlyJokerResponse"
           },
           "propertyName": "kind"
@@ -2275,6 +2277,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerCompassJokerResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerTrapJokerResponse"
           },
           {
             "$ref": "#/components/schemas/ControllerZoneOnlyJokerResponse"
@@ -2984,7 +2989,8 @@
             "hunterJokerUsed": "#/components/schemas/ControllerHunterJokerUsedEventResponse",
             "runnerCaught": "#/components/schemas/ControllerRunnerCaughtEventResponse",
             "runnerFinished": "#/components/schemas/ControllerRunnerFinishedEventResponse",
-            "runnerJokerUsed": "#/components/schemas/ControllerRunnerJokerUsedEventResponse"
+            "runnerJokerUsed": "#/components/schemas/ControllerRunnerJokerUsedEventResponse",
+            "trapTriggered": "#/components/schemas/ControllerTrapTriggeredEventResponse"
           },
           "propertyName": "kind"
         },
@@ -2997,6 +3003,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerRunnerJokerUsedEventResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerTrapTriggeredEventResponse"
           },
           {
             "$ref": "#/components/schemas/ControllerRunnerCaughtEventResponse"
@@ -3041,7 +3050,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerTimelineEventResponse"
             },
-            "maxItems": 122,
+            "maxItems": 182,
             "type": "array"
           },
           "serverTime": {
@@ -3055,6 +3064,114 @@
         "required": [
           "serverTime",
           "events"
+        ],
+        "type": "object"
+      },
+      "ControllerTrapJokerResponse": {
+        "properties": {
+          "activeAt": {
+            "examples": [
+              "2026-11-08T12:27:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "available": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "trap"
+            ],
+            "type": "string"
+          },
+          "point": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "triggeredAt": {
+            "examples": [
+              "2026-11-08T12:41:30Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "available"
+        ],
+        "type": "object"
+      },
+      "ControllerTrapRequest": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "trap"
+            ],
+            "type": "string"
+          },
+          "latitude": {
+            "examples": [
+              52.52
+            ],
+            "maximum": 80,
+            "minimum": -80,
+            "type": "number"
+          },
+          "longitude": {
+            "examples": [
+              13.405
+            ],
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
+      "ControllerTrapTriggeredEventResponse": {
+        "properties": {
+          "at": {
+            "examples": [
+              "2026-11-08T12:41:30Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "hunterTeam": {
+            "examples": [
+              "Wolves"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "trapTriggered"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "hunterTeam"
         ],
         "type": "object"
       },
@@ -3100,6 +3217,7 @@
             "queryZone": "#/components/schemas/ControllerQueryZoneRequest",
             "showHunters": "#/components/schemas/ControllerShowHuntersRequest",
             "showRunners": "#/components/schemas/ControllerShowRunnersRequest",
+            "trap": "#/components/schemas/ControllerTrapRequest",
             "zoneOnly": "#/components/schemas/ControllerZoneOnlyRequest"
           },
           "propertyName": "kind"
@@ -3113,6 +3231,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerCompassRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerTrapRequest"
           },
           {
             "$ref": "#/components/schemas/ControllerZoneOnlyRequest"

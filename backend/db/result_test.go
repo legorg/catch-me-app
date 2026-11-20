@@ -109,3 +109,44 @@ func TestResultLookupPersistsWithTracksFromStartToEnd(t *testing.T) {
 		t.Fatalf("deleted game returned a result: %v", err)
 	}
 }
+
+func TestResultTimelineShowsATrapTrigger(t *testing.T) {
+	ctx := context.Background()
+	store := open(t, ":memory:")
+	saved := create(t, store)
+	ada, adaToken := join(t, store, saved.JoinCodes.Runner, "Ada", now)
+	hunter, hunterToken := join(t, store, saved.JoinCodes.Hunter, "Bob", now.Add(time.Second))
+	start := now.Add(time.Minute)
+	if err := store.db.Model(&gameRow{ID: saved.SessionID.String()}).Update("starts_at", start).Error; err != nil {
+		t.Fatal(err)
+	}
+	placed := start.Add(time.Minute)
+	if _, err := store.UpdateLobbyByToken(ctx, hunterToken.Hash(), placed, func(l *game.Lobby) error {
+		return l.UseJoker(hunter.ID, game.Trap{Point: saved.Playground.Center()}, placed)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	triggered := placed.Add(game.TrapActivationDelay + time.Minute)
+	report, _ := game.NewPosition(saved.Playground.Center(), 4, triggered)
+	move(t, store, adaToken, report)
+	end := triggered.Add(time.Minute)
+	if _, err := store.UpdateLobbyByToken(ctx, adaToken.Hash(), end, func(l *game.Lobby) error {
+		return l.MarkCaught(ada.ID, end)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	result, err := store.Result(ctx, saved.SessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantEvents := []game.Event{
+		game.StartEvent{At: start},
+		game.HunterJokerEvent{Team: hunter.HunterTeam, Joker: game.JokerTrap, At: placed},
+		game.TrapTriggeredEvent{Team: hunter.HunterTeam, At: triggered},
+		game.CatchEvent{Runner: ada.ID, At: end},
+		game.EndEvent{At: end},
+	}
+	if !reflect.DeepEqual(result.Events, wantEvents) {
+		t.Fatalf("result events = %+v, want %+v", result.Events, wantEvents)
+	}
+}

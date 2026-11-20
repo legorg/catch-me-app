@@ -44,6 +44,24 @@ func TestTimelineListsGameEventsInOrder(t *testing.T) {
 	}
 }
 
+func TestTimelineShowsATrapTriggerWithoutTheRunner(t *testing.T) {
+	l, _, bob, _, _, running := jokerLobby(t)
+	watcher := joinSpectator(t, &l, "Wanda", start)
+	placed, triggered := running.Add(time.Minute), running.Add(30*time.Minute)
+	l.Jokers = []JokerUse{TrapUse{Team: bob.HunterTeam, At: placed, Point: l.Game.Playground.Center(), TriggeredAt: triggered}}
+	want := []Event{
+		StartEvent{At: running},
+		HunterJokerEvent{Team: bob.HunterTeam, Joker: JokerTrap, At: placed},
+		TrapTriggeredEvent{Team: bob.HunterTeam, At: triggered},
+	}
+	if got, err := l.TimelineFor(watcher, triggered); err != nil || !slices.Equal(got, want) {
+		t.Fatalf("timeline = %+v, %v; want %+v", got, err, want)
+	}
+	if got, _ := l.TimelineFor(watcher, triggered.Add(-time.Second)); !slices.Equal(got, want[:2]) {
+		t.Fatalf("an untriggered trap has only its placement: %+v", got)
+	}
+}
+
 func TestTimelineIsHiddenFromActivePlayers(t *testing.T) {
 	l, ada, bob, _, _, running := jokerLobby(t)
 	var rule *RuleError

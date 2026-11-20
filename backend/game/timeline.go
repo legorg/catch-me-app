@@ -6,9 +6,9 @@ import (
 )
 
 // Event is one timeline entry. It is sealed: the only variants are
-// StartEvent, HunterJokerEvent, RunnerJokerEvent, CatchEvent, FinishEvent and
-// EndEvent, each with exactly the fields it needs. Events never carry
-// coordinates, cells or what a joker showed.
+// StartEvent, HunterJokerEvent, RunnerJokerEvent, TrapTriggeredEvent,
+// CatchEvent, FinishEvent and EndEvent, each with exactly the fields it needs.
+// Events never carry coordinates, cells or what a joker showed.
 type Event interface {
 	OccurredAt() time.Time
 	event()
@@ -31,6 +31,13 @@ type RunnerJokerEvent struct {
 	At     time.Time
 }
 
+// TrapTriggeredEvent is a hunter team's trap triggered by a runner, without
+// saying which runner or where.
+type TrapTriggeredEvent struct {
+	Team HunterTeamName
+	At   time.Time
+}
+
 // CatchEvent is a runner's catch.
 type CatchEvent struct {
 	Runner PlayerID
@@ -46,19 +53,21 @@ type FinishEvent struct {
 // EndEvent is the game end after the last active runner's outcome.
 type EndEvent struct{ At time.Time }
 
-func (e StartEvent) OccurredAt() time.Time       { return e.At }
-func (e HunterJokerEvent) OccurredAt() time.Time { return e.At }
-func (e RunnerJokerEvent) OccurredAt() time.Time { return e.At }
-func (e CatchEvent) OccurredAt() time.Time       { return e.At }
-func (e FinishEvent) OccurredAt() time.Time      { return e.At }
-func (e EndEvent) OccurredAt() time.Time         { return e.At }
+func (e StartEvent) OccurredAt() time.Time         { return e.At }
+func (e HunterJokerEvent) OccurredAt() time.Time   { return e.At }
+func (e RunnerJokerEvent) OccurredAt() time.Time   { return e.At }
+func (e TrapTriggeredEvent) OccurredAt() time.Time { return e.At }
+func (e CatchEvent) OccurredAt() time.Time         { return e.At }
+func (e FinishEvent) OccurredAt() time.Time        { return e.At }
+func (e EndEvent) OccurredAt() time.Time           { return e.At }
 
-func (StartEvent) event()       {}
-func (HunterJokerEvent) event() {}
-func (RunnerJokerEvent) event() {}
-func (CatchEvent) event()       {}
-func (FinishEvent) event()      {}
-func (EndEvent) event()         {}
+func (StartEvent) event()         {}
+func (HunterJokerEvent) event()   {}
+func (RunnerJokerEvent) event()   {}
+func (TrapTriggeredEvent) event() {}
+func (CatchEvent) event()         {}
+func (FinishEvent) event()        {}
+func (EndEvent) event()           {}
 
 // TimelineFor returns the game's events up to now, oldest first, to a
 // spectator. Active players must not learn about opponents' jokers or
@@ -82,6 +91,9 @@ func (l Lobby) timeline(now time.Time) []Event {
 		switch u := use.(type) {
 		case hunterJokerUse:
 			events = append(events, HunterJokerEvent{Team: u.team(), Joker: u.Kind(), At: u.UsedAt()})
+			if trap, ok := u.(TrapUse); ok && !trap.TriggeredAt.IsZero() {
+				events = append(events, TrapTriggeredEvent{Team: trap.Team, At: trap.TriggeredAt})
+			}
 		case runnerJokerUse:
 			events = append(events, RunnerJokerEvent{Runner: u.runner(), Joker: u.Kind(), At: u.UsedAt()})
 		}

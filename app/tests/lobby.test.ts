@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, visibleRoute } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
@@ -523,6 +523,20 @@ test('the compass becomes one cell-long arrow per direction from the origin, wit
   assert.deepEqual(marker.coordinate, origin);
   assert.ok(gameMarkers(running).some((m) => m.id === 'joker-compass'));
   assert.deepEqual(compassLines({ ...hunterState, jokers: [{ kind: 'compass', available: true }] }), []);
+});
+
+test('the trap is a circle of the trigger radius, colored waiting, active, then triggered, and no pin', () => {
+  const point = { latitude: 52.52, longitude: 13.405 };
+  const trap = { kind: 'trap' as const, available: false, usedAt: '2026-11-08T12:00:00Z', point, activeAt: '2026-11-08T12:20:00Z' };
+  const placed = { ...hunterState, jokers: [trap] };
+  const at = (iso: string) => Date.parse(iso);
+  assert.deepEqual(trapCircles(placed, at('2026-11-08T12:19:59Z')), [{ id: 'joker-trap', center: point, radius: TRAP_RADIUS_METERS, color: TRAP_COLORS.waiting }]);
+  assert.equal(trapCircles(placed, at('2026-11-08T12:20:00Z'))[0].color, TRAP_COLORS.active);
+  const triggered = { ...hunterState, jokers: [{ ...trap, triggeredAt: '2026-11-08T12:31:00Z' }] };
+  assert.equal(trapCircles(triggered, at('2026-11-08T12:31:00Z'))[0].color, TRAP_COLORS.triggered);
+  assert.ok(!gameMarkers(triggered).some((m) => m.id.includes('trap')));
+  assert.deepEqual(trapCircles({ ...hunterState, jokers: [{ kind: 'trap', available: true }] }, at('2026-11-08T12:31:00Z')), []);
+  assert.equal(serverNow({ ...hunterState, serverTime: '2026-11-08T12:00:00Z' }, 1000, 3500), at('2026-11-08T12:00:02.5Z'));
 });
 
 test('sketches become lines in the sketch color, in the order the server sent them', () => {

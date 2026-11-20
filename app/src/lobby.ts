@@ -253,6 +253,36 @@ export function compassMarkers(state: GameStateHunterResponse): PlayerMarker[] {
   }] : []);
 }
 
+/** How close a runner must come to trigger a trap; the server uses the same radius. */
+export const TRAP_RADIUS_METERS = 100;
+
+export const TRAP_COLORS = { waiting: '#828282', active: '#f2994a', triggered: '#eb5757' } as const;
+
+export type TrapStatus = keyof typeof TRAP_COLORS;
+
+type HunterJoker = GameStateHunterResponse['jokers'][number];
+
+/** Whether a placed trap still waits for its activation, is active, or was triggered, at the server time serverNow (ms). */
+export function trapStatus(joker: Extract<HunterJoker, { kind: 'trap' }>, serverNow: number): TrapStatus {
+  if (joker.triggeredAt) return 'triggered';
+  return joker.activeAt && Date.parse(joker.activeAt) <= serverNow ? 'active' : 'waiting';
+}
+
+/** The team's placed trap as a circle of the trigger radius, colored by its status. */
+export function trapCircles(state: GameStateHunterResponse, serverNow: number): { id: string; center: { latitude: number; longitude: number }; radius: number; color: string }[] {
+  return state.jokers.flatMap((joker) => joker.kind === 'trap' && joker.point ? [{
+    id: 'joker-trap',
+    center: joker.point,
+    radius: TRAP_RADIUS_METERS,
+    color: TRAP_COLORS[trapStatus(joker, serverNow)],
+  }] : []);
+}
+
+/** The server's clock now: its time in the response plus the time elapsed locally since it arrived. */
+export function serverNow(state: GameStateResponse, receivedAt: number, now: number): number {
+  return Date.parse(state.serverTime) + (now - receivedAt);
+}
+
 /** Start and target colors on the map; the same values as colors.start / colors.target (styles.ts cannot be loaded by the node tests). */
 export const ROUTE_COLORS = { start: '#2f80ed', target: '#eb5757' } as const;
 

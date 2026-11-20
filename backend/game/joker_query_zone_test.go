@@ -11,7 +11,7 @@ func TestQueryZoneAnswersOnlyYesOrNo(t *testing.T) {
 	at := running.Add(time.Minute)
 	query := func(states []jokerState) jokerState {
 		t.Helper()
-		if len(states) != 3 || states[1].Kind != JokerQueryZone {
+		if len(states) != 4 || states[1].Kind != JokerQueryZone {
 			t.Fatalf("expected the query-zone joker: %+v", states)
 		}
 		return states[1]

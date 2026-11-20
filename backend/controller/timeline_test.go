@@ -22,6 +22,7 @@ func TestTimelineEventKindsMatchTheirVariants(t *testing.T) {
 		game.StartEvent{At: at},
 		game.HunterJokerEvent{Team: team, Joker: game.JokerShowRunners, At: at},
 		game.RunnerJokerEvent{Runner: runner.ID, Joker: game.JokerZoneOnly, At: at},
+		game.TrapTriggeredEvent{Team: team, At: at},
 		game.CatchEvent{Runner: runner.ID, At: at},
 		game.FinishEvent{Runner: runner.ID, At: at},
 		game.EndEvent{At: at},
