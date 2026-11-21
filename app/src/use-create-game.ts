@@ -8,7 +8,7 @@ import { DEFAULT_JOKER_SETTINGS, withAllowance, withZoneAlert, type JokerKind } 
 import { playerSession } from '@/player-session';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_CENTER, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES,
-  isValidGridSize, isValidRevealInterval, parseCellSizeKm, parseWholeNumber, previewPlayground, routePointAt,
+  isValidGridSize, isValidRevealInterval, parseCellSizeKm, parseWholeNumber, previewPlayground, rotationFromHeading, routePointAt,
 } from '@/playground';
 import { useCurrentPosition } from '@/use-current-position';
 
@@ -29,6 +29,7 @@ export function useCreateGame() {
   const [cellSizeText, setCellSizeText] = useState(String(DEFAULT_CELL_SIZE_METERS / 1000));
   const [gridSizeText, setGridSizeText] = useState(String(DEFAULT_GRID_SIZE));
   const [revealIntervalText, setRevealIntervalText] = useState(String(DEFAULT_REVEAL_INTERVAL_MINUTES));
+  // Turning the map turns the grid with it, so the grid always looks straight on screen.
   const [rotation, setRotation] = useState(0);
   const [jokers, setJokers] = useState<JokerSettings>(DEFAULT_JOKER_SETTINGS);
   const [routeMode, setRouteMode] = useState<RouteMode>('generated');
@@ -80,6 +81,11 @@ export function useCreateGame() {
     }
   }
 
+  /** The user turned the create map: the grid turns by the same whole degrees, until the game is created. */
+  function turnGrid(heading: number) {
+    if (!created) setRotation(rotationFromHeading(heading));
+  }
+
   /** A tap on the route map sets the start (southern edge row) or the stop (northern edge row). */
   function tapRoutePoint(point: Coordinates) {
     const which = playground && routePointAt(playground, point);
@@ -122,7 +128,7 @@ export function useCreateGame() {
     cellSizeText, setCellSizeText, sizeError,
     gridSizeText, setGridSizeText, gridSizeError,
     revealIntervalText, setRevealIntervalText, revealIntervalError,
-    rotation, setRotation,
+    rotation, turnGrid,
     jokers, setJokerAllowance: (kind: JokerKind, allowance: number) => setJokers((current) => withAllowance(current, kind, allowance)),
     setZoneAlert: (enabled: boolean) => setJokers((current) => withZoneAlert(current, enabled)),
     routeMode, setRouteMode, routePoints, routeTapMissed, tapRoutePoint,

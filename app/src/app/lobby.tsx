@@ -61,7 +61,7 @@ export default function LobbyScreen() {
           {spectator ? t('spectator.lobbyInfo') : lobbyInfo(countdown !== null, skipStartPositionCheck)}
         </Text>
         <View style={styles.mapContainer}>
-          <FullscreenMap playground={state.playground} editable={false} onSelect={noop} markers={markers} locationEnabled={!spectator} />
+          <FullscreenMap playground={state.playground} editable={false} onSelect={noop} markers={markers} locationEnabled={!spectator} rotatable />
         </View>
         {state.team === 'hunter' && <Text style={styles.hint}>
           {t('lobby.legendHunter')}

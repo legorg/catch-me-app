@@ -4,7 +4,6 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
-    "@react-native-community/slider": "5.2.1",
     "expo": "~58.0.23",
     "expo-constants": "~58.0.15",
     "expo-linking": "~58.0.16",

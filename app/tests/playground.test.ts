@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import {
   boundaryCoordinates, cellAt, cellBounds, cellCenter, cellCorners, cellLabels, distanceMeters, edgeName, gridLines, isValidGridSize,
-  isValidRevealInterval, parseCellSizeKm, parseWholeNumber, playgroundCorners, previewPlayground, routePointAt, rowCells,
+  isValidRevealInterval, parseCellSizeKm, parseWholeNumber, playgroundCorners, previewPlayground, rotationFromHeading, routePointAt, rowCells,
 } from '../src/playground';
 
 test('a chosen route starts in the southern and stops in the northern edge row', () => {
@@ -202,6 +202,15 @@ test('the rotation must be whole degrees from 0 to 359 and keep the grid off the
   const longitude = 180 - 180 / Math.PI * 180 / 6371008.8;
   assert.doesNotThrow(() => previewPlayground({ latitude: 0, longitude }, 100, 3, 0));
   assert.throws(() => previewPlayground({ latitude: 0, longitude }, 100, 3, 45), /date line/);
+});
+
+test('turning the map turns the grid by the same whole degrees', () => {
+  for (const [heading, degrees] of [[0, 0], [0.4, 0], [44.6, 45], [359.6, 0], [360, 0], [-0.4, 0], [-10, 350], [725.2, 5]]) {
+    assert.equal(rotationFromHeading(heading), degrees, String(heading));
+  }
+  const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 4, rotationFromHeading(90.2));
+  // With the map's top pointing east, row 1 lies in the east, i.e. on top of the screen.
+  assert.ok(cellCenter(p, 'B1').longitude > p.center.longitude);
 });
 
 test('distanceMeters is the haversine distance', () => {

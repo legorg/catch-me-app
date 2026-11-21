@@ -76,6 +76,8 @@ export const dynamicStyles = {
     right: 12 + (inset?.right ?? 0),
     bottom: 12 + (inset?.bottom ?? 0),
   }),
+  /** Turns the north arrow against the map, so it keeps pointing north. */
+  northArrow: (heading: number) => ({ transform: [{ rotate: `${-heading}deg` }] }),
   languageMenu: (anchor: { top: number; right: number }): ViewStyle => ({ top: anchor.top, right: anchor.right }),
   /** Android draws edge-to-edge and the start screen has no header, so its title must clear the status bar itself. */
   homeTitle: (topInset: number): ViewStyle => ({ paddingTop: topInset }),

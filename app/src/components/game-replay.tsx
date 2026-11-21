@@ -66,7 +66,7 @@ export default function GameReplay({ result }: { result: GameResultResponse }) {
     <View style={styles.card}>
       <Text accessibilityRole="header" style={styles.heading}>{t('replay.title')}</Text>
       <View style={styles.mapContainer}>
-        <FullscreenMap playground={result.playground} editable={false} onSelect={noop} markers={markers} lines={lines} locationEnabled={false} fullscreenFooter={controls} />
+        <FullscreenMap playground={result.playground} editable={false} onSelect={noop} markers={markers} lines={lines} locationEnabled={false} rotatable fullscreenFooter={controls} />
       </View>
       {controls}
       <Text style={styles.hint}>{t('replay.legend')}</Text>

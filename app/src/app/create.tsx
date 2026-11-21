@@ -7,7 +7,6 @@ import JoinCodes from '@/components/join-codes';
 import JokerSettingsCard from '@/components/joker-settings-card';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import RouteChoiceCard from '@/components/route-choice-card';
-import RotationCard from '@/components/rotation-card';
 import SettingCard from '@/components/setting-card';
 import { formatNumber, useT } from '@/i18n';
 import { colors, styles } from '@/styles';
@@ -40,9 +39,10 @@ export default function CreateScreen() {
       </>}
       <View style={styles.mapContainer}>
         {/* Remounts once when the position arrives, so the map opens there. */}
-        <FullscreenMap key={`${created?.game.sessionId ?? 'draft'}-${game.hasPosition ? 'here' : 'default'}`} playground={playground} editable={!created && !busy} onSelect={game.selectCenter} />
+        <FullscreenMap key={`${created?.game.sessionId ?? 'draft'}-${game.hasPosition ? 'here' : 'default'}`} playground={playground} editable={!created && !busy} onSelect={game.selectCenter}
+          alignToGrid onHeadingChange={game.turnGrid} />
       </View>
-      {!created && <RotationCard degrees={game.rotation} onChange={game.setRotation} disabled={busy} />}
+      {!created && <Text style={styles.hint}>{t('create.rotationHint', { degrees: game.rotation })}</Text>}
       {playground && <Text style={styles.text}>
         {t('create.center', {
           latitude: playground.center.latitude.toFixed(6), longitude: playground.center.longitude.toFixed(6),

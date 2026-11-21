@@ -60,6 +60,11 @@ export function isValidRotation(degrees: unknown): degrees is number {
   return Number.isInteger(degrees) && (degrees as number) >= 0 && (degrees as number) < 360;
 }
 
+/** The grid rotation that puts row 1 on top of a map whose top points to heading (degrees clockwise from north). */
+export function rotationFromHeading(heading: number): number {
+  return ((Math.round(heading) % 360) + 360) % 360;
+}
+
 /** A whole number typed by the user, or null if it is not one or not valid. */
 export function parseWholeNumber(text: string, isValid: (value: number) => boolean): number | null {
   const value = text.trim();

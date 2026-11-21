@@ -68,13 +68,13 @@ function RoutePicker({ playground, points, tapMissed, onTap, disabled }: {
     const title = which === 'start' ? startTitle : stopTitle;
     return [{ id: `chosen-${which}-${point.latitude}-${point.longitude}`, coordinate: point, title, description: title, color: ROUTE_PIN_COLOR }];
   });
-  // The map refits to the grid only when it is resized, so it remounts when the grid moves.
-  const key = `${playground.center.latitude},${playground.center.longitude},${playground.rows},${playground.cellSizeMeters}`;
+  // The map refits (and turns to the grid) only when it is resized, so it remounts when the grid moves or turns.
+  const key = `${playground.center.latitude},${playground.center.longitude},${playground.rows},${playground.cellSizeMeters},${playground.rotationDegrees}`;
   return (
     <View style={styles.gapTiny}>
       <Text style={styles.hint}>{t('create.routeTap')}</Text>
       <View style={styles.mapContainer}>
-        <FullscreenMap key={key} playground={playground} editable={false} onSelect={noop} onTap={disabled ? noop : onTap} highlights={highlights} markers={markers} />
+        <FullscreenMap key={key} playground={playground} editable={false} onSelect={noop} onTap={disabled ? noop : onTap} highlights={highlights} markers={markers} alignToGrid />
       </View>
       {tapMissed && <Text style={[styles.text, styles.error]}>{t('create.routeTapEdge')}</Text>}
       <PointStatus playground={playground} point={points.start} which="start" />

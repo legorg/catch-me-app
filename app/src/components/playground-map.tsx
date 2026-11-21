@@ -4,14 +4,17 @@ import MapView, { Circle, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { Coordinates, Playground } from '../api/types';
 import { SKETCH_COLOR } from '../lobby';
 import { DEFAULT_CENTER } from '../playground';
-import { mapStyles as styles } from '../styles';
+import { dynamicStyles, mapStyles as styles } from '../styles';
 import { useMapDrawing } from '../use-map-drawing';
+import { useMapHeading } from '../use-map-heading';
 import { useMapLocate } from '../use-map-locate';
 import { useMapRegion } from '../use-map-region';
+import MapAlignButton from './map-align-button';
 import MapCrosshair from './map-crosshair';
 import MapDrawingOverlay from './map-drawing-overlay';
 import MapGrid from './map-grid';
 import MapLocateButton from './map-locate-button';
+import MapNorthButton from './map-north-button';
 import MapPin from './map-pin';
 
 export type CellHighlight = { cell: string; title: string; color: string };
@@ -57,14 +60,26 @@ export type PlaygroundMapProps = {
   controlsInset?: { bottom?: number; right?: number };
   /** Disable the device location dot and locate button for caught spectators. */
   locationEnabled?: boolean;
+  /** Allow turning the map with two fingers; a north button then turns it back. */
+  rotatable?: boolean;
+  /** Keep the map turned so that the grid's row 1 is on top, also after it refits; implies rotatable. */
+  alignToGrid?: boolean;
+  /** Called when the user turns the map, with where its top now points (degrees clockwise from north). */
+  onHeadingChange?: (heading: number) => void;
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], circles = [], onDraw, onPick, onTap, fullscreen = false, controlsInset, locationEnabled = true }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], circles = [], onDraw, onPick, onTap, fullscreen = false, controlsInset, locationEnabled = true, rotatable: rotatableProp = false, alignToGrid = false, onHeadingChange }: PlaygroundMapProps) {
   const center = playground?.center ?? DEFAULT_CENTER;
   const bounds = playground?.bounds;
-  const { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete } = useMapRegion({ playground, editable, onSelect, onPick });
+  const rotatable = rotatableProp || alignToGrid;
+  // On a turned grid, turning the map by the grid's rotation puts row 1 on top.
+  const gridRotation = playground?.rotationDegrees ?? 0;
+  const { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete, isMuted } = useMapRegion({ playground, editable, onSelect, onPick, heading: alignToGrid ? gridRotation : undefined });
   const { drawing, stroke, responder } = useMapDrawing(map, onDraw);
   const { locationGranted, locating, locateError, locate } = useMapLocate(map, editable, select);
+  const heading = useMapHeading(map, { rotatable, onRegionChangeComplete, isMuted, onHeadingChange });
+  const showNorth = rotatable && !heading.pointsTo(0);
+  const showAlign = rotatable && gridRotation !== 0 && !heading.pointsTo(gridRotation);
   return (
     <View style={fullscreen ? styles.fullscreen : styles.map} onLayout={onLayout}>
       <MapView
@@ -80,7 +95,9 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         }}
         // The grid colors are made for a light map, so ignore the phone's dark mode.
         userInterfaceStyle="light"
-        rotateEnabled={false}
+        rotateEnabled={rotatable && !drawing}
+        // Our own north button looks the same on both platforms.
+        showsCompass={false}
         pitchEnabled={false}
         // While drawing, the finger draws and the map stays where it is.
         scrollEnabled={!drawing}
@@ -90,7 +107,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         showsMyLocationButton={false}
         toolbarEnabled={false}
         // Panning moves the grid: it stays centered on the map.
-        onRegionChangeComplete={onRegionChangeComplete}
+        onRegionChangeComplete={heading.onRegionChangeComplete}
         onPress={onTap ? (event) => onTap(event.nativeEvent.coordinate) : onPress}
       >
         {playground && <MapGrid playground={playground} highlights={highlights} onSelect={onTap ?? select} />}
@@ -108,7 +125,13 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
       </MapView>
       {(editable || onPick) && <MapCrosshair anchor={anchor} />}
       {drawing && <MapDrawingOverlay {...responder} />}
-      {locationEnabled && <MapLocateButton locating={locating} error={locateError} onLocate={locate} inset={controlsInset} />}
+      {(showAlign || showNorth || locationEnabled) && (
+        <View style={[styles.locate, dynamicStyles.locate(controlsInset)]}>
+          {showAlign && <MapAlignButton onPress={() => heading.turnTo(gridRotation)} />}
+          {showNorth && <MapNorthButton heading={heading.heading} onPress={() => heading.turnTo(0)} />}
+          {locationEnabled && <MapLocateButton locating={locating} error={locateError} onLocate={locate} />}
+        </View>
+      )}
     </View>
   );
 }
