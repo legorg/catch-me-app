@@ -49,3 +49,35 @@ func TestQueryZoneAnswersOnlyYesOrNo(t *testing.T) {
 		t.Fatalf("runners cannot query a zone: %v", err)
 	}
 }
+
+func TestQueryZoneUsesTheRotatedGrid(t *testing.T) {
+	for _, degrees := range []int{30, 90} {
+		l, _, bob, _, eve, running := jokerLobby(t)
+		northAligned := rotateGrid(t, &l, degrees)
+		at := running.Add(time.Minute)
+		c6 := Cell{column: 2, row: 5}
+		point := cellCenter(l.Game.Playground, c6)
+		// Without the rotation the point would lie in another cell.
+		unrotated, inside := northAligned.CellAt(point)
+		if !inside || unrotated == c6 {
+			t.Fatalf("%d°: the point must lie in another north-aligned cell, got %s (inside %v)", degrees, unrotated, inside)
+		}
+		for i, p := range l.Players {
+			if p.Team == Runners {
+				l.Players[i].Position, _ = NewPosition(point, 5, at)
+			}
+		}
+		if err := l.UseJoker(bob.ID, QueryZone{Cell: c6}, at); err != nil {
+			t.Fatal(err)
+		}
+		if err := l.UseJoker(eve.ID, QueryZone{Cell: unrotated}, at); err != nil {
+			t.Fatal(err)
+		}
+		if got := l.JokersFor(bob, at)[1].Uses; len(got) != 1 || !got[0].(QueryZoneUse).Found {
+			t.Fatalf("%d°: the runners are in the rotated C6: %+v", degrees, got)
+		}
+		if got := l.JokersFor(eve, at)[1].Uses; len(got) != 1 || got[0].(QueryZoneUse).Found {
+			t.Fatalf("%d°: no runner is in the rotated %s: %+v", degrees, unrotated, got)
+		}
+	}
+}

@@ -14,10 +14,10 @@
   "paths": {
     "/api/games": {
       "post": {
-        "summary": "Create a square playground with adjustable grid size, cell size, reveal interval, and joker settings",
+        "summary": "Create a square playground with adjustable grid size, cell size, rotation, reveal interval, and joker settings",
         "operationId": "createGame",
         "requestBody": {
-          "description": "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults. Optional route: start in the southern and stop in the northern edge row, chosen instead of generated landmarks (untitled, cannot be regenerated)",
+          "description": "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), rotationDegrees (0-359, clockwise; 0 is north-aligned), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults. Optional route: start in the southern (last) and stop in the northern (first) edge row of the grid, chosen instead of generated landmarks (untitled, cannot be regenerated)",
           "content": {
             "application/json": {
               "schema": {
@@ -39,7 +39,7 @@
             }
           },
           "400": {
-            "description": "Invalid JSON, coordinates, cell size, or chosen route outside its edge rows",
+            "description": "Invalid JSON, coordinates, cell size, rotation, or chosen route outside its edge rows",
             "content": {
               "application/json": {
                 "schema": {
@@ -1434,6 +1434,14 @@
             "minimum": 1,
             "type": "integer"
           },
+          "rotationDegrees": {
+            "examples": [
+              0
+            ],
+            "maximum": 359,
+            "minimum": 0,
+            "type": "integer"
+          },
           "route": {
             "$ref": "#/components/schemas/ControllerChosenRouteRequest"
           }
@@ -1443,6 +1451,7 @@
           "longitude",
           "cellSizeMeters",
           "gridSize",
+          "rotationDegrees",
           "revealIntervalMinutes",
           "jokers"
         ],
@@ -2583,6 +2592,14 @@
             "minimum": 3,
             "type": "integer"
           },
+          "rotationDegrees": {
+            "examples": [
+              0
+            ],
+            "maximum": 359,
+            "minimum": 0,
+            "type": "integer"
+          },
           "rows": {
             "examples": [
               6
@@ -2597,7 +2614,8 @@
           "bounds",
           "rows",
           "columns",
-          "cellSizeMeters"
+          "cellSizeMeters",
+          "rotationDegrees"
         ],
         "type": "object"
       },

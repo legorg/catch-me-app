@@ -16,7 +16,7 @@ func gameBodyWithJokers(t *testing.T, jokers any) string {
 	t.Helper()
 	body := map[string]any{
 		"latitude": 52.52, "longitude": 13.405, "cellSizeMeters": 2000,
-		"gridSize": 6, "revealIntervalMinutes": 30, "jokers": jokers,
+		"gridSize": 6, "rotationDegrees": 0, "revealIntervalMinutes": 30, "jokers": jokers,
 	}
 	data, err := json.Marshal(body)
 	if err != nil {
@@ -36,7 +36,7 @@ func defaultJokerSettings(t *testing.T) map[string]any {
 
 func TestCreateGameRequiresEveryJokerAllowance(t *testing.T) {
 	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
-	decode[controller.APIError](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30}`), 400)
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30}`), 400)
 	for _, jokers := range []any{nil, "wrong type", []any{}, map[string]any{}} {
 		decode[controller.APIError](t, send(t, handler, "POST", "/api/games", "", gameBodyWithJokers(t, jokers)), 400)
 	}

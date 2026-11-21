@@ -150,7 +150,7 @@ test('create posts the center and all settings as JSON, with defaults', async (t
     assert.equal(url.pathname, '/api/games');
     assert.equal(request.method, 'POST');
     assert.equal(request.headers.get('Content-Type'), 'application/json');
-    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30, jokers });
+    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, rotationDegrees: 0, revealIntervalMinutes: 30, jokers });
     return Response.json(created, { status: 201 });
   });
   assert.deepEqual(await createGame(center), created);
@@ -159,7 +159,7 @@ test('create posts the center and all settings as JSON, with defaults', async (t
 test('a chosen route is sent with the game', async (t) => {
   const route = { start: { latitude: 52.47, longitude: 13.38 }, stop: { latitude: 52.57, longitude: 13.43 } };
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
-    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, revealIntervalMinutes: 30, jokers, route });
+    assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, rotationDegrees: 0, revealIntervalMinutes: 30, jokers, route });
     return Response.json(created, { status: 201 });
   });
   assert.deepEqual(await createGame(center, 2000, 6, 30, jokers, route), created);
@@ -169,7 +169,7 @@ test('custom settings are sent', async (t) => {
   for (const [size, cells, minutes] of [[100, 3, 1], [1500, 6, 30], [5000, 12, 60]]) {
     const response = { ...created, game: { ...created.game, playground: previewPlayground(center, size, cells), revealIntervalMinutes: minutes } };
     t.mock.method(globalThis, 'fetch', async (request: Request) => {
-      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size, gridSize: cells, revealIntervalMinutes: minutes, jokers });
+      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size, gridSize: cells, rotationDegrees: 0, revealIntervalMinutes: minutes, jokers });
       return Response.json(response, { status: 201 });
     });
     assert.deepEqual(await createGame(center, size, cells, minutes), response);

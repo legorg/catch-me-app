@@ -94,8 +94,11 @@ func (s *GameService) route(ctx context.Context, playground game.Playground, pre
 }
 
 // edgeLandmark picks a random landmark other than avoid inside one of the
-// cells, trying them in random order. It logs how long the lookup took and how
-// many cells it queried, to tune the time budget.
+// cells, trying them in random order. The lookup covers the north-aligned
+// rectangle around a cell, which is larger than a rotated cell and shares its
+// edges with the neighbors, so landmarks outside the cell itself are dropped.
+// It logs how long the lookup took and how many cells it queried, to tune the
+// time budget.
 func (s *GameService) edgeLandmark(ctx context.Context, playground game.Playground, edge string, cells []game.Cell, avoid game.Landmark) (landmark game.Landmark, err error) {
 	began, queried := time.Now(), 0
 	defer func() {
@@ -111,7 +114,10 @@ func (s *GameService) edgeLandmark(ctx context.Context, playground game.Playgrou
 		if err != nil {
 			return game.Landmark{}, fmt.Errorf("%w: cell %s: %v", game.ErrLandmarksUnavailable, cell, err)
 		}
-		found = slices.DeleteFunc(slices.Clone(found), func(l game.Landmark) bool { return l == avoid })
+		found = slices.DeleteFunc(slices.Clone(found), func(l game.Landmark) bool {
+			at, inside := playground.CellAt(l.Coordinates)
+			return l == avoid || !inside || at != cell
+		})
 		if len(found) > 0 {
 			return found[rand.IntN(len(found))], nil
 		}
@@ -141,8 +147,8 @@ type ChosenRoute struct{ Start, Stop game.Coordinates }
 // Create saves a new game. Without a chosen route it looks up landmarks for
 // one; a chosen route must lie on the playground's edge rows and cannot be
 // regenerated.
-func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, jokers game.JokerSettings, chosen *ChosenRoute) (game.Game, error) {
-	playground, err := game.NewPlayground(center, cellSize, gridSize)
+func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, rotation game.Rotation, revealInterval game.RevealInterval, jokers game.JokerSettings, chosen *ChosenRoute) (game.Game, error) {
+	playground, err := game.NewRotatedPlayground(center, cellSize, gridSize, rotation)
 	if err != nil {
 		return game.Game{}, err
 	}

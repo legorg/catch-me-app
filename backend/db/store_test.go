@@ -55,6 +55,18 @@ func withSettings(t *testing.T, g game.Game, cells, minutes int) game.Game {
 	return g
 }
 
+// withRotation is g with its grid turned by degrees.
+func withRotation(t *testing.T, g game.Game, degrees int) game.Game {
+	t.Helper()
+	rotation, err1 := game.ParseRotation(degrees)
+	p, err2 := game.NewRotatedPlayground(g.Playground.Center(), g.Playground.CellSize(), g.Playground.GridSize(), rotation)
+	if err := errors.Join(err1, err2); err != nil {
+		t.Fatal(err)
+	}
+	g.Playground = p
+	return g
+}
+
 func open(t *testing.T, path string) *Store {
 	t.Helper()
 	store, err := Open(context.Background(), path)
@@ -138,6 +150,7 @@ func TestStorePersistsAfterReopening(t *testing.T) {
 		fixture(t, 52.52, 100, strings.Repeat("a", 32)),
 		withSettings(t, fixture(t, 0, 5000, strings.Repeat("b", 32)), 12, 1),
 		withSettings(t, fixture(t, 10, 2000, strings.Repeat("d", 32)), 3, 60),
+		withRotation(t, fixture(t, 52.52, 2000, strings.Repeat("e", 32)), 37),
 	}
 	for _, saved := range fixtures {
 		if err := store.Create(ctx, saved); err != nil {

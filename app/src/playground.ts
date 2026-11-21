@@ -55,6 +55,11 @@ export function isValidRevealInterval(minutes: unknown): minutes is number {
   return Number.isInteger(minutes) && (minutes as number) >= MIN_REVEAL_INTERVAL_MINUTES && (minutes as number) <= MAX_REVEAL_INTERVAL_MINUTES;
 }
 
+/** Whole degrees the grid is turned clockwise, as the backend allows. */
+export function isValidRotation(degrees: unknown): degrees is number {
+  return Number.isInteger(degrees) && (degrees as number) >= 0 && (degrees as number) < 360;
+}
+
 /** A whole number typed by the user, or null if it is not one or not valid. */
 export function parseWholeNumber(text: string, isValid: (value: number) => boolean): number | null {
   const value = text.trim();
@@ -82,7 +87,7 @@ export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_
   if (bounds.west < -180 || bounds.east > 180) {
     throw new Error(translate('playground.dateLine'));
   }
-  return { center, bounds, rows: gridSize, columns: gridSize, cellSizeMeters };
+  return { center, bounds, rows: gridSize, columns: gridSize, cellSizeMeters, rotationDegrees: 0 };
 }
 
 export function boundaryCoordinates(b: Bounds): Coordinates[] {

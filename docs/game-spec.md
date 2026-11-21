@@ -35,6 +35,7 @@ Status legend: **[done]** implemented, **[next]** planned in the given milestone
 ## Playground [done]
 
 - North-aligned square grid of 3 × 3 to 12 × 12 cells, chosen when creating the game, default 6 × 6. Columns A, B, … (west to east), rows 1, 2, … (north to south), e.g. A1 to L12 for 12 × 12.
+- **Rotation [backend/API implemented; app planned]:** the grid can be turned clockwise around its center by `rotationDegrees` (0–359 whole degrees, required when creating, 0 = north-aligned), fixed after creation. Row 1 and the last row turn with the grid: the route stop stays in row 1 ("northern edge row") and the start in the last row ("southern edge row"), whatever their compass direction. The server assigns positions to cells in the rotated grid (start/finish checks, zone jokers, trap, fake position). `playground.bounds` is the grid before rotation; clients turn it by `rotationDegrees` around `playground.center`. The landmark lookup searches the north-aligned rectangle around a cell and keeps only landmarks the grid assigns to that cell. Until the app supports it, it always creates north-aligned games.
 - Cell side 100–5000 m in 100 m steps, default 2000 m.
 - Center latitude within ±80°, no date-line crossing.
 - The **reveal interval** (see Visibility) is chosen when creating the game: 1–60 whole minutes, default 30.

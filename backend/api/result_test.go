@@ -22,7 +22,7 @@ import (
 func TestPublicGameResultHTTPFlow(t *testing.T) {
 	store := testStore(t)
 	handler := NewHandler(controller.NewGameController(service.NewGameService(store, centerLandmarks{}, true)))
-	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`), 201)
+	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`), 201)
 	path := "/api/games/" + string(created.Game.SessionID) + "/result"
 	unknown := send(t, handler, "GET", "/api/games/"+game.NewSessionID().String()+"/result", "", "")
 	decode[controller.APIError](t, unknown, 404)

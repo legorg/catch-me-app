@@ -17,7 +17,7 @@ func TestFinishHTTPFlow(t *testing.T) {
 		t.Run(fmt.Sprintf("override=%v", skip), func(t *testing.T) {
 			store := testStore(t)
 			handler := NewHandler(controller.NewGameController(service.NewGameService(store, centerLandmarks{}, skip)))
-			created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`), 201)
+			created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`), 201)
 			runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
 			hunter := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Hunter+`","name":"Bob"}`), 201)
 			for _, tc := range []struct {

@@ -26,6 +26,7 @@ type gameRow struct {
 	// Older rows predate these settings and get the defaults.
 	GridSize              int    `gorm:"not null;default:6"`
 	RevealIntervalMinutes int    `gorm:"not null;default:30"`
+	RotationDegrees       int    `gorm:"not null;default:0"`
 	RunnerCode            string `gorm:"uniqueIndex;not null"`
 	HunterCode            string `gorm:"uniqueIndex;not null"`
 	SpectatorCode         string `gorm:"uniqueIndex;not null"`
@@ -191,7 +192,8 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 		row := gameRow{
 			ID: g.SessionID.String(), CreatedAt: g.CreatedAt, Latitude: center.Latitude(), Longitude: center.Longitude(),
 			CellSizeMeters: g.Playground.CellSize().Meters(), GridSize: g.Playground.GridSize().Cells(), RevealIntervalMinutes: g.RevealInterval.Minutes(),
-			RunnerCode: codes[0], HunterCode: codes[1], SpectatorCode: codes[2], StartsAt: g.StartsAt,
+			RotationDegrees: g.Playground.Rotation().Degrees(),
+			RunnerCode:      codes[0], HunterCode: codes[1], SpectatorCode: codes[2], StartsAt: g.StartsAt,
 			StartTitle: g.Route.Start.Title, StartLat: g.Route.Start.Coordinates.Latitude(), StartLon: g.Route.Start.Coordinates.Longitude(),
 			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
 			CustomRoute: g.CustomRoute, RouteRegenerations: g.RouteRegenerations,
@@ -773,10 +775,11 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 	revealInterval, err7 := game.ParseRevealInterval(row.RevealIntervalMinutes)
 	spectator, err8 := game.ParseJoinCode(row.SpectatorCode)
 	jokerSettings, err9 := parseJokerSettings(row.JokerSettings)
-	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9); err != nil {
+	rotation, err10 := game.ParseRotation(row.RotationDegrees)
+	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9, err10); err != nil {
 		return game.Lobby{}, err
 	}
-	playground, err := game.NewPlayground(center, cellSize, gridSize)
+	playground, err := game.NewRotatedPlayground(center, cellSize, gridSize, rotation)
 	if err != nil {
 		return game.Lobby{}, err
 	}

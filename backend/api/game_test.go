@@ -30,7 +30,7 @@ func testStore(t *testing.T) *db.Store {
 
 func TestCreateGame(t *testing.T) {
 	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
-	request := httptest.NewRequest(http.MethodPost, "/api/games", strings.NewReader(`{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/games", strings.NewReader(`{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`))
 	request.Header.Set("Content-Type", "application/json")
 	created := httptest.NewRecorder()
 	handler.ServeHTTP(created, request)
@@ -66,7 +66,7 @@ func TestCreateGameChosenRoute(t *testing.T) {
 	south := controller.Coordinates{Latitude: bounds.South + 0.001, Longitude: 13.38}
 	north := controller.Coordinates{Latitude: bounds.North - 0.001, Longitude: 13.43}
 	body := func(start, stop controller.Coordinates) string {
-		return fmt.Sprintf(`{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":%s,"route":{"start":{"latitude":%v,"longitude":%v},"stop":{"latitude":%v,"longitude":%v}}}`,
+		return fmt.Sprintf(`{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":%s,"route":{"start":{"latitude":%v,"longitude":%v},"stop":{"latitude":%v,"longitude":%v}}}`,
 			defaultJokersJSON, start.Latitude, start.Longitude, stop.Latitude, stop.Longitude)
 	}
 	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", body(south, north)), 201)
@@ -100,29 +100,29 @@ func TestGameErrors(t *testing.T) {
 		status                   int
 	}{
 		{"empty", "POST", "/api/games", "", 400},
-		{"missing coordinate", "POST", "/api/games", `{"latitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"null coordinate", "POST", "/api/games", `{"latitude":null,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"missing coordinate", "POST", "/api/games", `{"latitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"null coordinate", "POST", "/api/games", `{"latitude":null,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
 		{"null body", "POST", "/api/games", `null`, 400},
-		{"wrong type", "POST", "/api/games", `{"latitude":"0","longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"zero size", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":0,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"negative size", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":-100,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"too small", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":99,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"too large", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":5100,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"wrong increment", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":1550,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"fractional meters", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":1500.5,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"string size", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":"2000","gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"grid too small", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":2,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"grid too large", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":13,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"zero reveal interval", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":0,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"reveal interval too long", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":61,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"fractional reveal interval", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":0.5,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"unknown field", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"rows":8}`, 400},
-		{"two objects", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}{}`, 400},
-		{"too far north", "POST", "/api/games", `{"latitude":81,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"longitude out of range", "POST", "/api/games", `{"latitude":0,"longitude":181,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
-		{"date line", "POST", "/api/games", `{"latitude":0,"longitude":180,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"wrong type", "POST", "/api/games", `{"latitude":"0","longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"zero size", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":0,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"negative size", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":-100,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"too small", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":99,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"too large", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":5100,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"wrong increment", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":1550,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"fractional meters", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":1500.5,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"string size", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":"2000","gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"grid too small", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":2,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"grid too large", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":13,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"zero reveal interval", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":0,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"reveal interval too long", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":61,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"fractional reveal interval", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":0.5,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"unknown field", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"rows":8}`, 400},
+		{"two objects", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}{}`, 400},
+		{"too far north", "POST", "/api/games", `{"latitude":81,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"longitude out of range", "POST", "/api/games", `{"latitude":0,"longitude":181,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
+		{"date line", "POST", "/api/games", `{"latitude":0,"longitude":180,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 400},
 		{"large body", "POST", "/api/games", strings.Repeat(" ", 1025), 413},
-		{"large trailing body", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}` + strings.Repeat(" ", 1025), 413},
+		{"large trailing body", "POST", "/api/games", `{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}` + strings.Repeat(" ", 1025), 413},
 		{"wrong create method", "GET", "/api/games", "", 405},
 		{"removed load route", "GET", "/api/games/00112233445566778899aabbccddeeff", "", 404},
 	} {
@@ -140,7 +140,7 @@ func TestGameErrors(t *testing.T) {
 	}
 	_ = store.Close()
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest("POST", "/api/games", strings.NewReader(`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`)))
+	handler.ServeHTTP(recorder, httptest.NewRequest("POST", "/api/games", strings.NewReader(`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":`+defaultJokersJSON+`}`)))
 	if recorder.Code != 500 || strings.Contains(recorder.Body.String(), "sql") {
 		t.Fatalf("storage errors should be generic: %d %s", recorder.Code, recorder.Body)
 	}
@@ -148,14 +148,14 @@ func TestGameErrors(t *testing.T) {
 
 func TestCreateGameRequiresSettings(t *testing.T) {
 	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
-	for _, field := range []string{"cellSizeMeters", "gridSize", "revealIntervalMinutes", "jokers"} {
+	for _, field := range []string{"cellSizeMeters", "gridSize", "rotationDegrees", "revealIntervalMinutes", "jokers"} {
 		for _, missing := range []bool{true, false} {
 			name := field + "/null"
 			if missing {
 				name = field + "/missing"
 			}
 			t.Run(name, func(t *testing.T) {
-				body := map[string]any{"latitude": 0, "longitude": 0, "cellSizeMeters": 2000, "gridSize": 6, "revealIntervalMinutes": 30}
+				body := map[string]any{"latitude": 0, "longitude": 0, "cellSizeMeters": 2000, "gridSize": 6, "rotationDegrees": 0, "revealIntervalMinutes": 30}
 				body["jokers"] = defaultJokerSettings(t)
 				if missing {
 					delete(body, field)
@@ -181,10 +181,10 @@ func TestCreateGameCellSizes(t *testing.T) {
 		body string
 		size int
 	}{
-		{`{"latitude":0,"longitude":0,"cellSizeMeters":100,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 100},
-		{`{"latitude":0,"longitude":0,"cellSizeMeters":1500,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 1500},
-		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 2000},
-		{`{"latitude":0,"longitude":0,"cellSizeMeters":5000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 5000},
+		{`{"latitude":0,"longitude":0,"cellSizeMeters":100,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 100},
+		{`{"latitude":0,"longitude":0,"cellSizeMeters":1500,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 1500},
+		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 2000},
+		{`{"latitude":0,"longitude":0,"cellSizeMeters":5000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 5000},
 	} {
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest("POST", "/api/games", strings.NewReader(tc.body)))
@@ -201,14 +201,29 @@ func TestCreateGameGridSizeAndRevealInterval(t *testing.T) {
 		body           string
 		cells, minutes int
 	}{
-		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 6, 30},
-		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":3,"revealIntervalMinutes":1,"jokers":` + defaultJokersJSON + `}`, 3, 1},
-		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":12,"revealIntervalMinutes":60,"jokers":` + defaultJokersJSON + `}`, 12, 60},
+		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":0,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`, 6, 30},
+		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":3,"rotationDegrees":0,"revealIntervalMinutes":1,"jokers":` + defaultJokersJSON + `}`, 3, 1},
+		{`{"latitude":0,"longitude":0,"cellSizeMeters":2000,"gridSize":12,"rotationDegrees":0,"revealIntervalMinutes":60,"jokers":` + defaultJokersJSON + `}`, 12, 60},
 	} {
 		created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", tc.body), 201)
 		if p := created.Game.Playground; p.Rows != tc.cells || p.Columns != tc.cells || created.Game.RevealIntervalMinutes != tc.minutes {
 			t.Fatalf("%s: unexpected settings: %+v", tc.body, created.Game)
 		}
+	}
+}
+
+func TestCreateGameRotation(t *testing.T) {
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
+	for _, degrees := range []int{0, 45, 359} {
+		body := fmt.Sprintf(`{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":%d,"revealIntervalMinutes":30,"jokers":%s}`, degrees, defaultJokersJSON)
+		created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", body), 201)
+		if created.Game.Playground.RotationDegrees != degrees {
+			t.Fatalf("rotation = %d, want %d", created.Game.Playground.RotationDegrees, degrees)
+		}
+	}
+	for _, degrees := range []string{"-1", "360", "1.5", `"45"`} {
+		body := `{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"rotationDegrees":` + degrees + `,"revealIntervalMinutes":30,"jokers":` + defaultJokersJSON + `}`
+		decode[controller.APIError](t, send(t, handler, "POST", "/api/games", "", body), 400)
 	}
 }
 
@@ -299,6 +314,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 	for field, parse := range map[string]func(int) error{
 		"cellSizeMeters":        func(v int) error { _, err := domain.ParseCellSize(v); return err },
 		"gridSize":              func(v int) error { _, err := domain.ParseGridSize(v); return err },
+		"rotationDegrees":       func(v int) error { _, err := domain.ParseRotation(v); return err },
 		"revealIntervalMinutes": func(v int) error { _, err := domain.ParseRevealInterval(v); return err },
 	} {
 		property := create.Properties[field]

@@ -92,12 +92,12 @@ func newService(r GameRepository, now time.Time) *GameService {
 
 func TestCreate(t *testing.T) {
 	s := NewGameService(newMemoryRepository(), centerLandmarks{}, false)
-	first, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	first, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	size, _ := game.ParseCellSize(1500)
-	second, err := s.Create(context.Background(), game.Coordinates{}, size, game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	second, err := s.Create(context.Background(), game.Coordinates{}, size, game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestDeleteExpiredGames(t *testing.T) {
 func TestCreateKeepsExplicitJokerSettings(t *testing.T) {
 	for _, settings := range []game.JokerSettings{{}, game.DefaultJokerSettings()} {
 		r := newMemoryRepository()
-		saved, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), settings, nil)
+		saved, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), settings, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -139,11 +139,11 @@ func TestCreateKeepsExplicitJokerSettings(t *testing.T) {
 func TestCreateRetriesJoinCodeCollisions(t *testing.T) {
 	r := newMemoryRepository()
 	r.createErrs = []error{game.ErrJoinCodeTaken, game.ErrJoinCodeTaken}
-	if _, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil); err != nil || r.calls != 3 {
+	if _, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil); err != nil || r.calls != 3 {
 		t.Fatalf("collision not retried: %v after %d calls", err, r.calls)
 	}
 	r.createErrs = []error{game.ErrJoinCodeTaken, game.ErrJoinCodeTaken, game.ErrJoinCodeTaken, game.ErrJoinCodeTaken}
-	if _, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil); !errors.Is(err, game.ErrJoinCodeTaken) {
+	if _, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil); !errors.Is(err, game.ErrJoinCodeTaken) {
 		t.Fatal("endless retry")
 	}
 }
@@ -151,7 +151,7 @@ func TestCreateRetriesJoinCodeCollisions(t *testing.T) {
 func TestInvalidPlaygroundDoesNotCallDatabase(t *testing.T) {
 	r := newMemoryRepository()
 	center, _ := game.ParseCoordinates(0, 180)
-	_, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	_, err := NewGameService(r, centerLandmarks{}, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	var validation *game.ValidationError
 	if !errors.As(err, &validation) || r.calls != 0 {
 		t.Fatalf("expected validation error without database call: %v", err)
@@ -163,7 +163,7 @@ func TestLobbyFlow(t *testing.T) {
 	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
 	r := newMemoryRepository()
 	s := newService(r, now)
-	created, err := s.Create(ctx, game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	created, err := s.Create(ctx, game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestRepositoryErrorsRemainInspectable(t *testing.T) {
 	r := newMemoryRepository()
 	r.err = storageError
 	s := NewGameService(r, centerLandmarks{}, false)
-	if _, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil); !errors.Is(err, storageError) {
+	if _, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil); !errors.Is(err, storageError) {
 		t.Fatalf("create error lost: %v", err)
 	}
 	if _, err := s.State(context.Background(), game.NewPlayerToken()); !errors.Is(err, storageError) {
@@ -256,6 +256,8 @@ func (centerLandmarks) Landmarks(_ context.Context, cell game.Bounds) ([]game.La
 	return []game.Landmark{{Coordinates: boundsCenter(cell)}}, nil
 }
 
+// fakeLandmarks returns those of found inside the requested bounds, like the
+// Places client, and records the requests.
 type fakeLandmarks struct {
 	found []game.Landmark
 	err   error
@@ -267,14 +269,30 @@ func (f *fakeLandmarks) Landmarks(_ context.Context, row game.Bounds) ([]game.La
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.rows = append(f.rows, row)
-	return f.found, f.err
+	var inside []game.Landmark
+	for _, l := range f.found {
+		if row.Contains(l.Coordinates) {
+			inside = append(inside, l)
+		}
+	}
+	return inside, f.err
+}
+
+// edgeSights are landmarks titled "Sight" at the centers of the given cells.
+func edgeSights(p game.Playground, cells ...game.Cell) []game.Landmark {
+	sights := make([]game.Landmark, len(cells))
+	for i, cell := range cells {
+		sights[i] = game.Landmark{Title: "Sight", Coordinates: boundsCenter(p.CellBounds(cell))}
+	}
+	return sights
 }
 
 func TestCreateRouteNeedsLandmarks(t *testing.T) {
 	center, _ := game.ParseCoordinates(52.52, 13.405)
-	sight, _ := game.ParseCoordinates(52.5, 13.4)
-	finder := &fakeLandmarks{found: []game.Landmark{{Title: "Sight", Coordinates: sight}}}
-	created, err := NewGameService(newMemoryRepository(), finder, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	p, _ := game.NewPlayground(center, game.DefaultCellSize(), game.DefaultGridSize())
+	// Every edge cell has a landmark, so the first lookup per edge finds one.
+	finder := &fakeLandmarks{found: edgeSights(p, append(p.SouthEdgeCells(), p.NorthEdgeCells()...)...)}
+	created, err := NewGameService(newMemoryRepository(), finder, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	if err != nil || created.Route.Start.Title != "Sight" || created.Route.Stop.Title != "Sight" || len(finder.rows) != 2 {
 		t.Fatalf("route %+v rows %d err %v", created.Route, len(finder.rows), err)
 	}
@@ -291,13 +309,45 @@ func TestCreateRouteNeedsLandmarks(t *testing.T) {
 		t.Fatal("expected one lookup in a south edge cell and one in a north edge cell")
 	}
 
-	_, err = NewGameService(newMemoryRepository(), &fakeLandmarks{err: errors.New("down")}, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	_, err = NewGameService(newMemoryRepository(), &fakeLandmarks{err: errors.New("down")}, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	if !errors.Is(err, game.ErrLandmarksUnavailable) {
 		t.Fatalf("lookup failure: %v", err)
 	}
-	_, err = NewGameService(newMemoryRepository(), &fakeLandmarks{}, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	_, err = NewGameService(newMemoryRepository(), &fakeLandmarks{}, false).Create(context.Background(), center, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	if !errors.Is(err, game.ErrNoLandmark) {
 		t.Fatalf("no landmark: %v", err)
+	}
+}
+
+// cornerLandmarks "finds" the north-west corner of every rectangle it is asked
+// about; for a rotated cell that lies outside the cell.
+type cornerLandmarks struct{}
+
+func (cornerLandmarks) Landmarks(_ context.Context, cell game.Bounds) ([]game.Landmark, error) {
+	corner, _ := game.ParseCoordinates(cell.North, cell.West)
+	return []game.Landmark{{Coordinates: corner}}, nil
+}
+
+func TestCreateRotatedRouteKeepsLandmarksInTheirCell(t *testing.T) {
+	ctx := context.Background()
+	center, _ := game.ParseCoordinates(52.52, 13.405)
+	rotation, _ := game.ParseRotation(45)
+	created, err := NewGameService(newMemoryRepository(), centerLandmarks{}, false).Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), rotation, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := created.Playground
+	if p.Rotation() != rotation {
+		t.Fatalf("rotation = %d", p.Rotation().Degrees())
+	}
+	start, _ := p.CellAt(created.Route.Start.Coordinates)
+	stop, _ := p.CellAt(created.Route.Stop.Coordinates)
+	if !slices.Contains(p.SouthEdgeCells(), start) || !slices.Contains(p.NorthEdgeCells(), stop) {
+		t.Fatalf("route %s -> %s is not on the rotated edge rows", start, stop)
+	}
+	_, err = NewGameService(newMemoryRepository(), cornerLandmarks{}, false).Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), rotation, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	if !errors.Is(err, game.ErrNoLandmark) {
+		t.Fatalf("landmarks outside the rotated cells must be dropped: %v", err)
 	}
 }
 
@@ -313,7 +363,7 @@ func TestCreateChosenRoute(t *testing.T) {
 	finder := &fakeLandmarks{err: errors.New("must not be called")}
 	s := newService(newMemoryRepository(), time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC))
 	s.landmarks = finder
-	created, err := s.Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), &chosen)
+	created, err := s.Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), &chosen)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +380,7 @@ func TestCreateChosenRoute(t *testing.T) {
 
 	swapped := ChosenRoute{Start: chosen.Stop, Stop: chosen.Start}
 	var validation *game.ValidationError
-	if _, err := s.Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), &swapped); !errors.As(err, &validation) {
+	if _, err := s.Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), &swapped); !errors.As(err, &validation) {
 		t.Fatalf("route outside the edge rows accepted: %v", err)
 	}
 }
@@ -338,11 +388,12 @@ func TestCreateChosenRoute(t *testing.T) {
 func TestRegenerateRouteNeedsAnotherLandmark(t *testing.T) {
 	ctx := context.Background()
 	center, _ := game.ParseCoordinates(52.52, 13.405)
-	sight, _ := game.ParseCoordinates(52.5, 13.4)
-	finder := &fakeLandmarks{found: []game.Landmark{{Title: "Sight", Coordinates: sight}}}
+	p, _ := game.NewPlayground(center, game.DefaultCellSize(), game.DefaultGridSize())
+	// One landmark per edge: regenerating finds no other one.
+	finder := &fakeLandmarks{found: edgeSights(p, p.SouthEdgeCells()[1], p.NorthEdgeCells()[4])}
 	s := newService(newMemoryRepository(), time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC))
 	s.landmarks = finder
-	created, err := s.Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+	created, err := s.Create(ctx, center, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +437,7 @@ func TestHangingLookupStopsWithinTheBudget(t *testing.T) {
 			s := NewGameService(r, hangingLandmarks{}, false)
 			s.edgeTimeout, s.routeTimeout = tc.edge, tc.wholeRequest
 			began := time.Now()
-			_, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
+			_, err := s.Create(context.Background(), game.Coordinates{}, game.DefaultCellSize(), game.DefaultGridSize(), game.Rotation{}, game.DefaultRevealInterval(), game.DefaultJokerSettings(), nil)
 			if !errors.Is(err, game.ErrLandmarksUnavailable) || time.Since(began) > 5*time.Second || r.calls != 0 {
 				t.Fatalf("hanging lookup not stopped in time: %v after %v, %d saves", err, time.Since(began), r.calls)
 			}

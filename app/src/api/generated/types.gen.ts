@@ -52,6 +52,7 @@ export type ControllerCreateGameRequest = {
     latitude: number;
     longitude: number;
     revealIntervalMinutes: number;
+    rotationDegrees: number;
     route?: ControllerChosenRouteRequest;
 };
 
@@ -287,6 +288,7 @@ export type ControllerPlayground = {
     cellSizeMeters: number;
     center: ControllerCoordinates;
     columns: number;
+    rotationDegrees: number;
     rows: number;
 };
 
@@ -547,7 +549,7 @@ export type ControllerZoneRevealResponse = {
 
 export type CreateGameData = {
     /**
-     * All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults. Optional route: start in the southern and stop in the northern edge row, chosen instead of generated landmarks (untitled, cannot be regenerated)
+     * All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), rotationDegrees (0-359, clockwise; 0 is north-aligned), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults. Optional route: start in the southern (last) and stop in the northern (first) edge row of the grid, chosen instead of generated landmarks (untitled, cannot be regenerated)
      */
     body: ControllerCreateGameRequest;
     path?: never;
@@ -557,7 +559,7 @@ export type CreateGameData = {
 
 export type CreateGameErrors = {
     /**
-     * Invalid JSON, coordinates, cell size, or chosen route outside its edge rows
+     * Invalid JSON, coordinates, cell size, rotation, or chosen route outside its edge rows
      */
     400: ControllerApiError;
     /**

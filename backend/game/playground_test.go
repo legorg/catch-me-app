@@ -143,6 +143,23 @@ func TestRotatedPlaygroundDateLine(t *testing.T) {
 	}
 }
 
+// rotateGrid turns the lobby's grid by degrees around the same center, keeping
+// its size; it returns the north-aligned grid it replaced. The route and
+// positions stay where they are.
+func rotateGrid(t *testing.T, l *Lobby, degrees int) Playground {
+	t.Helper()
+	before := l.Game.Playground
+	rotation, err := ParseRotation(degrees)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Game.Playground, err = NewRotatedPlayground(before.Center(), before.CellSize(), before.GridSize(), rotation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return before
+}
+
 func TestRotatedCustomRoute(t *testing.T) {
 	p, err := rotatedPlayground(t, 52.52, 13.405, 2000, 6, 180)
 	if err != nil {

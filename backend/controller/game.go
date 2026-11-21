@@ -26,15 +26,15 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body CreateGameRequest
-	if !decodeJSON(w, r, &body, "expected a JSON object with latitude, longitude, cellSizeMeters, gridSize, revealIntervalMinutes, and jokers") {
+	if !decodeJSON(w, r, &body, "expected a JSON object with latitude, longitude, cellSizeMeters, gridSize, rotationDegrees, revealIntervalMinutes, and jokers") {
 		return
 	}
-	center, cellSize, gridSize, revealInterval, jokers, chosen, err := body.parse()
+	center, cellSize, gridSize, rotation, revealInterval, jokers, chosen, err := body.parse()
 	if err != nil {
 		writeGameError(w, err, "invalid game")
 		return
 	}
-	saved, err := c.service.Create(r.Context(), center, cellSize, gridSize, revealInterval, jokers, chosen)
+	saved, err := c.service.Create(r.Context(), center, cellSize, gridSize, rotation, revealInterval, jokers, chosen)
 	if err != nil {
 		writeGameError(w, err, "could not save game")
 		return
@@ -47,22 +47,26 @@ func (c *GameController) Create(w http.ResponseWriter, r *http.Request) {
 
 // parse checks every required field, including explicit per-kind allowances.
 // A chosen route is checked against the playground by the service.
-func (body CreateGameRequest) parse() (center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, jokers game.JokerSettings, chosen *service.ChosenRoute, err error) {
+func (body CreateGameRequest) parse() (center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, rotation game.Rotation, revealInterval game.RevealInterval, jokers game.JokerSettings, chosen *service.ChosenRoute, err error) {
 	if body.Latitude == nil || body.Longitude == nil {
-		return center, cellSize, gridSize, revealInterval, jokers, nil, &game.ValidationError{Message: "latitude and longitude are required"}
+		return center, cellSize, gridSize, rotation, revealInterval, jokers, nil, &game.ValidationError{Message: "latitude and longitude are required"}
+	}
+	if body.RotationDegrees == nil {
+		return center, cellSize, gridSize, rotation, revealInterval, jokers, nil, &game.ValidationError{Message: "rotationDegrees is required"}
 	}
 	center, err1 := game.ParseCoordinates(*body.Latitude, *body.Longitude)
 	cellSize, err2 := game.ParseCellSize(body.CellSizeMeters)
 	gridSize, err3 := game.ParseGridSize(body.GridSize)
 	revealInterval, err4 := game.ParseRevealInterval(body.RevealIntervalMinutes)
 	jokers, err5 := body.Jokers.parse()
+	rotation, err8 := game.ParseRotation(*body.RotationDegrees)
 	var err6, err7 error
 	if body.Route != nil {
 		chosen = &service.ChosenRoute{}
 		chosen.Start, err6 = game.ParseCoordinates(body.Route.Start.Latitude, body.Route.Start.Longitude)
 		chosen.Stop, err7 = game.ParseCoordinates(body.Route.Stop.Latitude, body.Route.Stop.Longitude)
 	}
-	return center, cellSize, gridSize, revealInterval, jokers, chosen, errors.Join(err1, err2, err3, err4, err5, err6, err7)
+	return center, cellSize, gridSize, rotation, revealInterval, jokers, chosen, errors.Join(err1, err2, err3, err4, err5, err6, err7, err8)
 }
 
 func gameResponse(saved game.Game) GameResponse {
@@ -91,6 +95,7 @@ func playgroundResponse(p game.Playground) Playground {
 		Center: coordinatesResponse(p.Center()),
 		Bounds: Bounds(p.Bounds()),
 		Rows:   p.Rows(), Columns: p.Columns(), CellSizeMeters: p.CellSize().Meters(),
+		RotationDegrees: p.Rotation().Degrees(),
 	}
 }
 

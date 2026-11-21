@@ -69,6 +69,9 @@ type CreateGameRequest struct {
 	CellSizeMeters int      `json:"cellSizeMeters" minimum:"100" maximum:"5000" multipleOf:"100" example:"2000"`
 	// Cells per side of the square grid.
 	GridSize int `json:"gridSize" minimum:"3" maximum:"12" example:"6"`
+	// How far the grid is turned clockwise around its center, in whole
+	// degrees; 0 is north-aligned.
+	RotationDegrees *int `json:"rotationDegrees" minimum:"0" maximum:"359" example:"0"`
 	// How often hunters receive the runners' positions.
 	RevealIntervalMinutes int            `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
 	Jokers                *JokerSettings `json:"jokers"`
@@ -77,20 +80,24 @@ type CreateGameRequest struct {
 	Route *ChosenRouteRequest `json:"route,omitempty"`
 }
 
-// ChosenRouteRequest places the start in the southern edge row of the grid and
-// the stop in the northern edge row. Such a route has no landmark titles and
+// ChosenRouteRequest places the start in the southern edge row of the grid
+// (the last row) and the stop in the northern edge row (row 1); on a rotated
+// grid these rows turn with it. Such a route has no landmark titles and
 // cannot be regenerated.
 type ChosenRouteRequest struct {
 	Start Coordinates `json:"start"`
 	Stop  Coordinates `json:"stop"`
 }
 
+// Playground is a square grid turned by rotationDegrees clockwise around its
+// center. Bounds is the grid before rotation; for 0 it is the grid itself.
 type Playground struct {
-	Center         Coordinates `json:"center"`
-	Bounds         Bounds      `json:"bounds"`
-	Rows           int         `json:"rows" minimum:"3" maximum:"12" example:"6"`
-	Columns        int         `json:"columns" minimum:"3" maximum:"12" example:"6"`
-	CellSizeMeters int         `json:"cellSizeMeters" minimum:"100" maximum:"5000" multipleOf:"100" example:"2000"`
+	Center          Coordinates `json:"center"`
+	Bounds          Bounds      `json:"bounds"`
+	Rows            int         `json:"rows" minimum:"3" maximum:"12" example:"6"`
+	Columns         int         `json:"columns" minimum:"3" maximum:"12" example:"6"`
+	CellSizeMeters  int         `json:"cellSizeMeters" minimum:"100" maximum:"5000" multipleOf:"100" example:"2000"`
+	RotationDegrees int         `json:"rotationDegrees" minimum:"0" maximum:"359" example:"0"`
 }
 
 type Landmark struct {

@@ -48,6 +48,30 @@ func TestFakePositionJokerRules(t *testing.T) {
 	}
 }
 
+func TestFakePositionUsesTheRotatedGrid(t *testing.T) {
+	l, runner, _, _, _, running := jokerLobby(t)
+	northAligned := rotateGrid(t, &l, 45)
+	at := running.Add(time.Second)
+	var validation *ValidationError
+	// The north-aligned corner lies outside a grid turned by 45°.
+	b := northAligned.Bounds()
+	corner, _ := ParseCoordinates(b.North-0.0001, b.West+0.0001)
+	if _, inside := northAligned.CellAt(corner); !inside {
+		t.Fatal("the corner must lie inside the north-aligned grid")
+	}
+	if err := l.UseJoker(runner.ID, FakePosition{Point: corner}, at); !errors.As(err, &validation) {
+		t.Fatalf("a point outside the rotated grid must be rejected: %v", err)
+	}
+	// The center of A1 sticks out beyond the north-aligned grid.
+	a1 := cellCenter(l.Game.Playground, Cell{})
+	if _, inside := northAligned.CellAt(a1); inside {
+		t.Fatal("A1 must lie outside the north-aligned grid")
+	}
+	if err := l.UseJoker(runner.ID, FakePosition{Point: a1}, at); err != nil {
+		t.Fatalf("a point inside the rotated grid must be accepted: %v", err)
+	}
+}
+
 func TestPersonalFakePositionStillBlocksAnotherPendingRevealJoker(t *testing.T) {
 	l, runner, _, _, _, running := jokerLobby(t)
 	point := cellCenter(l.Game.Playground, Cell{})
