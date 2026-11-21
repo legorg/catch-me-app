@@ -76,7 +76,7 @@
   "create.centerInvalid": "Invalid playground center.",
   "create.pickCenter": "Pan the map to move the grid onto your playing area, or tap to place it.",
   "create.checkGrid": "Check the entire grid is suitable and permitted for outdoor play, then create the game.",
-  "create.center": "Center: {latitude}, {longitude} · Columns A–{lastColumn}, rows 1–{rows} from north to south",
+  "create.center": "Center: {latitude}, {longitude} · Rows A–{lastRow} from north to south, columns 1–{columns} from west to east",
   "create.create": "Create game",
   "create.creating": "Creating game and finding landmarks for the route (this can take a few seconds)...",
   "create.creatingChosen": "Creating game...",

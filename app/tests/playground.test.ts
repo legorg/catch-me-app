@@ -8,12 +8,12 @@ import {
 
 test('a chosen route starts in the southern and stops in the northern edge row', () => {
   const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 4);
-  assert.deepEqual(rowCells(p, 1), ['A1', 'B1', 'C1', 'D1']);
-  assert.deepEqual(rowCells(p, 4), ['A4', 'B4', 'C4', 'D4']);
+  assert.deepEqual(rowCells(p, 1), ['A1', 'A2', 'A3', 'A4']);
+  assert.deepEqual(rowCells(p, 4), ['D1', 'D2', 'D3', 'D4']);
   const centers = new Map(cellLabels(p).map(({ label, coordinate }) => [label, coordinate]));
-  assert.equal(routePointAt(p, centers.get('B4')!), 'start');
-  assert.equal(routePointAt(p, centers.get('D1')!), 'stop');
-  assert.equal(routePointAt(p, centers.get('C2')!), null);
+  assert.equal(routePointAt(p, centers.get('D2')!), 'start');
+  assert.equal(routePointAt(p, centers.get('A4')!), 'stop');
+  assert.equal(routePointAt(p, centers.get('B3')!), null);
   assert.equal(routePointAt(p, { latitude: p.bounds.south - 0.001, longitude: p.center.longitude }), null);
 });
 
@@ -42,8 +42,8 @@ test('cell bounds match the labeled grid cells', () => {
   for (const label of ['G1', 'A7', 'A0', 'a1', '']) {
     assert.throws(() => cellBounds(p, label), /Unknown cell/);
   }
-  assert.equal(edgeName(p, 'B1'), 'north edge');
-  assert.equal(edgeName(p, 'E6'), 'south edge');
+  assert.equal(edgeName(p, 'A2'), 'north edge');
+  assert.equal(edgeName(p, 'F5'), 'south edge');
   assert.equal(edgeName(p, 'C3'), 'inside');
 });
 
@@ -63,8 +63,8 @@ test('the grid size sets the rows, columns, labels and cells', () => {
   }
   const large = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 12);
   assert.equal(cellAt(large, { latitude: large.bounds.south, longitude: large.bounds.east }), 'L12');
-  assert.equal(edgeName(large, 'A11'), 'inside');
-  assert.equal(edgeName(large, 'A12'), 'south edge');
+  assert.equal(edgeName(large, 'K1'), 'inside');
+  assert.equal(edgeName(large, 'L1'), 'south edge');
   for (const label of ['M1', 'A13', 'A01']) {
     assert.throws(() => cellBounds(large, label), /Unknown cell/);
   }
@@ -136,8 +136,8 @@ test('grid has four corners, ten interior lines, and 36 correctly ordered labels
   assert.equal(labels.length, 36);
   assert.equal(new Set(labels.map((c) => c.label)).size, 36);
   assert.equal(labels[0].label, 'A1');
-  assert.equal(labels[5].label, 'F1');
-  assert.equal(labels[30].label, 'A6');
+  assert.equal(labels[5].label, 'A6');
+  assert.equal(labels[30].label, 'F1');
   assert.equal(labels[35].label, 'F6');
   assert.ok(labels[0].coordinate.latitude > labels[30].coordinate.latitude);
   assert.ok(labels[0].coordinate.longitude < labels[5].coordinate.longitude);
@@ -160,18 +160,18 @@ test('a rotated grid keeps its cells, labels and edge rows', () => {
       assert.deepEqual(coordinate, cellCenter(p, label));
     }
     const centers = new Map(cellLabels(p).map(({ label, coordinate }) => [label, coordinate]));
-    assert.equal(routePointAt(p, centers.get('B4')!), 'start');
-    assert.equal(routePointAt(p, centers.get('D1')!), 'stop');
-    assert.equal(routePointAt(p, centers.get('C2')!), null);
+    assert.equal(routePointAt(p, centers.get('D2')!), 'start');
+    assert.equal(routePointAt(p, centers.get('A4')!), 'stop');
+    assert.equal(routePointAt(p, centers.get('B3')!), null);
   }
 });
 
 test('a rotated grid turns clockwise around its center', () => {
   const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 4, 90);
-  // Turned by 90°, row 1 lies in the east and column A in the north.
+  // Turned by 90°, row A lies in the east and column 1 in the north.
   const a1 = cellCenter(p, 'A1');
   assert.ok(a1.latitude > p.center.latitude && a1.longitude > p.center.longitude);
-  assert.equal(cellAt(p, { latitude: p.center.latitude, longitude: p.bounds.east - 0.001 })?.slice(1), '1');
+  assert.equal(cellAt(p, { latitude: p.center.latitude, longitude: p.bounds.east - 0.001 })?.charAt(0), 'A');
   // The corners of the playground and of each cell turn with it and keep the center in the middle.
   const corners = playgroundCorners(p);
   assert.equal(corners.length, 4);

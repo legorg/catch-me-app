@@ -46,7 +46,7 @@ export default function CreateScreen() {
       {playground && <Text style={styles.text}>
         {t('create.center', {
           latitude: playground.center.latitude.toFixed(6), longitude: playground.center.longitude.toFixed(6),
-          lastColumn: String.fromCharCode(64 + playground.columns), rows: playground.rows,
+          lastRow: String.fromCharCode(64 + playground.rows), columns: playground.columns,
         })}
       </Text>}
       {!created && <RouteChoiceCard mode={game.routeMode} onModeChange={game.setRouteMode} playground={playground}

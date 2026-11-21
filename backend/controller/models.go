@@ -22,7 +22,7 @@ type PlayerID string
 // SketchID is the 32-character hex ID of a sketch.
 type SketchID string
 
-// Cell is a playground cell: column A-L, then row 1-12, within the game's grid.
+// Cell is a playground cell: row A-L, then column 1-12, within the game's grid.
 type Cell string
 
 type Team game.Team
@@ -311,7 +311,7 @@ type ShowRunnersRequest struct {
 
 type QueryZoneRequest struct {
 	Kind JokerKind `json:"kind" enum:"queryZone"`
-	// The cell to query: column A-L, then row 1-12, within the game's grid.
+	// The cell to query: row A-L, then column 1-12, within the game's grid.
 	Cell Cell `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" minLength:"2" maxLength:"3" example:"C4"`
 }
 

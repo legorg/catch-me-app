@@ -60,7 +60,7 @@ export function isValidRotation(degrees: unknown): degrees is number {
   return Number.isInteger(degrees) && (degrees as number) >= 0 && (degrees as number) < 360;
 }
 
-/** The grid rotation that puts row 1 on top of a map whose top points to heading (degrees clockwise from north). */
+/** The grid rotation that puts row A on top of a map whose top points to heading (degrees clockwise from north). */
 export function rotationFromHeading(heading: number): number {
   return ((Math.round(heading) % 360) + 360) % 360;
 }
@@ -164,19 +164,19 @@ export function gridLines(p: Playground): Coordinates[][] {
 
 export function cellLabels(p: Playground) {
   return Array.from({ length: p.rows * p.columns }, (_, index) => {
-    const label = `${String.fromCharCode(65 + index % p.columns)}${Math.floor(index / p.columns) + 1}`;
+    const label = `${String.fromCharCode(65 + Math.floor(index / p.columns))}${index % p.columns + 1}`;
     return { label, coordinate: cellCenter(p, label) };
   });
 }
 
 /**
- * Bounds of a cell such as "C4" in the unrotated grid (columns A, B, … west to east, rows 1, 2, … north to south);
+ * Bounds of a cell such as "C4" in the unrotated grid (rows A, B, … north to south, columns 1, 2, … west to east);
  * use cellCorners or cellCenter for the map.
  */
 export function cellBounds(p: Playground, label: string): Bounds {
-  const column = label.charCodeAt(0) - 65;
-  const row = Number(label.slice(1)) - 1;
-  if (!/^[A-L](?:[1-9]|1[0-2])$/.test(label) || column >= p.columns || row >= p.rows) {
+  const row = label.charCodeAt(0) - 65;
+  const column = Number(label.slice(1)) - 1;
+  if (!/^[A-L](?:[1-9]|1[0-2])$/.test(label) || row >= p.rows || column >= p.columns) {
     throw new Error(translate('playground.unknownCell', { cell: label }));
   }
   const height = (p.bounds.north - p.bounds.south) / p.rows;
@@ -188,7 +188,7 @@ export function cellBounds(p: Playground, label: string): Bounds {
 
 /** Which playground edge a cell in the first or last row lies on. */
 export function edgeName(p: Playground, label: string): string {
-  const row = Number(label.slice(1));
+  const row = label.charCodeAt(0) - 64;
   return translate(row === 1 ? 'playground.northEdge' : row === p.rows ? 'playground.southEdge' : 'playground.inside');
 }
 
@@ -202,12 +202,12 @@ export function cellAt(p: Playground, point: Coordinates): string | null {
   }
   const row = Math.min(Math.floor((b.north - c.latitude) / (b.north - b.south) * p.rows), p.rows - 1);
   const column = Math.min(Math.floor((c.longitude - b.west) / (b.east - b.west) * p.columns), p.columns - 1);
-  return `${String.fromCharCode(65 + column)}${row + 1}`;
+  return `${String.fromCharCode(65 + row)}${column + 1}`;
 }
 
 /** Labels of the cells in one row of the grid (1 is the northern row). */
 export function rowCells(p: Playground, row: number): string[] {
-  return Array.from({ length: p.columns }, (_, column) => `${String.fromCharCode(65 + column)}${row}`);
+  return Array.from({ length: p.columns }, (_, column) => `${String.fromCharCode(64 + row)}${column + 1}`);
 }
 
 /**
@@ -217,6 +217,6 @@ export function rowCells(p: Playground, row: number): string[] {
 export function routePointAt(p: Playground, c: Coordinates): 'start' | 'stop' | null {
   const cell = cellAt(p, c);
   if (!cell) return null;
-  const row = Number(cell.slice(1));
+  const row = cell.charCodeAt(0) - 64;
   return row === p.rows ? 'start' : row === 1 ? 'stop' : null;
 }

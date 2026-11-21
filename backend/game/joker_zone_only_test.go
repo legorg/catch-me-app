@@ -65,7 +65,7 @@ func TestZoneOnlyHidesThePositionOfTheNextRevealOnly(t *testing.T) {
 	if len(got) != 3 || got[0] != (PositionReveal{At: first, Position: inC6}) || got[2] != (PositionReveal{At: third, Position: inC4}) {
 		t.Fatalf("only the next reveal is affected: %+v", got)
 	}
-	if got[1] != (ZoneReveal{At: second, Cell: Cell{column: 2, row: 3}}) {
+	if got[1] != (ZoneReveal{At: second, Cell: Cell{column: 3, row: 2}}) {
 		t.Fatalf("the next reveal shows only the cell at the reveal time: %+v", got[1])
 	}
 	if l.Reveals[runner.ID][1].Position != inC4 {

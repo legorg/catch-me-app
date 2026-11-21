@@ -117,13 +117,13 @@ function LocatedCard({ state }: { state: GameStateResponse }) {
   );
 }
 
-/** The game's grid as buttons, laid out like the map: columns A, B, … west to east, rows 1, 2, … north to south. */
+/** The game's grid as buttons, laid out like the map: rows A, B, … north to south, columns 1, 2, … west to east. */
 function CellPicker({ playground, selected, onSelect, disabled }: {
   playground: Playground; selected: string | null; onSelect: (cell: string) => void; disabled: boolean;
 }) {
   const t = useT();
-  const columns = Array.from({ length: playground.columns }, (_, i) => String.fromCharCode(65 + i));
-  const rows = Array.from({ length: playground.rows }, (_, i) => String(i + 1));
+  const rows = Array.from({ length: playground.rows }, (_, i) => String.fromCharCode(65 + i));
+  const columns = Array.from({ length: playground.columns }, (_, i) => String(i + 1));
   // Many narrow buttons need a smaller label to fit names like "L12".
   const small = playground.columns > 8;
   return (
@@ -132,7 +132,7 @@ function CellPicker({ playground, selected, onSelect, disabled }: {
       {rows.map((row) => (
         <View key={row} style={[picker.row, small && picker.rowTight]}>
           {columns.map((column) => {
-            const cell = column + row;
+            const cell = row + column;
             const active = cell === selected;
             return (
               <Pressable

@@ -44,7 +44,7 @@ func TestGenerateCompletedGame(t *testing.T) {
 	}
 	startCell, _ := result.Playground.CellAt(result.Route.Start.Coordinates)
 	stopCell, _ := result.Playground.CellAt(result.Route.Stop.Coordinates)
-	if !strings.HasSuffix(startCell.String(), "6") || !strings.HasSuffix(stopCell.String(), "1") {
+	if !strings.HasPrefix(startCell.String(), "F") || !strings.HasPrefix(stopCell.String(), "A") {
 		t.Fatal("route must connect the southern and northern edge rows")
 	}
 	teams := map[string]int{}

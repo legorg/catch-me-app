@@ -76,7 +76,7 @@
   "create.centerInvalid": "Ungültiger Mittelpunkt.",
   "create.pickCenter": "Verschiebe die Karte, um das Raster auf dein Spielfeld zu legen, oder tippe, um es zu platzieren.",
   "create.checkGrid": "Prüfe, ob das ganze Raster zum Spielen im Freien geeignet und erlaubt ist, und erstelle dann das Spiel.",
-  "create.center": "Mittelpunkt: {latitude}, {longitude} · Spalten A–{lastColumn}, Zeilen 1–{rows} von Nord nach Süd",
+  "create.center": "Mittelpunkt: {latitude}, {longitude} · Zeilen A–{lastRow} von Nord nach Süd, Spalten 1–{columns} von West nach Ost",
   "create.create": "Spiel erstellen",
   "create.creating": "Spiel wird erstellt, Sehenswürdigkeiten für die Route werden gesucht (das kann ein paar Sekunden dauern)...",
   "create.creatingChosen": "Spiel wird erstellt...",

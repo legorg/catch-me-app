@@ -9,27 +9,27 @@ import (
 // game's route.
 const MaxRouteRegenerations = 2
 
-// Cell is one grid cell: columns A, B, … from west to east, rows 1, 2, … from
-// north to south. Whether it lies in a game's grid is Playground.HasCell.
+// Cell is one grid cell: rows A, B, … from north to south, columns 1, 2, … from
+// west to east. Whether it lies in a game's grid is Playground.HasCell.
 type Cell struct{ column, row int }
 
 // ParseCell accepts any string-based type, e.g. a wire-format cell: a column
-// A-L followed by a row 1-12, the largest grid.
+// A-L followed by a column 1-12, the largest grid.
 func ParseCell[S ~string](value S) (Cell, error) {
 	label := string(value)
-	invalid := &ValidationError{Message: "cell must be a column A-L followed by a row 1-12"}
+	invalid := &ValidationError{Message: "cell must be a row A-L followed by a column 1-12"}
 	if len(label) < 2 || label[0] < 'A' || label[0] >= 'A'+maxGridSize {
 		return Cell{}, invalid
 	}
 	// The round trip rejects forms like "01" or "+1".
-	row, err := strconv.Atoi(label[1:])
-	if err != nil || row < 1 || row > maxGridSize || strconv.Itoa(row) != label[1:] {
+	column, err := strconv.Atoi(label[1:])
+	if err != nil || column < 1 || column > maxGridSize || strconv.Itoa(column) != label[1:] {
 		return Cell{}, invalid
 	}
-	return Cell{column: int(label[0] - 'A'), row: row - 1}, nil
+	return Cell{column: column - 1, row: int(label[0] - 'A')}, nil
 }
 
-func (c Cell) String() string { return fmt.Sprintf("%c%d", 'A'+c.column, c.row+1) }
+func (c Cell) String() string { return fmt.Sprintf("%c%d", 'A'+c.row, c.column+1) }
 
 // ParseRouteRegenerations accepts how often a game's route was replaced.
 func ParseRouteRegenerations(used int) (int, error) {
