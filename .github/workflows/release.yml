@@ -64,8 +64,8 @@ jobs:
         run: npm run test:api
 
       # Builds run on EAS with its production environment variables and stored credentials.
-      # iOS only until Android Play credentials are set up; then switch to --platform all.
+      # Android submits to the Play internal track with the service account key stored on EAS.
       - name: Start EAS production build with auto-submit
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx eas build --platform ios --profile production --auto-submit --non-interactive --no-wait
+        run: npx eas build --platform all --profile production --auto-submit --non-interactive --no-wait
