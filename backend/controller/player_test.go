@@ -106,10 +106,14 @@ func TestGameStateShowsOnlyTheZoneAfterTheZoneJoker(t *testing.T) {
 	if got := jsonOf(t, reveals); got != want {
 		t.Fatalf("only the reveal after the joker shows just the cell:\n got %s\nwant %s", got, want)
 	}
-	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
+	adaState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: ada, Now: now}).Runner()
 	want = `{"kind":"zoneOnly","available":false,"uses":[{"usedAt":"2026-11-08T12:01:01Z","usedBy":"` + ada.ID.String() + `"}]}`
-	if got := jsonOf(t, cyState.Jokers[0]); len(cyState.Jokers) != 3 || got != want {
-		t.Fatalf("every runner sees who used the runner joker:\n got %s\nwant %s", got, want)
+	if got := jsonOf(t, adaState.Jokers[0]); len(adaState.Jokers) != 3 || got != want {
+		t.Fatalf("the runner sees their own use:\n got %s\nwant %s", got, want)
+	}
+	cyState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: cy, Now: now}).Runner()
+	if got := jsonOf(t, cyState.Jokers[0]); got != `{"kind":"zoneOnly","available":true,"uses":[]}` {
+		t.Fatalf("another runner keeps their own allowance: %s", got)
 	}
 }
 

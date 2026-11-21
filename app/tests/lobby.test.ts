@@ -666,7 +666,7 @@ test('a reveal joker is pending until the next reveal only when the player used 
   // Used exactly at the last reveal: acts at the next one.
   assert.equal(pendingRevealJokerAt({ ...running, jokers: [zoneOnly(state.playerId, '2026-11-08T12:30:10Z')] }), '2026-11-08T13:00:10Z');
   assert.equal(pendingRevealJokerAt({ ...running, jokers: [zoneOnly(state.playerId, '2026-11-08T12:29:00Z')] }), null);
-  // Another runner's shared zoneOnly does not block this runner.
+  // Another runner's zoneOnly does not block this runner.
   assert.equal(pendingRevealJokerAt({ ...running, jokers: [zoneOnly('c'.repeat(32), '2026-11-08T12:31:00Z')] }), null);
   assert.equal(pendingRevealJokerAt({ ...running, jokers: [{ kind: 'showHunters', available: true, uses: [{ usedBy: state.playerId, usedAt: '2026-11-08T12:31:00Z', positions: [] }] }] }), null);
   assert.equal(pendingRevealJokerAt({ ...state, jokers: [zoneOnly(state.playerId, '2026-11-08T12:31:00Z')] }), null);

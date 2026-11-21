@@ -522,7 +522,7 @@ type GameStateRunnerResponse struct {
 	Route GameRoute `json:"route"`
 	// How often the runners together may still regenerate the route.
 	RouteRegenerationsLeft int `json:"routeRegenerationsLeft" minimum:"0" maximum:"2" example:"2"`
-	// Shared runner team jokers and the requesting runner's personal fake position joker.
+	// The shared runner team joker and the requesting runner's personal zone only and fake position jokers.
 	Jokers []JokerResponse `json:"jokers" maxItems:"3"`
 	// The requesting runner's own zone alerts, oldest first: at most one per hunter.
 	ZoneAlerts []ZoneAlertResponse `json:"zoneAlerts" maxItems:"29"`

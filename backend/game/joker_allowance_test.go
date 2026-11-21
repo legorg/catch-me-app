@@ -125,6 +125,16 @@ func TestMultipleUsesKeepTheirOwnershipAndResults(t *testing.T) {
 	if err := l.UseJoker(cy.ID, FakePosition{Point: points[0]}, second); err != nil {
 		t.Fatalf("another runner must still be able to use a personal joker: %v", err)
 	}
+	// Zone only is personal too: each runner has the whole allowance.
+	third := second.Add(revealInterval)
+	for _, actor := range []Player{runner, cy} {
+		if err := l.UseJoker(actor.ID, ZoneOnly{}, third); err != nil {
+			t.Fatalf("every runner has their own zone only allowance: %v", err)
+		}
+	}
+	if got := jokerWithKind(t, l, cy, JokerZoneOnly, third); len(got.Uses) != 1 || got.Uses[0] != (ZoneOnlyUse{Runner: cy.ID, At: third}) {
+		t.Fatalf("a runner sees only their own zone only uses: %+v", got)
+	}
 	if got := l.JokersFor(Player{Team: Spectators}, second); len(got) != 0 {
 		t.Fatalf("spectators must not receive joker histories: %+v", got)
 	}

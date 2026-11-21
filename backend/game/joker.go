@@ -16,8 +16,12 @@ var hunterJokers = []JokerKind{JokerShowRunners, JokerQueryZone, JokerCompass, J
 // revealJokers are the runner jokers that act on the user's next reveal.
 var revealJokers = []JokerKind{JokerZoneOnly, JokerFakePosition}
 
-// runnerJokers are the runners' jokers, in display order. Fake position is personal.
+// runnerJokers are the runners' jokers, in display order.
 var runnerJokers = []JokerKind{JokerZoneOnly, JokerFakePosition, JokerShowHunters}
+
+// personalJokers are the runner jokers whose allowance each runner has on their own;
+// the other runner jokers share one allowance among all runners.
+var personalJokers = []JokerKind{JokerZoneOnly, JokerFakePosition}
 
 // ParseJokerKind accepts any string-based type, e.g. a wire-format kind.
 func ParseJokerKind[S ~string](value S) (JokerKind, error) {
@@ -86,8 +90,8 @@ type jokerState struct {
 	Uses      []JokerUse
 }
 
-// UseJoker spends a configured use while the game runs. Fake position is
-// personal; other jokers spend the runner team's or hunter team's allowance.
+// UseJoker spends a configured use while the game runs. Personal jokers spend
+// the runner's own allowance; other jokers the runner team's or hunter team's.
 func (l *Lobby) UseJoker(id PlayerID, choice JokerChoice, now time.Time) error {
 	if choice == nil {
 		return &ValidationError{Message: "unknown joker"}
@@ -188,7 +192,7 @@ func (l Lobby) JokersFor(viewer Player, now time.Time) []jokerState {
 }
 
 // jokerUses selects all uses in stored order belonging to the viewer's scope.
-// Shared runner jokers include every runner's uses; fake position is personal.
+// Shared runner jokers include every runner's uses; personal jokers only the viewer's.
 // Hunter team names ignore case. No other team's history is returned.
 func (l Lobby) jokerUses(viewer Player, kind JokerKind) []JokerUse {
 	var uses []JokerUse
@@ -202,7 +206,7 @@ func (l Lobby) jokerUses(viewer Player, kind JokerKind) []JokerUse {
 				uses = append(uses, use)
 			}
 		case Runners:
-			if u, ok := use.(runnerJokerUse); ok && (kind != JokerFakePosition || u.runner() == viewer.ID) {
+			if u, ok := use.(runnerJokerUse); ok && (!slices.Contains(personalJokers, kind) || u.runner() == viewer.ID) {
 				uses = append(uses, use)
 			}
 		}

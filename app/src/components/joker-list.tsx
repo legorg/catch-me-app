@@ -28,7 +28,7 @@ export default function JokerList({ state, error, onUse }: {
 }) {
   const t = useT();
   const { confirming, cell, setCell, point, setPoint, busy, ready, missing, use, cancel, start } = useJokerUse(state.playground, onUse);
-  const confirmKey = confirming === 'fakePosition' ? 'joker.confirmPersonal' : state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
+  const confirmKey = confirming === 'fakePosition' || confirming === 'zoneOnly' ? 'joker.confirmPersonal' : state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
   const pointCell = point && cellAt(state.playground, point);
   // The compass starts at the hunter's own position; the server refuses it without one.
   const hasPosition = !!state.players.find((p) => p.playerId === state.playerId)?.position;

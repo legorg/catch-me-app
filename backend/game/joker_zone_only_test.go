@@ -22,11 +22,14 @@ func TestZoneOnlyJokerRules(t *testing.T) {
 	if err := l.UseJoker(runner.ID, zoneOnly, at); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.UseJoker(cy.ID, zoneOnly, at.Add(time.Minute)); !errors.As(err, &rule) {
-		t.Fatalf("the runners share one use: %v", err)
+	if got := l.JokersFor(runner, at); len(got) != 3 || got[0].Available || len(got[0].Uses) != 1 || got[0].Uses[0] != (ZoneOnlyUse{Runner: runner.ID, At: at}) {
+		t.Fatalf("the runner sees their own use and has none left: %+v", got)
 	}
-	if got := l.JokersFor(cy, at); len(got) != 3 || got[0].Available || len(got[0].Uses) != 1 || got[0].Uses[0] != (ZoneOnlyUse{Runner: runner.ID, At: at}) || !got[1].Available {
-		t.Fatalf("every runner sees who used it and when: %+v", got)
+	if got := l.JokersFor(cy, at); !got[0].Available || len(got[0].Uses) != 0 {
+		t.Fatalf("another runner neither sees nor spends it: %+v", got)
+	}
+	if err := l.UseJoker(cy.ID, zoneOnly, at.Add(time.Minute)); err != nil {
+		t.Fatalf("every runner has their own use: %v", err)
 	}
 	for _, j := range l.JokersFor(bob, at) {
 		if j.Kind == JokerZoneOnly || !j.Available {
