@@ -43,6 +43,7 @@
   "replay.pause": "Pause",
   "replay.speed": "{speed}×",
   "replay.time": "{at} / {total} (Min:Sek)",
+  "replay.clockTime": "Uhrzeit: {time}",
   "replay.scrubber": "Spielzeit",
   "replay.legend": "Jeder Punkt ist ein Spieler mit dem Anfangsbuchstaben seines Namens und einer Linie seiner letzten 30 Minuten. Die blaue und die rote Stecknadel markieren Start und Ziel.",
   "create.chooseTitle": "Wähle dein Spielfeld",

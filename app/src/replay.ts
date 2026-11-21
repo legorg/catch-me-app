@@ -1,4 +1,5 @@
 import type { Coordinates, GameResultResponse } from './api/types';
+import { getLanguage } from './i18n';
 import { SPECTATOR_COLORS } from './lobby';
 
 /** Game time shown behind each player as a tail. */
@@ -14,6 +15,13 @@ export type ReplayTrack = { playerId: string; name: string; color: string; point
 
 /** One legend row: the runners, or one hunter team (without a name for hunters who never chose one). */
 export type ReplayLegendEntry = { key: string; team: 'runner' | 'hunter'; hunterTeam?: string; color: string };
+
+/** Local clock time of the same game moment used by the replay map and scrubber. */
+export function formatReplayTime(startsAt: string, at: number): string {
+  return new Date(Date.parse(startsAt) + at).toLocaleTimeString(getLanguage(), {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  });
+}
 
 /** Runners first, then every hunter team in join order of its first member, each with its color. */
 export function replayLegend(result: GameResultResponse): ReplayLegendEntry[] {
