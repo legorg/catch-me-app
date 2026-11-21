@@ -224,6 +224,7 @@
   "timeline.hunterJokerUsed": "Hunter team {team} used “{joker}”",
   "timeline.runnerJokerUsed": "{name} used “{joker}”",
   "timeline.trapTriggered": "A runner walked into hunter team {team}'s trap",
+  "timeline.zoneAlert": "{name} was warned: {hunter} ({team}) was in the same zone",
   "timeline.runnerCaught": "{name} was caught",
   "timeline.runnerFinished": "{name} reached the destination",
   "timeline.gameEnded": "The game ended",

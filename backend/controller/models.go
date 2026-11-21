@@ -506,6 +506,16 @@ type GameStateRunnerResponse struct {
 	RouteRegenerationsLeft int `json:"routeRegenerationsLeft" minimum:"0" maximum:"2" example:"2"`
 	// Shared runner team jokers and the requesting runner's personal fake position joker.
 	Jokers []JokerResponse `json:"jokers" maxItems:"3"`
+	// The requesting runner's own zone alerts, oldest first: at most one per hunter.
+	ZoneAlerts []ZoneAlertResponse `json:"zoneAlerts" maxItems:"29"`
+}
+
+// ZoneAlertResponse tells a runner that a hunter was in their cell, never where
+// exactly. The hunter's name and team are in the game state's players.
+type ZoneAlertResponse struct {
+	At       time.Time `json:"at" example:"2026-11-08T12:23:05Z"`
+	HunterID PlayerID  `json:"hunterId" minLength:"32" maxLength:"32" example:"8899aabbccddeeff0011223344556677"`
+	Cell     Cell      `json:"cell" pattern:"^[A-L]([1-9]|1[0-2])$" minLength:"2" maxLength:"3" example:"C4"`
 }
 
 // GameStateHunterResponse is the game as seen by a hunter.

@@ -22,7 +22,7 @@ func TestJokerSettingsResponseIncludesEveryConfiguredAllowance(t *testing.T) {
 		Trap: game.TrapSettings{JokerAllowance: allowance(3)}, ZoneOnly: allowance(4),
 		FakePosition: allowance(5), ShowHunters: allowance(0),
 	}
-	want := `{"showRunners":{"allowance":0},"queryZone":{"allowance":1},"compass":{"allowance":2},"trap":{"allowance":3},"zoneOnly":{"allowance":4},"fakePosition":{"allowance":5},"showHunters":{"allowance":0}}`
+	want := `{"showRunners":{"allowance":0},"queryZone":{"allowance":1},"compass":{"allowance":2},"trap":{"allowance":3},"zoneOnly":{"allowance":4},"fakePosition":{"allowance":5},"showHunters":{"allowance":0},"zoneAlert":{"enabled":false}}`
 	if got := jsonOf(t, jokerSettingsResponse(settings)); got != want {
 		t.Fatalf("configured allowances changed:\n got %s\nwant %s", got, want)
 	}

@@ -11,6 +11,7 @@ const events: TimelineEvent[] = [
   { kind: 'hunterJokerUsed', at: '2026-11-18T12:07:00Z', hunterTeam: 'Wolves', joker: 'showRunners' },
   { kind: 'runnerJokerUsed', at: '2026-11-18T12:08:00Z', runner: ada, joker: 'zoneOnly' },
   { kind: 'trapTriggered', at: '2026-11-18T12:20:00Z', hunterTeam: 'Wolves' },
+  { kind: 'zoneAlert', at: '2026-11-18T12:25:00Z', runner: ada, hunter: { playerId: 'c'.repeat(32), name: 'Eve' }, hunterTeam: 'Wolves' },
   { kind: 'runnerCaught', at: '2026-11-18T12:30:00Z', runner: ada },
   { kind: 'runnerFinished', at: '2026-11-18T13:00:10Z', runner: { playerId: 'b'.repeat(32), name: 'Cy' } },
   { kind: 'gameEnded', at: '2026-11-18T13:00:10Z' },
@@ -18,7 +19,7 @@ const events: TimelineEvent[] = [
 
 test('the ticker shows the newest event first without changing the server order', () => {
   const shown = newestFirst(events);
-  assert.deepEqual(shown.map((event) => event.kind), ['gameEnded', 'runnerFinished', 'runnerCaught', 'trapTriggered', 'runnerJokerUsed', 'hunterJokerUsed', 'gameStarted']);
+  assert.deepEqual(shown.map((event) => event.kind), ['gameEnded', 'runnerFinished', 'runnerCaught', 'zoneAlert', 'trapTriggered', 'runnerJokerUsed', 'hunterJokerUsed', 'gameStarted']);
   assert.equal(events[0].kind, 'gameStarted');
 });
 
@@ -28,14 +29,16 @@ test('every event has a readable text in each language', () => {
     'Hunter team Wolves used “Show runners”',
     'Ada used “Show only the zone”',
     'A runner walked into hunter team Wolves\'s trap',
+    'Ada was warned: Eve (Wolves) was in the same zone',
     'Ada was caught',
     'Cy reached the destination',
     'The game ended',
   ]);
   setLanguage('de');
   try {
-    assert.equal(timelineText(events[4]), 'Ada wurde gefangen');
+    assert.equal(timelineText(events[5]), 'Ada wurde gefangen');
     assert.equal(timelineText(events[3]), 'Ein Läufer ist in die Falle von Jägerteam Wolves getappt');
+    assert.equal(timelineText(events[4]), 'Ada wurde gewarnt: Eve (Wolves) war in derselben Zone');
     assert.ok(!timelineText(events[1]).includes('{'));
   } finally {
     setLanguage('en');

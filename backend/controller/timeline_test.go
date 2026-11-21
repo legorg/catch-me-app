@@ -23,6 +23,7 @@ func TestTimelineEventKindsMatchTheirVariants(t *testing.T) {
 		game.HunterJokerEvent{Team: team, Joker: game.JokerShowRunners, At: at},
 		game.RunnerJokerEvent{Runner: runner.ID, Joker: game.JokerZoneOnly, At: at},
 		game.TrapTriggeredEvent{Team: team, At: at},
+		game.ZoneAlertEvent{Runner: runner.ID, Hunter: runner.ID, Team: team, At: at},
 		game.CatchEvent{Runner: runner.ID, At: at},
 		game.FinishEvent{Runner: runner.ID, At: at},
 		game.EndEvent{At: at},
@@ -56,5 +57,8 @@ func TestTimelineEventKindsMatchTheirVariants(t *testing.T) {
 	unknown := func(game.PlayerID) (game.PlayerName, bool) { return game.PlayerName{}, false }
 	if _, err := timelineEventResponse(game.CatchEvent{Runner: runner.ID, At: at}, unknown); err == nil {
 		t.Fatal("an event of an unknown player must not lose its runner")
+	}
+	if _, err := timelineEventResponse(game.ZoneAlertEvent{Runner: runner.ID, Hunter: game.NewPlayerID(), Team: team, At: at}, lookup); err == nil {
+		t.Fatal("a zone alert of an unknown hunter must not lose its hunter")
 	}
 }

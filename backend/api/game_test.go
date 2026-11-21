@@ -425,13 +425,16 @@ func TestOpenAPIRoutes(t *testing.T) {
 				}
 			}
 		}
+		if _, ok := variant.Properties["zoneAlerts"]; ok != (team == "runner") || ok && !slices.Contains(variant.Required, "zoneAlerts") {
+			t.Fatalf("only the runner schema must have required zone alerts: %s", name)
+		}
 	}
 	codes := spec.Components.Schemas["ControllerJoinCodes"]
 	if _, ok := codes.Properties["spectator"]; !ok || !slices.Contains(codes.Required, "spectator") {
 		t.Fatal("spectator code must be documented and required")
 	}
 	events := spec.Components.Schemas["ControllerTimelineEventResponse"]
-	if len(events.OneOf) != 7 || events.Discriminator.PropertyName != "kind" {
+	if len(events.OneOf) != 8 || events.Discriminator.PropertyName != "kind" {
 		t.Fatalf("timeline events must be a oneOf discriminated by kind: %+v", events)
 	}
 	for _, variant := range events.OneOf {
@@ -440,7 +443,7 @@ func TestOpenAPIRoutes(t *testing.T) {
 			t.Fatalf("timeline event %s must have only required fields", variant.Ref)
 		}
 		for field := range definition.Properties {
-			if !slices.Contains([]string{"kind", "at", "hunterTeam", "runner", "joker"}, field) {
+			if !slices.Contains([]string{"kind", "at", "hunterTeam", "runner", "hunter", "joker"}, field) {
 				t.Fatalf("timeline event %s exposes %s", variant.Ref, field)
 			}
 		}

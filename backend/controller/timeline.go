@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -19,6 +20,7 @@ const (
 	TimelineHunterJokerUsed TimelineEventKind = "hunterJokerUsed"
 	TimelineRunnerJokerUsed TimelineEventKind = "runnerJokerUsed"
 	TimelineTrapTriggered   TimelineEventKind = "trapTriggered"
+	TimelineZoneAlert       TimelineEventKind = "zoneAlert"
 	TimelineRunnerCaught    TimelineEventKind = "runnerCaught"
 	TimelineRunnerFinished  TimelineEventKind = "runnerFinished"
 	TimelineGameEnded       TimelineEventKind = "gameEnded"
@@ -28,8 +30,9 @@ type TimelineResponse struct {
 	ServerTime time.Time `json:"serverTime" example:"2026-11-08T12:30:00Z"`
 	// Oldest first, up to serverTime. At most start + 5 joker events per
 	// player (a hunter team's 4 jokers and its trap trigger; 30 players) +
-	// one outcome per player + end: 1 + 150 + 30 + 1.
-	Events []TimelineEventResponse `json:"events" maxItems:"182"`
+	// one zone alert per runner and hunter (15 × 15) + one outcome per player
+	// + end: 1 + 150 + 225 + 30 + 1.
+	Events []TimelineEventResponse `json:"events" maxItems:"407"`
 }
 
 // TimelinePlayer is the player an event is about.
@@ -41,15 +44,15 @@ type TimelinePlayer struct {
 // TimelineEventResponse is one timeline entry: exactly one of
 // GameStartedEventResponse, HunterJokerUsedEventResponse,
 // RunnerJokerUsedEventResponse, TrapTriggeredEventResponse,
-// RunnerCaughtEventResponse, RunnerFinishedEventResponse, and
-// GameEndedEventResponse, told apart by kind.
+// ZoneAlertEventResponse, RunnerCaughtEventResponse, RunnerFinishedEventResponse,
+// and GameEndedEventResponse, told apart by kind.
 // No variant has coordinates, cells, or joker results.
 type TimelineEventResponse struct{ variant any }
 
 // JSONSchemaOneOf documents the union in the OpenAPI spec.
 func (TimelineEventResponse) JSONSchemaOneOf() []any {
 	return []any{GameStartedEventResponse{}, HunterJokerUsedEventResponse{}, RunnerJokerUsedEventResponse{}, TrapTriggeredEventResponse{},
-		RunnerCaughtEventResponse{}, RunnerFinishedEventResponse{}, GameEndedEventResponse{}}
+		ZoneAlertEventResponse{}, RunnerCaughtEventResponse{}, RunnerFinishedEventResponse{}, GameEndedEventResponse{}}
 }
 
 func (e TimelineEventResponse) MarshalJSON() ([]byte, error) { return marshalVariant(e.variant) }
@@ -78,6 +81,16 @@ type RunnerJokerUsedEventResponse struct {
 type TrapTriggeredEventResponse struct {
 	Kind       TimelineEventKind `json:"kind" enum:"trapTriggered"`
 	At         time.Time         `json:"at" example:"2026-11-08T12:41:30Z"`
+	HunterTeam string            `json:"hunterTeam" minLength:"1" maxLength:"20" example:"Wolves"`
+}
+
+// ZoneAlertEventResponse is a runner alerted about a hunter in their cell,
+// without the cell.
+type ZoneAlertEventResponse struct {
+	Kind       TimelineEventKind `json:"kind" enum:"zoneAlert"`
+	At         time.Time         `json:"at" example:"2026-11-08T12:23:05Z"`
+	Runner     TimelinePlayer    `json:"runner"`
+	Hunter     TimelinePlayer    `json:"hunter"`
 	HunterTeam string            `json:"hunterTeam" minLength:"1" maxLength:"20" example:"Wolves"`
 }
 
@@ -159,6 +172,10 @@ func timelineEventResponse(event game.Event, name playerName) (any, error) {
 		return RunnerJokerUsedEventResponse{Kind: TimelineRunnerJokerUsed, At: e.At, Runner: runner, Joker: JokerKind(e.Joker)}, err
 	case game.TrapTriggeredEvent:
 		return TrapTriggeredEventResponse{Kind: TimelineTrapTriggered, At: e.At, HunterTeam: e.Team.String()}, nil
+	case game.ZoneAlertEvent:
+		runner, err1 := timelinePlayer(e.Runner, name)
+		hunter, err2 := timelinePlayer(e.Hunter, name)
+		return ZoneAlertEventResponse{Kind: TimelineZoneAlert, At: e.At, Runner: runner, Hunter: hunter, HunterTeam: e.Team.String()}, errors.Join(err1, err2)
 	case game.CatchEvent:
 		runner, err := timelinePlayer(e.Runner, name)
 		return RunnerCaughtEventResponse{Kind: TimelineRunnerCaught, At: e.At, Runner: runner}, err

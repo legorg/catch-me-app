@@ -1622,7 +1622,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerTimelineEventResponse"
             },
-            "maxItems": 182,
+            "maxItems": 407,
             "type": "array"
           },
           "players": {
@@ -1959,6 +1959,13 @@
               "runner"
             ],
             "type": "string"
+          },
+          "zoneAlerts": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerZoneAlertResponse"
+            },
+            "maxItems": 29,
+            "type": "array"
           }
         },
         "required": [
@@ -1975,7 +1982,8 @@
           "team",
           "route",
           "routeRegenerationsLeft",
-          "jokers"
+          "jokers",
+          "zoneAlerts"
         ],
         "type": "object"
       },
@@ -2385,6 +2393,9 @@
           "trap": {
             "$ref": "#/components/schemas/ControllerTrapSetting"
           },
+          "zoneAlert": {
+            "$ref": "#/components/schemas/ControllerZoneAlertSetting"
+          },
           "zoneOnly": {
             "$ref": "#/components/schemas/ControllerJokerSetting"
           }
@@ -2396,7 +2407,8 @@
           "trap",
           "zoneOnly",
           "fakePosition",
-          "showHunters"
+          "showHunters",
+          "zoneAlert"
         ],
         "type": "object"
       },
@@ -3150,7 +3162,8 @@
             "runnerCaught": "#/components/schemas/ControllerRunnerCaughtEventResponse",
             "runnerFinished": "#/components/schemas/ControllerRunnerFinishedEventResponse",
             "runnerJokerUsed": "#/components/schemas/ControllerRunnerJokerUsedEventResponse",
-            "trapTriggered": "#/components/schemas/ControllerTrapTriggeredEventResponse"
+            "trapTriggered": "#/components/schemas/ControllerTrapTriggeredEventResponse",
+            "zoneAlert": "#/components/schemas/ControllerZoneAlertEventResponse"
           },
           "propertyName": "kind"
         },
@@ -3166,6 +3179,9 @@
           },
           {
             "$ref": "#/components/schemas/ControllerTrapTriggeredEventResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ControllerZoneAlertEventResponse"
           },
           {
             "$ref": "#/components/schemas/ControllerRunnerCaughtEventResponse"
@@ -3210,7 +3226,7 @@
             "items": {
               "$ref": "#/components/schemas/ControllerTimelineEventResponse"
             },
-            "maxItems": 182,
+            "maxItems": 407,
             "type": "array"
           },
           "serverTime": {
@@ -3446,6 +3462,93 @@
         },
         "required": [
           "kind"
+        ],
+        "type": "object"
+      },
+      "ControllerZoneAlertEventResponse": {
+        "properties": {
+          "at": {
+            "examples": [
+              "2026-11-08T12:23:05Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "hunter": {
+            "$ref": "#/components/schemas/ControllerTimelinePlayer"
+          },
+          "hunterTeam": {
+            "examples": [
+              "Wolves"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "zoneAlert"
+            ],
+            "type": "string"
+          },
+          "runner": {
+            "$ref": "#/components/schemas/ControllerTimelinePlayer"
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "runner",
+          "hunter",
+          "hunterTeam"
+        ],
+        "type": "object"
+      },
+      "ControllerZoneAlertResponse": {
+        "properties": {
+          "at": {
+            "examples": [
+              "2026-11-08T12:23:05Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "cell": {
+            "examples": [
+              "C4"
+            ],
+            "maxLength": 3,
+            "minLength": 2,
+            "pattern": "^[A-L]([1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "hunterId": {
+            "examples": [
+              "8899aabbccddeeff0011223344556677"
+            ],
+            "maxLength": 32,
+            "minLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "hunterId",
+          "cell"
+        ],
+        "type": "object"
+      },
+      "ControllerZoneAlertSetting": {
+        "properties": {
+          "enabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
         ],
         "type": "object"
       },

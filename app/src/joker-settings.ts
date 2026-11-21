@@ -1,6 +1,6 @@
 import type { JokerSettings } from './api/types';
 
-export type JokerKind = keyof JokerSettings;
+export type JokerKind = Exclude<keyof JokerSettings, 'zoneAlert'>;
 
 /** Hunter team jokers, then runner jokers, in display order. */
 export const HUNTER_JOKER_KINDS = ['showRunners', 'queryZone', 'compass', 'trap'] as const satisfies readonly JokerKind[];
@@ -17,6 +17,7 @@ export const JOKER_TITLE_KEYS = {
 export const DEFAULT_JOKER_SETTINGS: JokerSettings = {
   showRunners: { allowance: 1 }, queryZone: { allowance: 1 }, compass: { allowance: 1 }, trap: { allowance: 1 },
   zoneOnly: { allowance: 1 }, fakePosition: { allowance: 1 }, showHunters: { allowance: 1 },
+  zoneAlert: { enabled: true },
 };
 
 export function isValidJokerAllowance(allowance: unknown): allowance is number {

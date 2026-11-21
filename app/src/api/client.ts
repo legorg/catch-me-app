@@ -20,7 +20,7 @@ import { client } from './generated/client.gen';
 import type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinGameResponse, JokerRequest, JokerSettings, TimelineResponse } from './types';
 import { isValidGameId, normalizeGameId } from '../game-result';
 import { translate, type MessageKey } from '../i18n';
-import { DEFAULT_JOKER_SETTINGS, isValidJokerAllowance } from '../joker-settings';
+import { DEFAULT_JOKER_SETTINGS, HUNTER_JOKER_KINDS, RUNNER_JOKER_KINDS, isValidJokerAllowance } from '../joker-settings';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
 } from '../playground';
@@ -81,7 +81,7 @@ export async function createGame(
   if (!isValidRevealInterval(revealIntervalMinutes)) {
     throw new Error(translate('playground.revealIntervalInvalid'));
   }
-  if (!Object.values(jokers).every((setting) => isValidJokerAllowance(setting.allowance))) {
+  if (![...HUNTER_JOKER_KINDS, ...RUNNER_JOKER_KINDS].every((kind) => isValidJokerAllowance(jokers[kind].allowance))) {
     throw new Error(translate('playground.jokerAllowanceInvalid'));
   }
   const body = { ...center, cellSizeMeters, gridSize, revealIntervalMinutes, jokers };

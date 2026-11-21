@@ -18,7 +18,7 @@ const state: GameStateRunnerResponse = {
   jokerSettings: {
     showRunners: { allowance: 1 }, queryZone: { allowance: 1 }, compass: { allowance: 1 },
     trap: { allowance: 1 }, zoneOnly: { allowance: 1 }, fakePosition: { allowance: 1 },
-    showHunters: { allowance: 1 },
+    showHunters: { allowance: 1 }, zoneAlert: { enabled: true },
   },
   playground: previewPlayground({ latitude: 52.52, longitude: 13.405 }),
   playerId: 'a'.repeat(32),
@@ -36,9 +36,10 @@ const state: GameStateRunnerResponse = {
   },
   routeRegenerationsLeft: 2,
   jokers: [],
+  zoneAlerts: [],
 };
 
-const { route: _route, routeRegenerationsLeft: _routeRegenerationsLeft, ...hunterBase } = state;
+const { route: _route, routeRegenerationsLeft: _routeRegenerationsLeft, zoneAlerts: _zoneAlerts, ...hunterBase } = state;
 const hunterState: GameStateHunterResponse = { ...hunterBase, team: 'hunter', jokers: [], sketches: [] };
 
 const spectatorState: GameStateSpectatorResponse = {

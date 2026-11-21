@@ -155,6 +155,7 @@ export type ControllerGameStateRunnerResponse = {
     startsAt?: string;
     status: ControllerGameStatus;
     team: 'runner';
+    zoneAlerts: Array<ControllerZoneAlertResponse>;
 };
 
 export type ControllerGameStateSpectatorResponse = {
@@ -244,6 +245,7 @@ export type ControllerJokerSettings = {
     showHunters: ControllerJokerSetting;
     showRunners: ControllerJokerSetting;
     trap: ControllerTrapSetting;
+    zoneAlert: ControllerZoneAlertSetting;
     zoneOnly: ControllerJokerSetting;
 };
 
@@ -420,6 +422,8 @@ export type ControllerTimelineEventResponse = ({
 } & ControllerRunnerJokerUsedEventResponse) | ({
     kind: 'trapTriggered';
 } & ControllerTrapTriggeredEventResponse) | ({
+    kind: 'zoneAlert';
+} & ControllerZoneAlertEventResponse) | ({
     kind: 'runnerCaught';
 } & ControllerRunnerCaughtEventResponse) | ({
     kind: 'runnerFinished';
@@ -488,6 +492,24 @@ export type ControllerUseJokerRequest = (({
     kind: 'showHunters';
 } & ControllerShowHuntersRequest)) & {
     kind: ControllerJokerKind;
+};
+
+export type ControllerZoneAlertEventResponse = {
+    at: string;
+    hunter: ControllerTimelinePlayer;
+    hunterTeam: string;
+    kind: 'zoneAlert';
+    runner: ControllerTimelinePlayer;
+};
+
+export type ControllerZoneAlertResponse = {
+    at: string;
+    cell: string;
+    hunterId: string;
+};
+
+export type ControllerZoneAlertSetting = {
+    enabled: boolean;
 };
 
 export type ControllerZoneOnlyJokerResponse = {

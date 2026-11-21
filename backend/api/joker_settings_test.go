@@ -10,7 +10,7 @@ import (
 	"catch-me/backend/service"
 )
 
-const defaultJokersJSON = `{"showRunners":{"allowance":1},"queryZone":{"allowance":1},"compass":{"allowance":1},"trap":{"allowance":1},"zoneOnly":{"allowance":1},"fakePosition":{"allowance":1},"showHunters":{"allowance":1}}`
+const defaultJokersJSON = `{"showRunners":{"allowance":1},"queryZone":{"allowance":1},"compass":{"allowance":1},"trap":{"allowance":1},"zoneOnly":{"allowance":1},"fakePosition":{"allowance":1},"showHunters":{"allowance":1},"zoneAlert":{"enabled":true}}`
 
 func gameBodyWithJokers(t *testing.T, jokers any) string {
 	t.Helper()
@@ -71,6 +71,19 @@ func TestCreateGameRequiresEveryJokerAllowance(t *testing.T) {
 	settings := defaultJokerSettings(t)
 	settings["teleport"] = map[string]any{"allowance": 1}
 	decode[controller.APIError](t, send(t, handler, "POST", "/api/games", "", gameBodyWithJokers(t, settings)), 400)
+	for name, invalid := range map[string]any{
+		"missing": nil, "missing enabled": map[string]any{}, "null enabled": map[string]any{"enabled": nil},
+		"string": map[string]any{"enabled": "true"}, "allowance": map[string]any{"enabled": true, "allowance": 1},
+	} {
+		t.Run("zoneAlert/"+name, func(t *testing.T) {
+			settings := defaultJokerSettings(t)
+			settings["zoneAlert"] = invalid
+			if name == "missing" {
+				delete(settings, "zoneAlert")
+			}
+			decode[controller.APIError](t, send(t, handler, "POST", "/api/games", "", gameBodyWithJokers(t, settings)), 400)
+		})
+	}
 }
 
 func TestCreateGamePersistsExplicitJokerAllowances(t *testing.T) {
@@ -86,6 +99,7 @@ func TestCreateGamePersistsExplicitJokerAllowances(t *testing.T) {
 			}
 			settings[string(kind)] = map[string]any{"allowance": uses}
 		}
+		settings["zoneAlert"] = map[string]any{"enabled": !allZero}
 		created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", gameBodyWithJokers(t, settings)), 201)
 		code, _ := game.ParseJoinCode(created.JoinCodes.Runner)
 		lobby, err := store.UpdateLobbyByJoinCode(context.Background(), code, created.Game.CreatedAt, nil)
@@ -100,6 +114,9 @@ func TestCreateGamePersistsExplicitJokerAllowances(t *testing.T) {
 			if got := lobby.Game.JokerSettings.Allowance(kind).Max(); got != want {
 				t.Fatalf("%s allowance: got %d, want %d", kind, got, want)
 			}
+		}
+		if lobby.Game.JokerSettings.ZoneAlert.Enabled == allZero || created.Game.JokerSettings.ZoneAlert == nil || *created.Game.JokerSettings.ZoneAlert.Enabled == allZero {
+			t.Fatalf("zone alert setting not stored or returned: %+v", lobby.Game.JokerSettings.ZoneAlert)
 		}
 	}
 }

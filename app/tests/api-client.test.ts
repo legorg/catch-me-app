@@ -13,7 +13,7 @@ const center = { latitude: 52.52, longitude: 13.405 };
 const jokers = {
   showRunners: { allowance: 1 }, queryZone: { allowance: 1 }, compass: { allowance: 1 },
   trap: { allowance: 1 }, zoneOnly: { allowance: 1 }, fakePosition: { allowance: 1 },
-  showHunters: { allowance: 1 },
+  showHunters: { allowance: 1 }, zoneAlert: { enabled: true },
 };
 const route = {
   start: { title: 'Siegessäule', coordinates: { latitude: 52.4741, longitude: 13.3302 } },
@@ -173,7 +173,7 @@ test('chosen joker allowances are sent for every kind, including 0', async (t) =
     settings = withAllowance(settings, kind, allowance);
   }
   assert.equal(DEFAULT_JOKER_SETTINGS.showRunners.allowance, 1); // The defaults stay unchanged.
-  assert.deepEqual(Object.keys(settings).sort(), [...HUNTER_JOKER_KINDS, ...RUNNER_JOKER_KINDS].sort());
+  assert.deepEqual(Object.keys(settings).sort(), [...HUNTER_JOKER_KINDS, ...RUNNER_JOKER_KINDS, 'zoneAlert'].sort());
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
     assert.deepEqual((await request.json()).jokers, { ...jokers, showRunners: { allowance: 0 }, trap: { allowance: 5 }, fakePosition: { allowance: 3 } });
     return Response.json(created, { status: 201 });

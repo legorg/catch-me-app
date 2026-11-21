@@ -225,6 +225,7 @@
   "timeline.hunterJokerUsed": "Jägerteam {team} hat „{joker}“ eingesetzt",
   "timeline.runnerJokerUsed": "{name} hat „{joker}“ eingesetzt",
   "timeline.trapTriggered": "Ein Läufer ist in die Falle von Jägerteam {team} getappt",
+  "timeline.zoneAlert": "{name} wurde gewarnt: {hunter} ({team}) war in derselben Zone",
   "timeline.runnerCaught": "{name} wurde gefangen",
   "timeline.runnerFinished": "{name} hat das Ziel erreicht",
   "timeline.gameEnded": "Das Spiel ist beendet",
