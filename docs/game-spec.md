@@ -74,8 +74,10 @@ Game status values: `lobby`, `countdown`, `running` (and `ended` from milestone 
 
 ## Route [done]
 
-- Each game has **one route** that all runners share: a **start** landmark in a random cell of the southern edge row (the last row) and a **stop** landmark in a random cell of the northern edge row (row 1). The server picks both from a landmark lookup when the game is created; creating fails if an edge has no landmark.
-- **Any runner** can **regenerate** the route, **2 times per game** in total (shared by all runners). Only in the lobby (not during the countdown or once running) and only while **no runner is ready**.
+- Each game has **one route** that all runners share: a **start** in the southern edge row (the last row) and a **stop** in the northern edge row (row 1). The game creator picks one of two modes when creating the game:
+  - **Generated [done]:** a start landmark in a random cell of the southern edge row and a stop landmark in a random cell of the northern edge row. The server picks both from a landmark lookup when the game is created; creating fails if an edge has no landmark.
+  - **Chosen on the map [backend done; app planned]:** the creator places the start and the stop as plain points (no title, no landmark lookup). The server rejects (`400`) a start outside the southern edge row or a stop outside the northern edge row of the playground. A chosen route is fixed: it cannot be regenerated (`routeRegenerationsLeft` is 0, regenerating is refused with `409`).
+- **Any runner** can **regenerate** a generated route, **2 times per game** in total (shared by all runners). Only in the lobby (not during the countdown or once running) and only while **no runner is ready**.
 - Regenerating looks up the start and the stop again, each avoiding the current landmark. An edge without another landmark keeps its current one; if neither edge has another landmark, regenerating is refused and the count stays.
 - Hunters have no start point. **Runners and spectators see the route**; hunters never see it. Spectators have read-only access, without regeneration or start/finish actions.
 
@@ -224,7 +226,7 @@ Caught runners cannot use any joker. Hunter location jokers used at or after a r
 
 | Method and path | Auth | Purpose |
 |---|---|---|
-| `POST /api/games` | – | Create a game `{latitude, longitude, cellSizeMeters, gridSize, revealIntervalMinutes, jokers}` (all fields required and non-null; `jokers` requires a settings object with integer `allowance` 0–5 for every implemented kind, plus `zoneAlert: {enabled}`; defaults are selected by the app, not supplied by the backend). Returns the game (with `revealIntervalMinutes` and `jokerSettings`) and runner/hunter/spectator join codes. |
+| `POST /api/games` | – | Create a game `{latitude, longitude, cellSizeMeters, gridSize, revealIntervalMinutes, jokers}` (all fields required and non-null; `jokers` requires a settings object with integer `allowance` 0–5 for every implemented kind, plus `zoneAlert: {enabled}`; defaults are selected by the app, not supplied by the backend). Optional `route: {start, stop}` with coordinates chooses the route instead of generating it (see Route); omitted or `null` generates it. Returns the game (with `revealIntervalMinutes` and `jokerSettings`) and runner/hunter/spectator join codes. |
 | `GET /api/games/{sessionId}/result` | - | Public result for an ended game: times, duration, player names/teams, runner outcomes and the event timeline; no credentials or coordinates. Unknown/unfinished games return `404`. |
 | `POST /api/players` | – | Join with `{code, name}`. Returns the player token and the game state. |
 | `GET /api/me/game` | Bearer | Game state as seen by the requesting player. |
@@ -244,7 +246,7 @@ The game state contains status, server time, scheduled start/end times where pre
 
 Each runner player entry includes `runner.status` (`active`, `caught`, `finished`). `runner.endedAt` is the server-recorded outcome time, absent while active; `runner.caughtPosition` exists only for a caught runner with a retained report. Hunters have no `runner` object. Completed runners have no ordinary position or reveals. The former top-level `caughtAt`, `finishedAt`, and `caughtPosition` fields are removed; the app and backend must use the matching contract.
 
-Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route regeneration not allowed or no other route available, hunter team change not allowed, runner not at the start, hunter without a team, joker not available: game not running, disabled/exhausted allowance, not a joker of the player's team, a hunter without a team, or the runner's last reveal joker has not acted yet; a compass before the hunter reported a position; sketch not allowed: game not running, not a hunter in a team, or the team's sketch limit reached).
+Errors: `400` invalid input, `401` missing or unknown token, `404` unknown game or join code, `409` rule violation (game started, full, name taken, route regeneration not allowed (including a chosen route) or no other route available, hunter team change not allowed, runner not at the start, hunter without a team, joker not available: game not running, disabled/exhausted allowance, not a joker of the player's team, a hunter without a team, or the runner's last reveal joker has not acted yet; a compass before the hunter reported a position; sketch not allowed: game not running, not a hunter in a team, or the team's sketch limit reached).
 
 ### Planned API extensions (not implemented)
 

@@ -72,6 +72,17 @@ type CreateGameRequest struct {
 	// How often hunters receive the runners' positions.
 	RevealIntervalMinutes int            `json:"revealIntervalMinutes" minimum:"1" maximum:"60" example:"30"`
 	Jokers                *JokerSettings `json:"jokers"`
+	// Start and stop chosen on the map instead of generated landmarks. Omitted
+	// or null generates the route.
+	Route *ChosenRouteRequest `json:"route,omitempty"`
+}
+
+// ChosenRouteRequest places the start in the southern edge row of the grid and
+// the stop in the northern edge row. Such a route has no landmark titles and
+// cannot be regenerated.
+type ChosenRouteRequest struct {
+	Start Coordinates `json:"start"`
+	Stop  Coordinates `json:"stop"`
 }
 
 type Playground struct {

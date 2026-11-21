@@ -19,6 +19,11 @@ export type ControllerBounds = {
     west: number;
 };
 
+export type ControllerChosenRouteRequest = {
+    start: ControllerCoordinates;
+    stop: ControllerCoordinates;
+};
+
 export type ControllerCompassJokerResponse = {
     available: boolean;
     kind: 'compass';
@@ -47,6 +52,7 @@ export type ControllerCreateGameRequest = {
     latitude: number;
     longitude: number;
     revealIntervalMinutes: number;
+    route?: ControllerChosenRouteRequest;
 };
 
 export type ControllerCreateGameResponse = {
@@ -541,7 +547,7 @@ export type ControllerZoneRevealResponse = {
 
 export type CreateGameData = {
     /**
-     * All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults
+     * All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults. Optional route: start in the southern and stop in the northern edge row, chosen instead of generated landmarks (untitled, cannot be regenerated)
      */
     body: ControllerCreateGameRequest;
     path?: never;
@@ -551,7 +557,7 @@ export type CreateGameData = {
 
 export type CreateGameErrors = {
     /**
-     * Invalid JSON, coordinates, or cell size
+     * Invalid JSON, coordinates, cell size, or chosen route outside its edge rows
      */
     400: ControllerApiError;
     /**
@@ -563,7 +569,7 @@ export type CreateGameErrors = {
      */
     413: ControllerApiError;
     /**
-     * No landmark found at the edges of the playground
+     * No landmark found at the edges of the playground (generated route only)
      */
     422: ControllerApiError;
     /**
@@ -571,7 +577,7 @@ export type CreateGameErrors = {
      */
     500: ControllerApiError;
     /**
-     * Landmark lookup failed
+     * Landmark lookup failed (generated route only)
      */
     503: ControllerApiError;
 };

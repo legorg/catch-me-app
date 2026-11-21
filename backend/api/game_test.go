@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -54,6 +55,40 @@ func TestCreateGame(t *testing.T) {
 	want := controller.Playground{Center: controller.Coordinates{Latitude: 52.52, Longitude: 13.405}, Bounds: controller.Bounds(p.Bounds()), Rows: 6, Columns: 6, CellSizeMeters: 2000}
 	if game.Playground != want {
 		t.Fatalf("unexpected playground: %+v", game.Playground)
+	}
+}
+
+func TestCreateGameChosenRoute(t *testing.T) {
+	handler := NewHandler(controller.NewGameController(service.NewGameService(testStore(t), centerLandmarks{}, false)))
+	center, _ := domain.ParseCoordinates(52.52, 13.405)
+	p, _ := domain.NewPlayground(center, domain.DefaultCellSize(), domain.DefaultGridSize())
+	bounds := p.Bounds()
+	south := controller.Coordinates{Latitude: bounds.South + 0.001, Longitude: 13.38}
+	north := controller.Coordinates{Latitude: bounds.North - 0.001, Longitude: 13.43}
+	body := func(start, stop controller.Coordinates) string {
+		return fmt.Sprintf(`{"latitude":52.52,"longitude":13.405,"cellSizeMeters":2000,"gridSize":6,"revealIntervalMinutes":30,"jokers":%s,"route":{"start":{"latitude":%v,"longitude":%v},"stop":{"latitude":%v,"longitude":%v}}}`,
+			defaultJokersJSON, start.Latitude, start.Longitude, stop.Latitude, stop.Longitude)
+	}
+	created := decode[controller.CreateGameResponse](t, send(t, handler, "POST", "/api/games", "", body(south, north)), 201)
+	route := created.Game.Route
+	if route.Start != (controller.Landmark{Coordinates: south}) || route.Stop != (controller.Landmark{Coordinates: north}) || route.DistanceMeters <= 0 {
+		t.Fatalf("chosen route not used: %+v", route)
+	}
+	runner := decode[controller.JoinGameResponse](t, send(t, handler, "POST", "/api/players", "", `{"code":"`+created.JoinCodes.Runner+`","name":"Ada"}`), 201)
+	if state, _ := runner.State.Runner(); state.Route != route || state.RouteRegenerationsLeft != 0 {
+		t.Fatalf("runner must see the fixed chosen route: %+v", state)
+	}
+	decode[controller.APIError](t, send(t, handler, "POST", "/api/me/route", runner.PlayerToken, ""), 409)
+
+	for name, invalid := range map[string]string{
+		"swapped":        body(north, south),
+		"start too far":  body(controller.Coordinates{Latitude: bounds.South - 0.001, Longitude: 13.38}, north),
+		"stop in middle": body(south, controller.Coordinates{Latitude: 52.52, Longitude: 13.405}),
+		"bad coordinate": body(controller.Coordinates{Latitude: 91, Longitude: 13.38}, north),
+	} {
+		t.Run(name, func(t *testing.T) {
+			decode[controller.APIError](t, send(t, handler, "POST", "/api/games", "", invalid), 400)
+		})
 	}
 }
 

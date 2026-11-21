@@ -17,7 +17,7 @@
         "summary": "Create a square playground with adjustable grid size, cell size, reveal interval, and joker settings",
         "operationId": "createGame",
         "requestBody": {
-          "description": "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults",
+          "description": "All fields required and non-null: latitude, longitude, cellSizeMeters (100-5000 in steps of 100), gridSize (3-12 cells per side), revealIntervalMinutes (1-60), jokers with one settings object per implemented kind and allowance (0-5; 0 disables the kind); no date-line crossings and no server defaults. Optional route: start in the southern and stop in the northern edge row, chosen instead of generated landmarks (untitled, cannot be regenerated)",
           "content": {
             "application/json": {
               "schema": {
@@ -39,7 +39,7 @@
             }
           },
           "400": {
-            "description": "Invalid JSON, coordinates, or cell size",
+            "description": "Invalid JSON, coordinates, cell size, or chosen route outside its edge rows",
             "content": {
               "application/json": {
                 "schema": {
@@ -69,7 +69,7 @@
             }
           },
           "422": {
-            "description": "No landmark found at the edges of the playground",
+            "description": "No landmark found at the edges of the playground (generated route only)",
             "content": {
               "application/json": {
                 "schema": {
@@ -89,7 +89,7 @@
             }
           },
           "503": {
-            "description": "Landmark lookup failed",
+            "description": "Landmark lookup failed (generated route only)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1276,6 +1276,21 @@
         ],
         "type": "object"
       },
+      "ControllerChosenRouteRequest": {
+        "properties": {
+          "start": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "stop": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          }
+        },
+        "required": [
+          "start",
+          "stop"
+        ],
+        "type": "object"
+      },
       "ControllerCompassJokerResponse": {
         "properties": {
           "available": {
@@ -1418,6 +1433,9 @@
             "maximum": 60,
             "minimum": 1,
             "type": "integer"
+          },
+          "route": {
+            "$ref": "#/components/schemas/ControllerChosenRouteRequest"
           }
         },
         "required": [

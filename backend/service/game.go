@@ -134,7 +134,14 @@ type PlayerView struct {
 	StartPositionCheckDisabled bool
 }
 
-func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, jokers game.JokerSettings) (game.Game, error) {
+// ChosenRoute is a start and stop picked by the game creator on the map
+// instead of generated landmarks.
+type ChosenRoute struct{ Start, Stop game.Coordinates }
+
+// Create saves a new game. Without a chosen route it looks up landmarks for
+// one; a chosen route must lie on the playground's edge rows and cannot be
+// regenerated.
+func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellSize game.CellSize, gridSize game.GridSize, revealInterval game.RevealInterval, jokers game.JokerSettings, chosen *ChosenRoute) (game.Game, error) {
 	playground, err := game.NewPlayground(center, cellSize, gridSize)
 	if err != nil {
 		return game.Game{}, err
@@ -142,14 +149,21 @@ func (s *GameService) Create(ctx context.Context, center game.Coordinates, cellS
 	began := time.Now()
 	ctx, cancel := context.WithTimeout(ctx, s.routeTimeout)
 	defer cancel()
-	route, err := s.route(ctx, playground, game.Route{})
-	if err != nil {
-		return game.Game{}, err
+	var route game.Route
+	if chosen != nil {
+		if route, err = game.NewCustomRoute(playground, chosen.Start, chosen.Stop); err != nil {
+			return game.Game{}, err
+		}
+		logRoute("route chosen", route, began)
+	} else {
+		if route, err = s.route(ctx, playground, game.Route{}); err != nil {
+			return game.Game{}, err
+		}
+		logRoute("route created", route, began)
 	}
-	logRoute("route created", route, began)
 	// Collisions are extremely unlikely; retry a few times rather than fail.
 	for attempt := 0; ; attempt++ {
-		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, RevealInterval: revealInterval, JokerSettings: jokers, JoinCodes: game.NewJoinCodes(), Route: route}
+		saved := game.Game{SessionID: game.NewSessionID(), CreatedAt: s.now(), Playground: playground, RevealInterval: revealInterval, JokerSettings: jokers, JoinCodes: game.NewJoinCodes(), Route: route, CustomRoute: chosen != nil}
 		err := s.repository.Create(ctx, saved)
 		if errors.Is(err, game.ErrJoinCodeTaken) && attempt < 3 {
 			continue
