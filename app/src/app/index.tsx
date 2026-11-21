@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 
+import { API_URL } from '@/api/client';
 import Button from '@/components/button';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
 import NameInput from '@/components/name-input';
@@ -50,6 +51,7 @@ export default function HomeScreen() {
         </View>
         <ResultLookup disabled={busy} />
         <Text style={styles.hint}>{t('home.devHint')}</Text>
+        <Text style={styles.hint}>{t('home.apiUrl', { url: API_URL })}</Text>
       </KeyboardScrollView>
     </>
   );

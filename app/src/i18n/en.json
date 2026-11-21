@@ -17,6 +17,7 @@
   "home.createText": "Choose a playground on the map and get separate codes for runners, hunters and spectators.",
   "home.create": "Create a game",
   "home.devHint": "Local development only. Location sharing and game rules are not implemented yet.",
+  "home.apiUrl": "Server: {url}",
   "result.title": "Game result",
   "result.open": "View game result",
   "result.lookupHint": "Enter the full game ID of a completed game, not a team join code. No joining or sign-in required.",

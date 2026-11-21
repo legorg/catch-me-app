@@ -17,6 +17,7 @@
   "home.createText": "Wähle ein Spielfeld auf der Karte und erhalte separate Codes für Läufer, Jäger und Zuschauer.",
   "home.create": "Spiel erstellen",
   "home.devHint": "Nur für die lokale Entwicklung. Standortfreigabe und Spielregeln sind noch nicht umgesetzt.",
+  "home.apiUrl": "Server: {url}",
   "result.title": "Spielergebnis",
   "result.open": "Spielergebnis ansehen",
   "result.lookupHint": "Gib die vollständige Spiel-ID eines beendeten Spiels ein, nicht den Team-Beitrittscode. Beitritt oder Anmeldung sind nicht nötig.",
