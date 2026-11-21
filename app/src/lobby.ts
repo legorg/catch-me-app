@@ -373,6 +373,18 @@ export function recentZoneAlert(state: GameStateResponse, serverNowMs: number): 
   return newest && serverNowMs - Date.parse(newest.at) <= ZONE_ALERT_HINT_SECONDS * 1000 ? newest.text : null;
 }
 
+/**
+ * Zone alerts to notify: recent ones (as for the top card) not notified yet in this app run.
+ * The fixed identifier per game and hunter makes a repeat after an app restart replace the
+ * earlier notification instead of adding one. Never coordinates, only the cell.
+ */
+export function zoneAlertNotifications(state: GameStateResponse, notified: ReadonlySet<string>, serverNowMs: number): { identifier: string; body: string }[] {
+  return zoneAlertEntries(state)
+    .filter((entry) => serverNowMs - Date.parse(entry.at) <= ZONE_ALERT_HINT_SECONDS * 1000)
+    .map((entry) => ({ identifier: `zone-alert-${state.sessionId}-${entry.hunterId}`, body: entry.text }))
+    .filter((notification) => !notified.has(notification.identifier));
+}
+
 /** Only runners and spectators receive the shared start and destination. */
 export function visibleRoute(state: GameStateResponse): GameRoute | undefined {
   return state.team === 'hunter' ? undefined : state.route;

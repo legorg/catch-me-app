@@ -5,6 +5,7 @@ import * as TaskManager from 'expo-task-manager';
 import { ApiError, updatePosition } from './api/client';
 import { translate } from './i18n';
 import { playerSession } from './player-session';
+import { notifyZoneAlerts } from './zone-alert-notifications';
 
 const TASK_NAME = 'catch-me-background-location';
 const UNKNOWN_ACCURACY_METERS = 1000;
@@ -29,11 +30,12 @@ TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
   const latest = data?.locations?.at(-1);
   if (error || !latest) return;
   try {
-    await updatePosition(token, {
+    // A runner's report response may carry a new zone alert; notify it even with the screen off.
+    await notifyZoneAlerts(await updatePosition(token, {
       latitude: latest.coords.latitude,
       longitude: latest.coords.longitude,
       accuracyMeters: latest.coords.accuracy ?? UNKNOWN_ACCURACY_METERS,
-    });
+    }));
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 409)) await stopBackgroundSharing();
     // Position updates return 409 after a catch/finish or game end (hunters

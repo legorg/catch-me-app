@@ -22,6 +22,7 @@ import { useGameState, useLobbyUnlessRunning } from '@/use-game-state';
 import { useSketching } from '@/use-sketching';
 import { useRunnerActions } from '@/use-runner-actions';
 import { useTimeline } from '@/use-timeline';
+import { useZoneAlertNotifications } from '@/use-zone-alert-notifications';
 
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
@@ -34,6 +35,7 @@ export default function GameScreen() {
   const showTimeline = timelineOpen && isSpectator(state);
   const timeline = useTimeline(token, showTimeline);
   useGameHaptics(state);
+  const notificationPermission = useZoneAlertNotifications(state);
   useLobbyUnlessRunning(state, running);
 
   if (!token || !state || !snapshot || state.status === 'ended') return <LoadingScreen error={error} />;
@@ -57,7 +59,7 @@ export default function GameScreen() {
       </View>
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, dynamicStyles.hudFill(insets)]}>
-        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} spectator={spectator} testMode={state.startPositionCheckDisabled === true} zoneAlert={zoneAlert} />
+        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} spectator={spectator} testMode={state.startPositionCheckDisabled === true} zoneAlert={zoneAlert} notificationsOff={notificationPermission === 'denied'} />
         <View pointerEvents="box-none" style={styles.hudZone}>
           {infoOpen && <InfoPanel state={state} me={me} revealScheduled={nextReveal !== null} location={location} />}
           {showTimeline && <TimelinePanel events={timeline.events} loaded={timeline.loaded} />}

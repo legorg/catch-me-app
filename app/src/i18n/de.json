@@ -273,6 +273,8 @@
   "joker.zoneAlert.text": "Passiv und nur für dich: Du wirst einmal pro Jäger gewarnt, sobald er in deiner Zone ist. Du erfährst nicht, wo genau. Jäger erfahren davon nichts.",
   "joker.zoneAlert.none": "Bisher kein Alarm.",
   "joker.zoneAlert.entry": "{time}: {name} ({team}) war in deiner Zone {cell}",
+  "notification.channel": "Zonenalarme",
+  "notification.denied": "Benachrichtigungen sind aus: Zonenalarme siehst du nur in der App. In den Systemeinstellungen kannst du sie erlauben.",
   "joker.confirmRunner": "Jetzt einsetzen? Das verbraucht einen der Einsätze, die alle Läufer gemeinsam haben.",
   "joker.confirmPersonal": "Jetzt einsetzen? Das verbraucht einen deiner persönlichen Einsätze.",
   "joker.usedBy": "Eingesetzt von {name} um {time}",

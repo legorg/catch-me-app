@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, ZONE_ALERT_HINT_SECONDS, recentZoneAlert, zoneAlertEntries } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, ZONE_ALERT_HINT_SECONDS, recentZoneAlert, zoneAlertEntries, zoneAlertNotifications } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
@@ -531,6 +531,25 @@ test('zone alerts name the hunter and team from the players and stay in the top 
   assert.equal(recentZoneAlert(alerted, at + ZONE_ALERT_HINT_SECONDS * 1000 + 1), null);
   assert.equal(recentZoneAlert(state, at), null);
   assert.deepEqual(zoneAlertEntries(hunterState), []);
+});
+
+test('each recent zone alert is notified once, with a stable identifier and no coordinates', () => {
+  const bob = { ...state.players[1], hunterTeam: 'Wolves' };
+  const alerted = {
+    ...state,
+    players: [state.players[0], bob, state.players[2]],
+    zoneAlerts: [
+      { at: '2026-11-08T12:00:00Z', hunterId: 'c'.repeat(32), cell: 'B2' },
+      { at: '2026-11-08T12:20:00Z', hunterId: bob.playerId, cell: 'C4' },
+    ],
+  };
+  const now = Date.parse('2026-11-08T12:21:00Z');
+  const pending = zoneAlertNotifications(alerted, new Set(), now);
+  assert.deepEqual(pending.map((n) => n.identifier), [`zone-alert-${state.sessionId}-${bob.playerId}`]);
+  assert.match(pending[0].body, /Bob \(Wolves\) was in your zone C4$/);
+  assert.doesNotMatch(pending[0].body, /\d+\.\d{3}/);
+  assert.deepEqual(zoneAlertNotifications(alerted, new Set([pending[0].identifier]), now), []);
+  assert.deepEqual(zoneAlertNotifications(hunterState, new Set(), now), []);
 });
 
 test('the compass becomes one cell-long arrow per direction from the origin, without names', () => {
