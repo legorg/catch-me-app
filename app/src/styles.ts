@@ -53,8 +53,8 @@ export const styles = StyleSheet.create({
   startText: { color: colors.start },
   targetText: { color: colors.target },
   routeText: { color: colors.route },
-  /** Reaches far past the scroll content, so the pattern also fills short screens and overscroll. */
-  camouflage: { position: 'absolute', top: -2000, bottom: -2000, left: -2000, right: -2000 },
+  /** iOS: reaches past the scroll content, so the pattern also fills short screens, overscroll and wide iPads. */
+  camouflage: { position: 'absolute', top: -1000, bottom: -1000, left: -400, right: -400 },
   centeredScreen: { justifyContent: 'center', padding: 20 },
   countdownScreen: { alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
   countdown: { color: colors.accent, fontSize: 160, fontWeight: '800' },
@@ -95,7 +95,7 @@ export const dynamicStyles = {
   navigationBar: (height: number): ViewStyle => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height, backgroundColor: colors.background }),
 };
 
-/** Camouflage tiles laid out by hand on Android. */
+/** Camouflage tiles, laid out by hand. */
 export const camouflageStyles = StyleSheet.create({
   clip: { overflow: 'hidden' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap' },
