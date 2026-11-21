@@ -3,7 +3,7 @@ import { Marker, Polygon, Polyline, type LatLng } from 'react-native-maps';
 
 import type { Playground } from '../api/types';
 import { cellCorners, cellLabels, gridLines, playgroundCorners } from '../playground';
-import { mapStyles as styles } from '../styles';
+import { colors, mapStyles as styles } from '../styles';
 import type { CellHighlight } from './playground-map';
 
 type Props = {
@@ -16,12 +16,12 @@ type Props = {
 export default function MapGrid({ playground, highlights, onSelect }: Props) {
   return (
     <>
-      <Polygon coordinates={playgroundCorners(playground)} strokeColor="#10251c" strokeWidth={3} fillColor="rgba(167,233,189,0.15)" />
+      <Polygon coordinates={playgroundCorners(playground)} strokeColor={colors.background} strokeWidth={3} fillColor={colors.playgroundFill} />
       {highlights.map(({ cell, color }, index) => (
         <Polygon key={`${index}-${cell}`} coordinates={cellCorners(playground, cell)} strokeColor={color} strokeWidth={3} fillColor={`${color}55`} tappable={false} />
       ))}
       {gridLines(playground).map((coordinates, index) => (
-        <Polyline key={index} coordinates={coordinates} strokeColor="#10251c" strokeWidth={1} />
+        <Polyline key={index} coordinates={coordinates} strokeColor={colors.background} strokeWidth={1} />
       ))}
       {cellLabels(playground).map(({ label, coordinate }) => (
         <Marker key={label} coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} stopPropagation onPress={() => onSelect(coordinate)}>

@@ -1,25 +1,34 @@
 import { StyleSheet, type ViewStyle } from 'react-native';
 
+import palette from './palette.json';
+
+const { camouflage, ...scheme } = palette;
+
+/** Whether screens show the camouflage pattern; set in palette.json. */
+export const showCamouflage = camouflage;
+
+/** The app's colour scheme lives in palette.json (app.config.js reads it too). */
 export const colors = {
-  background: '#10251c',
-  card: '#1d372a',
-  accent: '#a7e9bd',
-  text: '#d1dfd6',
-  hint: '#b9d1c2',
-  placeholder: '#8ba996',
-  error: '#ffb8b8',
+  ...scheme,
   start: '#2f80ed',
   target: '#eb5757',
   /** Start and destination pins; the same value as ROUTE_PIN_COLOR. */
   route: '#00bcd4',
   white: '#ffffff',
   scrim: 'rgba(0,0,0,0.6)',
+  /** The playground's fill on the map: the accent at 15% opacity. */
+  playgroundFill: `${palette.accent}26`,
 };
+
+/** Android's header: a dark bar with a khaki line, as iOS keeps its native blurred large title. */
+export const header = StyleSheet.create({
+  background: { flex: 1, backgroundColor: colors.card, borderBottomWidth: 2, borderBottomColor: colors.accent },
+});
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, gap: 16, maxWidth: 680, width: '100%', alignSelf: 'center' },
-  heading: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
+  heading: { color: colors.white, fontSize: 20, fontWeight: '700' },
   text: { color: colors.text, fontSize: 15, lineHeight: 22 },
   error: { color: colors.error },
   mapContainer: { borderRadius: 16, overflow: 'hidden' },
@@ -30,7 +39,7 @@ export const styles = StyleSheet.create({
   dimmed: { opacity: 0.65 },
   buttonText: { color: colors.background, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   secondaryButtonText: { color: colors.accent, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  input: { backgroundColor: colors.background, color: '#ffffff', padding: 14, borderRadius: 8, fontSize: 15 },
+  input: { backgroundColor: colors.background, color: colors.white, padding: 14, borderRadius: 8, fontSize: 15 },
   code: { color: colors.accent, fontSize: 28, fontWeight: '800', letterSpacing: 4 },
   hint: { color: colors.hint, fontSize: 13, lineHeight: 20 },
   flex: { flex: 1 },
@@ -44,6 +53,8 @@ export const styles = StyleSheet.create({
   startText: { color: colors.start },
   targetText: { color: colors.target },
   routeText: { color: colors.route },
+  /** Reaches far past the scroll content, so the pattern also fills short screens and overscroll. */
+  camouflage: { position: 'absolute', top: -2000, bottom: -2000, left: -2000, right: -2000 },
   centeredScreen: { justifyContent: 'center', padding: 20 },
   countdownScreen: { alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
   countdown: { color: colors.accent, fontSize: 160, fontWeight: '800' },
@@ -79,10 +90,17 @@ export const dynamicStyles = {
   /** Turns the north arrow against the map, so it keeps pointing north. */
   northArrow: (heading: number) => ({ transform: [{ rotate: `${-heading}deg` }] }),
   languageMenu: (anchor: { top: number; right: number }): ViewStyle => ({ top: anchor.top, right: anchor.right }),
-  /** Android draws edge-to-edge and the start screen has no header, so its title must clear the status bar itself. */
-  homeTitle: (topInset: number): ViewStyle => ({ paddingTop: topInset }),
   replayProgress: (share: number): ViewStyle => ({ width: `${share * 100}%` }),
+  camouflageTiles: (width: number): ViewStyle => ({ width }),
+  navigationBar: (height: number): ViewStyle => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height, backgroundColor: colors.background }),
 };
+
+/** Camouflage tiles laid out by hand on Android. */
+export const camouflageStyles = StyleSheet.create({
+  clip: { overflow: 'hidden' },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap' },
+  tile: { width: 320, height: 320 },
+});
 
 /** Game screen overlay (HUD, info panel, pills, icon buttons). */
 export const overlay = StyleSheet.create({
@@ -94,12 +112,10 @@ export const overlay = StyleSheet.create({
   icon: { backgroundColor: colors.card, borderRadius: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: 0.95 },
 });
 
-/** Start screen title row and its language dropdown. */
+/** Language dropdown in the start screen's header. */
 export const languageSwitch = StyleSheet.create({
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  title: { color: colors.white, fontSize: 34, fontWeight: '700', flexShrink: 1 },
-  button: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
-  flag: { fontSize: 24 },
+  button: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 4 },
+  code: { color: colors.white, fontSize: 16, fontWeight: '700', minWidth: 24 },
   caret: { color: colors.accent, fontSize: 14 },
   backdrop: { ...StyleSheet.absoluteFill },
   menu: { position: 'absolute', backgroundColor: colors.card, borderRadius: 12, paddingVertical: 6, minWidth: 160, elevation: 8, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },

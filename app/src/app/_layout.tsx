@@ -1,18 +1,27 @@
 import { getLocales } from 'expo-localization';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Platform, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Registers the background location task before any screen renders.
 import '@/background-location';
+import LanguageSwitch from '@/components/language-switch';
 import { isLanguage, setLanguage, useT } from '@/i18n';
-import { colors } from '@/styles';
+import { colors, dynamicStyles, header } from '@/styles';
 
 // Start in the first device language the app supports, otherwise English.
 const deviceLanguage = getLocales().map((locale) => locale.languageCode).find(isLanguage);
 if (deviceLanguage) setLanguage(deviceLanguage);
 
+/** Android's header background: the native header cannot draw a bottom line itself. */
+function HeaderBackground() {
+  return <View style={header.background} />;
+}
+
 export default function RootLayout() {
   const t = useT();
+  const insets = useSafeAreaInsets();
   return (
     <>
       {/* Light text on the dark screens. Not the Stack's statusBarStyle: on iOS that needs
@@ -21,19 +30,19 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerBlurEffect: 'dark',
-          headerTintColor: '#ffffff',
+          // The blur is iOS only; Android gets a dark bar with a khaki line instead.
+          headerBackground: Platform.OS === 'android' ? HeaderBackground : undefined,
+          headerTintColor: colors.white,
           headerBackButtonDisplayMode: 'minimal',
           headerTitleStyle: { fontWeight: '700' },
           headerShadowVisible: false,
           headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
-          headerLargeTitleStyle: { color: '#ffffff' },
+          headerLargeTitleStyle: { color: colors.white },
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        {/* The start screen draws its own title row, so the language dropdown sits level with the large title.
-            The title still names the screen, e.g. for the back button. */}
-        <Stack.Screen name="index" options={{ title: 'Catch me!', headerShown: false }} />
+        <Stack.Screen name="index" options={{ title: 'Catch me!', headerRight: () => <LanguageSwitch /> }} />
         <Stack.Screen name="create" options={{ title: t('create.chooseTitle') }} />
         {/* Joining replaces the previous screen, so there is nothing to go back to. */}
         <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
@@ -47,6 +56,8 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.background },
         }} />
       </Stack>
+      {/* Android draws edge-to-edge and ignores a navigation bar colour, so a solid strip sits behind its buttons. */}
+      {Platform.OS === 'android' && <View pointerEvents="none" style={dynamicStyles.navigationBar(insets.bottom)} />}
     </>
   );
 }

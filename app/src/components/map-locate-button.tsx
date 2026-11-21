@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text } from 'react-native';
 
 import { useT } from '../i18n';
-import { mapStyles as styles } from '../styles';
+import { colors, mapStyles as styles } from '../styles';
 
 type Props = {
   locating: boolean;
@@ -17,7 +17,7 @@ export default function MapLocateButton({ locating, error, onLocate }: Props) {
     <>
       {!!error && <Text style={styles.locateError}>{error}</Text>}
       <Pressable accessibilityRole="button" accessibilityLabel={t('map.myLocation')} disabled={locating} onPress={onLocate} style={[styles.locateButton, locating && styles.locating]}>
-        <Ionicons name="locate" size={22} color="#10251c" />
+        <Ionicons name="locate" size={22} color={colors.background} />
       </Pressable>
     </>
   );

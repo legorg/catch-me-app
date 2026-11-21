@@ -1,0 +1,10 @@
+{
+  "background": "#3b4530",
+  "card": "#1f2519",
+  "accent": "#cdb978",
+  "text": "#e6e2d0",
+  "hint": "#a9a68e",
+  "placeholder": "#77765f",
+  "error": "#ff9e8a",
+  "camouflage": true
+}

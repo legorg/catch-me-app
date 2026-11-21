@@ -194,6 +194,7 @@ func (s *GameService) Join(ctx context.Context, code game.JoinCode, name game.Pl
 	if err != nil {
 		return PlayerView{}, game.PlayerToken{}, fmt.Errorf("join game: %w", err)
 	}
+	identify(ctx, lobby, me)
 	return PlayerView{Lobby: lobby, Me: me, Now: now, StartPositionCheckDisabled: s.skipStartPositionCheck}, token, nil
 }
 
@@ -321,5 +322,23 @@ func (s *GameService) updateAsPlayer(ctx context.Context, token game.PlayerToken
 	if !ok && change == nil {
 		return PlayerView{}, game.ErrUnauthorized
 	}
+	if ok {
+		identify(ctx, lobby, me)
+	}
 	return PlayerView{Lobby: lobby, Me: me, Now: now, StartPositionCheckDisabled: s.skipStartPositionCheck}, nil
+}
+
+type requesterKey struct{}
+
+// WithRequester returns a context in which the service notes who sent the
+// request, as log key-value pairs for the access log.
+func WithRequester(ctx context.Context) (context.Context, *[]any) {
+	who := new([]any)
+	return context.WithValue(ctx, requesterKey{}, who), who
+}
+
+func identify(ctx context.Context, lobby game.Lobby, me game.Player) {
+	if who, ok := ctx.Value(requesterKey{}).(*[]any); ok {
+		*who = []any{"player", me.Name.String(), "team", me.Team, "game", lobby.Game.SessionID.String()}
+	}
 }

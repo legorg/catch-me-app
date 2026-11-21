@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"catch-me/backend/controller"
+	"catch-me/backend/service"
 )
 
 func NewHandler(games *controller.GameController) http.Handler {
@@ -20,9 +21,10 @@ func NewHandler(games *controller.GameController) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		ctx, who := service.WithRequester(r.Context())
 		start := time.Now()
-		mux.ServeHTTP(recorder, r)
-		slog.Info("request", "method", r.Method, "path", r.URL.Path, "status", recorder.status, "duration", time.Since(start), "remote", r.RemoteAddr)
+		mux.ServeHTTP(recorder, r.WithContext(ctx))
+		slog.Info("request", append([]any{"method", r.Method, "path", r.URL.Path, "status", recorder.status, "duration", time.Since(start), "remote", r.RemoteAddr}, *who...)...)
 	})
 }
 

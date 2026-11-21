@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Camouflage from '@/components/camouflage';
 import { styles } from '@/styles';
 
 /**
@@ -22,12 +23,16 @@ export default function KeyboardScrollView({ children }: { children: ReactNode }
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
+        <Camouflage style={styles.camouflage} />
         {children}
       </ScrollView>
     );
   }
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+      {/* Behind the ScrollView at screen size: Android tiles into one bitmap of the image's size,
+          which fails for the oversized pattern iOS draws inside the scroll content. */}
+      <Camouflage style={StyleSheet.absoluteFill} />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: styles.content.padding + insets.bottom }]}
         keyboardShouldPersistTaps="handled"
