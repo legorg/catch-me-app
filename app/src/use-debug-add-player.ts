@@ -3,20 +3,19 @@ import { useState } from 'react';
 import {
   ApiError, MAX_NAME_LENGTH, joinGame, setHunterTeam, setReady, updatePosition, type JoinCodes,
 } from '@/api/client';
-import { isGameStateRunnerResponse, type Bounds, type Coordinates } from '@/api/types';
+import { isGameStateRunnerResponse, type Bounds, type Coordinates, type Playground } from '@/api/types';
+import { cellAt, rotatePoint } from '@/playground';
 
 const MOVE_INTERVAL_MS = 5000;
 // About 120 m per step, i.e. a brisk jog.
 const STEP_DEGREES = 0.0011;
 const MAX_TURN = 0.6;
 
-type Bot = { token: string; position: Coordinates; bounds: Bounds; heading: number };
+type Bot = { token: string; position: Coordinates; playground: Playground; heading: number };
 
 // Bots outlive the lobby, so they keep reporting after the game screen replaces it.
 const bots = new Map<string, Bot>();
 let mover: ReturnType<typeof setInterval> | undefined;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function randomIn({ north, south, east, west }: Bounds): Coordinates {
   return { latitude: south + Math.random() * (north - south), longitude: west + Math.random() * (east - west) };
@@ -34,14 +33,15 @@ function addBot(name: string, bot: Bot) {
   report(name, bot);
   mover ??= setInterval(() => {
     for (const [botName, b] of bots) {
-      const { north, south, east, west } = b.bounds;
       // Keep going roughly the same way, turning a little each step.
       b.heading += (Math.random() - 0.5) * 2 * MAX_TURN;
-      const latitude = b.position.latitude + Math.sin(b.heading) * STEP_DEGREES;
-      const longitude = b.position.longitude + Math.cos(b.heading) * STEP_DEGREES;
+      const next = {
+        latitude: b.position.latitude + Math.sin(b.heading) * STEP_DEGREES,
+        longitude: b.position.longitude + Math.cos(b.heading) * STEP_DEGREES,
+      };
       // Turn around at the edge of the playground.
-      if (latitude < south || latitude > north || longitude < west || longitude > east) b.heading += Math.PI;
-      b.position = { latitude: clamp(latitude, south, north), longitude: clamp(longitude, west, east) };
+      if (cellAt(b.playground, next) === null) b.heading += Math.PI;
+      else b.position = next;
       report(botName, b);
     }
     if (bots.size === 0) {
@@ -68,8 +68,10 @@ export function useDebugAddPlayer(codes: JoinCodes) {
       const { playerToken, state } = await joinGame(codes[team], name);
       if (team === 'hunter') await setHunterTeam(playerToken, hunterTeam);
       if (ready) await setReady(playerToken, true);
-      const { bounds } = state.playground;
-      addBot(name.trim(), { token: playerToken, bounds, position: (isGameStateRunnerResponse(state) ? state.route.start.coordinates : randomIn(bounds)), heading: Math.random() * 2 * Math.PI });
+      const { playground } = state;
+      // A random point of the unrotated grid, turned with it, always lies inside.
+      const position = isGameStateRunnerResponse(state) ? state.route.start.coordinates : rotatePoint(playground, randomIn(playground.bounds));
+      addBot(name.trim(), { token: playerToken, playground, position, heading: Math.random() * 2 * Math.PI });
       setMessage(`Added ${name.trim()}; it reports a position every 5 seconds.`);
       setName(nextName(name));
     } catch (err) {

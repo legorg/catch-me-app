@@ -29,6 +29,7 @@ export function useCreateGame() {
   const [cellSizeText, setCellSizeText] = useState(String(DEFAULT_CELL_SIZE_METERS / 1000));
   const [gridSizeText, setGridSizeText] = useState(String(DEFAULT_GRID_SIZE));
   const [revealIntervalText, setRevealIntervalText] = useState(String(DEFAULT_REVEAL_INTERVAL_MINUTES));
+  const [rotation, setRotation] = useState(0);
   const [jokers, setJokers] = useState<JokerSettings>(DEFAULT_JOKER_SETTINGS);
   const [routeMode, setRouteMode] = useState<RouteMode>('generated');
   const [routePoints, setRoutePoints] = useState<RoutePoints>({ start: null, stop: null });
@@ -51,7 +52,7 @@ export function useCreateGame() {
   // The grid starts at a default spot; the user drags it, and can only create once they have.
   if (!created && cellSize !== null && gridSize !== null) {
     try {
-      playground = previewPlayground(selected ?? DEFAULT_CENTER, cellSize, gridSize);
+      playground = previewPlayground(selected ?? DEFAULT_CENTER, cellSize, gridSize, rotation);
     } catch (err) {
       sizeError = err instanceof Error ? err.message : t('create.sizeInvalid');
     }
@@ -71,7 +72,7 @@ export function useCreateGame() {
   function selectCenter(center: Coordinates) {
     try {
       if (cellSize === null || gridSize === null) throw new Error(t('create.sizeFirst'));
-      previewPlayground(center, cellSize, gridSize);
+      previewPlayground(center, cellSize, gridSize, rotation);
       setPicked(center);
       setStatus((s) => ({ ...s, error: false, message: { key: 'create.checkGrid' } }));
     } catch (err) {
@@ -103,7 +104,7 @@ export function useCreateGame() {
       if (!selected || cellSize === null || gridSize === null || revealInterval === null || cannotCreate) return;
       const { start, stop } = routePoints;
       const route = routeMode === 'chosen' && start && stop ? { start, stop } : undefined;
-      setCreated(await createGame(selected, cellSize, gridSize, revealInterval, jokers, route));
+      setCreated(await createGame(selected, cellSize, gridSize, rotation, revealInterval, jokers, route));
       setStatus((s) => ({ ...s, message: { key: 'create.created' } }));
     }, routeMode === 'chosen' ? 'create.creatingChosen' : 'create.creating');
   };
@@ -121,6 +122,7 @@ export function useCreateGame() {
     cellSizeText, setCellSizeText, sizeError,
     gridSizeText, setGridSizeText, gridSizeError,
     revealIntervalText, setRevealIntervalText, revealIntervalError,
+    rotation, setRotation,
     jokers, setJokerAllowance: (kind: JokerKind, allowance: number) => setJokers((current) => withAllowance(current, kind, allowance)),
     setZoneAlert: (enabled: boolean) => setJokers((current) => withZoneAlert(current, enabled)),
     routeMode, setRouteMode, routePoints, routeTapMissed, tapRoutePoint,

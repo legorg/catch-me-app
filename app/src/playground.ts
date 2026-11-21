@@ -67,12 +67,15 @@ export function parseWholeNumber(text: string, isValid: (value: number) => boole
 }
 
 // Preview only. The backend computes and stores the authoritative geometry.
-export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_CELL_SIZE_METERS, gridSize = DEFAULT_GRID_SIZE): Playground {
+export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_CELL_SIZE_METERS, gridSize = DEFAULT_GRID_SIZE, rotationDegrees = 0): Playground {
   if (!isValidCellSize(cellSizeMeters)) {
     throw new Error(translate('playground.cellSizeInvalid'));
   }
   if (!isValidGridSize(gridSize)) {
     throw new Error(translate('playground.gridSizeInvalid'));
+  }
+  if (!isValidRotation(rotationDegrees)) {
+    throw new Error(translate('playground.rotationInvalid'));
   }
   if (!Number.isFinite(center.latitude) || Math.abs(center.latitude) > 80 ||
       !Number.isFinite(center.longitude) || Math.abs(center.longitude) > 180) {
@@ -84,12 +87,37 @@ export function previewPlayground(center: Coordinates, cellSizeMeters = DEFAULT_
     north: center.latitude + latitudeDelta, south: center.latitude - latitudeDelta,
     east: center.longitude + longitudeDelta, west: center.longitude - longitudeDelta,
   };
-  if (bounds.west < -180 || bounds.east > 180) {
+  const playground = { center, bounds, rows: gridSize, columns: gridSize, cellSizeMeters, rotationDegrees };
+  const longitudes = playgroundCorners(playground).map((c) => c.longitude);
+  if (Math.min(...longitudes) < -180 || Math.max(...longitudes) > 180) {
     throw new Error(translate('playground.dateLine'));
   }
-  return { center, bounds, rows: gridSize, columns: gridSize, cellSizeMeters, rotationDegrees: 0 };
+  return playground;
 }
 
+/**
+ * Turns a point of the unrotated grid clockwise around the center onto the map (or, with negative degrees, back).
+ * Uses the same local flat approximation as the backend, so 0 degrees returns the point unchanged.
+ */
+function turn(p: Playground, c: Coordinates, clockwiseDegrees: number): Coordinates {
+  if (clockwiseDegrees % 360 === 0) return c;
+  const scale = Math.cos(p.center.latitude * Math.PI / 180);
+  const east = (c.longitude - p.center.longitude) * scale;
+  const north = c.latitude - p.center.latitude;
+  const sin = Math.sin(clockwiseDegrees * Math.PI / 180);
+  const cos = Math.cos(clockwiseDegrees * Math.PI / 180);
+  return {
+    latitude: p.center.latitude - east * sin + north * cos,
+    longitude: p.center.longitude + (east * cos + north * sin) / scale,
+  };
+}
+
+/** The point on the map of a point of the unrotated grid. */
+export function rotatePoint(p: Playground, c: Coordinates): Coordinates {
+  return turn(p, c, p.rotationDegrees);
+}
+
+/** The four corners of a north-aligned rectangle. */
 export function boundaryCoordinates(b: Bounds): Coordinates[] {
   return [
     { latitude: b.north, longitude: b.west },
@@ -97,6 +125,22 @@ export function boundaryCoordinates(b: Bounds): Coordinates[] {
     { latitude: b.south, longitude: b.east },
     { latitude: b.south, longitude: b.west },
   ];
+}
+
+/** The playground's corners on the map, turned with the grid. */
+export function playgroundCorners(p: Playground): Coordinates[] {
+  return boundaryCoordinates(p.bounds).map((c) => rotatePoint(p, c));
+}
+
+/** The corners of a cell such as "C4" on the map, turned with the grid. */
+export function cellCorners(p: Playground, label: string): Coordinates[] {
+  return boundaryCoordinates(cellBounds(p, label)).map((c) => rotatePoint(p, c));
+}
+
+/** The middle of a cell such as "C4" on the map. */
+export function cellCenter(p: Playground, label: string): Coordinates {
+  const b = cellBounds(p, label);
+  return rotatePoint(p, { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 });
 }
 
 export function gridLines(p: Playground): Coordinates[][] {
@@ -110,24 +154,20 @@ export function gridLines(p: Playground): Coordinates[][] {
     const longitude = b.west + (b.east - b.west) * column / columns;
     lines.push([{ latitude: b.north, longitude }, { latitude: b.south, longitude }]);
   }
-  return lines;
+  return lines.map((line) => line.map((c) => rotatePoint(p, c)));
 }
 
 export function cellLabels(p: Playground) {
   return Array.from({ length: p.rows * p.columns }, (_, index) => {
-    const row = Math.floor(index / p.columns);
-    const column = index % p.columns;
-    return {
-      label: `${String.fromCharCode(65 + column)}${row + 1}`,
-      coordinate: {
-        latitude: p.bounds.north - (p.bounds.north - p.bounds.south) * (row + 0.5) / p.rows,
-        longitude: p.bounds.west + (p.bounds.east - p.bounds.west) * (column + 0.5) / p.columns,
-      },
-    };
+    const label = `${String.fromCharCode(65 + index % p.columns)}${Math.floor(index / p.columns) + 1}`;
+    return { label, coordinate: cellCenter(p, label) };
   });
 }
 
-/** Bounds of a cell such as "C4" (columns A, B, … west to east, rows 1, 2, … north to south). */
+/**
+ * Bounds of a cell such as "C4" in the unrotated grid (columns A, B, … west to east, rows 1, 2, … north to south);
+ * use cellCorners or cellCenter for the map.
+ */
 export function cellBounds(p: Playground, label: string): Bounds {
   const column = label.charCodeAt(0) - 65;
   const row = Number(label.slice(1)) - 1;
@@ -148,8 +188,10 @@ export function edgeName(p: Playground, label: string): string {
 }
 
 /** Label of the cell containing the coordinates, or null outside the playground. Mirrors the backend. */
-export function cellAt(p: Playground, c: Coordinates): string | null {
+export function cellAt(p: Playground, point: Coordinates): string | null {
   const b = p.bounds;
+  // Turned back into the unrotated grid, where cells are north-aligned rectangles.
+  const c = turn(p, point, -p.rotationDegrees);
   if (!(c.latitude <= b.north && c.latitude >= b.south && c.longitude >= b.west && c.longitude <= b.east)) {
     return null;
   }

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  boundaryCoordinates, cellAt, cellBounds, cellLabels, distanceMeters, edgeName, gridLines, isValidGridSize, isValidRevealInterval,
-  parseCellSizeKm, parseWholeNumber, previewPlayground, routePointAt, rowCells,
+  boundaryCoordinates, cellAt, cellBounds, cellCenter, cellCorners, cellLabels, distanceMeters, edgeName, gridLines, isValidGridSize,
+  isValidRevealInterval, parseCellSizeKm, parseWholeNumber, playgroundCorners, previewPlayground, routePointAt, rowCells,
 } from '../src/playground';
 
 test('a chosen route starts in the southern and stops in the northern edge row', () => {
@@ -149,6 +149,59 @@ test('invalid centers and date-line crossings cannot be previewed', () => {
     { latitude: NaN, longitude: 0 }, { latitude: 0, longitude: Infinity },
     { latitude: 0, longitude: 180 }, { latitude: 0, longitude: -180 },
   ]) assert.throws(() => previewPlayground(center));
+});
+
+test('a rotated grid keeps its cells, labels and edge rows', () => {
+  for (const degrees of [1, 30, 45, 90, 180, 271, 359]) {
+    const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 4, degrees);
+    assert.equal(p.rotationDegrees, degrees);
+    for (const { label, coordinate } of cellLabels(p)) {
+      assert.equal(cellAt(p, coordinate), label, `${degrees}°: ${label}`);
+      assert.deepEqual(coordinate, cellCenter(p, label));
+    }
+    const centers = new Map(cellLabels(p).map(({ label, coordinate }) => [label, coordinate]));
+    assert.equal(routePointAt(p, centers.get('B4')!), 'start');
+    assert.equal(routePointAt(p, centers.get('D1')!), 'stop');
+    assert.equal(routePointAt(p, centers.get('C2')!), null);
+  }
+});
+
+test('a rotated grid turns clockwise around its center', () => {
+  const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 4, 90);
+  // Turned by 90°, row 1 lies in the east and column A in the north.
+  const a1 = cellCenter(p, 'A1');
+  assert.ok(a1.latitude > p.center.latitude && a1.longitude > p.center.longitude);
+  assert.equal(cellAt(p, { latitude: p.center.latitude, longitude: p.bounds.east - 0.001 })?.slice(1), '1');
+  // The corners of the playground and of each cell turn with it and keep the center in the middle.
+  const corners = playgroundCorners(p);
+  assert.equal(corners.length, 4);
+  const middle = corners.reduce((sum, c) => ({ latitude: sum.latitude + c.latitude / 4, longitude: sum.longitude + c.longitude / 4 }), { latitude: 0, longitude: 0 });
+  assert.ok(Math.abs(middle.latitude - p.center.latitude) < 1e-12 && Math.abs(middle.longitude - p.center.longitude) < 1e-12);
+  for (const corner of cellCorners(p, 'C3')) {
+    assert.ok(Math.abs(corner.latitude - cellCenter(p, 'C3').latitude) < (p.bounds.north - p.bounds.south) / 4);
+  }
+});
+
+test('a grid turned by 45° covers other ground than the north-aligned one', () => {
+  const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 4, 45);
+  // The north-aligned corner lies outside; A1 sticks out beyond the north-aligned grid.
+  assert.equal(cellAt(p, { latitude: p.bounds.north - 0.0001, longitude: p.bounds.west + 0.0001 }), null);
+  const a1 = cellCenter(p, 'A1');
+  assert.ok(a1.latitude > p.bounds.north);
+  assert.equal(cellAt(p, a1), 'A1');
+  // Grid lines and corners leave the north-aligned bounds.
+  assert.ok(playgroundCorners(p).some((c) => c.latitude > p.bounds.north));
+  assert.equal(gridLines(p).length, 6);
+});
+
+test('the rotation must be whole degrees from 0 to 359 and keep the grid off the date line', () => {
+  for (const degrees of [-1, 360, 1.5, NaN]) {
+    assert.throws(() => previewPlayground({ latitude: 0, longitude: 0 }, 1000, 4, degrees), /rotation/);
+  }
+  // 3 × 100 m: 150 m from the center to an edge, about 212 m to a corner.
+  const longitude = 180 - 180 / Math.PI * 180 / 6371008.8;
+  assert.doesNotThrow(() => previewPlayground({ latitude: 0, longitude }, 100, 3, 0));
+  assert.throws(() => previewPlayground({ latitude: 0, longitude }, 100, 3, 45), /date line/);
 });
 
 test('distanceMeters is the haversine distance', () => {

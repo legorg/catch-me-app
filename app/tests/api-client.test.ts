@@ -162,17 +162,17 @@ test('a chosen route is sent with the game', async (t) => {
     assert.deepEqual(await request.json(), { ...center, cellSizeMeters: 2000, gridSize: 6, rotationDegrees: 0, revealIntervalMinutes: 30, jokers, route });
     return Response.json(created, { status: 201 });
   });
-  assert.deepEqual(await createGame(center, 2000, 6, 30, jokers, route), created);
+  assert.deepEqual(await createGame(center, 2000, 6, 0, 30, jokers, route), created);
 });
 
 test('custom settings are sent', async (t) => {
-  for (const [size, cells, minutes] of [[100, 3, 1], [1500, 6, 30], [5000, 12, 60]]) {
-    const response = { ...created, game: { ...created.game, playground: previewPlayground(center, size, cells), revealIntervalMinutes: minutes } };
+  for (const [size, cells, degrees, minutes] of [[100, 3, 0, 1], [1500, 6, 45, 30], [5000, 12, 355, 60]]) {
+    const response = { ...created, game: { ...created.game, playground: previewPlayground(center, size, cells, degrees), revealIntervalMinutes: minutes } };
     t.mock.method(globalThis, 'fetch', async (request: Request) => {
-      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size, gridSize: cells, rotationDegrees: 0, revealIntervalMinutes: minutes, jokers });
+      assert.deepEqual(await request.json(), { ...center, cellSizeMeters: size, gridSize: cells, rotationDegrees: degrees, revealIntervalMinutes: minutes, jokers });
       return Response.json(response, { status: 201 });
     });
-    assert.deepEqual(await createGame(center, size, cells, minutes), response);
+    assert.deepEqual(await createGame(center, size, cells, degrees, minutes), response);
   }
 });
 
@@ -189,7 +189,7 @@ test('chosen joker allowances are sent for every kind, including 0', async (t) =
     assert.deepEqual((await request.json()).jokers, { ...jokers, showRunners: { allowance: 0 }, trap: { allowance: 5 }, fakePosition: { allowance: 3 }, zoneAlert: { enabled: false } });
     return Response.json(created, { status: 201 });
   });
-  await createGame(center, 2000, 6, 30, settings);
+  await createGame(center, 2000, 6, 0, 30, settings);
 });
 
 test('invalid input is rejected before a request', async (t) => {
@@ -200,11 +200,14 @@ test('invalid input is rejected before a request', async (t) => {
   for (const cells of [2, 13, 6.5, NaN]) {
     await assert.rejects(createGame(center, 2000, cells), /grid/);
   }
+  for (const degrees of [-5, 360, 2.5, NaN]) {
+    await assert.rejects(createGame(center, 2000, 6, degrees), /rotation/);
+  }
   for (const minutes of [0, 61, 0.5, NaN]) {
-    await assert.rejects(createGame(center, 2000, 6, minutes), /reveal interval/);
+    await assert.rejects(createGame(center, 2000, 6, 0, minutes), /reveal interval/);
   }
   for (const allowance of [-1, 6, 1.5, NaN]) {
-    await assert.rejects(createGame(center, 2000, 6, 30, withAllowance(DEFAULT_JOKER_SETTINGS, 'compass', allowance)), /joker allowance/);
+    await assert.rejects(createGame(center, 2000, 6, 0, 30, withAllowance(DEFAULT_JOKER_SETTINGS, 'compass', allowance)), /joker allowance/);
   }
   for (const code of ['', '123', '12345A', 'K7M2QX', '1234567', '123 45']) {
     await assert.rejects(joinGame(code, 'Ada'), /join code/);

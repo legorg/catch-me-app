@@ -1,7 +1,7 @@
 import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type JoinCodes, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
 import { isActivePlayer, isSpectator } from './game-state';
-import { cellBounds, offsetPoint, START_RADIUS_METERS } from './playground';
+import { cellCenter, offsetPoint, START_RADIUS_METERS } from './playground';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -165,11 +165,6 @@ export function revealZones(state: GameStateResponse): { cell: string; title: st
   return state.players.flatMap((p) => (isActivePlayer(p) ? p.reveals ?? [] : []).flatMap((reveal) => reveal.kind === 'zone'
     ? [{ cell: reveal.cell, title: p.name, color: ZONE_COLORS.revealed }]
     : []));
-}
-
-function cellCenter(playground: Playground, cell: string) {
-  const b = cellBounds(playground, cell);
-  return { latitude: (b.north + b.south) / 2, longitude: (b.east + b.west) / 2 };
 }
 
 /** Markers for what the team's used jokers showed: each runner where they were at every use, and every queried zone with its answer. */

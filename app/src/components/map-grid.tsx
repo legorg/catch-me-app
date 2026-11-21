@@ -2,7 +2,7 @@ import { Text } from 'react-native';
 import { Marker, Polygon, Polyline, type LatLng } from 'react-native-maps';
 
 import type { Playground } from '../api/types';
-import { boundaryCoordinates, cellBounds, cellLabels, gridLines } from '../playground';
+import { cellCorners, cellLabels, gridLines, playgroundCorners } from '../playground';
 import { mapStyles as styles } from '../styles';
 import type { CellHighlight } from './playground-map';
 
@@ -16,9 +16,9 @@ type Props = {
 export default function MapGrid({ playground, highlights, onSelect }: Props) {
   return (
     <>
-      <Polygon coordinates={boundaryCoordinates(playground.bounds)} strokeColor="#10251c" strokeWidth={3} fillColor="rgba(167,233,189,0.15)" />
+      <Polygon coordinates={playgroundCorners(playground)} strokeColor="#10251c" strokeWidth={3} fillColor="rgba(167,233,189,0.15)" />
       {highlights.map(({ cell, color }, index) => (
-        <Polygon key={`${index}-${cell}`} coordinates={boundaryCoordinates(cellBounds(playground, cell))} strokeColor={color} strokeWidth={3} fillColor={`${color}55`} tappable={false} />
+        <Polygon key={`${index}-${cell}`} coordinates={cellCorners(playground, cell)} strokeColor={color} strokeWidth={3} fillColor={`${color}55`} tappable={false} />
       ))}
       {gridLines(playground).map((coordinates, index) => (
         <Polyline key={index} coordinates={coordinates} strokeColor="#10251c" strokeWidth={1} />

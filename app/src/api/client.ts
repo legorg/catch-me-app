@@ -23,6 +23,7 @@ import { translate, type MessageKey } from '../i18n';
 import { DEFAULT_JOKER_SETTINGS, HUNTER_JOKER_KINDS, RUNNER_JOKER_KINDS, isValidJokerAllowance } from '../joker-settings';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES, isValidCellSize, isValidGridSize, isValidRevealInterval,
+  isValidRotation,
 } from '../playground';
 
 export type { Coordinates, CreateGameResponse, GameResultResponse, GameStateResponse, HealthResponse, JoinCodes, JoinGameResponse, JokerRequest, JokerResponse, TimelineEvent, TimelineResponse } from './types';
@@ -69,6 +70,7 @@ export async function createGame(
   center: { latitude: number; longitude: number },
   cellSizeMeters = DEFAULT_CELL_SIZE_METERS,
   gridSize = DEFAULT_GRID_SIZE,
+  rotationDegrees = 0,
   revealIntervalMinutes = DEFAULT_REVEAL_INTERVAL_MINUTES,
   jokers: JokerSettings = DEFAULT_JOKER_SETTINGS,
   route?: { start: Coordinates; stop: Coordinates },
@@ -79,6 +81,9 @@ export async function createGame(
   if (!isValidGridSize(gridSize)) {
     throw new Error(translate('playground.gridSizeInvalid'));
   }
+  if (!isValidRotation(rotationDegrees)) {
+    throw new Error(translate('playground.rotationInvalid'));
+  }
   if (!isValidRevealInterval(revealIntervalMinutes)) {
     throw new Error(translate('playground.revealIntervalInvalid'));
   }
@@ -86,7 +91,7 @@ export async function createGame(
     throw new Error(translate('playground.jokerAllowanceInvalid'));
   }
   // Without a chosen route the server looks up landmarks for one.
-  const body = { ...center, cellSizeMeters, gridSize, rotationDegrees: 0, revealIntervalMinutes, jokers, ...(route && { route }) };
+  const body = { ...center, cellSizeMeters, gridSize, rotationDegrees, revealIntervalMinutes, jokers, ...(route && { route }) };
   return request((signal) => postGame({ baseUrl: API_URL, body, signal }), LANDMARK_TIMEOUT_MS, 'client.createTimeout');
 }
 

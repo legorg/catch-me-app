@@ -3,7 +3,7 @@ import type MapView from 'react-native-maps';
 import type { LatLng, MapPressEvent, Region } from 'react-native-maps';
 
 import type { Coordinates, Playground } from './api/types';
-import { boundaryCoordinates } from './playground';
+import { playgroundCorners } from './playground';
 
 type Options = {
   playground: Playground | null;
@@ -20,8 +20,8 @@ export function useMapRegion({ playground, editable, onSelect, onPick }: Options
   const map = useRef<MapView>(null);
   const [ready, setReady] = useState(false);
   const bounds = playground?.bounds;
-  const boundsRef = useRef(bounds);
-  useEffect(() => { boundsRef.current = bounds; });
+  const playgroundRef = useRef(playground);
+  useEffect(() => { playgroundRef.current = playground; });
   // Apple Maps (iOS) does not report isGesture reliably, so moves we cause ourselves (initial fit, refit, tap)
   // are muted for a moment instead.
   const muted = useRef(false);
@@ -29,16 +29,17 @@ export function useMapRegion({ playground, editable, onSelect, onPick }: Options
     muted.current = true;
     setTimeout(() => { muted.current = false; }, ms);
   });
-  // Refit when the grid size changes, not while it is dragged: its span stays the same.
+  // Refit when the grid size or rotation changes, not while it is dragged: its span stays the same.
   const span = bounds ? bounds.north - bounds.south : undefined;
+  const rotation = playground?.rotationDegrees;
   useEffect(() => {
-    if (ready && boundsRef.current) {
+    if (ready && playgroundRef.current) {
       mute.current(1200);
-      map.current?.fitToCoordinates(boundaryCoordinates(boundsRef.current), {
+      map.current?.fitToCoordinates(playgroundCorners(playgroundRef.current), {
         edgePadding: { top: 24, bottom: 24, left: 24, right: 24 }, animated: true,
       });
     }
-  }, [ready, span]);
+  }, [ready, span, rotation]);
   const measureAnchor = async () => {
     try {
       const camera = await map.current?.getCamera();
