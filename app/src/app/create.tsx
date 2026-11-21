@@ -6,6 +6,7 @@ import JoinAsCard from '@/components/join-as-card';
 import JoinCodes from '@/components/join-codes';
 import JokerSettingsCard from '@/components/joker-settings-card';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
+import RouteChoiceCard from '@/components/route-choice-card';
 import SettingCard from '@/components/setting-card';
 import { formatNumber, useT } from '@/i18n';
 import { colors, styles } from '@/styles';
@@ -46,6 +47,8 @@ export default function CreateScreen() {
           lastColumn: String.fromCharCode(64 + playground.columns), rows: playground.rows,
         })}
       </Text>}
+      {!created && <RouteChoiceCard mode={game.routeMode} onModeChange={game.setRouteMode} playground={playground}
+        points={game.routePoints} tapMissed={game.routeTapMissed} onTap={game.tapRoutePoint} disabled={busy} />}
       <Text accessibilityLiveRegion="polite" style={[styles.text, game.error && styles.error]}>
         {'key' in game.message ? t(game.message.key) : game.message.text}
       </Text>

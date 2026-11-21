@@ -25,8 +25,8 @@ export default function LobbyRouteCard({ state, skipStartPositionCheck, atStart,
       <Text style={styles.heading}>{t('lobby.routeHeading')}</Text>
       <Text style={styles.text}>
         {translateParts('lobby.route', {
-          start: <Text key="start" style={[styles.heading, styles.startText]}>{titles.start}</Text>,
-          stop: <Text key="stop" style={[styles.heading, styles.targetText]}>{titles.stop}</Text>,
+          start: <Text key="start" style={[styles.heading, styles.routeText]}>{titles.start}</Text>,
+          stop: <Text key="stop" style={[styles.heading, styles.routeText]}>{titles.stop}</Text>,
           distance: (route.distanceMeters / 1000).toFixed(1),
         })}
       </Text>

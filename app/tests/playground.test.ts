@@ -3,8 +3,19 @@ import { test } from 'node:test';
 
 import {
   boundaryCoordinates, cellAt, cellBounds, cellLabels, distanceMeters, edgeName, gridLines, isValidGridSize, isValidRevealInterval,
-  parseCellSizeKm, parseWholeNumber, previewPlayground,
+  parseCellSizeKm, parseWholeNumber, previewPlayground, routePointAt, rowCells,
 } from '../src/playground';
+
+test('a chosen route starts in the southern and stops in the northern edge row', () => {
+  const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 1000, 4);
+  assert.deepEqual(rowCells(p, 1), ['A1', 'B1', 'C1', 'D1']);
+  assert.deepEqual(rowCells(p, 4), ['A4', 'B4', 'C4', 'D4']);
+  const centers = new Map(cellLabels(p).map(({ label, coordinate }) => [label, coordinate]));
+  assert.equal(routePointAt(p, centers.get('B4')!), 'start');
+  assert.equal(routePointAt(p, centers.get('D1')!), 'stop');
+  assert.equal(routePointAt(p, centers.get('C2')!), null);
+  assert.equal(routePointAt(p, { latitude: p.bounds.south - 0.001, longitude: p.center.longitude }), null);
+});
 
 test('cellAt finds the labeled cell and rejects outside positions', () => {
   const p = previewPlayground({ latitude: 52.52, longitude: 13.405 }, 500);

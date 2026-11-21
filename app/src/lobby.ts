@@ -1,7 +1,7 @@
 import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type JoinCodes, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
 import { isActivePlayer, isSpectator } from './game-state';
-import { cellAt, cellBounds, offsetPoint, START_RADIUS_METERS } from './playground';
+import { cellBounds, offsetPoint, START_RADIUS_METERS } from './playground';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -294,8 +294,11 @@ export function serverNow(state: GameStateResponse, receivedAt: number, now: num
   return Date.parse(state.serverTime) + (now - receivedAt);
 }
 
-/** Start and target colors on the map; the same values as colors.start / colors.target (styles.ts cannot be loaded by the node tests). */
+/** Colors of the start (southern) and destination (northern) edge rows while choosing a route; the same values as colors.start / colors.target (styles.ts cannot be loaded by the node tests). */
 export const ROUTE_COLORS = { start: '#2f80ed', target: '#eb5757' } as const;
+
+/** One color for the start and destination pins, used by no other marker; the same value as colors.route. */
+export const ROUTE_PIN_COLOR = '#00bcd4';
 
 /** The route's start and stop names, falling back to the generic labels. */
 export function routeTitles(route: GameRoute): { start: string; stop: string } {
@@ -310,23 +313,12 @@ export function routeChangeBlocker(state: GameStateRunnerResponse): 'notLobby' |
   return null;
 }
 
-/** The grid cells of the route's start and stop (each left out when it lies outside the playground). */
-export function routeHighlights(playground: Playground, route: GameRoute): { cell: string; title: string; color: string }[] {
-  const titles = routeTitles(route);
-  const start = cellAt(playground, route.start.coordinates);
-  const stop = cellAt(playground, route.stop.coordinates);
-  return [
-    ...(start ? [{ cell: start, title: titles.start, color: ROUTE_COLORS.start }] : []),
-    ...(stop ? [{ cell: stop, title: titles.stop, color: ROUTE_COLORS.target }] : []),
-  ];
-}
-
 /** Map markers for the route's start and stop. */
 export function routeMarkers(route: GameRoute): PlayerMarker[] {
   const titles = routeTitles(route);
   return [
-    { id: 'route-start', coordinate: route.start.coordinates, title: titles.start, description: translate('lobby.start'), color: ROUTE_COLORS.start },
-    { id: 'route-stop', coordinate: route.stop.coordinates, title: titles.stop, description: translate('lobby.target'), color: ROUTE_COLORS.target },
+    { id: 'route-start', coordinate: route.start.coordinates, title: titles.start, description: translate('lobby.start'), color: ROUTE_PIN_COLOR },
+    { id: 'route-stop', coordinate: route.stop.coordinates, title: titles.stop, description: translate('lobby.target'), color: ROUTE_PIN_COLOR },
   ];
 }
 
@@ -408,10 +400,8 @@ export function visibleRoute(state: GameStateResponse): GameRoute | undefined {
   return state.team === 'hunter' ? undefined : state.route;
 }
 
-/** Route cells for runners/spectators; queried zones and zone-only reveals for active hunters. */
+/** Queried zones and zone-only reveals for active hunters; the route is shown by pins only. */
 export function gameHighlights(state: GameStateResponse) {
-  const route = visibleRoute(state);
-  if (route) return routeHighlights(state.playground, route);
   if (isSpectator(state)) return [];
   if (isGameStateHunterResponse(state)) return [...jokerZones(state), ...revealZones(state)];
   return [];

@@ -71,6 +71,7 @@ export async function createGame(
   gridSize = DEFAULT_GRID_SIZE,
   revealIntervalMinutes = DEFAULT_REVEAL_INTERVAL_MINUTES,
   jokers: JokerSettings = DEFAULT_JOKER_SETTINGS,
+  route?: { start: Coordinates; stop: Coordinates },
 ): Promise<CreateGameResponse> {
   if (!isValidCellSize(cellSizeMeters)) {
     throw new Error(translate('playground.cellSizeInvalid'));
@@ -84,7 +85,8 @@ export async function createGame(
   if (![...HUNTER_JOKER_KINDS, ...RUNNER_JOKER_KINDS].every((kind) => isValidJokerAllowance(jokers[kind].allowance))) {
     throw new Error(translate('playground.jokerAllowanceInvalid'));
   }
-  const body = { ...center, cellSizeMeters, gridSize, revealIntervalMinutes, jokers };
+  // Without a chosen route the server looks up landmarks for one.
+  const body = { ...center, cellSizeMeters, gridSize, revealIntervalMinutes, jokers, ...(route && { route }) };
   return request((signal) => postGame({ baseUrl: API_URL, body, signal }), LANDMARK_TIMEOUT_MS, 'client.createTimeout');
 }
 

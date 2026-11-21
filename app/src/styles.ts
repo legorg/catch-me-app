@@ -10,6 +10,8 @@ export const colors = {
   error: '#ffb8b8',
   start: '#2f80ed',
   target: '#eb5757',
+  /** Start and destination pins; the same value as ROUTE_PIN_COLOR. */
+  route: '#00bcd4',
   white: '#ffffff',
   scrim: 'rgba(0,0,0,0.6)',
 };
@@ -41,6 +43,7 @@ export const styles = StyleSheet.create({
   accentText: { color: colors.accent },
   startText: { color: colors.start },
   targetText: { color: colors.target },
+  routeText: { color: colors.route },
   centeredScreen: { justifyContent: 'center', padding: 20 },
   countdownScreen: { alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
   countdown: { color: colors.accent, fontSize: 160, fontWeight: '800' },
@@ -110,6 +113,8 @@ export const picker = StyleSheet.create({
   rowTight: { gap: 3 },
   cell: { flex: 1, aspectRatio: 1, maxWidth: 56, minHeight: 40, borderRadius: 8, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   cellTight: { minHeight: 32, borderRadius: 6 },
+  /** A cell with a word instead of a number: shares the row's whole width instead of being square. */
+  cellWide: { aspectRatio: undefined, maxWidth: undefined, minHeight: 44, paddingHorizontal: 8 },
   selected: { backgroundColor: colors.accent },
   label: { color: colors.accent, fontSize: 14, fontWeight: '700' },
   labelSmall: { fontSize: 10 },

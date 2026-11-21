@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { GameResultResponse } from './api/types';
 import type { MapMarker } from './components/playground-map';
-import { routeHighlights, routeMarkers } from './lobby';
+import { routeMarkers } from './lobby';
 import { positionAt, REPLAY_SPEEDS, replayLegend, replayTracks, tailAt } from './replay';
 
 /** How often the playing replay moves on, in real milliseconds. */
@@ -44,8 +44,7 @@ export function useReplay(result: GameResultResponse) {
   const lines = tracks
     .map((track) => ({ id: track.playerId, coordinates: tailAt(track.points, at), color: track.color }))
     .filter((line) => line.coordinates.length >= 2);
-  const highlights = useMemo(() => routeHighlights(result.playground, result.route), [result]);
   const legend = useMemo(() => replayLegend(result), [result]);
 
-  return { at, duration, running, speed, setSpeed, toggle, seek, markers, lines, highlights, legend };
+  return { at, duration, running, speed, setSpeed, toggle, seek, markers, lines, legend };
 }

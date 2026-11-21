@@ -49,6 +49,8 @@ export type PlaygroundMapProps = {
   onDraw?: (points: Coordinates[]) => Promise<void>;
   /** While set, the grid stays where it is and the point under the crosshair is picked whenever the map comes to rest. */
   onPick?: (point: Coordinates) => void;
+  /** While set, a tap on the map reports the tapped point instead of moving the grid. */
+  onTap?: (point: Coordinates) => void;
   /** Fill the parent instead of using the default height. */
   fullscreen?: boolean;
   /** Extra space around the location button, e.g. safe-area insets under a fullscreen map. */
@@ -57,7 +59,7 @@ export type PlaygroundMapProps = {
   locationEnabled?: boolean;
 };
 
-export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], circles = [], onDraw, onPick, fullscreen = false, controlsInset, locationEnabled = true }: PlaygroundMapProps) {
+export default function PlaygroundMap({ playground, editable, onSelect, highlights = [], markers = [], lines = [], circles = [], onDraw, onPick, onTap, fullscreen = false, controlsInset, locationEnabled = true }: PlaygroundMapProps) {
   const center = playground?.center ?? DEFAULT_CENTER;
   const bounds = playground?.bounds;
   const { map, anchor, select, onPress, onLayout, onMapReady, onRegionChangeComplete } = useMapRegion({ playground, editable, onSelect, onPick });
@@ -89,9 +91,9 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         toolbarEnabled={false}
         // Panning moves the grid: it stays centered on the map.
         onRegionChangeComplete={onRegionChangeComplete}
-        onPress={onPress}
+        onPress={onTap ? (event) => onTap(event.nativeEvent.coordinate) : onPress}
       >
-        {playground && <MapGrid playground={playground} highlights={highlights} onSelect={select} />}
+        {playground && <MapGrid playground={playground} highlights={highlights} onSelect={onTap ?? select} />}
         {circles.map(({ id, center: circleCenter, radius, color }) => (
           // The key includes the color so a status change redraws the native circle.
           <Circle key={`${id}-${color}`} center={circleCenter} radius={radius} strokeColor={color} strokeWidth={3} fillColor={`${color}40`} />

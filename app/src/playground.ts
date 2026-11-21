@@ -152,3 +152,19 @@ export function cellAt(p: Playground, c: Coordinates): string | null {
   const column = Math.min(Math.floor((c.longitude - b.west) / (b.east - b.west) * p.columns), p.columns - 1);
   return `${String.fromCharCode(65 + column)}${row + 1}`;
 }
+
+/** Labels of the cells in one row of the grid (1 is the northern row). */
+export function rowCells(p: Playground, row: number): string[] {
+  return Array.from({ length: p.columns }, (_, column) => `${String.fromCharCode(65 + column)}${row}`);
+}
+
+/**
+ * Which point of a chosen route the coordinates may be: the start in the southern edge row, the stop in the
+ * northern one; null elsewhere or outside. Mirrors the backend.
+ */
+export function routePointAt(p: Playground, c: Coordinates): 'start' | 'stop' | null {
+  const cell = cellAt(p, c);
+  if (!cell) return null;
+  const row = Number(cell.slice(1));
+  return row === p.rows ? 'start' : row === 1 ? 'stop' : null;
+}

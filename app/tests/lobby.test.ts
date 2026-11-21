@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, RUNNER_ALERT_SECONDS, locatedEntries, recentRunnerAlerts, runnerAlertNotifications, zoneAlertEntries } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, ROUTE_PIN_COLOR, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, RUNNER_ALERT_SECONDS, locatedEntries, recentRunnerAlerts, runnerAlertNotifications, zoneAlertEntries } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
@@ -85,7 +85,7 @@ test('direct and converted spectators see the same start/target pins and cells a
       const snapshot = { ...viewer, status };
       assert.deepEqual(visibleRoute(snapshot), state.route);
       assert.deepEqual(gameMarkers(snapshot), routeMarkers(state.route));
-      assert.deepEqual(gameHighlights(snapshot), routeHighlights(state.playground, state.route));
+      assert.deepEqual(gameHighlights(snapshot), []);
     }
     assert.equal(visibleRoute({ ...hunterState, status }), undefined);
     assert.ok(!gameMarkers({ ...hunterState, status }).some((marker) => marker.id.startsWith('route-')));
@@ -306,7 +306,7 @@ test('spectators see real reports of runners and every hunter team with separate
   assert.equal(markers[4].label, '×');
   assert.match(markers[4].title, /Eve.*Caught/);
   assert.match(markers[4].description, /±5 m/);
-  assert.deepEqual(gameHighlights(spectator), routeHighlights(state.playground, state.route)); // Route only, no joker/zone overlays.
+  assert.deepEqual(gameHighlights(spectator), []); // Route pins only, no cell or joker/zone overlays.
   const expired = { ...spectator, players: spectator.players.map((player) => ({ ...player, position: undefined, runner: player.runner ? { ...player.runner, caughtPosition: undefined } : undefined })) };
   assert.deepEqual(gameMarkers(expired), routeMarkers(state.route)); // Landmarks remain without inventing reports.
 });
@@ -318,7 +318,7 @@ test('spectator player reports never render before start or after end, or withou
   };
   for (const status of ['lobby', 'countdown', 'ended'] as const) {
     assert.deepEqual(gameMarkers({ ...viewer, status }), routeMarkers(state.route));
-    assert.deepEqual(gameHighlights({ ...viewer, status }), routeHighlights(state.playground, state.route));
+    assert.deepEqual(gameHighlights({ ...viewer, status }), []);
   }
   assert.deepEqual(spectatorMarkers({ ...viewer, role: 'player', status: 'running' }), []);
   assert.equal(gameMarkers({ ...viewer, status: 'running' })[2].id, `caught-${viewer.playerId}`);
@@ -650,19 +650,17 @@ test('long lines are thinned evenly, keeping their ends', () => {
   assert.deepEqual(thinPoints([1, 2, 3, 4, 5], 2), [1, 5]);
 });
 
-test('the route shows as start and target cells and markers, with generic names for untitled stops', () => {
+test('the route shows as two pins of one color, with generic names for untitled stops, and no highlighted cells', () => {
   const route = { ...state.route, stop: { ...state.route.stop, title: '' } };
-  const highlights = routeHighlights(state.playground, route);
-  assert.deepEqual(highlights.map((h) => h.color), [ROUTE_COLORS.start, ROUTE_COLORS.target]);
-  assert.equal(highlights[0].title, 'Start');
-  assert.notEqual(highlights[1].title, '');
-  assert.deepEqual(routeMarkers(route).map((m) => [m.id, m.color]), [['route-start', ROUTE_COLORS.start], ['route-stop', ROUTE_COLORS.target]]);
-  const outside = { ...state.route, start: { ...state.route.start, coordinates: { latitude: 0, longitude: 0 } } };
-  assert.deepEqual(routeHighlights(state.playground, outside).map((h) => h.color), [ROUTE_COLORS.target]);
+  const markers = routeMarkers(route);
+  assert.deepEqual(markers.map((m) => [m.id, m.color]), [['route-start', ROUTE_PIN_COLOR], ['route-stop', ROUTE_PIN_COLOR]]);
+  assert.equal(markers[1].title, 'Target');
+  const used = [...Object.values(MARKER_COLORS), ...Object.values(SPECTATOR_COLORS), ...Object.values(ZONE_COLORS), ...Object.values(TRAP_COLORS), ...Object.values(ROUTE_COLORS), SKETCH_COLOR];
+  assert.ok(!used.includes(ROUTE_PIN_COLOR), 'the route pins have a color of their own');
 });
 
 test('runners see the route, hunters the queried zones, and nobody sees their own position as a marker', () => {
-  assert.equal(gameHighlights(state).length, 2);
+  assert.deepEqual(gameHighlights(state), []);
   assert.deepEqual(gameHighlights(hunterState), []);
   assert.deepEqual(gameMarkers(state).map((m) => m.id).slice(0, 2), ['route-start', 'route-stop']);
   assert.ok(!gameMarkers(hunterState).some((m) => m.id === hunterState.playerId));

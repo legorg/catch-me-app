@@ -8,13 +8,17 @@ import { DEFAULT_JOKER_SETTINGS, withAllowance, withZoneAlert, type JokerKind } 
 import { playerSession } from '@/player-session';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_CENTER, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES,
-  isValidGridSize, isValidRevealInterval, parseCellSizeKm, parseWholeNumber, previewPlayground,
+  isValidGridSize, isValidRevealInterval, parseCellSizeKm, parseWholeNumber, previewPlayground, routePointAt,
 } from '@/playground';
 import { useCurrentPosition } from '@/use-current-position';
 
 // Own messages are kept as keys, so they follow a language switch; error texts are shown as received.
 type Message = { key: MessageKey } | { text: string };
 type Status = { message: Message; error: boolean; busy: boolean };
+
+/** Whether the server generates the route from landmarks or the creator places start and stop on the map. */
+export type RouteMode = 'generated' | 'chosen';
+export type RoutePoints = { start: Coordinates | null; stop: Coordinates | null };
 
 /** State and actions of the create-game screen: choosing the grid, creating the game, and joining it. */
 export function useCreateGame() {
@@ -26,6 +30,10 @@ export function useCreateGame() {
   const [gridSizeText, setGridSizeText] = useState(String(DEFAULT_GRID_SIZE));
   const [revealIntervalText, setRevealIntervalText] = useState(String(DEFAULT_REVEAL_INTERVAL_MINUTES));
   const [jokers, setJokers] = useState<JokerSettings>(DEFAULT_JOKER_SETTINGS);
+  const [routeMode, setRouteMode] = useState<RouteMode>('generated');
+  const [routePoints, setRoutePoints] = useState<RoutePoints>({ start: null, stop: null });
+  // Set when the last tap on the route map was outside both edge rows.
+  const [routeTapMissed, setRouteTapMissed] = useState(false);
   const [created, setCreated] = useState<CreateGameResponse | null>(null);
   const [name, setName] = useState('');
   const [status, setStatus] = useState<Status>({ message: { key: 'create.pickCenter' }, error: false, busy: false });
@@ -50,7 +58,11 @@ export function useCreateGame() {
   }
   const displayedSize = created?.game.playground.cellSizeMeters ?? cellSize;
   const displayedGridSize = created?.game.playground.rows ?? gridSize;
-  const cannotCreate = !selected || !playground || !!sizeError || !!gridSizeError || !!revealIntervalError;
+  // Points stay where they were tapped, so moving or resizing the grid can leave them outside their edge row.
+  const routeValid = !!playground && !!routePoints.start && !!routePoints.stop
+    && routePointAt(playground, routePoints.start) === 'start' && routePointAt(playground, routePoints.stop) === 'stop';
+  const cannotCreate = !selected || !playground || !!sizeError || !!gridSizeError || !!revealIntervalError
+    || (routeMode === 'chosen' && !routeValid);
 
   function fail(err: unknown, fallback: MessageKey) {
     setStatus((s) => ({ ...s, error: true, message: err instanceof Error ? { text: err.message } : { key: fallback } }));
@@ -65,6 +77,13 @@ export function useCreateGame() {
     } catch (err) {
       fail(err, 'create.centerInvalid');
     }
+  }
+
+  /** A tap on the route map sets the start (southern edge row) or the stop (northern edge row). */
+  function tapRoutePoint(point: Coordinates) {
+    const which = playground && routePointAt(playground, point);
+    setRouteTapMissed(!which);
+    if (which) setRoutePoints((current) => ({ ...current, [which]: point }));
   }
 
   async function run(action: () => Promise<void>, progress: MessageKey) {
@@ -82,9 +101,11 @@ export function useCreateGame() {
   const create = () => {
     void run(async () => {
       if (!selected || cellSize === null || gridSize === null || revealInterval === null || cannotCreate) return;
-      setCreated(await createGame(selected, cellSize, gridSize, revealInterval, jokers));
+      const { start, stop } = routePoints;
+      const route = routeMode === 'chosen' && start && stop ? { start, stop } : undefined;
+      setCreated(await createGame(selected, cellSize, gridSize, revealInterval, jokers, route));
       setStatus((s) => ({ ...s, message: { key: 'create.created' } }));
-    }, 'create.creating');
+    }, routeMode === 'chosen' ? 'create.creatingChosen' : 'create.creating');
   };
 
   const joinAs = (code: string) => {
@@ -102,6 +123,7 @@ export function useCreateGame() {
     revealIntervalText, setRevealIntervalText, revealIntervalError,
     jokers, setJokerAllowance: (kind: JokerKind, allowance: number) => setJokers((current) => withAllowance(current, kind, allowance)),
     setZoneAlert: (enabled: boolean) => setJokers((current) => withZoneAlert(current, enabled)),
+    routeMode, setRouteMode, routePoints, routeTapMissed, tapRoutePoint,
     name, setName, busy, message: status.message, error: status.error, cannotCreate,
     selectCenter, create, joinAs,
   };

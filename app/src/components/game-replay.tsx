@@ -60,13 +60,13 @@ function ReplayControls({ replay }: { replay: ReturnType<typeof useReplay> }) {
 export default function GameReplay({ result }: { result: GameResultResponse }) {
   const t = useT();
   const replay = useReplay(result);
-  const { markers, lines, highlights } = replay;
+  const { markers, lines } = replay;
   const controls = <ReplayControls replay={replay} />;
   return (
     <View style={styles.card}>
       <Text accessibilityRole="header" style={styles.heading}>{t('replay.title')}</Text>
       <View style={styles.mapContainer}>
-        <FullscreenMap playground={result.playground} editable={false} onSelect={noop} highlights={highlights} markers={markers} lines={lines} locationEnabled={false} fullscreenFooter={controls} />
+        <FullscreenMap playground={result.playground} editable={false} onSelect={noop} markers={markers} lines={lines} locationEnabled={false} fullscreenFooter={controls} />
       </View>
       {controls}
       <Text style={styles.hint}>{t('replay.legend')}</Text>

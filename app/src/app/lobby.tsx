@@ -12,7 +12,7 @@ import LobbyRouteCard from '@/components/lobby-route-card';
 import LobbyTeamCard from '@/components/lobby-team-card';
 import LocationPermissionCards from '@/components/location-permission-cards';
 import { translateParts, useT } from '@/i18n';
-import { lobbyInfo, noop, playerMarkers, playersByTeam, routeHighlights, routeMarkers, visibleRoute } from '@/lobby';
+import { lobbyInfo, noop, playerMarkers, playersByTeam, routeMarkers, visibleRoute } from '@/lobby';
 import { distanceMeters, START_RADIUS_METERS } from '@/playground';
 import { colors, styles } from '@/styles';
 import { useLobby } from '@/use-lobby';
@@ -40,7 +40,6 @@ export default function LobbyScreen() {
   // The server sends the same landmarks to runners and spectators, never hunters.
   const metersToStart = route && me?.position ? distanceMeters(me.position, route.start.coordinates) : null;
   const atStart = metersToStart !== null && metersToStart <= START_RADIUS_METERS;
-  const highlights = route ? routeHighlights(state.playground, route) : [];
   const markers = [
     ...(route ? routeMarkers(route) : []),
     ...(!spectator ? playerMarkers(state).filter((marker) => marker.id !== state.playerId) : []),
@@ -62,7 +61,7 @@ export default function LobbyScreen() {
           {spectator ? t('spectator.lobbyInfo') : lobbyInfo(countdown !== null, skipStartPositionCheck)}
         </Text>
         <View style={styles.mapContainer}>
-          <FullscreenMap playground={state.playground} editable={false} onSelect={noop} highlights={highlights} markers={markers} locationEnabled={!spectator} />
+          <FullscreenMap playground={state.playground} editable={false} onSelect={noop} markers={markers} locationEnabled={!spectator} />
         </View>
         {state.team === 'hunter' && <Text style={styles.hint}>
           {t('lobby.legendHunter')}
