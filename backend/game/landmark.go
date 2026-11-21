@@ -27,9 +27,10 @@ func (b Bounds) Contains(c Coordinates) bool {
 	return geo.Bounds(b).Contains(c.latitude, c.longitude)
 }
 
-// CellBounds is the area of one grid cell.
+// CellBounds is the smallest north-aligned rectangle containing one grid cell;
+// for a north-aligned grid it is exactly the cell. Its center is the cell's center.
 func (p Playground) CellBounds(c Cell) Bounds {
-	return Bounds(geo.Bounds(p.bounds).Cell(p.gridSize.cells, c.row, c.column))
+	return p.rotatedExtent(Bounds(geo.Bounds(p.bounds).Cell(p.gridSize.cells, c.row, c.column)))
 }
 
 // SouthEdgeCells are the cells of the bottom row of the grid, NorthEdgeCells

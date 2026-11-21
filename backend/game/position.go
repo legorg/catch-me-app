@@ -94,6 +94,7 @@ func (r RevealInterval) Duration() time.Duration { return time.Duration(r.minute
 
 // CellAt returns the grid cell containing the coordinates, if inside the playground.
 func (p Playground) CellAt(c Coordinates) (Cell, bool) {
+	c = p.unrotate(c)
 	row, column, ok := geo.Bounds(p.bounds).CellAt(p.gridSize.cells, c.latitude, c.longitude)
 	return Cell{column: column, row: row}, ok
 }
