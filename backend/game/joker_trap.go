@@ -50,6 +50,21 @@ func (u TrapUse) team() HunterTeamName { return u.Team }
 // ActiveAt is when the trap starts to trigger.
 func (u TrapUse) ActiveAt() time.Time { return u.At.Add(TrapActivationDelay) }
 
+// TrapsForSpectators are every hunter team's traps in stored order, only while
+// the game runs, like the spectators' live feed. Players never get other teams' traps.
+func (l Lobby) TrapsForSpectators(now time.Time) []TrapUse {
+	if l.Game.Status(now) != StatusRunning {
+		return nil
+	}
+	var traps []TrapUse
+	for _, use := range l.Jokers {
+		if trap, ok := use.(TrapUse); ok {
+			traps = append(traps, trap)
+		}
+	}
+	return traps
+}
+
 // TrapSearchBounds contains every point within TrapRadiusMeters of the trap,
 // so storage can preselect the reports that might trigger it.
 func TrapSearchBounds(point Coordinates) geo.Bounds {

@@ -331,6 +331,7 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 	if view.Me.Team == game.Spectators {
 		return NewSpectatorState(GameStateSpectatorResponse{
 			GameStateBase: base, Team: Team(game.Spectators), Route: gameRouteResponse(view.Lobby.Game.Route), Jokers: []JokerResponse{},
+			Traps: spectatorTrapResponses(view),
 		})
 	}
 	if view.Me.Team == game.Runners {
@@ -426,14 +427,7 @@ func jokerResponses(view service.PlayerView) []JokerResponse {
 				return CompassUseResponse{JokerUseBase: useBase(u), Origin: coordinatesResponse(u.Origin), Bearings: append([]int{}, u.Bearings...)}
 			})}
 		case game.JokerTrap:
-			joker = TrapJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.TrapUse) TrapUseResponse {
-				use := TrapUseResponse{JokerUseBase: useBase(u), Point: coordinatesResponse(u.Point), ActiveAt: u.ActiveAt()}
-				if !u.TriggeredAt.IsZero() {
-					triggeredAt := u.TriggeredAt
-					use.TriggeredAt = &triggeredAt
-				}
-				return use
-			})}
+			joker = TrapJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, trapUseResponse)}
 		case game.JokerZoneOnly:
 			joker = ZoneOnlyJokerResponse{Kind: kind, JokerStatus: status, Uses: usesOf(j.Uses, func(u game.ZoneOnlyUse) ZoneOnlyUseResponse {
 				return ZoneOnlyUseResponse{runnerUseBase(u, u.Runner)}
@@ -466,6 +460,24 @@ func usesOf[U game.JokerUse, R any](uses []game.JokerUse, convert func(U) R) []R
 }
 
 func useBase(u game.JokerUse) JokerUseBase { return JokerUseBase{UsedAt: u.UsedAt()} }
+
+func trapUseResponse(u game.TrapUse) TrapUseResponse {
+	use := TrapUseResponse{JokerUseBase: useBase(u), Point: coordinatesResponse(u.Point), ActiveAt: u.ActiveAt()}
+	if !u.TriggeredAt.IsZero() {
+		triggeredAt := u.TriggeredAt
+		use.TriggeredAt = &triggeredAt
+	}
+	return use
+}
+
+func spectatorTrapResponses(view service.PlayerView) []SpectatorTrapResponse {
+	traps := view.Lobby.TrapsForSpectators(view.Now)
+	responses := make([]SpectatorTrapResponse, 0, len(traps))
+	for _, trap := range traps {
+		responses = append(responses, SpectatorTrapResponse{TrapUseResponse: trapUseResponse(trap), HunterTeam: trap.Team.String()})
+	}
+	return responses
+}
 
 func runnerUseBase(u game.JokerUse, runner game.PlayerID) RunnerJokerUseBase {
 	return RunnerJokerUseBase{JokerUseBase: useBase(u), UsedBy: PlayerID(runner.String())}

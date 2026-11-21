@@ -184,6 +184,7 @@ export type ControllerGameStateSpectatorResponse = {
     startsAt?: string;
     status: ControllerGameStatus;
     team: 'spectator';
+    traps: Array<ControllerSpectatorTrapResponse>;
 };
 
 export type ControllerGameStatus = 'lobby' | 'countdown' | 'running' | 'ended';
@@ -423,6 +424,14 @@ export type ControllerSketchResponse = {
     createdAt: string;
     points: Array<ControllerCoordinates>;
     sketchId: string;
+};
+
+export type ControllerSpectatorTrapResponse = {
+    activeAt: string;
+    hunterTeam: string;
+    point: ControllerCoordinates;
+    triggeredAt?: string;
+    usedAt: string;
 };
 
 export type ControllerTeam = 'runner' | 'hunter' | 'spectator';

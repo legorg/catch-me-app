@@ -48,6 +48,7 @@ const spectatorState: GameStateSpectatorResponse = {
   route: state.route,
   players: [...state.players, { playerId: 'd'.repeat(32), name: 'Viewer', team: 'spectator', ready: false }],
   jokers: [],
+  traps: [],
 };
 
 test('only playing lobby participants may track, request location access or ready up', () => {
@@ -653,6 +654,9 @@ test('every trap is a circle of the trigger radius, colored waiting, active, the
   assert.ok(!gameMarkers(both).some((m) => m.id.includes('trap')));
   assert.deepEqual(trapCircles({ ...hunterState, jokers: [{ kind: 'trap', available: true, uses: [] }] }, at('2026-11-08T12:31:00Z')), []);
   assert.equal(serverNow({ ...hunterState, serverTime: '2026-11-08T12:00:00Z' }, 1000, 3500), at('2026-11-08T12:00:02.5Z'));
+  const watching: GameStateSpectatorResponse = { ...spectatorState, traps: [{ ...trap, hunterTeam: 'Pack' }, { ...other, hunterTeam: 'Wolves' }] };
+  assert.deepEqual(trapCircles(watching, at('2026-11-08T12:25:00Z')).map((c) => [c.center, c.color]), [[point, TRAP_COLORS.active], [other.point, TRAP_COLORS.waiting]]);
+  assert.deepEqual(trapCircles(state, at('2026-11-08T12:25:00Z')), []);
 });
 
 test('a reveal joker is pending until the next reveal only when the player used it since the last one', () => {

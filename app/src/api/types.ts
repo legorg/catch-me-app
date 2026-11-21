@@ -35,3 +35,7 @@ export function isGameStateRunnerResponse(state: GameState): state is Extract<Ga
 export function isGameStateHunterResponse(state: GameState): state is Extract<GameState, { team: 'hunter' }> {
   return state.team === 'hunter';
 }
+
+export function isGameStateSpectatorResponse(state: GameState): state is Extract<GameState, { team: 'spectator' }> {
+  return state.team === 'spectator';
+}

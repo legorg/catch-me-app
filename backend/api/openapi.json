@@ -2119,6 +2119,13 @@
               "spectator"
             ],
             "type": "string"
+          },
+          "traps": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerSpectatorTrapResponse"
+            },
+            "maxItems": 145,
+            "type": "array"
           }
         },
         "required": [
@@ -2134,7 +2141,8 @@
           "jokerSettings",
           "team",
           "route",
-          "jokers"
+          "jokers",
+          "traps"
         ],
         "type": "object"
       },
@@ -3210,6 +3218,49 @@
           "sketchId",
           "createdAt",
           "points"
+        ],
+        "type": "object"
+      },
+      "ControllerSpectatorTrapResponse": {
+        "properties": {
+          "activeAt": {
+            "examples": [
+              "2026-11-08T12:27:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "hunterTeam": {
+            "examples": [
+              "Wolves"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          },
+          "point": {
+            "$ref": "#/components/schemas/ControllerCoordinates"
+          },
+          "triggeredAt": {
+            "examples": [
+              "2026-11-08T12:41:30Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "usedAt": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usedAt",
+          "point",
+          "activeAt",
+          "hunterTeam"
         ],
         "type": "object"
       },

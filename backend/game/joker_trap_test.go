@@ -48,6 +48,32 @@ func TestTrapJokerRules(t *testing.T) {
 	}
 }
 
+func TestSpectatorsSeeEveryHunterTeamsTrapsOnlyWhileRunning(t *testing.T) {
+	l, _, bob, _, eve, running := jokerLobby(t)
+	at := running.Add(time.Minute)
+	point := cellCenter(l.Game.Playground, Cell{column: 2, row: 3})
+	if err := l.UseJoker(bob.ID, Trap{Point: point}, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.UseJoker(eve.ID, ShowRunners{}, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.UseJoker(eve.ID, Trap{Point: point}, at); err != nil {
+		t.Fatal(err)
+	}
+	got := l.TrapsForSpectators(at)
+	if len(got) != 2 || got[0].Team != bob.HunterTeam || got[1].Team != eve.HunterTeam {
+		t.Fatalf("every hunter team's traps, and nothing else: %+v", got)
+	}
+	if got := l.TrapsForSpectators(l.Game.StartsAt.Add(-time.Second)); got != nil {
+		t.Fatalf("nothing before the start: %+v", got)
+	}
+	l.Game.EndedAt = at.Add(time.Minute)
+	if got := l.TrapsForSpectators(at.Add(2 * time.Minute)); got != nil {
+		t.Fatalf("nothing after the end: %+v", got)
+	}
+}
+
 func TestTrapTriggersOnTheFirstReportNearbyAfterActivation(t *testing.T) {
 	point, _ := ParseCoordinates(48, 11)
 	activeAt := time.Date(2026, 11, 8, 12, 20, 0, 0, time.UTC)

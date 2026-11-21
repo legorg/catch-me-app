@@ -55,7 +55,7 @@ export default function GameScreen() {
       {/* Dark text over the light map; the layout's light style returns when this screen closes. */}
       <StatusBar style="dark" />
       <View style={StyleSheet.absoluteFill}>
-        <PlaygroundMap playground={state.playground} editable={false} onSelect={noop} highlights={gameHighlights(state)} markers={gameMarkers(state)} lines={hunter ? [...sketchLines(hunter), ...compassLines(hunter)] : []} circles={hunter ? trapCircles(hunter, serverNow(state, snapshot.receivedAt, now)) : []} onDraw={drawing ? sketching.send : undefined} locationEnabled={active} rotatable fullscreen controlsInset={{ bottom: insets.bottom, right: insets.right }} />
+        <PlaygroundMap playground={state.playground} editable={false} onSelect={noop} highlights={gameHighlights(state)} markers={gameMarkers(state)} lines={hunter ? [...sketchLines(hunter), ...compassLines(hunter)] : []} circles={hunter || spectator ? trapCircles(state, serverNow(state, snapshot.receivedAt, now)) : []} onDraw={drawing ? sketching.send : undefined} locationEnabled={active} rotatable fullscreen controlsInset={{ bottom: insets.bottom, right: insets.right }} />
       </View>
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, dynamicStyles.hudFill(insets)]}>

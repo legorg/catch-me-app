@@ -564,6 +564,14 @@ type GameStateSpectatorResponse struct {
 	Route GameRoute `json:"route"`
 	// Always empty: spectators have no personal or team jokers.
 	Jokers []JokerResponse `json:"jokers" maxItems:"0"`
+	// Every hunter team's traps, only while running; at most 5 by each of up to 29 hunter teams.
+	Traps []SpectatorTrapResponse `json:"traps" maxItems:"145"`
+}
+
+// SpectatorTrapResponse is a placed trap with the hunter team that placed it.
+type SpectatorTrapResponse struct {
+	TrapUseResponse
+	HunterTeam string `json:"hunterTeam" minLength:"1" maxLength:"20" example:"Wolves"`
 }
 
 // GameStateResponse is the game as seen by the requesting player: exactly one

@@ -230,4 +230,10 @@ func TestGameStateShowsTheTrapToItsHunterTeamOnly(t *testing.T) {
 	if got := jsonOf(t, adaState.Jokers); strings.Contains(got, "trap") {
 		t.Fatalf("runners are not told: %s", got)
 	}
+	sam := game.Player{ID: game.NewPlayerID(), Team: game.Spectators}
+	samState, _ := gameStateResponse(service.PlayerView{Lobby: lobby, Me: sam, Now: now}).Spectator()
+	want = `[{"usedAt":"2026-11-08T11:30:00Z","point":{"latitude":52.52,"longitude":13.405},"activeAt":"2026-11-08T11:50:00Z","triggeredAt":"2026-11-08T11:59:00Z","hunterTeam":"Pack"}]`
+	if got := jsonOf(t, samState.Traps); got != want {
+		t.Fatalf("spectators see every trap with its hunter team:\n got %s\nwant %s", got, want)
+	}
 }

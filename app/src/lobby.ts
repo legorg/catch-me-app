@@ -1,4 +1,4 @@
-import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type JoinCodes, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
+import { isGameStateHunterResponse, isGameStateRunnerResponse, isGameStateSpectatorResponse,type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type JoinCodes, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
 import { canShareGameLocation, isActivePlayer, isSpectator } from './game-state';
 import { cellAt, cellCenter, offsetPoint, START_RADIUS_METERS } from './playground';
@@ -289,9 +289,13 @@ export function trapStatus(trap: JokerUse<'trap'>, serverNow: number): TrapStatu
   return Date.parse(trap.activeAt) <= serverNow ? 'active' : 'waiting';
 }
 
-/** Every trap the team placed as a circle of the trigger radius, colored by its status. */
-export function trapCircles(state: GameStateHunterResponse, serverNow: number): { id: string; center: { latitude: number; longitude: number }; radius: number; color: string }[] {
-  return jokerUses(state.jokers, 'trap').map((trap, index) => ({
+/**
+ * Every trap the viewer may see as a circle of the trigger radius, colored by its status: hunters see their team's,
+ * spectators every hunter team's (only while running), runners none.
+ */
+export function trapCircles(state: GameStateResponse, serverNow: number): { id: string; center: { latitude: number; longitude: number }; radius: number; color: string }[] {
+  const traps = isGameStateSpectatorResponse(state) ? state.traps : jokerUses(state.jokers, 'trap');
+  return traps.map((trap, index) => ({
     id: `joker-trap-${index}`,
     center: trap.point,
     radius: TRAP_RADIUS_METERS,
