@@ -36,10 +36,11 @@ type gameRow struct {
 	StopTitle             string
 	StopLat, StopLon      float64
 	// RouteRegenerations is how often the runners replaced the route.
-	RouteRegenerations int         `gorm:"not null;default:0"`
-	Players            []playerRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
-	Jokers             []jokerRow  `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
-	Sketches           []sketchRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	RouteRegenerations int            `gorm:"not null;default:0"`
+	Players            []playerRow    `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	Jokers             []jokerRow     `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	Sketches           []sketchRow    `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	ZoneAlerts         []zoneAlertRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 
 	JokerSettings jokerSettingsRow `gorm:"embedded;embeddedPrefix:joker_"`
 }
@@ -119,12 +120,25 @@ type sketchRow struct {
 	CreatedAt time.Time `gorm:"not null"`
 }
 
+// zoneAlertRow is one runner's zone alert about one hunter. The unique index
+// backs up the domain rule of at most one alert per runner and hunter.
+type zoneAlertRow struct {
+	ID       uint64    `gorm:"primaryKey"`
+	GameID   string    `gorm:"not null;uniqueIndex:zone_alert_once"`
+	RunnerID string    `gorm:"not null;uniqueIndex:zone_alert_once"`
+	HunterID string    `gorm:"not null;uniqueIndex:zone_alert_once"`
+	Cell     string    `gorm:"not null"`
+	RaisedAt time.Time `gorm:"not null"`
+}
+
 func (gameRow) TableName() string     { return "games" }
 func (jokerRow) TableName() string    { return "jokers" }
 func (playerRow) TableName() string   { return "players" }
 func (runnerRow) TableName() string   { return "runners" }
 func (positionRow) TableName() string { return "positions" }
 func (sketchRow) TableName() string   { return "sketches" }
+
+func (zoneAlertRow) TableName() string { return "zone_alerts" }
 
 type Store struct{ db *gorm.DB }
 
@@ -145,7 +159,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// updates cannot interleave.
 	database.SetMaxOpenConns(1)
 	// AutoMigrate creates missing tables, columns, and indexes; it never drops any.
-	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &runnerRow{}, &positionRow{}, &jokerRow{}, &sketchRow{}); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &runnerRow{}, &positionRow{}, &jokerRow{}, &sketchRow{}, &zoneAlertRow{}); err != nil {
 		_ = database.Close()
 		return nil, fmt.Errorf("initialize schema: %w", err)
 	}
@@ -218,7 +232,10 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 		if err != nil {
 			return err
 		}
-		lobby = game.Lobby{Game: before.Game, Players: slices.Clone(before.Players), Reveals: before.Reveals, Jokers: slices.Clone(before.Jokers), Sketches: slices.Clone(before.Sketches)}
+		lobby = game.Lobby{
+			Game: before.Game, Players: slices.Clone(before.Players), Reveals: before.Reveals,
+			Jokers: slices.Clone(before.Jokers), Sketches: slices.Clone(before.Sketches), ZoneAlerts: slices.Clone(before.ZoneAlerts),
+		}
 		if change == nil {
 			return nil
 		}
@@ -232,7 +249,7 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 
 // DeleteGamesBefore deletes games that ended before cutoff, or, if they never
 // ended, started (or, if never started, were created) before cutoff, with all
-// their players, runner states, positions, jokers and sketches. A zero start
+// their players, runner states, positions, jokers, sketches and zone alerts. A zero start
 // sorts first. It also deletes orphaned rows whose game or player is gone, e.g.
 // left over from older schemas without enforced foreign keys.
 func (s *Store) DeleteGamesBefore(ctx context.Context, cutoff time.Time) error {
@@ -249,6 +266,7 @@ func (s *Store) DeleteGamesBefore(ctx context.Context, cutoff time.Time) error {
 			{&playerRow{}, "game_id NOT IN (SELECT id FROM games)"},
 			{&jokerRow{}, "game_id NOT IN (SELECT id FROM games)"},
 			{&sketchRow{}, "game_id NOT IN (SELECT id FROM games)"},
+			{&zoneAlertRow{}, "game_id NOT IN (SELECT id FROM games)"},
 			{&runnerRow{}, "player_id NOT IN (SELECT id FROM players)"},
 			{&positionRow{}, "player_id NOT IN (SELECT id FROM players)"},
 		}
@@ -348,6 +366,16 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	}
 	if err := saveSketches(tx, after.Game.SessionID, before.Sketches, after.Sketches); err != nil {
 		return err
+	}
+	// Zone alerts are only ever added.
+	for _, a := range after.ZoneAlerts[min(len(before.ZoneAlerts), len(after.ZoneAlerts)):] {
+		row := zoneAlertRow{
+			GameID: after.Game.SessionID.String(), RunnerID: a.Runner.String(), HunterID: a.Hunter.String(),
+			Cell: a.Cell.String(), RaisedAt: a.At,
+		}
+		if err := tx.Create(&row).Error; err != nil {
+			return fmt.Errorf("save zone alert: %w", err)
+		}
 	}
 	for id := range removed {
 		// Also deletes the player's positions (ON DELETE CASCADE).
@@ -497,6 +525,9 @@ func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
 		}
 		lobby.Sketches = append(lobby.Sketches, sketch)
 	}
+	if lobby.ZoneAlerts, err = selectZoneAlerts(tx, row.ID); err != nil {
+		return game.Lobby{}, err
+	}
 	lobby.Reveals = map[game.PlayerID][]game.Reveal{}
 	for i := range lobby.Players {
 		p := &lobby.Players[i]
@@ -515,6 +546,25 @@ func selectJokers(tx *gorm.DB, gameID string) ([]jokerRow, error) {
 		return nil, fmt.Errorf("select jokers: %w", err)
 	}
 	return rows, nil
+}
+
+// selectZoneAlerts returns the game's zone alerts, oldest first.
+func selectZoneAlerts(tx *gorm.DB, gameID string) ([]game.ZoneAlert, error) {
+	var rows []zoneAlertRow
+	if err := tx.Where("game_id = ?", gameID).Order("id").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("select zone alerts: %w", err)
+	}
+	alerts := make([]game.ZoneAlert, 0, len(rows))
+	for _, row := range rows {
+		runner, err1 := game.ParsePlayerID(row.RunnerID)
+		hunter, err2 := game.ParsePlayerID(row.HunterID)
+		cell, err3 := game.ParseCell(row.Cell)
+		if err := errors.Join(err1, err2, err3); err != nil {
+			return nil, fmt.Errorf("parse stored zone alert: %v", err)
+		}
+		alerts = append(alerts, game.ZoneAlert{Runner: runner, Hunter: hunter, Cell: cell, At: row.RaisedAt.UTC()})
+	}
+	return alerts, nil
 }
 
 // positionHistory returns each player's positions recorded up to `until`, oldest first.

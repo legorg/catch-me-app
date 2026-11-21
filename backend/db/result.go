@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Result loads the game, participants, used jokers and the runners' and
+// Result loads the game, participants, used jokers, zone alerts and the runners' and
 // hunters' positions from start to end, never reveals or sketches. Unfinished
 // games are excluded by the database query.
 func (s *Store) Result(ctx context.Context, id game.SessionID) (game.Result, error) {
@@ -52,6 +52,9 @@ func (s *Store) Result(ctx context.Context, id game.SessionID) (game.Result, err
 				return err
 			}
 			lobby.Jokers = append(lobby.Jokers, use)
+		}
+		if lobby.ZoneAlerts, err = selectZoneAlerts(tx, row.ID); err != nil {
+			return err
 		}
 		histories, err := gameTracks(tx, lobby)
 		if err != nil {

@@ -76,6 +76,8 @@ func TestResultLookupPersistsWithTracksFromStartToEnd(t *testing.T) {
 	wantEvents := []game.Event{
 		game.StartEvent{At: start},
 		game.FinishEvent{Runner: ada.ID, At: start},
+		// Bob reported in Cy's cell three seconds after her.
+		game.ZoneAlertEvent{Runner: cy.ID, Hunter: hunter.ID, Team: hunter.HunterTeam, At: start.Add(15 * time.Second)},
 		game.HunterJokerEvent{Team: hunter.HunterTeam, Joker: game.JokerShowRunners, At: used},
 		game.CatchEvent{Runner: cy.ID, At: end},
 		game.EndEvent{At: end},
