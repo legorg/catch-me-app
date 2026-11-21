@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, ROUTE_PIN_COLOR, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, RUNNER_ALERT_SECONDS, locatedEntries, recentRunnerAlerts, runnerAlertNotifications, zoneAlertEntries } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, ROUTE_PIN_COLOR, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, ALERT_SECONDS, locatedEntries, recentAlerts, alertNotifications, zoneAlertEntries, trapEntries, revealWarning, REVEAL_WARNING_SECONDS } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
-import { cellBounds, distanceMeters, offsetPoint, previewPlayground } from '../src/playground';
+import { cellBounds, cellCenter, distanceMeters, offsetPoint, previewPlayground } from '../src/playground';
 
 const state: GameStateRunnerResponse = {
   role: 'player',
@@ -528,9 +528,9 @@ test('zone alerts name the hunter and team from the players and stay in the top 
   assert.equal(entry.id, `zone-alert-${state.sessionId}-${bob.playerId}`);
   assert.match(entry.text, /Bob \(Wolves\) was in your zone C4$/);
   const at = Date.parse('2026-11-08T12:20:00Z');
-  assert.deepEqual(recentRunnerAlerts(alerted, at + RUNNER_ALERT_SECONDS * 1000), [entry.text]);
-  assert.deepEqual(recentRunnerAlerts(alerted, at + RUNNER_ALERT_SECONDS * 1000 + 1), []);
-  assert.deepEqual(recentRunnerAlerts(state, at), []);
+  assert.deepEqual(recentAlerts(alerted, at + ALERT_SECONDS * 1000), [entry.text]);
+  assert.deepEqual(recentAlerts(alerted, at + ALERT_SECONDS * 1000 + 1), []);
+  assert.deepEqual(recentAlerts(state, at), []);
   assert.deepEqual(zoneAlertEntries(hunterState), []);
 });
 
@@ -543,7 +543,7 @@ test('runners see which hunter team located them and when, newest alert of each 
   const located = locatedEntries(alerted);
   assert.deepEqual(located.map((entry) => entry.id), [`located-${state.sessionId}-Pack-2026-11-08T12:07:00Z`, `located-${state.sessionId}-Wolves-2026-11-08T12:22:00Z`]);
   assert.match(located[1].text, /hunter team Wolves queried your location$/);
-  const shown = recentRunnerAlerts(alerted, Date.parse('2026-11-08T12:23:00Z'));
+  const shown = recentAlerts(alerted, Date.parse('2026-11-08T12:23:00Z'));
   assert.equal(shown.length, 2);
   assert.equal(shown[0], located[1].text);
   assert.deepEqual(locatedEntries(hunterState), []);
@@ -561,15 +561,53 @@ test('each recent runner alert is notified once, with a stable identifier and no
     locatedBy: [{ at: '2026-11-08T12:19:00Z', hunterTeam: 'Wolves' }],
   };
   const now = Date.parse('2026-11-08T12:21:00Z');
-  const pending = runnerAlertNotifications(alerted, new Set(), now);
+  const pending = alertNotifications(alerted, new Set(), now);
   assert.deepEqual(pending.map((n) => [n.identifier, n.title]), [
     [`located-${state.sessionId}-Wolves-2026-11-08T12:19:00Z`, 'Location queried'],
     [`zone-alert-${state.sessionId}-${bob.playerId}`, 'Zone alert'],
   ]);
   assert.match(pending[1].body, /Bob \(Wolves\) was in your zone C4$/);
   assert.ok(pending.every((n) => !/\d+\.\d{3}/.test(n.body)));
-  assert.deepEqual(runnerAlertNotifications(alerted, new Set(pending.map((n) => n.identifier)), now), []);
-  assert.deepEqual(runnerAlertNotifications(hunterState, new Set(), now), []);
+  assert.deepEqual(alertNotifications(alerted, new Set(pending.map((n) => n.identifier)), now), []);
+  assert.deepEqual(alertNotifications(hunterState, new Set(), now), []);
+});
+
+test('hunters are notified once a trap of their team triggered, with its cell but not who triggered it', () => {
+  const point = cellCenter(hunterState.playground, 'C4');
+  const trapped = {
+    ...hunterState,
+    jokers: [{ kind: 'trap' as const, available: true, uses: [
+      { usedAt: '2026-11-08T12:00:00Z', activeAt: '2026-11-08T12:20:00Z', point },
+      { usedAt: '2026-11-08T12:01:00Z', activeAt: '2026-11-08T12:21:00Z', point, triggeredAt: '2026-11-08T12:30:00Z' },
+    ] }],
+  };
+  const [entry] = trapEntries(trapped);
+  assert.equal(entry.id, `trap-${state.sessionId}-2026-11-08T12:01:00Z`);
+  assert.match(entry.text, /a runner came within 100 m of your trap in cell C4$/);
+  const now = Date.parse('2026-11-08T12:31:00Z');
+  assert.deepEqual(alertNotifications(trapped, new Set(), now).map((n) => [n.identifier, n.title]), [[entry.id, 'Trap triggered']]);
+  assert.deepEqual(recentAlerts(trapped, now), [entry.text]);
+  assert.deepEqual(alertNotifications(trapped, new Set(), now + ALERT_SECONDS * 1000), []);
+  assert.deepEqual(trapEntries({ ...state, jokers: trapped.jokers }), []);
+});
+
+test('active runners and hunters are warned before the next reveal by server time, otherwise not', () => {
+  const running = { ...state, status: 'running' as const, nextRevealAt: '2026-11-08T12:30:00Z' };
+  // The phone clock is an hour off; only the time since the response counts.
+  const receivedAt = Date.parse('2026-11-08T13:10:00Z');
+  const warning = revealWarning(running, receivedAt);
+  assert.equal(warning?.identifier, `reveal-warning-${state.sessionId}`);
+  assert.equal(warning?.fireAt, receivedAt + (30 * 60 - REVEAL_WARNING_SECONDS) * 1000);
+  assert.equal(warning?.title, 'Reveal soon');
+  assert.equal(warning?.body, 'In 2 minutes the hunters see where you are.');
+  assert.equal(revealWarning({ ...running, serverTime: '2026-11-08T12:28:00Z' }, receivedAt), null);
+  assert.equal(revealWarning({ ...running, nextRevealAt: undefined }, receivedAt), null);
+  assert.equal(revealWarning({ ...running, revealIntervalMinutes: 2 }, receivedAt), null);
+  assert.equal(revealWarning(state, receivedAt), null);
+  assert.equal(revealWarning({ ...running, players: [{ ...state.players[0], runner: { status: 'caught' } }] }, receivedAt), null);
+  const hunting = { ...hunterState, playerId: state.players[1].playerId, status: 'running' as const, nextRevealAt: running.nextRevealAt };
+  assert.equal(revealWarning(hunting, receivedAt)?.body, 'In 2 minutes you see where the runners are.');
+  assert.equal(revealWarning({ ...spectatorState, status: 'running', nextRevealAt: running.nextRevealAt }, receivedAt), null);
 });
 
 test('the compass becomes one cell-long arrow per direction from the origin, without names', () => {

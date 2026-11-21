@@ -1,10 +1,10 @@
 import * as Notifications from 'expo-notifications';
-import { AndroidImportance, IosAuthorizationStatus } from 'expo-notifications';
+import { AndroidImportance, IosAuthorizationStatus, SchedulableTriggerInputTypes } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import type { GameStateResponse } from './api/types';
 import { translate } from './i18n';
-import { runnerAlertNotifications } from './lobby';
+import { alertNotifications, revealWarning } from './lobby';
 
 const CHANNEL_ID = 'runner-alerts';
 
@@ -12,6 +12,8 @@ export type NotificationPermission = 'granted' | 'denied' | 'unsupported';
 
 // Shared by the game screen and the background location task, which run in the same JavaScript runtime.
 const notified = new Set<string>();
+// The scheduled reveal warning as identifier and reveal time, so each new state only reschedules a changed one.
+let scheduledWarning: { identifier: string; revealAt: string } | null = null;
 
 // Must run at module load (imported via the background location task, which the root layout loads
 // first): without a handler, notifications are not shown while the app is in the foreground.
@@ -49,10 +51,14 @@ export async function ensureNotificationPermission(): Promise<NotificationPermis
   }
 }
 
-/** Shows one local notification per new runner alert in the state; without permission the system drops it. */
-export async function notifyRunnerAlerts(state: GameStateResponse): Promise<void> {
+/**
+ * Shows one local notification per new alert in the state and schedules the warning before the
+ * next reveal (or cancels it once there is none); without permission the system drops them.
+ * receivedAt is the device time the state arrived.
+ */
+export async function notifyGameAlerts(state: GameStateResponse, receivedAt = Date.now()): Promise<void> {
   if (Platform.OS === 'web') return;
-  for (const { identifier, title, body } of runnerAlertNotifications(state, notified, Date.parse(state.serverTime))) {
+  for (const { identifier, title, body } of alertNotifications(state, notified, Date.parse(state.serverTime))) {
     notified.add(identifier);
     try {
       await ensureChannel();
@@ -64,5 +70,35 @@ export async function notifyRunnerAlerts(state: GameStateResponse): Promise<void
     } catch {
       // The alert still shows in the app.
     }
+  }
+  const warning = revealWarning(state, receivedAt);
+  if (!warning) {
+    await cancelRevealWarning();
+    return;
+  }
+  if (scheduledWarning?.identifier === warning.identifier && scheduledWarning.revealAt === warning.revealAt) return;
+  scheduledWarning = { identifier: warning.identifier, revealAt: warning.revealAt };
+  try {
+    await ensureChannel();
+    // The same identifier replaces a warning scheduled for an earlier reveal time.
+    await Notifications.scheduleNotificationAsync({
+      identifier: warning.identifier,
+      content: { title: warning.title, body: warning.body },
+      trigger: { type: SchedulableTriggerInputTypes.DATE, date: warning.fireAt, channelId: CHANNEL_ID },
+    });
+  } catch {
+    scheduledWarning = null;
+  }
+}
+
+/** Drops a pending reveal warning, e.g. once the runner is caught or finished, or the game ended. */
+export async function cancelRevealWarning(): Promise<void> {
+  if (Platform.OS === 'web' || !scheduledWarning) return;
+  const { identifier } = scheduledWarning;
+  scheduledWarning = null;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(identifier);
+  } catch {
+    // Already shown or never scheduled.
   }
 }

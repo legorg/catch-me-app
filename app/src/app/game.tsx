@@ -10,7 +10,7 @@ import InfoPanel from '@/components/info-panel';
 import LoadingScreen from '@/components/loading-screen';
 import PlaygroundMap from '@/components/playground-map';
 import TimelinePanel from '@/components/timeline-panel';
-import { compassLines, gameHighlights, gameMarkers, recentRunnerAlerts, secondsUntil, serverNow, sketchLines, trapCircles } from '@/lobby';
+import { compassLines, gameHighlights, gameMarkers, recentAlerts, secondsUntil, serverNow, sketchLines, trapCircles } from '@/lobby';
 import { canFinish, canShareGameLocation, isSpectator, ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { noop } from '@/press';
@@ -22,7 +22,7 @@ import { useGameState, useLobbyUnlessRunning } from '@/use-game-state';
 import { useSketching } from '@/use-sketching';
 import { useRunnerActions } from '@/use-runner-actions';
 import { useTimeline } from '@/use-timeline';
-import { useRunnerAlertNotifications } from '@/use-runner-alert-notifications';
+import { useGameNotifications } from '@/use-game-notifications';
 
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
@@ -35,7 +35,7 @@ export default function GameScreen() {
   const showTimeline = timelineOpen && isSpectator(state);
   const timeline = useTimeline(token, showTimeline);
   useGameHaptics(state);
-  const notificationPermission = useRunnerAlertNotifications(state);
+  const notificationPermission = useGameNotifications(state, snapshot?.receivedAt ?? 0);
   useLobbyUnlessRunning(state, running);
 
   if (!token || !state || !snapshot || state.status === 'ended') return <LoadingScreen error={error} />;
@@ -48,7 +48,7 @@ export default function GameScreen() {
   const drawing = canSketch && sketching.drawing;
   const outside = active && !!me?.position && cellAt(state.playground, me.position) === null;
   const nextReveal = spectator ? null : secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
-  const alerts = active ? recentRunnerAlerts(state, serverNow(state, snapshot.receivedAt, now)) : [];
+  const alerts = active ? recentAlerts(state, serverNow(state, snapshot.receivedAt, now)) : [];
 
   return (
     <View style={styles.screen}>

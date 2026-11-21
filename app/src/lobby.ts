@@ -1,7 +1,7 @@
 import { isGameStateHunterResponse, isGameStateRunnerResponse, type GameRoute, type GameStateHunterResponse, type GameStateResponse, type GameStateRunnerResponse, type JoinCodes, type PlayerResponse, type Playground, type RevealResponse } from './api/types';
 import { getLanguage, translate } from './i18n';
-import { isActivePlayer, isSpectator } from './game-state';
-import { cellCenter, offsetPoint, START_RADIUS_METERS } from './playground';
+import { canShareGameLocation, isActivePlayer, isSpectator } from './game-state';
+import { cellAt, cellCenter, offsetPoint, START_RADIUS_METERS } from './playground';
 
 /**
  * Whole seconds until a server timestamp, or null without one.
@@ -341,14 +341,16 @@ export function shownHunterMarkers(state: GameStateRunnerResponse): PlayerMarker
   })));
 }
 
-/** How long a runner alert stays in the game screen's top card, and is still notified. */
-export const RUNNER_ALERT_SECONDS = 5 * 60;
+/** How long an alert stays in the game screen's top card, and is still notified. */
+export const ALERT_SECONDS = 5 * 60;
 
-/** Something runners are told about hunters: a zone alert, or a hunter team's showRunners use. */
-export type RunnerAlert = { id: string; kind: 'zoneAlert' | 'located'; at: string; text: string };
+/** Something runners are told about hunters (a zone alert, a hunter team's showRunners use), or hunters about their trap. */
+export type GameAlert = { id: string; kind: 'zoneAlert' | 'located' | 'trap'; at: string; text: string };
+
+const ALERT_TITLE_KEYS = { zoneAlert: 'joker.zoneAlert.title', located: 'joker.located.title', trap: 'joker.trap.alertTitle' } as const;
 
 /** The requesting runner's zone alerts, oldest first; the hunter's name and team come from the players list. */
-export function zoneAlertEntries(state: GameStateResponse): RunnerAlert[] {
+export function zoneAlertEntries(state: GameStateResponse): GameAlert[] {
   if (!isGameStateRunnerResponse(state)) return [];
   return state.zoneAlerts.map((alert) => {
     const hunter = state.players.find((p) => p.playerId === alert.hunterId);
@@ -358,7 +360,7 @@ export function zoneAlertEntries(state: GameStateResponse): RunnerAlert[] {
 }
 
 /** The showRunners uses that included the requesting runner, oldest first. */
-export function locatedEntries(state: GameStateResponse): RunnerAlert[] {
+export function locatedEntries(state: GameStateResponse): GameAlert[] {
   if (!isGameStateRunnerResponse(state)) return [];
   return state.locatedBy.map((located) => ({
     id: `located-${state.sessionId}-${located.hunterTeam}-${located.at}`,
@@ -368,12 +370,23 @@ export function locatedEntries(state: GameStateResponse): RunnerAlert[] {
   }));
 }
 
-const isRecent = (alert: RunnerAlert, serverNowMs: number) => serverNowMs - Date.parse(alert.at) <= RUNNER_ALERT_SECONDS * 1000;
+/** The hunter team's triggered traps, oldest placement first; the cell, never the point. */
+export function trapEntries(state: GameStateResponse): GameAlert[] {
+  if (!isGameStateHunterResponse(state)) return [];
+  return jokerUses(state.jokers, 'trap').flatMap((trap) => trap.triggeredAt ? [{
+    id: `trap-${state.sessionId}-${trap.usedAt}`,
+    kind: 'trap' as const,
+    at: trap.triggeredAt,
+    text: translate('joker.trap.alert', { cell: cellAt(state.playground, trap.point) ?? '', time: clockTime(trap.triggeredAt) }),
+  }] : []);
+}
 
-/** For the top card: the newest alert of each kind while it is at most RUNNER_ALERT_SECONDS old by server time, newest first. */
-export function recentRunnerAlerts(state: GameStateResponse, serverNowMs: number): string[] {
-  return [zoneAlertEntries(state).at(-1), locatedEntries(state).at(-1)]
-    .filter((alert): alert is RunnerAlert => !!alert && isRecent(alert, serverNowMs))
+const isRecent = (alert: GameAlert, serverNowMs: number) => serverNowMs - Date.parse(alert.at) <= ALERT_SECONDS * 1000;
+
+/** For the top card: the newest alert of each kind while it is at most ALERT_SECONDS old by server time, newest first. */
+export function recentAlerts(state: GameStateResponse, serverNowMs: number): string[] {
+  return [zoneAlertEntries(state).at(-1), locatedEntries(state).at(-1), trapEntries(state).at(-1)]
+    .filter((alert): alert is GameAlert => !!alert && isRecent(alert, serverNowMs))
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
     .map((alert) => alert.text);
 }
@@ -383,11 +396,30 @@ export function recentRunnerAlerts(state: GameStateResponse, serverNowMs: number
  * The fixed identifier per alert makes a repeat after an app restart replace the earlier
  * notification instead of adding one. Never coordinates, only cells.
  */
-export function runnerAlertNotifications(state: GameStateResponse, notified: ReadonlySet<string>, serverNowMs: number): { identifier: string; title: string; body: string }[] {
-  return [...zoneAlertEntries(state), ...locatedEntries(state)]
+export function alertNotifications(state: GameStateResponse, notified: ReadonlySet<string>, serverNowMs: number): { identifier: string; title: string; body: string }[] {
+  return [...zoneAlertEntries(state), ...locatedEntries(state), ...trapEntries(state)]
     .filter((alert) => isRecent(alert, serverNowMs) && !notified.has(alert.id))
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
-    .map((alert) => ({ identifier: alert.id, title: translate(alert.kind === 'zoneAlert' ? 'joker.zoneAlert.title' : 'joker.located.title'), body: alert.text }));
+    .map((alert) => ({ identifier: alert.id, title: translate(ALERT_TITLE_KEYS[alert.kind]), body: alert.text }));
+}
+
+/** How long before a reveal active runners and hunters are warned. */
+export const REVEAL_WARNING_SECONDS = 2 * 60;
+
+/**
+ * The warning before the next reveal for an active runner or hunter, due at fireAt on the device clock (ms), or null.
+ * Like secondsUntil it measures from serverTime, so a wrong phone clock does not matter. Not for
+ * intervals that leave no time between reveals, nor once the warning time has passed.
+ */
+export function revealWarning(state: GameStateResponse, receivedAt: number): { identifier: string; revealAt: string; fireAt: number; title: string; body: string } | null {
+  if (!canShareGameLocation(state) || !state.nextRevealAt) return null;
+  if (state.revealIntervalMinutes * 60 <= REVEAL_WARNING_SECONDS) return null;
+  const fireAt = receivedAt + Date.parse(state.nextRevealAt) - Date.parse(state.serverTime) - REVEAL_WARNING_SECONDS * 1000;
+  if (fireAt <= receivedAt) return null;
+  return {
+    identifier: `reveal-warning-${state.sessionId}`, revealAt: state.nextRevealAt, fireAt,
+    title: translate('notification.revealTitle'), body: translate(isGameStateHunterResponse(state) ? 'notification.revealBodyHunter' : 'notification.revealBodyRunner', { minutes: REVEAL_WARNING_SECONDS / 60 }),
+  };
 }
 
 /** Only runners and spectators receive the shared start and destination. */

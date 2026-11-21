@@ -5,7 +5,7 @@ import * as TaskManager from 'expo-task-manager';
 import { ApiError, updatePosition } from './api/client';
 import { translate } from './i18n';
 import { playerSession } from './player-session';
-import { notifyRunnerAlerts } from './runner-alert-notifications';
+import { cancelRevealWarning, notifyGameAlerts } from './game-notifications';
 
 const TASK_NAME = 'catch-me-background-location';
 const UNKNOWN_ACCURACY_METERS = 1000;
@@ -30,14 +30,18 @@ TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
   const latest = data?.locations?.at(-1);
   if (error || !latest) return;
   try {
-    // A runner's report response may carry a new zone alert or showRunners use; notify it even with the screen off.
-    await notifyRunnerAlerts(await updatePosition(token, {
+    // A report response may carry a new zone alert, showRunners use or triggered trap, and the next reveal
+    // time; notify and schedule them even with the screen off.
+    await notifyGameAlerts(await updatePosition(token, {
       latitude: latest.coords.latitude,
       longitude: latest.coords.longitude,
       accuracyMeters: latest.coords.accuracy ?? UNKNOWN_ACCURACY_METERS,
     }));
   } catch (err) {
-    if (err instanceof ApiError && (err.status === 401 || err.status === 409)) await stopBackgroundSharing();
+    if (err instanceof ApiError && (err.status === 401 || err.status === 409)) {
+      await stopBackgroundSharing();
+      await cancelRevealWarning();
+    }
     // Position updates return 409 after a catch/finish or game end (hunters
     // too), including when an action response was lost or the app is backgrounded.
     // Other failures (e.g. no network) are retried with the next location.
