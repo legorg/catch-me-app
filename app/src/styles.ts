@@ -89,7 +89,6 @@ export const dynamicStyles = {
   }),
   /** Turns the north arrow against the map, so it keeps pointing north. */
   northArrow: (heading: number) => ({ transform: [{ rotate: `${-heading}deg` }] }),
-  languageMenu: (anchor: { top: number; right: number }): ViewStyle => ({ top: anchor.top, right: anchor.right }),
   replayProgress: (share: number): ViewStyle => ({ width: `${share * 100}%` }),
   camouflageTiles: (width: number): ViewStyle => ({ width }),
   navigationBar: (height: number): ViewStyle => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height, backgroundColor: colors.background }),
@@ -112,17 +111,10 @@ export const overlay = StyleSheet.create({
   icon: { backgroundColor: colors.card, borderRadius: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: 0.95 },
 });
 
-/** Language dropdown in the start screen's header. */
+/** Language switch in the start screen's header. */
 export const languageSwitch = StyleSheet.create({
-  button: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 4 },
-  code: { color: colors.white, fontSize: 16, fontWeight: '700', minWidth: 24 },
-  caret: { color: colors.accent, fontSize: 14 },
-  backdrop: { ...StyleSheet.absoluteFill },
-  menu: { position: 'absolute', backgroundColor: colors.card, borderRadius: 12, paddingVertical: 6, minWidth: 160, elevation: 8, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
-  pressed: { backgroundColor: colors.background },
-  name: { color: colors.text, fontSize: 16 },
-  current: { color: colors.accent, fontWeight: '700' },
+  button: { paddingHorizontal: 6, paddingVertical: 4 },
+  code: { color: colors.white, fontSize: 16, fontWeight: '700' },
 });
 
 /** Joker cell picker. */
