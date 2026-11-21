@@ -32,9 +32,10 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "start": "node --env-file-if-exists=../.env node_modules/expo/bin/cli start",
+    "android": "node --env-file-if-exists=../.env node_modules/expo/bin/cli run:android --device",
+    "ios": "node --env-file-if-exists=../.env node_modules/expo/bin/cli run:ios --device",
+    "clean": "node --env-file-if-exists=../.env node_modules/expo/bin/cli prebuild --clean --no-install",
     "lint": "eslint src tests openapi-ts.config.mjs app.config.js",
     "typecheck": "tsc --noEmit",
     "knip": "knip",
