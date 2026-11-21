@@ -62,6 +62,17 @@ func TestTimelineShowsATrapTriggerWithoutTheRunner(t *testing.T) {
 	}
 }
 
+func TestTimelineShowsZoneAlertsWithoutTheCell(t *testing.T) {
+	l, ada, _, _, eve, running := jokerLobby(t)
+	watcher := joinSpectator(t, &l, "Wanda", start)
+	alerted := running.Add(time.Minute)
+	l.ZoneAlerts = []ZoneAlert{{Runner: ada.ID, Hunter: eve.ID, Cell: Cell{column: 1, row: 1}, At: alerted}}
+	want := []Event{StartEvent{At: running}, ZoneAlertEvent{Runner: ada.ID, Hunter: eve.ID, Team: eve.HunterTeam, At: alerted}}
+	if got, err := l.TimelineFor(watcher, alerted); err != nil || !slices.Equal(got, want) {
+		t.Fatalf("timeline = %+v, %v; want %+v", got, err, want)
+	}
+}
+
 func TestTimelineIsHiddenFromActivePlayers(t *testing.T) {
 	l, ada, bob, _, _, running := jokerLobby(t)
 	var rule *RuleError

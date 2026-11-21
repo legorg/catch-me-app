@@ -34,6 +34,9 @@ func TestJokerSettingsDefaultsAndZero(t *testing.T) {
 	if defaults.Allowance("unknown").Max() != 0 {
 		t.Fatal("unknown joker must not receive an allowance")
 	}
+	if !defaults.ZoneAlert.Enabled || zero.ZoneAlert.Enabled {
+		t.Fatal("the zone alert must be on by default and off in the zero value")
+	}
 }
 
 func TestJokerSettingsAllowancesAreIndependent(t *testing.T) {

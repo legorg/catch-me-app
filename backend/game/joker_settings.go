@@ -17,9 +17,12 @@ func (a JokerAllowance) Max() int { return a.max }
 // Radius and activation delay currently remain fixed gameplay constants.
 type TrapSettings struct{ JokerAllowance }
 
-// JokerSettings has exactly one setting per implemented kind. Settings belong
-// to the game and stay unchanged after creation; uses retain their existing
-// team or personal ownership.
+// ZoneAlertSettings switches the passive zone alert; it has no allowance.
+type ZoneAlertSettings struct{ Enabled bool }
+
+// JokerSettings has exactly one setting per implemented kind, plus the zone
+// alert switch. Settings belong to the game and stay unchanged after creation;
+// uses retain their existing team or personal ownership.
 type JokerSettings struct {
 	ShowRunners  JokerAllowance
 	QueryZone    JokerAllowance
@@ -28,6 +31,7 @@ type JokerSettings struct {
 	ZoneOnly     JokerAllowance
 	FakePosition JokerAllowance
 	ShowHunters  JokerAllowance
+	ZoneAlert    ZoneAlertSettings
 }
 
 // allowances is the only mapping from kinds to their allowance fields.
@@ -44,6 +48,7 @@ func DefaultJokerSettings() JokerSettings {
 	for _, a := range s.allowances() {
 		a.max = 1
 	}
+	s.ZoneAlert.Enabled = true
 	return s
 }
 

@@ -7,8 +7,8 @@ import (
 
 // Event is one timeline entry. It is sealed: the only variants are
 // StartEvent, HunterJokerEvent, RunnerJokerEvent, TrapTriggeredEvent,
-// CatchEvent, FinishEvent and EndEvent, each with exactly the fields it needs.
-// Events never carry coordinates, cells or what a joker showed.
+// ZoneAlertEvent, CatchEvent, FinishEvent and EndEvent, each with exactly the
+// fields it needs. Events never carry coordinates, cells or what a joker showed.
 type Event interface {
 	OccurredAt() time.Time
 	event()
@@ -38,6 +38,14 @@ type TrapTriggeredEvent struct {
 	At   time.Time
 }
 
+// ZoneAlertEvent is a runner alerted about a hunter in their cell, without the cell.
+type ZoneAlertEvent struct {
+	Runner PlayerID
+	Hunter PlayerID
+	Team   HunterTeamName
+	At     time.Time
+}
+
 // CatchEvent is a runner's catch.
 type CatchEvent struct {
 	Runner PlayerID
@@ -57,6 +65,7 @@ func (e StartEvent) OccurredAt() time.Time         { return e.At }
 func (e HunterJokerEvent) OccurredAt() time.Time   { return e.At }
 func (e RunnerJokerEvent) OccurredAt() time.Time   { return e.At }
 func (e TrapTriggeredEvent) OccurredAt() time.Time { return e.At }
+func (e ZoneAlertEvent) OccurredAt() time.Time     { return e.At }
 func (e CatchEvent) OccurredAt() time.Time         { return e.At }
 func (e FinishEvent) OccurredAt() time.Time        { return e.At }
 func (e EndEvent) OccurredAt() time.Time           { return e.At }
@@ -65,6 +74,7 @@ func (StartEvent) event()         {}
 func (HunterJokerEvent) event()   {}
 func (RunnerJokerEvent) event()   {}
 func (TrapTriggeredEvent) event() {}
+func (ZoneAlertEvent) event()     {}
 func (CatchEvent) event()         {}
 func (FinishEvent) event()        {}
 func (EndEvent) event()           {}
@@ -97,6 +107,10 @@ func (l Lobby) timeline(now time.Time) []Event {
 		case runnerJokerUse:
 			events = append(events, RunnerJokerEvent{Runner: u.runner(), Joker: u.Kind(), At: u.UsedAt()})
 		}
+	}
+	for _, a := range l.ZoneAlerts {
+		hunter, _ := l.Player(a.Hunter)
+		events = append(events, ZoneAlertEvent{Runner: a.Runner, Hunter: a.Hunter, Team: hunter.HunterTeam, At: a.At})
 	}
 	for _, p := range l.Players {
 		switch p.Runner.Status() {

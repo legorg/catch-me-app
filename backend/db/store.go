@@ -44,16 +44,18 @@ type gameRow struct {
 	JokerSettings jokerSettingsRow `gorm:"embedded;embeddedPrefix:joker_"`
 }
 
-// Pointers preserve an explicit allowance of 0 when GORM inserts a row with
-// default:1. Older games receive 1 for each newly added column in AutoMigrate.
+// Pointers preserve an explicit allowance of 0 (or a disabled zone alert) when
+// GORM inserts a row with a default. Older games receive the default for each
+// newly added column in AutoMigrate.
 type jokerSettingsRow struct {
-	ShowRunnersAllowance  *int `gorm:"not null;default:1"`
-	QueryZoneAllowance    *int `gorm:"not null;default:1"`
-	CompassAllowance      *int `gorm:"not null;default:1"`
-	TrapAllowance         *int `gorm:"not null;default:1"`
-	ZoneOnlyAllowance     *int `gorm:"not null;default:1"`
-	FakePositionAllowance *int `gorm:"not null;default:1"`
-	ShowHuntersAllowance  *int `gorm:"not null;default:1"`
+	ShowRunnersAllowance  *int  `gorm:"not null;default:1"`
+	QueryZoneAllowance    *int  `gorm:"not null;default:1"`
+	CompassAllowance      *int  `gorm:"not null;default:1"`
+	TrapAllowance         *int  `gorm:"not null;default:1"`
+	ZoneOnlyAllowance     *int  `gorm:"not null;default:1"`
+	FakePositionAllowance *int  `gorm:"not null;default:1"`
+	ShowHuntersAllowance  *int  `gorm:"not null;default:1"`
+	ZoneAlertEnabled      *bool `gorm:"not null;default:true"`
 }
 
 // The route_start, route_end, and route_regenerations_left columns of older

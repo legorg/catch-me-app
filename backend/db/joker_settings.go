@@ -11,16 +11,21 @@ func toJokerSettingsRow(s game.JokerSettings) jokerSettingsRow {
 		allowance := a.Max()
 		return &allowance
 	}
+	enabled := s.ZoneAlert.Enabled
 	return jokerSettingsRow{
 		ShowRunnersAllowance: pointer(s.ShowRunners), QueryZoneAllowance: pointer(s.QueryZone),
 		CompassAllowance: pointer(s.Compass), TrapAllowance: pointer(s.Trap.JokerAllowance),
 		ZoneOnlyAllowance: pointer(s.ZoneOnly), FakePositionAllowance: pointer(s.FakePosition),
-		ShowHuntersAllowance: pointer(s.ShowHunters),
+		ShowHuntersAllowance: pointer(s.ShowHunters), ZoneAlertEnabled: &enabled,
 	}
 }
 
 func parseJokerSettings(row jokerSettingsRow) (game.JokerSettings, error) {
 	var settings game.JokerSettings
+	if row.ZoneAlertEnabled == nil {
+		return game.JokerSettings{}, fmt.Errorf("missing zone alert setting")
+	}
+	settings.ZoneAlert.Enabled = *row.ZoneAlertEnabled
 	fields := []struct {
 		kind   game.JokerKind
 		stored *int

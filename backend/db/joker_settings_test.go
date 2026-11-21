@@ -50,7 +50,7 @@ func TestOlderGamesReceiveDefaultJokerSettings(t *testing.T) {
 	for _, column := range []string{
 		"joker_show_runners_allowance", "joker_query_zone_allowance", "joker_compass_allowance",
 		"joker_trap_allowance", "joker_zone_only_allowance", "joker_fake_position_allowance",
-		"joker_show_hunters_allowance",
+		"joker_show_hunters_allowance", "joker_zone_alert_enabled",
 	} {
 		if err := store.db.Exec("ALTER TABLE games DROP COLUMN " + column).Error; err != nil {
 			t.Fatal(err)

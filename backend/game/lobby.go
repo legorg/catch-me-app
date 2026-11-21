@@ -47,6 +47,8 @@ type Lobby struct {
 	Jokers []JokerUse
 	// Sketches are the lines all hunter teams drew, oldest first.
 	Sketches []Sketch
+	// ZoneAlerts are all runners' zone alerts, oldest first.
+	ZoneAlerts []ZoneAlert
 }
 
 func (l Lobby) index(id PlayerID) int {
@@ -187,6 +189,7 @@ func (l *Lobby) SetReady(id PlayerID, ready bool, now time.Time, skipStartCheck 
 
 // UpdatePosition stores a player's latest location. Before the start, a ready
 // runner who moves away from the start becomes not ready (unless skipStartCheck).
+// While running, it raises zone alerts.
 func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, skipStartCheck bool) error {
 	player, err := l.requirePlayer(id)
 	if err != nil {
@@ -203,6 +206,7 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 		player.Ready = false
 		l.reschedule(now)
 	}
+	l.raiseZoneAlerts(*player, now)
 	return nil
 }
 
