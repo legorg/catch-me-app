@@ -337,7 +337,7 @@ func gameStateResponse(view service.PlayerView) GameStateResponse {
 		return NewRunnerState(GameStateRunnerResponse{
 			GameStateBase: base, Team: Team(game.Runners), Route: gameRouteResponse(view.Lobby.Game.Route),
 			RouteRegenerationsLeft: view.Lobby.Game.RouteRegenerationsLeft(), Jokers: jokerResponses(view),
-			ZoneAlerts: zoneAlertResponses(view),
+			ZoneAlerts: zoneAlertResponses(view), LocatedBy: locatedByResponses(view),
 		})
 	}
 	return NewHunterState(GameStateHunterResponse{
@@ -485,6 +485,14 @@ func zoneAlertResponses(view service.PlayerView) []ZoneAlertResponse {
 		alerts = append(alerts, ZoneAlertResponse{At: a.At, HunterID: PlayerID(a.Hunter.String()), Cell: Cell(a.Cell.String())})
 	}
 	return alerts
+}
+
+func locatedByResponses(view service.PlayerView) []LocatedByResponse {
+	located := make([]LocatedByResponse, 0)
+	for _, l := range view.Lobby.LocatedFor(view.Me) {
+		located = append(located, LocatedByResponse{At: l.At, HunterTeam: l.Team.String()})
+	}
+	return located
 }
 
 func sketchResponses(view service.PlayerView) []SketchResponse {

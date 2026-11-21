@@ -27,3 +27,25 @@ func (ShowRunnersUse) Kind() JokerKind        { return JokerShowRunners }
 func (u ShowRunnersUse) UsedAt() time.Time    { return u.At }
 func (ShowRunnersUse) jokerUse()              {}
 func (u ShowRunnersUse) team() HunterTeamName { return u.Team }
+
+// Located is what runners learn of a showRunners use: which hunter team used
+// it and when, never what it showed.
+type Located struct {
+	Team HunterTeamName
+	At   time.Time
+}
+
+// LocatedFor lists, oldest first, the showRunners uses made while the viewer
+// was an active runner, so they included the viewer. Other viewers get none.
+func (l Lobby) LocatedFor(viewer Player) []Located {
+	if viewer.Team != Runners {
+		return nil
+	}
+	var located []Located
+	for _, use := range l.Jokers {
+		if u, ok := use.(ShowRunnersUse); ok && viewer.Runner.ActiveAt(u.At) {
+			located = append(located, Located{Team: u.Team, At: u.At})
+		}
+	}
+	return located
+}

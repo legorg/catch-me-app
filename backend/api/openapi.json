@@ -1876,6 +1876,13 @@
             "maxItems": 3,
             "type": "array"
           },
+          "locatedBy": {
+            "items": {
+              "$ref": "#/components/schemas/ControllerLocatedByResponse"
+            },
+            "maxItems": 145,
+            "type": "array"
+          },
           "nextRevealAt": {
             "examples": [
               "2026-11-08T12:05:10Z"
@@ -1983,7 +1990,8 @@
           "route",
           "routeRegenerationsLeft",
           "jokers",
-          "zoneAlerts"
+          "zoneAlerts",
+          "locatedBy"
         ],
         "type": "object"
       },
@@ -2427,6 +2435,30 @@
         "required": [
           "title",
           "coordinates"
+        ],
+        "type": "object"
+      },
+      "ControllerLocatedByResponse": {
+        "properties": {
+          "at": {
+            "examples": [
+              "2026-11-08T12:07:00Z"
+            ],
+            "format": "date-time",
+            "type": "string"
+          },
+          "hunterTeam": {
+            "examples": [
+              "Wolves"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "hunterTeam"
         ],
         "type": "object"
       },

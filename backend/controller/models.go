@@ -508,6 +508,15 @@ type GameStateRunnerResponse struct {
 	Jokers []JokerResponse `json:"jokers" maxItems:"3"`
 	// The requesting runner's own zone alerts, oldest first: at most one per hunter.
 	ZoneAlerts []ZoneAlertResponse `json:"zoneAlerts" maxItems:"29"`
+	// Every showRunners use that included the requesting runner, oldest first:
+	// at most 5 uses by each of up to 29 hunter teams.
+	LocatedBy []LocatedByResponse `json:"locatedBy" maxItems:"145"`
+}
+
+// LocatedByResponse tells runners that a hunter team used showRunners, never what it showed.
+type LocatedByResponse struct {
+	At         time.Time `json:"at" example:"2026-11-08T12:07:00Z"`
+	HunterTeam string    `json:"hunterTeam" minLength:"1" maxLength:"20" example:"Wolves"`
 }
 
 // ZoneAlertResponse tells a runner that a hunter was in their cell, never where

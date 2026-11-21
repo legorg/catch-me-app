@@ -425,8 +425,10 @@ func TestOpenAPIRoutes(t *testing.T) {
 				}
 			}
 		}
-		if _, ok := variant.Properties["zoneAlerts"]; ok != (team == "runner") || ok && !slices.Contains(variant.Required, "zoneAlerts") {
-			t.Fatalf("only the runner schema must have required zone alerts: %s", name)
+		for _, runnerOnly := range []string{"zoneAlerts", "locatedBy"} {
+			if _, ok := variant.Properties[runnerOnly]; ok != (team == "runner") || ok && !slices.Contains(variant.Required, runnerOnly) {
+				t.Fatalf("only the runner schema must have required %s: %s", runnerOnly, name)
+			}
 		}
 	}
 	codes := spec.Components.Schemas["ControllerJoinCodes"]

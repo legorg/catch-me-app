@@ -37,9 +37,10 @@ const state: GameStateRunnerResponse = {
   routeRegenerationsLeft: 2,
   jokers: [],
   zoneAlerts: [],
+  locatedBy: [],
 };
 
-const { route: _route, routeRegenerationsLeft: _routeRegenerationsLeft, zoneAlerts: _zoneAlerts, ...hunterBase } = state;
+const { route: _route, routeRegenerationsLeft: _routeRegenerationsLeft, zoneAlerts: _zoneAlerts, locatedBy: _locatedBy, ...hunterBase } = state;
 const hunterState: GameStateHunterResponse = { ...hunterBase, team: 'hunter', jokers: [], sketches: [] };
 
 const spectatorState: GameStateSpectatorResponse = {

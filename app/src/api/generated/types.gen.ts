@@ -141,6 +141,7 @@ export type ControllerGameStateRunnerResponse = {
     joinCodes: ControllerJoinCodes;
     jokerSettings: ControllerJokerSettings;
     jokers: Array<ControllerJokerResponse>;
+    locatedBy: Array<ControllerLocatedByResponse>;
     nextRevealAt?: string;
     playerId: string;
     players: Array<ControllerPlayerResponse>;
@@ -252,6 +253,11 @@ export type ControllerJokerSettings = {
 export type ControllerLandmark = {
     coordinates: ControllerCoordinates;
     title: string;
+};
+
+export type ControllerLocatedByResponse = {
+    at: string;
+    hunterTeam: string;
 };
 
 export type ControllerOutsideRevealResponse = {
