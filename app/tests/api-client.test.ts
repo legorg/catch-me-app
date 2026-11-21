@@ -5,7 +5,7 @@ import {
   API_URL, ApiError, activateJoker, addSketch, checkBackend, clearSketches, createGame, finish, getGameResult, getGameState, getTimeline, joinGame, leaveGame, markCaught, regenerateRoute, setHunterTeam, setReady, updatePosition,
 } from '../src/api/client';
 import { isGameStateHunterResponse } from '../src/api/types';
-import { DEFAULT_JOKER_SETTINGS, HUNTER_JOKER_KINDS, RUNNER_JOKER_KINDS, withAllowance } from '../src/joker-settings';
+import { DEFAULT_JOKER_SETTINGS, HUNTER_JOKER_KINDS, RUNNER_JOKER_KINDS, withAllowance, withZoneAlert } from '../src/joker-settings';
 import { previewPlayground } from '../src/playground';
 import { isValidGameId, normalizeGameId } from '../src/game-result';
 
@@ -174,8 +174,10 @@ test('chosen joker allowances are sent for every kind, including 0', async (t) =
   }
   assert.equal(DEFAULT_JOKER_SETTINGS.showRunners.allowance, 1); // The defaults stay unchanged.
   assert.deepEqual(Object.keys(settings).sort(), [...HUNTER_JOKER_KINDS, ...RUNNER_JOKER_KINDS, 'zoneAlert'].sort());
+  settings = withZoneAlert(settings, false);
+  assert.equal(DEFAULT_JOKER_SETTINGS.zoneAlert.enabled, true);
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
-    assert.deepEqual((await request.json()).jokers, { ...jokers, showRunners: { allowance: 0 }, trap: { allowance: 5 }, fakePosition: { allowance: 3 } });
+    assert.deepEqual((await request.json()).jokers, { ...jokers, showRunners: { allowance: 0 }, trap: { allowance: 5 }, fakePosition: { allowance: 3 }, zoneAlert: { enabled: false } });
     return Response.json(created, { status: 201 });
   });
   await createGame(center, 2000, 6, 30, settings);

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { createGame, joinGame, type Coordinates, type CreateGameResponse } from '@/api/client';
 import type { JokerSettings } from '@/api/types';
 import { useT, type MessageKey } from '@/i18n';
-import { DEFAULT_JOKER_SETTINGS, withAllowance, type JokerKind } from '@/joker-settings';
+import { DEFAULT_JOKER_SETTINGS, withAllowance, withZoneAlert, type JokerKind } from '@/joker-settings';
 import { playerSession } from '@/player-session';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_CENTER, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES,
@@ -101,6 +101,7 @@ export function useCreateGame() {
     gridSizeText, setGridSizeText, gridSizeError,
     revealIntervalText, setRevealIntervalText, revealIntervalError,
     jokers, setJokerAllowance: (kind: JokerKind, allowance: number) => setJokers((current) => withAllowance(current, kind, allowance)),
+    setZoneAlert: (enabled: boolean) => setJokers((current) => withZoneAlert(current, enabled)),
     name, setName, busy, message: status.message, error: status.error, cannotCreate,
     selectCenter, create, joinAs,
   };

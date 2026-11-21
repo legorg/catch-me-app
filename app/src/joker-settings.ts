@@ -27,3 +27,7 @@ export function isValidJokerAllowance(allowance: unknown): allowance is number {
 export function withAllowance(settings: JokerSettings, kind: JokerKind, allowance: number): JokerSettings {
   return { ...settings, [kind]: { ...settings[kind], allowance } };
 }
+
+export function withZoneAlert(settings: JokerSettings, enabled: boolean): JokerSettings {
+  return { ...settings, zoneAlert: { enabled } };
+}

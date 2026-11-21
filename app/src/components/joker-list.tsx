@@ -8,7 +8,7 @@ import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, useT } from '@/i18n';
 import { isSpectator, ownPlayer } from '@/game-state';
 import { JOKER_TITLE_KEYS as TITLE_KEYS } from '@/joker-settings';
-import { remainingUses, trapStatus, type JokerUse } from '@/lobby';
+import { remainingUses, trapStatus, zoneAlertEntries, type JokerUse } from '@/lobby';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
@@ -79,8 +79,26 @@ export default function JokerList({ state, error, onUse }: {
           </View>
         );
       })}
+      {state.team === 'runner' && <ZoneAlertCard state={state} />}
       {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
     </ScrollView>
+  );
+}
+
+/** The passive zone alert: whether it is on in this game, and the runner's own alerts. */
+function ZoneAlertCard({ state }: { state: GameStateResponse }) {
+  const t = useT();
+  const alerts = zoneAlertEntries(state);
+  return (
+    <View style={styles.card}>
+      <Text style={styles.heading}>{t('joker.zoneAlert.title')}</Text>
+      <Text style={styles.text}>{t('joker.zoneAlert.text')}</Text>
+      {!state.jokerSettings.zoneAlert.enabled
+        ? <Text style={styles.hint}>{t('joker.disabled')}</Text>
+        : alerts.length === 0
+          ? <Text style={styles.hint}>{t('joker.zoneAlert.none')}</Text>
+          : alerts.map((alert) => <Text key={alert.hunterId} style={styles.text}>{alert.text}</Text>)}
+    </View>
   );
 }
 

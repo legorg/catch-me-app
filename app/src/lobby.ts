@@ -354,6 +354,25 @@ export function shownHunterMarkers(state: GameStateRunnerResponse): PlayerMarker
   })));
 }
 
+/** How long the newest zone alert stays in the game screen's top card. */
+export const ZONE_ALERT_HINT_SECONDS = 5 * 60;
+
+/** The requesting runner's zone alerts, oldest first; the hunter's name and team come from the players list. */
+export function zoneAlertEntries(state: GameStateResponse): { hunterId: string; at: string; text: string }[] {
+  if (!isGameStateRunnerResponse(state)) return [];
+  return state.zoneAlerts.map((alert) => {
+    const hunter = state.players.find((p) => p.playerId === alert.hunterId);
+    const text = translate('joker.zoneAlert.entry', { name: hunter?.name ?? '', team: hunter?.hunterTeam ?? '', cell: alert.cell, time: clockTime(alert.at) });
+    return { hunterId: alert.hunterId, at: alert.at, text };
+  });
+}
+
+/** The newest zone alert if it is at most ZONE_ALERT_HINT_SECONDS old by server time, otherwise null. */
+export function recentZoneAlert(state: GameStateResponse, serverNowMs: number): string | null {
+  const newest = zoneAlertEntries(state).at(-1);
+  return newest && serverNowMs - Date.parse(newest.at) <= ZONE_ALERT_HINT_SECONDS * 1000 ? newest.text : null;
+}
+
 /** Only runners and spectators receive the shared start and destination. */
 export function visibleRoute(state: GameStateResponse): GameRoute | undefined {
   return state.team === 'hunter' ? undefined : state.route;

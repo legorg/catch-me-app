@@ -5,10 +5,11 @@ import { useT } from '@/i18n';
 import { HUNTER_JOKER_KINDS, JOKER_ALLOWANCES, JOKER_TITLE_KEYS, RUNNER_JOKER_KINDS, type JokerKind } from '@/joker-settings';
 import { picker, styles } from '@/styles';
 
-/** Card for choosing how often each joker may be used in the new game. */
-export default function JokerSettingsCard({ settings, onChange, disabled }: {
+/** Card for choosing how often each joker may be used in the new game, and whether the zone alert is on. */
+export default function JokerSettingsCard({ settings, onChange, onZoneAlertChange, disabled }: {
   settings: JokerSettings;
   onChange: (kind: JokerKind, allowance: number) => void;
+  onZoneAlertChange: (enabled: boolean) => void;
   disabled: boolean;
 }) {
   const t = useT();
@@ -20,6 +21,28 @@ export default function JokerSettingsCard({ settings, onChange, disabled }: {
       {HUNTER_JOKER_KINDS.map((kind) => <AllowanceRow key={kind} kind={kind} settings={settings} onChange={onChange} disabled={disabled} />)}
       <Text style={[styles.text, styles.accentText]}>{t('create.runnerJokers')}</Text>
       {RUNNER_JOKER_KINDS.map((kind) => <AllowanceRow key={kind} kind={kind} settings={settings} onChange={onChange} disabled={disabled} />)}
+      <View style={styles.gapTiny}>
+        <Text style={styles.text}>{t('joker.zoneAlert.title')}</Text>
+        <Text style={styles.hint}>{t('create.zoneAlertHint')}</Text>
+        <View style={picker.row}>
+          {([true, false] as const).map((enabled) => {
+            const selected = settings.zoneAlert.enabled === enabled;
+            const label = t(enabled ? 'create.zoneAlertOn' : 'create.zoneAlertOff');
+            return (
+              <Pressable
+                key={label}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('joker.zoneAlert.title')}: ${label}`}
+                accessibilityState={{ selected, disabled }}
+                disabled={disabled}
+                onPress={() => onZoneAlertChange(enabled)}
+                style={[picker.cell, selected && picker.selected]}>
+                <Text style={[picker.label, selected && picker.selectedLabel]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }

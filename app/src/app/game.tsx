@@ -10,7 +10,7 @@ import InfoPanel from '@/components/info-panel';
 import LoadingScreen from '@/components/loading-screen';
 import PlaygroundMap from '@/components/playground-map';
 import TimelinePanel from '@/components/timeline-panel';
-import { compassLines, gameHighlights, gameMarkers, secondsUntil, serverNow, sketchLines, trapCircles } from '@/lobby';
+import { compassLines, gameHighlights, gameMarkers, recentZoneAlert, secondsUntil, serverNow, sketchLines, trapCircles } from '@/lobby';
 import { canFinish, canShareGameLocation, isSpectator, ownPlayer } from '@/game-state';
 import { cellAt } from '@/playground';
 import { noop } from '@/press';
@@ -46,6 +46,7 @@ export default function GameScreen() {
   const drawing = canSketch && sketching.drawing;
   const outside = active && !!me?.position && cellAt(state.playground, me.position) === null;
   const nextReveal = spectator ? null : secondsUntil(state.nextRevealAt, state, snapshot.receivedAt, now);
+  const zoneAlert = active ? recentZoneAlert(state, serverNow(state, snapshot.receivedAt, now)) : null;
 
   return (
     <View style={styles.screen}>
@@ -56,7 +57,7 @@ export default function GameScreen() {
       </View>
       {/* Floating over the map; touches outside the cards fall through to it. */}
       <View pointerEvents="box-none" style={[overlay.fill, dynamicStyles.hudFill(insets)]}>
-        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} spectator={spectator} testMode={state.startPositionCheckDisabled === true} />
+        <GameHud nextReveal={nextReveal} outside={outside} drawing={drawing} runnerStatus={me?.runner?.status} spectator={spectator} testMode={state.startPositionCheckDisabled === true} zoneAlert={zoneAlert} />
         <View pointerEvents="box-none" style={styles.hudZone}>
           {infoOpen && <InfoPanel state={state} me={me} revealScheduled={nextReveal !== null} location={location} />}
           {showTimeline && <TimelinePanel events={timeline.events} loaded={timeline.loaded} />}

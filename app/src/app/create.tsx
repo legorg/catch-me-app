@@ -34,7 +34,7 @@ export default function CreateScreen() {
           value={game.cellSizeText} onChange={game.setCellSizeText} editable={!busy} error={game.sizeError} keyboardType="decimal-pad" maxLength={8} />
         <SettingCard title={t('create.revealInterval')} label={t('create.revealIntervalLabel')} hint={t('create.revealIntervalHint')}
           value={game.revealIntervalText} onChange={game.setRevealIntervalText} editable={!busy} error={game.revealIntervalError} maxLength={2} />
-        <JokerSettingsCard settings={game.jokers} onChange={game.setJokerAllowance} disabled={busy} />
+        <JokerSettingsCard settings={game.jokers} onChange={game.setJokerAllowance} onZoneAlertChange={game.setZoneAlert} disabled={busy} />
       </>}
       <View style={styles.mapContainer}>
         {/* Remounts once when the position arrives, so the map opens there. */}
