@@ -354,35 +354,53 @@ export function shownHunterMarkers(state: GameStateRunnerResponse): PlayerMarker
   })));
 }
 
-/** How long the newest zone alert stays in the game screen's top card. */
-export const ZONE_ALERT_HINT_SECONDS = 5 * 60;
+/** How long a runner alert stays in the game screen's top card, and is still notified. */
+export const RUNNER_ALERT_SECONDS = 5 * 60;
+
+/** Something runners are told about hunters: a zone alert, or a hunter team's showRunners use. */
+export type RunnerAlert = { id: string; kind: 'zoneAlert' | 'located'; at: string; text: string };
 
 /** The requesting runner's zone alerts, oldest first; the hunter's name and team come from the players list. */
-export function zoneAlertEntries(state: GameStateResponse): { hunterId: string; at: string; text: string }[] {
+export function zoneAlertEntries(state: GameStateResponse): RunnerAlert[] {
   if (!isGameStateRunnerResponse(state)) return [];
   return state.zoneAlerts.map((alert) => {
     const hunter = state.players.find((p) => p.playerId === alert.hunterId);
     const text = translate('joker.zoneAlert.entry', { name: hunter?.name ?? '', team: hunter?.hunterTeam ?? '', cell: alert.cell, time: clockTime(alert.at) });
-    return { hunterId: alert.hunterId, at: alert.at, text };
+    return { id: `zone-alert-${state.sessionId}-${alert.hunterId}`, kind: 'zoneAlert', at: alert.at, text };
   });
 }
 
-/** The newest zone alert if it is at most ZONE_ALERT_HINT_SECONDS old by server time, otherwise null. */
-export function recentZoneAlert(state: GameStateResponse, serverNowMs: number): string | null {
-  const newest = zoneAlertEntries(state).at(-1);
-  return newest && serverNowMs - Date.parse(newest.at) <= ZONE_ALERT_HINT_SECONDS * 1000 ? newest.text : null;
+/** The showRunners uses that included the requesting runner, oldest first. */
+export function locatedEntries(state: GameStateResponse): RunnerAlert[] {
+  if (!isGameStateRunnerResponse(state)) return [];
+  return state.locatedBy.map((located) => ({
+    id: `located-${state.sessionId}-${located.hunterTeam}-${located.at}`,
+    kind: 'located',
+    at: located.at,
+    text: translate('joker.located.entry', { team: located.hunterTeam, time: clockTime(located.at) }),
+  }));
+}
+
+const isRecent = (alert: RunnerAlert, serverNowMs: number) => serverNowMs - Date.parse(alert.at) <= RUNNER_ALERT_SECONDS * 1000;
+
+/** For the top card: the newest alert of each kind while it is at most RUNNER_ALERT_SECONDS old by server time, newest first. */
+export function recentRunnerAlerts(state: GameStateResponse, serverNowMs: number): string[] {
+  return [zoneAlertEntries(state).at(-1), locatedEntries(state).at(-1)]
+    .filter((alert): alert is RunnerAlert => !!alert && isRecent(alert, serverNowMs))
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .map((alert) => alert.text);
 }
 
 /**
- * Zone alerts to notify: recent ones (as for the top card) not notified yet in this app run.
- * The fixed identifier per game and hunter makes a repeat after an app restart replace the
- * earlier notification instead of adding one. Never coordinates, only the cell.
+ * Alerts to notify: recent ones (as for the top card) not notified yet in this app run.
+ * The fixed identifier per alert makes a repeat after an app restart replace the earlier
+ * notification instead of adding one. Never coordinates, only cells.
  */
-export function zoneAlertNotifications(state: GameStateResponse, notified: ReadonlySet<string>, serverNowMs: number): { identifier: string; body: string }[] {
-  return zoneAlertEntries(state)
-    .filter((entry) => serverNowMs - Date.parse(entry.at) <= ZONE_ALERT_HINT_SECONDS * 1000)
-    .map((entry) => ({ identifier: `zone-alert-${state.sessionId}-${entry.hunterId}`, body: entry.text }))
-    .filter((notification) => !notified.has(notification.identifier));
+export function runnerAlertNotifications(state: GameStateResponse, notified: ReadonlySet<string>, serverNowMs: number): { identifier: string; title: string; body: string }[] {
+  return [...zoneAlertEntries(state), ...locatedEntries(state)]
+    .filter((alert) => isRecent(alert, serverNowMs) && !notified.has(alert.id))
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+    .map((alert) => ({ identifier: alert.id, title: translate(alert.kind === 'zoneAlert' ? 'joker.zoneAlert.title' : 'joker.located.title'), body: alert.text }));
 }
 
 /** Only runners and spectators receive the shared start and destination. */

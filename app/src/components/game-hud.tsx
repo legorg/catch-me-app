@@ -13,14 +13,14 @@ type GameHudProps = {
   runnerStatus?: RunnerStatus;
   spectator: boolean;
   testMode: boolean;
-  /** The runner's newest zone alert while it is recent. */
-  zoneAlert: string | null;
-  /** Zone alerts are on, but the system does not allow notifications. */
+  /** The runner's recent alerts about hunters, newest first. */
+  alerts: string[];
+  /** The runner is told about hunters, but the system does not allow notifications. */
   notificationsOff: boolean;
 };
 
-/** Top card: test override, runner outcome, next reveal, zone alert, playground warning and drawing hint. */
-export default function GameHud({ nextReveal, outside, drawing, runnerStatus, spectator, testMode, zoneAlert, notificationsOff }: GameHudProps) {
+/** Top card: test override, runner outcome, next reveal, runner alerts, playground warning and drawing hint. */
+export default function GameHud({ nextReveal, outside, drawing, runnerStatus, spectator, testMode, alerts, notificationsOff }: GameHudProps) {
   const t = useT();
   return (
     <View pointerEvents="none" style={overlay.hud}>
@@ -42,7 +42,7 @@ export default function GameHud({ nextReveal, outside, drawing, runnerStatus, sp
         <Text style={styles.hint}>{t(runnerStatus === 'caught' ? 'catch.spectating' : 'finish.spectating')}</Text>
       </>}
       {nextReveal !== null && <Text accessibilityLiveRegion="polite" style={styles.heading}>{t('lobby.nextReveal', { time: formatDuration(nextReveal) })}</Text>}
-      {zoneAlert && <Text accessibilityLiveRegion="assertive" style={[styles.heading, styles.error]}>{zoneAlert}</Text>}
+      {alerts.map((alert) => <Text key={alert} accessibilityLiveRegion="assertive" style={[styles.heading, styles.error]}>{alert}</Text>)}
       {notificationsOff && <Text style={styles.hint}>{t('notification.denied')}</Text>}
       {outside && <Text style={[styles.heading, styles.error]}>{t('lobby.outside')}</Text>}
       {drawing && <Text style={styles.hint}>{t('sketch.hint')}</Text>}

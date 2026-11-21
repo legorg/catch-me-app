@@ -4,9 +4,9 @@ import { Platform } from 'react-native';
 
 import type { GameStateResponse } from './api/types';
 import { translate } from './i18n';
-import { zoneAlertNotifications } from './lobby';
+import { runnerAlertNotifications } from './lobby';
 
-const CHANNEL_ID = 'zone-alerts';
+const CHANNEL_ID = 'runner-alerts';
 
 export type NotificationPermission = 'granted' | 'denied' | 'unsupported';
 
@@ -49,16 +49,16 @@ export async function ensureNotificationPermission(): Promise<NotificationPermis
   }
 }
 
-/** Shows one local notification per new zone alert in the state; without permission the system drops it. */
-export async function notifyZoneAlerts(state: GameStateResponse): Promise<void> {
+/** Shows one local notification per new runner alert in the state; without permission the system drops it. */
+export async function notifyRunnerAlerts(state: GameStateResponse): Promise<void> {
   if (Platform.OS === 'web') return;
-  for (const { identifier, body } of zoneAlertNotifications(state, notified, Date.parse(state.serverTime))) {
+  for (const { identifier, title, body } of runnerAlertNotifications(state, notified, Date.parse(state.serverTime))) {
     notified.add(identifier);
     try {
       await ensureChannel();
       await Notifications.scheduleNotificationAsync({
         identifier,
-        content: { title: translate('joker.zoneAlert.title'), body },
+        content: { title, body },
         trigger: Platform.OS === 'android' ? { channelId: CHANNEL_ID } : null,
       });
     } catch {

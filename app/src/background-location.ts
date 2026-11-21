@@ -5,7 +5,7 @@ import * as TaskManager from 'expo-task-manager';
 import { ApiError, updatePosition } from './api/client';
 import { translate } from './i18n';
 import { playerSession } from './player-session';
-import { notifyZoneAlerts } from './zone-alert-notifications';
+import { notifyRunnerAlerts } from './runner-alert-notifications';
 
 const TASK_NAME = 'catch-me-background-location';
 const UNKNOWN_ACCURACY_METERS = 1000;
@@ -30,8 +30,8 @@ TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
   const latest = data?.locations?.at(-1);
   if (error || !latest) return;
   try {
-    // A runner's report response may carry a new zone alert; notify it even with the screen off.
-    await notifyZoneAlerts(await updatePosition(token, {
+    // A runner's report response may carry a new zone alert or showRunners use; notify it even with the screen off.
+    await notifyRunnerAlerts(await updatePosition(token, {
       latitude: latest.coords.latitude,
       longitude: latest.coords.longitude,
       accuracyMeters: latest.coords.accuracy ?? UNKNOWN_ACCURACY_METERS,

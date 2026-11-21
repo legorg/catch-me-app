@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, ZONE_ALERT_HINT_SECONDS, recentZoneAlert, zoneAlertEntries, zoneAlertNotifications } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeHighlights, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, RUNNER_ALERT_SECONDS, locatedEntries, recentRunnerAlerts, runnerAlertNotifications, zoneAlertEntries } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
@@ -525,16 +525,31 @@ test('zone alerts name the hunter and team from the players and stay in the top 
     zoneAlerts: [{ at: '2026-11-08T12:20:00Z', hunterId: bob.playerId, cell: 'C4' }],
   };
   const [entry] = zoneAlertEntries(alerted);
-  assert.equal(entry.hunterId, bob.playerId);
+  assert.equal(entry.id, `zone-alert-${state.sessionId}-${bob.playerId}`);
   assert.match(entry.text, /Bob \(Wolves\) was in your zone C4$/);
   const at = Date.parse('2026-11-08T12:20:00Z');
-  assert.equal(recentZoneAlert(alerted, at + ZONE_ALERT_HINT_SECONDS * 1000), entry.text);
-  assert.equal(recentZoneAlert(alerted, at + ZONE_ALERT_HINT_SECONDS * 1000 + 1), null);
-  assert.equal(recentZoneAlert(state, at), null);
+  assert.deepEqual(recentRunnerAlerts(alerted, at + RUNNER_ALERT_SECONDS * 1000), [entry.text]);
+  assert.deepEqual(recentRunnerAlerts(alerted, at + RUNNER_ALERT_SECONDS * 1000 + 1), []);
+  assert.deepEqual(recentRunnerAlerts(state, at), []);
   assert.deepEqual(zoneAlertEntries(hunterState), []);
 });
 
-test('each recent zone alert is notified once, with a stable identifier and no coordinates', () => {
+test('runners see which hunter team located them and when, newest alert of each kind first in the top card', () => {
+  const alerted = {
+    ...state,
+    zoneAlerts: [{ at: '2026-11-08T12:20:00Z', hunterId: state.players[1].playerId, cell: 'C4' }],
+    locatedBy: [{ at: '2026-11-08T12:07:00Z', hunterTeam: 'Pack' }, { at: '2026-11-08T12:22:00Z', hunterTeam: 'Wolves' }],
+  };
+  const located = locatedEntries(alerted);
+  assert.deepEqual(located.map((entry) => entry.id), [`located-${state.sessionId}-Pack-2026-11-08T12:07:00Z`, `located-${state.sessionId}-Wolves-2026-11-08T12:22:00Z`]);
+  assert.match(located[1].text, /hunter team Wolves queried your location$/);
+  const shown = recentRunnerAlerts(alerted, Date.parse('2026-11-08T12:23:00Z'));
+  assert.equal(shown.length, 2);
+  assert.equal(shown[0], located[1].text);
+  assert.deepEqual(locatedEntries(hunterState), []);
+});
+
+test('each recent runner alert is notified once, with a stable identifier and no coordinates', () => {
   const bob = { ...state.players[1], hunterTeam: 'Wolves' };
   const alerted = {
     ...state,
@@ -543,14 +558,18 @@ test('each recent zone alert is notified once, with a stable identifier and no c
       { at: '2026-11-08T12:00:00Z', hunterId: 'c'.repeat(32), cell: 'B2' },
       { at: '2026-11-08T12:20:00Z', hunterId: bob.playerId, cell: 'C4' },
     ],
+    locatedBy: [{ at: '2026-11-08T12:19:00Z', hunterTeam: 'Wolves' }],
   };
   const now = Date.parse('2026-11-08T12:21:00Z');
-  const pending = zoneAlertNotifications(alerted, new Set(), now);
-  assert.deepEqual(pending.map((n) => n.identifier), [`zone-alert-${state.sessionId}-${bob.playerId}`]);
-  assert.match(pending[0].body, /Bob \(Wolves\) was in your zone C4$/);
-  assert.doesNotMatch(pending[0].body, /\d+\.\d{3}/);
-  assert.deepEqual(zoneAlertNotifications(alerted, new Set([pending[0].identifier]), now), []);
-  assert.deepEqual(zoneAlertNotifications(hunterState, new Set(), now), []);
+  const pending = runnerAlertNotifications(alerted, new Set(), now);
+  assert.deepEqual(pending.map((n) => [n.identifier, n.title]), [
+    [`located-${state.sessionId}-Wolves-2026-11-08T12:19:00Z`, 'Location queried'],
+    [`zone-alert-${state.sessionId}-${bob.playerId}`, 'Zone alert'],
+  ]);
+  assert.match(pending[1].body, /Bob \(Wolves\) was in your zone C4$/);
+  assert.ok(pending.every((n) => !/\d+\.\d{3}/.test(n.body)));
+  assert.deepEqual(runnerAlertNotifications(alerted, new Set(pending.map((n) => n.identifier)), now), []);
+  assert.deepEqual(runnerAlertNotifications(hunterState, new Set(), now), []);
 });
 
 test('the compass becomes one cell-long arrow per direction from the origin, without names', () => {

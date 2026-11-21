@@ -8,7 +8,7 @@ import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, useT } from '@/i18n';
 import { isSpectator, ownPlayer } from '@/game-state';
 import { JOKER_TITLE_KEYS as TITLE_KEYS } from '@/joker-settings';
-import { remainingUses, trapStatus, zoneAlertEntries, type JokerUse } from '@/lobby';
+import { locatedEntries, remainingUses, trapStatus, zoneAlertEntries, type JokerUse } from '@/lobby';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
@@ -79,7 +79,7 @@ export default function JokerList({ state, error, onUse }: {
           </View>
         );
       })}
-      {state.team === 'runner' && <ZoneAlertCard state={state} />}
+      {state.team === 'runner' && <><ZoneAlertCard state={state} /><LocatedCard state={state} /></>}
       {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
     </ScrollView>
   );
@@ -97,7 +97,22 @@ function ZoneAlertCard({ state }: { state: GameStateResponse }) {
         ? <Text style={styles.hint}>{t('joker.disabled')}</Text>
         : alerts.length === 0
           ? <Text style={styles.hint}>{t('joker.zoneAlert.none')}</Text>
-          : alerts.map((alert) => <Text key={alert.hunterId} style={styles.text}>{alert.text}</Text>)}
+          : alerts.map((alert) => <Text key={alert.id} style={styles.text}>{alert.text}</Text>)}
+    </View>
+  );
+}
+
+/** Every hunter team's showRunners use that included the runner: which team, and when. */
+function LocatedCard({ state }: { state: GameStateResponse }) {
+  const t = useT();
+  const located = locatedEntries(state);
+  return (
+    <View style={styles.card}>
+      <Text style={styles.heading}>{t('joker.located.title')}</Text>
+      <Text style={styles.text}>{t('joker.located.text')}</Text>
+      {located.length === 0
+        ? <Text style={styles.hint}>{t('joker.located.none')}</Text>
+        : located.map((entry) => <Text key={entry.id} style={styles.text}>{entry.text}</Text>)}
     </View>
   );
 }
