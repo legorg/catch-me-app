@@ -100,7 +100,8 @@ func (l *Lobby) Join(code JoinCode, name PlayerName, token PlayerToken, now time
 }
 
 // CanRegenerateRoute checks that this player may replace the game's route: a
-// runner, in the lobby, while no runner is ready, with regenerations left.
+// runner, in the lobby, while no runner is ready, with regenerations left, and
+// not for a custom route.
 func (l Lobby) CanRegenerateRoute(id PlayerID, now time.Time) error {
 	if err := l.requireNotStarted(now); err != nil {
 		return err
@@ -114,6 +115,8 @@ func (l Lobby) CanRegenerateRoute(id PlayerID, now time.Time) error {
 		return &RuleError{Message: "only runners can change the route"}
 	case slices.ContainsFunc(l.Players, func(p Player) bool { return p.Team == Runners && p.Ready }):
 		return &RuleError{Message: "all runners must be not ready to change the route"}
+	case l.Game.CustomRoute:
+		return &RuleError{Message: "the route was chosen by the game creator and cannot be changed"}
 	case l.Game.RouteRegenerationsLeft() <= 0:
 		return &RuleError{Message: "no route changes left"}
 	}

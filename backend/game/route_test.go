@@ -83,3 +83,39 @@ func TestRegenerateRoute(t *testing.T) {
 		t.Fatal("route changed after the start")
 	}
 }
+
+func TestCustomRoute(t *testing.T) {
+	l := newLobby()
+	p := l.Game.Playground
+	last := p.Rows() - 1
+	south, north := cellCenter(p, Cell{column: 1, row: last}), cellCenter(p, Cell{column: 4})
+	route, err := NewCustomRoute(p, south, north)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if route != (Route{Start: Landmark{Coordinates: south}, Stop: Landmark{Coordinates: north}}) {
+		t.Fatalf("unexpected route: %+v", route)
+	}
+	outside, _ := ParseCoordinates(p.Bounds().North+0.01, north.Longitude())
+	var validation *ValidationError
+	for _, points := range [][2]Coordinates{
+		{north, south},                       // swapped
+		{cellCenter(p, Cell{row: 1}), north}, // start not in the southern row
+		{south, cellCenter(p, Cell{row: 1})}, // stop not in the northern row
+		{south, outside},                     // stop outside the playground
+	} {
+		if _, err := NewCustomRoute(p, points[0], points[1]); !errors.As(err, &validation) {
+			t.Fatalf("invalid custom route accepted: %+v", points)
+		}
+	}
+
+	l.Game.Route, l.Game.CustomRoute = route, true
+	runner := join(t, &l, Runners, "Ada", start)
+	if l.Game.RouteRegenerationsLeft() != 0 {
+		t.Fatal("a custom route has regenerations left")
+	}
+	var rule *RuleError
+	if err := l.RegenerateRoute(runner.ID, routeVia(l, "Other"), start); !errors.As(err, &rule) || l.Game.Route != route {
+		t.Fatal("custom route regenerated")
+	}
+}

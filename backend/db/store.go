@@ -35,6 +35,8 @@ type gameRow struct {
 	StartLat, StartLon    float64
 	StopTitle             string
 	StopLat, StopLon      float64
+	// CustomRoute marks a route chosen by the game creator; older rows were generated.
+	CustomRoute bool `gorm:"not null;default:false"`
 	// RouteRegenerations is how often the runners replaced the route.
 	RouteRegenerations int            `gorm:"not null;default:0"`
 	Players            []playerRow    `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
@@ -192,8 +194,8 @@ func (s *Store) Create(ctx context.Context, g game.Game) error {
 			RunnerCode: codes[0], HunterCode: codes[1], SpectatorCode: codes[2], StartsAt: g.StartsAt,
 			StartTitle: g.Route.Start.Title, StartLat: g.Route.Start.Coordinates.Latitude(), StartLon: g.Route.Start.Coordinates.Longitude(),
 			StopTitle: g.Route.Stop.Title, StopLat: g.Route.Stop.Coordinates.Latitude(), StopLon: g.Route.Stop.Coordinates.Longitude(),
-			RouteRegenerations: g.RouteRegenerations,
-			JokerSettings:      toJokerSettingsRow(g.JokerSettings),
+			CustomRoute: g.CustomRoute, RouteRegenerations: g.RouteRegenerations,
+			JokerSettings: toJokerSettingsRow(g.JokerSettings),
 		}
 		if !g.EndedAt.IsZero() {
 			row.EndedAt = &g.EndedAt
@@ -795,6 +797,7 @@ func parseLobby(row gameRow) (game.Lobby, error) {
 		Start: game.Landmark{Title: row.StartTitle, Coordinates: start},
 		Stop:  game.Landmark{Title: row.StopTitle, Coordinates: stop},
 	}
+	lobby.Game.CustomRoute = row.CustomRoute
 	lobby.Game.RouteRegenerations = regenerations
 	for _, p := range row.Players {
 		player, err := parsePlayer(p)

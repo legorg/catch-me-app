@@ -244,6 +244,22 @@ func TestLobbyPersists(t *testing.T) {
 	}
 }
 
+func TestCustomRoutePersisted(t *testing.T) {
+	store := open(t, ":memory:")
+	generated := create(t, store)
+	custom := fixture(t, 52.52, 2000, strings.Repeat("b", 32))
+	custom.Route.Start.Title, custom.Route.Stop.Title, custom.CustomRoute = "", "", true
+	if err := store.Create(context.Background(), custom); err != nil {
+		t.Fatal(err)
+	}
+	if got := load(t, store, custom.JoinCodes.Runner, now).Game; !got.CustomRoute || got.Route != custom.Route || got.RouteRegenerationsLeft() != 0 {
+		t.Fatalf("custom route not persisted: %+v", got)
+	}
+	if got := load(t, store, generated.JoinCodes.Runner, now).Game; got.CustomRoute {
+		t.Fatal("generated route loaded as custom")
+	}
+}
+
 func TestPositionsAndReveals(t *testing.T) {
 	store := open(t, ":memory:")
 	saved := create(t, store)

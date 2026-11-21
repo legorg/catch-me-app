@@ -78,6 +78,9 @@ type Game struct {
 	JokerSettings  JokerSettings
 	JoinCodes      JoinCodes
 	Route          Route
+	// CustomRoute is set when the game creator chose the route on the map;
+	// such a route cannot be regenerated.
+	CustomRoute bool
 	// RouteRegenerations is how often the runners replaced the route.
 	RouteRegenerations int
 	// StartsAt is zero while the lobby is open, otherwise the scheduled start.

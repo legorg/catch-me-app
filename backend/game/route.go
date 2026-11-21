@@ -39,5 +39,24 @@ func ParseRouteRegenerations(used int) (int, error) {
 	return used, nil
 }
 
-// RouteRegenerationsLeft is how often the runners may still replace the route.
-func (g Game) RouteRegenerationsLeft() int { return MaxRouteRegenerations - g.RouteRegenerations }
+// RouteRegenerationsLeft is how often the runners may still replace the
+// route; never for a custom route.
+func (g Game) RouteRegenerationsLeft() int {
+	if g.CustomRoute {
+		return 0
+	}
+	return MaxRouteRegenerations - g.RouteRegenerations
+}
+
+// NewCustomRoute is a route chosen by the game creator: plain, untitled
+// points, the start in the southern edge row and the stop in the northern
+// edge row of the playground, like a generated route.
+func NewCustomRoute(p Playground, start, stop Coordinates) (Route, error) {
+	if cell, ok := p.CellAt(start); !ok || cell.row != p.gridSize.cells-1 {
+		return Route{}, &ValidationError{Message: "route start must lie in the southern edge row of the playground"}
+	}
+	if cell, ok := p.CellAt(stop); !ok || cell.row != 0 {
+		return Route{}, &ValidationError{Message: "route stop must lie in the northern edge row of the playground"}
+	}
+	return Route{Start: Landmark{Coordinates: start}, Stop: Landmark{Coordinates: stop}}, nil
+}
