@@ -9,3 +9,8 @@ export function confirm(title: string, text: string, yesLabel: string, onYes: ()
     { text: yesLabel, style: 'destructive', onPress: onYes },
   ]);
 }
+
+/** Tells the player something with the system alert and a single OK button. */
+export function inform(title: string, text: string) {
+  Alert.alert(title, text, [{ text: translate('common.ok') }]);
+}

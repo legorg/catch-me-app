@@ -63,8 +63,11 @@ export function useCreateGame() {
   // Points stay where they were tapped, so moving or resizing the grid can leave them outside their edge row.
   const routeValid = !!playground && !!routePoints.start && !!routePoints.stop
     && routePointAt(playground, routePoints.start) === 'start' && routePointAt(playground, routePoints.stop) === 'stop';
-  const cannotCreate = !selected || !playground || !!sizeError || !!gridSizeError || !!revealIntervalError
-    || (routeMode === 'chosen' && !routeValid);
+  /** Why the game cannot be created yet, or null. */
+  const createBlocker = sizeError || gridSizeError || revealIntervalError
+    || (!selected || !playground ? t('create.pickCenter') : null)
+    || (routeMode === 'chosen' && !routeValid ? t('create.routeTap') : null);
+  const cannotCreate = createBlocker !== null;
 
   function fail(err: unknown, fallback: MessageKey) {
     setStatus((s) => ({ ...s, error: true, message: err instanceof Error ? { text: err.message } : { key: fallback } }));
@@ -132,7 +135,7 @@ export function useCreateGame() {
     jokers, setJokerAllowance: (kind: JokerKind, allowance: number) => setJokers((current) => withAllowance(current, kind, allowance)),
     setZoneAlert: (enabled: boolean) => setJokers((current) => withZoneAlert(current, enabled)),
     routeMode, setRouteMode, routePoints, routeTapMissed, tapRoutePoint,
-    name, setName, busy, message: status.message, error: status.error, cannotCreate,
+    name, setName, busy, message: status.message, error: status.error, cannotCreate, createBlocker,
     selectCenter, create, joinAs,
   };
 }

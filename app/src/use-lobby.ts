@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
-import { leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition } from '@/api/client';
+import { ApiError, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition } from '@/api/client';
 import { stopBackgroundSharing } from '@/background-location';
+import { inform } from '@/confirm';
 import { canShareLobbyLocation, isSpectator } from '@/game-state';
+import { translate } from '@/i18n';
 import { goHome, useGameState } from '@/use-game-state';
 import { useLocationSharing, type Fix } from '@/use-location-sharing';
 
@@ -39,13 +41,15 @@ export function useLobby() {
     }
   }, [token, sharing, show, fail]));
 
+  // A refused action is shown in a system alert: the next poll would clear the screen's error at once.
   async function act(action: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
     try {
       await action();
     } catch (err) {
-      fail(err);
+      if (err instanceof ApiError && err.status === 401) fail(err);
+      else inform(translate('lobby.actionFailed'), err instanceof Error ? err.message : translate('common.backendUnreachable'));
     } finally {
       setBusy(false);
     }

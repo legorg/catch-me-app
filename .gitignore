@@ -17,3 +17,5 @@ AGENTS.md
 opencode.json
 opencode.jsonc
 .opencode/
+
+*.log

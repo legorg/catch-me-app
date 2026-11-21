@@ -12,7 +12,7 @@ import LobbyRouteCard from '@/components/lobby-route-card';
 import LobbyTeamCard from '@/components/lobby-team-card';
 import LocationPermissionCards from '@/components/location-permission-cards';
 import { translateParts, useT } from '@/i18n';
-import { lobbyInfo, noop, playerMarkers, playersByTeam, routeMarkers, visibleRoute } from '@/lobby';
+import { lobbyInfo, noop, playerMarkers, playersByTeam, routeMarkers, startCheckMessage, visibleRoute } from '@/lobby';
 import { distanceMeters, START_RADIUS_METERS } from '@/playground';
 import { colors, styles } from '@/styles';
 import { useLobby } from '@/use-lobby';
@@ -44,10 +44,13 @@ export default function LobbyScreen() {
     ...(route ? routeMarkers(route) : []),
     ...(!spectator ? playerMarkers(state).filter((marker) => marker.id !== state.playerId) : []),
   ];
-  const readyBlocked = lobby.needsHunterTeam || lobby.needsBackground || lobby.needsForeground;
-  const readyDisabled = busy
-    || (!me?.ready && readyBlocked)
-    || (!skipStartPositionCheck && !me?.ready && isRunner && !atStart);
+  // Only getting ready is blocked; setting yourself not ready always works.
+  const readyBlocker = me?.ready ? null
+    : lobby.needsHunterTeam ? t('lobby.needHunterTeam')
+      : lobby.needsBackground ? t('lobby.backgroundRequired')
+        : lobby.needsForeground ? t('lobby.locationRequired')
+          : !skipStartPositionCheck && isRunner && !atStart ? startCheckMessage(false, false, metersToStart)
+            : null;
 
   return (
     <>
@@ -111,7 +114,7 @@ export default function LobbyScreen() {
         <LobbyTeamCard team="hunter" players={teams.hunter} playerId={state.playerId} />
         <LobbyTeamCard team="spectator" players={teams.spectator} playerId={state.playerId} />
         {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
-        {me && <LobbyActions ready={me.ready} busy={busy} readyDisabled={readyDisabled} spectator={spectator} onToggleReady={lobby.toggleReady} onLeave={lobby.leave} />}
+        {me && <LobbyActions ready={me.ready} busy={busy} readyBlocker={readyBlocker} spectator={spectator} onToggleReady={lobby.toggleReady} onLeave={lobby.leave} />}
       </KeyboardScrollView>
     </>
   );

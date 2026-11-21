@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { JOIN_CODE_PATTERN, isValidPlayerName, joinGame, normalizeJoinCode } from '@/api/client';
+import { JOIN_CODE_PATTERN, MAX_NAME_LENGTH, isValidPlayerName, joinGame, normalizeJoinCode } from '@/api/client';
 import { useT } from '@/i18n';
 import { playerSession } from '@/player-session';
 
@@ -12,7 +12,11 @@ export function useJoinGame() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const canJoin = JOIN_CODE_PATTERN.test(normalizeJoinCode(code)) && isValidPlayerName(name);
+  /** Why joining is not possible yet, or null. */
+  const joinBlocker = !JOIN_CODE_PATTERN.test(normalizeJoinCode(code)) ? t('client.joinCode')
+    : !isValidPlayerName(name) ? t('client.name', { max: MAX_NAME_LENGTH })
+      : null;
+  const canJoin = joinBlocker === null;
 
   async function submit() {
     if (busy || !canJoin) return;
@@ -33,5 +37,5 @@ export function useJoinGame() {
     void submit();
   };
 
-  return { code, setCode, name, setName, busy, error, canJoin, join };
+  return { code, setCode, name, setName, busy, error, canJoin, joinBlocker, join };
 }

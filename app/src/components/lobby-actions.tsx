@@ -5,10 +5,11 @@ import { useT } from '@/i18n';
 import { styles } from '@/styles';
 
 /** The ready toggle and the leave button. */
-export default function LobbyActions({ ready, busy, readyDisabled, spectator, onToggleReady, onLeave }: {
+export default function LobbyActions({ ready, busy, readyBlocker, spectator, onToggleReady, onLeave }: {
   ready: boolean;
   busy: boolean;
-  readyDisabled: boolean;
+  /** Why the player cannot get ready yet, or null. */
+  readyBlocker: string | null;
   spectator: boolean;
   onToggleReady: () => void;
   onLeave: () => void;
@@ -19,7 +20,8 @@ export default function LobbyActions({ ready, busy, readyDisabled, spectator, on
       {!spectator && <Button
         label={t(ready ? 'lobby.notReadyButton' : 'lobby.readyButton')}
         variant={ready ? 'secondary' : 'primary'}
-        disabled={readyDisabled}
+        disabled={busy || readyBlocker !== null}
+        disabledReason={readyBlocker}
         onPress={onToggleReady}
       />}
       <Button label={t('lobby.leave')} variant="secondary" disabled={busy} onPress={onLeave} />

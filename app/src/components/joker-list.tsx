@@ -4,11 +4,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { JokerRequest, JokerResponse } from '@/api/client';
 import type { Coordinates, GameStateResponse, Playground } from '@/api/types';
 import Button from '@/components/button';
+import { inform } from '@/confirm';
 import PlaygroundMap from '@/components/playground-map';
 import { getLanguage, useT } from '@/i18n';
 import { isSpectator, ownPlayer } from '@/game-state';
 import { JOKER_TITLE_KEYS as TITLE_KEYS } from '@/joker-settings';
-import { locatedEntries, remainingUses, trapStatus, zoneAlertEntries, type JokerUse } from '@/lobby';
+import { REVEAL_JOKER_KINDS, locatedEntries, pendingRevealJokerAt, remainingUses, trapStatus, zoneAlertEntries, type JokerUse } from '@/lobby';
 import { cellAt } from '@/playground';
 import { picker, styles } from '@/styles';
 import { useJokerUse } from '@/use-joker-use';
@@ -26,12 +27,13 @@ export default function JokerList({ state, error, onUse }: {
   onUse: (joker: JokerRequest) => Promise<void>;
 }) {
   const t = useT();
-  const { confirming, cell, setCell, point, setPoint, busy, ready, use, cancel, start } = useJokerUse(state.playground, onUse);
+  const { confirming, cell, setCell, point, setPoint, busy, ready, missing, use, cancel, start } = useJokerUse(state.playground, onUse);
   const confirmKey = confirming === 'fakePosition' ? 'joker.confirmPersonal' : state.team === 'runner' ? 'joker.confirmRunner' : 'joker.confirm';
   const pointCell = point && cellAt(state.playground, point);
   // The compass starts at the hunter's own position; the server refuses it without one.
   const hasPosition = !!state.players.find((p) => p.playerId === state.playerId)?.position;
   const runnerStatus = ownPlayer(state)?.runner?.status;
+  const pendingRevealAt = pendingRevealJokerAt(state);
 
   if (isSpectator(state) || runnerStatus === 'caught' || runnerStatus === 'finished') {
     return (
@@ -68,13 +70,15 @@ export default function JokerList({ state, error, onUse }: {
                         : joker.kind === 'trap' && pointCell ? t('joker.trap.confirmPoint', { cell: pointCell }) : t(confirmKey)}
                   </Text>
                   <View style={styles.row}>
-                    <Button label={t('joker.confirmYes')} disabled={busy || !ready(joker.kind)} onPress={() => use(joker.kind)} />
+                    <Button label={t('joker.confirmYes')} disabled={busy || !ready(joker.kind)} disabledReason={missing(joker.kind)} onPress={() => use(joker.kind)} />
                     <Button label={t('joker.cancel')} variant="secondary" disabled={busy} onPress={cancel} />
                   </View>
                 </>
                 : joker.kind === 'compass' && !hasPosition
                   ? <Text style={styles.hint}>{t('joker.compass.needsPosition')}</Text>
-                  : <Button label={t('joker.use')} onPress={() => start(joker.kind)} />
+                  : <Button label={t('joker.use')} onPress={() => pendingRevealAt && REVEAL_JOKER_KINDS.includes(joker.kind)
+                    ? inform(t('joker.pending.title'), t('joker.pending.text', { time: time(pendingRevealAt) }))
+                    : start(joker.kind)} />
               : remaining > 0 && <Text style={styles.hint}>{t('joker.waitForStart')}</Text>}
           </View>
         );

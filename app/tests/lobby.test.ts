@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { GameStateHunterResponse, GameStateRunnerResponse, GameStateSpectatorResponse } from '../src/api/types';
-import { MARKER_COLORS, ROUTE_COLORS, ROUTE_PIN_COLOR, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, remainingUses, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, ALERT_SECONDS, locatedEntries, recentAlerts, alertNotifications, zoneAlertEntries, trapEntries, revealWarning, REVEAL_WARNING_SECONDS } from '../src/lobby';
+import { MARKER_COLORS, ROUTE_COLORS, ROUTE_PIN_COLOR, SKETCH_COLOR, SPECTATOR_COLORS, ZONE_COLORS, caughtMarkers, compassLines, compassMarkers, fakePositionMarkers, formatDuration, hunterTeams, joinInvitationMessage, jokerMarkers, jokerZones, playerMarkers, gameHighlights, gameMarkers, pendingRevealJokerAt, remainingUses, routeChangeBlocker, routeMarkers, playersByTeam, revealMarkers, secondsUntil, secondsUntilStart, serverNow, shownHunterMarkers, sketchLines, spectatorMarkers, thinPoints, TRAP_COLORS, TRAP_RADIUS_METERS, trapCircles, visibleRoute, ALERT_SECONDS, locatedEntries, recentAlerts, alertNotifications, zoneAlertEntries, trapEntries, revealWarning, REVEAL_WARNING_SECONDS } from '../src/lobby';
 import { canFinish, canShareGameLocation, canShareLobbyLocation, gameDestination, isActivePlayer, isSpectator, shouldAcceptGameState } from '../src/game-state';
 import { getLanguage, setLanguage } from '../src/i18n';
 import { gameResultRoute } from '../src/game-result';
@@ -653,6 +653,19 @@ test('every trap is a circle of the trigger radius, colored waiting, active, the
   assert.ok(!gameMarkers(both).some((m) => m.id.includes('trap')));
   assert.deepEqual(trapCircles({ ...hunterState, jokers: [{ kind: 'trap', available: true, uses: [] }] }, at('2026-11-08T12:31:00Z')), []);
   assert.equal(serverNow({ ...hunterState, serverTime: '2026-11-08T12:00:00Z' }, 1000, 3500), at('2026-11-08T12:00:02.5Z'));
+});
+
+test('a reveal joker is pending until the next reveal only when the player used it since the last one', () => {
+  const running = { ...state, status: 'running' as const, nextRevealAt: '2026-11-08T13:00:10Z' };
+  const zoneOnly = (usedBy: string, usedAt: string) => ({ kind: 'zoneOnly' as const, available: true, uses: [{ usedBy, usedAt }] });
+  assert.equal(pendingRevealJokerAt({ ...running, jokers: [zoneOnly(state.playerId, '2026-11-08T12:31:00Z')] }), '2026-11-08T13:00:10Z');
+  // Used exactly at the last reveal: acts at the next one.
+  assert.equal(pendingRevealJokerAt({ ...running, jokers: [zoneOnly(state.playerId, '2026-11-08T12:30:10Z')] }), '2026-11-08T13:00:10Z');
+  assert.equal(pendingRevealJokerAt({ ...running, jokers: [zoneOnly(state.playerId, '2026-11-08T12:29:00Z')] }), null);
+  // Another runner's shared zoneOnly does not block this runner.
+  assert.equal(pendingRevealJokerAt({ ...running, jokers: [zoneOnly('c'.repeat(32), '2026-11-08T12:31:00Z')] }), null);
+  assert.equal(pendingRevealJokerAt({ ...running, jokers: [{ kind: 'showHunters', available: true, uses: [{ usedBy: state.playerId, usedAt: '2026-11-08T12:31:00Z', positions: [] }] }] }), null);
+  assert.equal(pendingRevealJokerAt({ ...state, jokers: [zoneOnly(state.playerId, '2026-11-08T12:31:00Z')] }), null);
 });
 
 test('remaining uses are the allowance minus the uses, never negative', () => {

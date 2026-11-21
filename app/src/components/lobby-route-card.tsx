@@ -6,6 +6,9 @@ import { translateParts, useT } from '@/i18n';
 import { routeChangeBlocker, routeTitles, startCheckMessage } from '@/lobby';
 import { styles } from '@/styles';
 
+// Outside the lobby (the countdown) every runner is ready, so 'notLobby' has the same reason.
+const ROUTE_BLOCKER_KEYS = { noneLeft: 'lobby.noRouteChangesLeft', runnerReady: 'lobby.unreadyForRoute', notLobby: 'lobby.unreadyForRoute' } as const;
+
 /** The runners' shared route, whether the player stands at its start, and a way to get a new one. */
 export default function LobbyRouteCard({ state, skipStartPositionCheck, atStart, metersToStart, busy, changingRoute, onRegenerate }: {
   state: GameStateRunnerResponse;
@@ -37,13 +40,13 @@ export default function LobbyRouteCard({ state, skipStartPositionCheck, atStart,
         label={t('lobby.newRoute', { count: state.routeRegenerationsLeft })}
         variant="secondary"
         disabled={busy || blocker !== null}
+        disabledReason={blocker && t(ROUTE_BLOCKER_KEYS[blocker])}
         onPress={onRegenerate}
       />
       <Text accessibilityLiveRegion="polite" style={styles.hint}>
         {changingRoute ? t('lobby.findingRoute')
-          : blocker === 'noneLeft' ? t('lobby.noRouteChangesLeft')
-            : blocker === 'runnerReady' ? t('lobby.unreadyForRoute')
-              : t('lobby.newRouteHint')}
+          : blocker === 'noneLeft' || blocker === 'runnerReady' ? t(ROUTE_BLOCKER_KEYS[blocker])
+            : t('lobby.newRouteHint')}
       </Text>
     </View>
   );

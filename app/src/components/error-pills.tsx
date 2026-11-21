@@ -11,16 +11,15 @@ function ErrorPill({ message, live = false }: ErrorPillProps) {
   );
 }
 
-type ErrorPillsProps = { location: string; poll: string; sketch: string; runnerAction?: string; timeline?: string };
+type ErrorPillsProps = { location: string; poll: string; sketch: string; timeline?: string };
 
-/** Location, polling, sketch, runner-action and timeline errors; empty ones are left out. */
-export default function ErrorPills({ location, poll, sketch, runnerAction = '', timeline = '' }: ErrorPillsProps) {
+/** Location, polling, sketch and timeline errors; empty ones are left out. */
+export default function ErrorPills({ location, poll, sketch, timeline = '' }: ErrorPillsProps) {
   return (
     <>
       <ErrorPill message={location} />
       <ErrorPill message={poll} live />
       <ErrorPill message={sketch} live />
-      <ErrorPill message={runnerAction} live />
       <ErrorPill message={timeline} live />
     </>
   );

@@ -28,7 +28,8 @@ export default function ResultLookup({ disabled = false }: { disabled?: boolean 
         style={styles.input}
       />
       {!!id && !valid && <Text style={[styles.hint, styles.error]}>{t('result.invalidId')}</Text>}
-      <Button label={t('result.open')} variant="secondary" disabled={disabled || !valid} onPress={() => router.push(gameResultRoute(id))} />
+      <Button label={t('result.open')} variant="secondary" disabled={disabled || !valid}
+        disabledReason={valid ? null : t('result.invalidId')} onPress={() => router.push(gameResultRoute(id))} />
     </View>
   );
 }

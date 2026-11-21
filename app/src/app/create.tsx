@@ -55,7 +55,7 @@ export default function CreateScreen() {
         {'key' in game.message ? t(game.message.key) : game.message.text}
       </Text>
       {busy && <ActivityIndicator color={colors.accent} />}
-      {!created && <Button label={t('create.create')} onPress={game.create} disabled={busy || game.cannotCreate} />}
+      {!created && <Button label={t('create.create')} onPress={game.create} disabled={busy || game.cannotCreate} disabledReason={game.createBlocker} />}
       {created && <>
         <JoinCodes codes={created.joinCodes} />
         <JoinAsCard codes={created.joinCodes} name={game.name} onNameChange={game.setName} busy={busy} onJoin={game.joinAs} />

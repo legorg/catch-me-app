@@ -13,7 +13,7 @@ import { useResumeGame } from '@/use-resume-game';
 
 export default function HomeScreen() {
   const t = useT();
-  const { code, setCode, name, setName, busy, error, canJoin, join } = useJoinGame();
+  const { code, setCode, name, setName, busy, error, canJoin, joinBlocker, join } = useJoinGame();
   const resuming = useResumeGame();
 
   if (resuming) {
@@ -42,7 +42,7 @@ export default function HomeScreen() {
           <Text style={styles.hint}>{t('home.codeHint')}</Text>
           {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
           {busy && <ActivityIndicator color={colors.accent} />}
-          <Button label={t('home.join')} onPress={join} disabled={busy || !canJoin} />
+          <Button label={t('home.join')} onPress={join} disabled={busy || !canJoin} disabledReason={joinBlocker} />
         </View>
         <View style={styles.card}>
           <Text style={styles.heading}>{t('home.createHeading')}</Text>

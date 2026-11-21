@@ -218,7 +218,22 @@ export function remainingUses(state: GameStateResponse, joker: Joker): number {
   return Math.max(0, state.jokerSettings[joker.kind].allowance - joker.uses.length);
 }
 
-export const ZONE_COLORS = { found: '#27ae60', empty: '#eb5757', revealed: '#f2c94c' } as const;
+/** The runner jokers that act on the user's next reveal; a runner can have only one of them pending. */
+export const REVEAL_JOKER_KINDS: readonly Joker['kind'][] = ['zoneOnly', 'fakePosition'];
+
+/**
+ * When the player's own reveal joker (zoneOnly or fakePosition) acts, if it has not yet: it acts at the next reveal
+ * when used since the last one. Until then the server refuses the other reveal joker; null when none is pending.
+ */
+export function pendingRevealJokerAt(state: GameStateResponse): string | null {
+  if (!state.nextRevealAt) return null;
+  const lastReveal = Date.parse(state.nextRevealAt) - state.revealIntervalMinutes * 60_000;
+  const pending = state.jokers.some((joker) => REVEAL_JOKER_KINDS.includes(joker.kind)
+    && joker.uses.some((use) => 'usedBy' in use && use.usedBy === state.playerId && Date.parse(use.usedAt) >= lastReveal));
+  return pending ? state.nextRevealAt : null;
+}
+
+export const ZONE_COLORS ={ found: '#27ae60', empty: '#eb5757', revealed: '#f2c94c' } as const;
 
 export const SKETCH_COLOR = '#9b51e0';
 

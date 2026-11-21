@@ -63,7 +63,7 @@ export default function GameScreen() {
         <View pointerEvents="box-none" style={styles.hudZone}>
           {infoOpen && <InfoPanel state={state} me={me} revealScheduled={nextReveal !== null} location={location} />}
           {showTimeline && <TimelinePanel events={timeline.events} loaded={timeline.loaded} />}
-          <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} runnerAction={active ? runnerActions.error : ''} timeline={timeline.error} />
+          <ErrorPills location={active ? location.error : ''} poll={error} sketch={sketching.error} timeline={timeline.error} />
           <ActionBar
             drawing={drawing}
             canSketch={canSketch}

@@ -27,7 +27,8 @@ export default function HunterTeamCard({ me, players, needsHunterTeam, busy, new
       </Text>
       <Text style={styles.hint}>{t('lobby.hunterTeamHint')}</Text>
       {hunterTeams(players).filter((team) => team !== me.hunterTeam).map((team) => (
-        <Button key={team} label={t('lobby.joinTeam', { name: team })} variant="secondary" disabled={busy || me.ready} onPress={() => onJoin(team)} />
+        <Button key={team} label={t('lobby.joinTeam', { name: team })} variant="secondary" disabled={busy || me.ready}
+          disabledReason={me.ready ? t('lobby.unreadyForTeam') : null} onPress={() => onJoin(team)} />
       ))}
       <TextInput
         accessibilityLabel={t('lobby.newTeamName')}
@@ -40,7 +41,8 @@ export default function HunterTeamCard({ me, players, needsHunterTeam, busy, new
         maxLength={MAX_NAME_LENGTH}
         style={styles.input}
       />
-      <Button label={t('lobby.createTeam')} variant="secondary" disabled={busy || me.ready || !newTeam.trim()} onPress={onCreate} />
+      <Button label={t('lobby.createTeam')} variant="secondary" disabled={busy || me.ready || !newTeam.trim()}
+        disabledReason={me.ready ? t('lobby.unreadyForTeam') : !newTeam.trim() ? t('lobby.enterTeamName') : null} onPress={onCreate} />
       {me.ready && <Text style={styles.hint}>{t('lobby.unreadyForTeam')}</Text>}
     </View>
   );

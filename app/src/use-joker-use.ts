@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type { JokerKind, JokerRequest } from '@/api/client';
 import type { Coordinates, Playground } from '@/api/types';
+import { translate } from '@/i18n';
 import { cellAt } from '@/playground';
 
 /** The request to use a joker, or null while its target is still missing (or the point is outside the playground). */
@@ -50,6 +51,12 @@ export function useJokerUse(playground: Playground, onUse: (joker: JokerRequest)
   };
   /** Whether the joker has everything it needs to be used. */
   const ready = (kind: JokerKind) => jokerRequest(kind, cell, point, playground) !== null;
+  /** What the joker still needs before it can be used, or null. */
+  const missing = (kind: JokerKind): string | null => {
+    if (ready(kind)) return null;
+    if (kind === 'queryZone') return translate('joker.needCell');
+    return translate(point ? 'joker.pointOutside' : 'joker.needPoint');
+  };
 
-  return { confirming, cell, setCell, point, setPoint, busy, ready, use: (kind: JokerKind) => void use(kind), cancel, start };
+  return { confirming, cell, setCell, point, setPoint, busy, ready, missing, use: (kind: JokerKind) => void use(kind), cancel, start };
 }
