@@ -43,6 +43,7 @@
   "replay.pause": "Pause",
   "replay.speed": "{speed}×",
   "replay.time": "{at} / {total} (min:sec)",
+  "replay.clockTime": "Time: {time}",
   "replay.scrubber": "Game time",
   "replay.legend": "Each dot shows a player with the first letter of their name and a line of their last 30 minutes. The blue and red pins mark start and destination.",
   "create.chooseTitle": "Choose your playground",

@@ -3,13 +3,22 @@ import { test } from 'node:test';
 
 import type { GameResultResponse, ResultPlayerResponse } from '../src/api/types';
 import { SPECTATOR_COLORS } from '../src/lobby';
-import { positionAt, replayLegend, replayTracks, tailAt } from '../src/replay';
+import { formatReplayTime, positionAt, replayLegend, replayTracks, tailAt } from '../src/replay';
 
 const points = [
   { latitude: 52, longitude: 13, at: 10_000 },
   { latitude: 53, longitude: 14, at: 20_000 },
   { latitude: 53, longitude: 16, at: 60_000 },
 ];
+
+test('the replay clock shows local hours, minutes and seconds at the selected game moment', () => {
+  const start = new Date(2026, 10, 18, 23, 59, 30).toISOString();
+  assert.equal(formatReplayTime(start, 0), '23:59:30');
+  assert.equal(formatReplayTime(start, 15_000), '23:59:45');
+  assert.equal(formatReplayTime(start, 30_000), '00:00:00');
+  assert.equal(formatReplayTime(start, 90_000), '00:01:00');
+  assert.equal(formatReplayTime(start, 0), '23:59:30', 'seeking back uses the selected time, not the current wall clock');
+});
 
 test('a player is hidden before the first point, interpolated between points and stays at the last one', () => {
   assert.equal(positionAt(points, 9_999), null);

@@ -5,7 +5,7 @@ import Button from '@/components/button';
 import FullscreenMap from '@/components/fullscreen-map';
 import { useT } from '@/i18n';
 import { formatDuration, noop } from '@/lobby';
-import { REPLAY_SPEEDS } from '@/replay';
+import { formatReplayTime, REPLAY_SPEEDS } from '@/replay';
 import { dynamicStyles, replayStyles, styles } from '@/styles';
 import { useReplay } from '@/use-replay';
 import { useScrubber } from '@/use-scrubber';
@@ -31,7 +31,7 @@ function Scrubber({ value, max, onSeek }: { value: number; max: number; onSeek: 
 }
 
 /** Shared controls; the replay clock stays in GameReplay when the fullscreen modal opens/closes. */
-function ReplayControls({ replay }: { replay: ReturnType<typeof useReplay> }) {
+function ReplayControls({ replay, startsAt }: { replay: ReturnType<typeof useReplay>; startsAt: string }) {
   const t = useT();
   const { at, duration, running, speed, setSpeed, toggle, seek, legend } = replay;
   return (
@@ -45,6 +45,7 @@ function ReplayControls({ replay }: { replay: ReturnType<typeof useReplay> }) {
         ))}
       </View>
       <Scrubber value={at} max={duration} onSeek={seek} />
+      <Text style={[styles.text, styles.boldText]}>{t('replay.clockTime', { time: formatReplayTime(startsAt, at) })}</Text>
       <Text style={styles.text}>{t('replay.time', { at: formatDuration(Math.floor(at / 1000)), total: formatDuration(Math.floor(duration / 1000)) })}</Text>
       <View style={styles.row}>
         <Button label={t(running ? 'replay.pause' : 'replay.play')} onPress={toggle} />
@@ -61,7 +62,7 @@ export default function GameReplay({ result }: { result: GameResultResponse }) {
   const t = useT();
   const replay = useReplay(result);
   const { markers, lines } = replay;
-  const controls = <ReplayControls replay={replay} />;
+  const controls = <ReplayControls replay={replay} startsAt={result.startsAt} />;
   return (
     <View style={styles.card}>
       <Text accessibilityRole="header" style={styles.heading}>{t('replay.title')}</Text>
