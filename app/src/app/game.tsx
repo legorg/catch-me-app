@@ -29,7 +29,7 @@ export default function GameScreen() {
   const { token, snapshot, state, now, error, show, fail, running } = useGameState();
   const sketching = useSketching({ token, show, fail });
   const { infoOpen, toggleInfo, timelineOpen, toggleTimeline, startDrawing, stopDrawing } = useDrawingControls(sketching);
-  const location = useGameLocation({ token, state, show, fail });
+  const location = useGameLocation({ token, state });
   const runnerActions = useRunnerActions({ token, state, receivedAt: snapshot?.receivedAt, show, fail });
   // Only spectators may see the timeline; the server rejects everyone else.
   const showTimeline = timelineOpen && isSpectator(state);

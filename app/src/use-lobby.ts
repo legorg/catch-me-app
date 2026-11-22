@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { ApiError, leaveGame, regenerateRoute, setHunterTeam, setReady, updatePosition } from '@/api/client';
+import { ApiError, leaveGame, regenerateRoute, setHunterTeam, setReady } from '@/api/client';
 import { stopBackgroundSharing } from '@/background-location';
 import { inform } from '@/confirm';
 import { canShareLobbyLocation, isSpectator } from '@/game-state';
 import { translate } from '@/i18n';
 import { goHome, useGameState } from '@/use-game-state';
-import { useLocationSharing, type Fix } from '@/use-location-sharing';
+import { useLocationSharing } from '@/use-location-sharing';
 
 /** State and actions of the lobby screen: the game state, location sharing, readiness and the hunter team. */
 export function useLobby() {
@@ -32,14 +32,8 @@ export function useLobby() {
   const participating = canShareLobbyLocation(state);
   const sharing = focused && !!token && participating;
   // The lobby shares in the foreground only; background sharing belongs to the game screen.
-  const location = useLocationSharing(sharing, false, useCallback(async (fix: Fix) => {
-    if (!token || !sharing) return;
-    try {
-      show(await updatePosition(token, fix));
-    } catch (err) {
-      fail(err);
-    }
-  }, [token, sharing, show, fail]));
+  // The state poll reports the position (see pending-location).
+  const location = useLocationSharing(sharing, false);
 
   // A refused action is shown in a system alert: the next poll would clear the screen's error at once.
   async function act(action: () => Promise<void>) {

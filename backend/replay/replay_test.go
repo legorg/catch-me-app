@@ -35,15 +35,19 @@ var (
 // pollInterval is how often the app polls the game state while it is open.
 const pollInterval = 2 * time.Second
 
+// reportPath reports a position and answers with the game state.
+const reportPath = "/api/me/position"
+
 // BenchmarkReplay plays a stored game again against a new database, as fast as
 // the server answers. Everyone joins and gets ready first; once the game runs,
-// every position report, joker and sketch is sent in the order it originally
-// arrived, with everyone's 2 s polls in between, with at most one request per
-// participant in flight. It fails as soon as a poll takes longer than 2 s, when
-// the app would poll again before the answer arrived, and otherwise reports how
-// much faster than real time the game went and the load it produced.
+// every stored position report, joker and sketch is sent in the order it
+// originally arrived, with at most one request per participant in flight. A
+// position report answers with the game state, as the app's poll does. It
+// fails as soon as a report takes longer than the app's 2 s poll interval, and
+// otherwise reports how much faster than real time the game went and the load
+// it produced.
 //
-//	go test ./replay -run '^$' -bench Replay -benchtime 1x -timeout 0 -args -db ../catch-me-prod.sqlite -game <id>
+//	go test ./replay -run '^$' -bench Replay -benchtime 1x -timeout 0 -args -db ../../catch-me-prod.sqlite -game <id>
 func BenchmarkReplay(b *testing.B) {
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -71,13 +75,13 @@ func BenchmarkReplay(b *testing.B) {
 	b.StopTimer()
 	s.report(b)
 	if slow != nil {
-		b.Fatalf("a poll took %s, longer than the %s poll interval, %s into the game (replayed %.1f× faster than real time until then)",
+		b.Fatalf("a position report took %s, longer than the %s poll interval, %s into the game (replayed %.1f× faster than real time until then)",
 			slow.took.Round(time.Millisecond), pollInterval, slow.at.Round(time.Second), slow.at.Seconds()/s.wall.Seconds())
 	}
 }
 
-// slowPoll is the first poll that took longer than pollInterval, and how far into the game it was.
-type slowPoll struct{ took, at time.Duration }
+// slowReport is the first position report that took longer than pollInterval, and how far into the game it was.
+type slowReport struct{ took, at time.Duration }
 
 // recording is the stored game: its settings, participants, and their requests in order.
 type recording struct {
@@ -146,7 +150,7 @@ func load(b *testing.B) recording {
 		FROM positions x JOIN players p ON p.id = x.player_id WHERE p.game_id = ?`)
 	for rows.Next() {
 		var lat, lon, accuracy float64
-		e := event{method: "PUT", path: "/api/me/position"}
+		e := event{method: "PUT", path: reportPath}
 		scan(b, rows, &e.player, &lat, &lon, &accuracy, &e.at)
 		e.body = encode(map[string]float64{"latitude": lat, "longitude": lon, "accuracyMeters": accuracy})
 		r.events = append(r.events, e)
@@ -191,14 +195,6 @@ func load(b *testing.B) recording {
 	if len(r.events) == 0 {
 		b.Fatalf("game %s has nothing to replay", *gameID)
 	}
-
-	slices.SortStableFunc(r.events, func(a, b event) int { return a.at.Compare(b.at) })
-	first, last := r.events[0].at, r.events[len(r.events)-1].at
-	for _, p := range r.players {
-		for at := first; at.Before(last); at = at.Add(pollInterval) {
-			r.events = append(r.events, event{at: at, player: p.id, method: "GET", path: "/api/me/game"})
-		}
-	}
 	slices.SortStableFunc(r.events, func(a, b event) int { return a.at.Compare(b.at) })
 	return r
 }
@@ -228,16 +224,16 @@ func start(b *testing.B, handler http.Handler, r recording, s *stats) map[string
 }
 
 // play sends the events in order as fast as the server answers, with at most
-// one request per participant in flight. It stops at the first poll slower than
-// pollInterval and returns it; nil if every poll was in time.
-func play(handler http.Handler, events []event, tokens map[string]string, s *stats) *slowPoll {
+// one request per participant in flight. It stops at the first position report
+// slower than pollInterval and returns it; nil if every report was in time.
+func play(handler http.Handler, events []event, tokens map[string]string, s *stats) *slowReport {
 	var cpuBefore syscall.Rusage
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &cpuBefore)
 	began, first := time.Now(), events[0].at
 	var mu sync.Mutex
-	var slow *slowPoll
+	var slow *slowReport
 	var done int
-	var played, slowest time.Duration // slowest: the slowest poll since the last progress line
+	var played, slowest time.Duration // slowest: the slowest report since the last progress line
 	inflight := make(chan struct{}, len(tokens))
 	var requests sync.WaitGroup
 
@@ -254,7 +250,7 @@ func play(handler http.Handler, events []event, tokens map[string]string, s *sta
 			case <-progress.C:
 				mu.Lock()
 				elapsed := time.Since(began)
-				fmt.Fprintf(os.Stderr, "%s: %s of %s into the game, %d of %d requests, %.1f× real time, slowest poll %s\n",
+				fmt.Fprintf(os.Stderr, "%s: %s of %s into the game, %d of %d requests, %.1f× real time, slowest report %s\n",
 					elapsed.Round(time.Second), played.Round(time.Second), events[len(events)-1].at.Sub(first).Round(time.Second),
 					done, len(events), played.Seconds()/elapsed.Seconds(), slowest.Round(time.Millisecond))
 				slowest = 0
@@ -280,12 +276,12 @@ func play(handler http.Handler, events []event, tokens map[string]string, s *sta
 			mu.Lock()
 			defer mu.Unlock()
 			done++
-			if e.method != "GET" {
+			if e.path != reportPath {
 				return
 			}
 			slowest = max(slowest, took)
 			if took > pollInterval && slow == nil {
-				slow = &slowPoll{took: took, at: e.at.Sub(first)}
+				slow = &slowReport{took: took, at: e.at.Sub(first)}
 			}
 		})
 	}
@@ -357,7 +353,7 @@ func (s *stats) report(b *testing.B) {
 	b.ReportMetric(s.played.Seconds()/s.wall.Seconds(), "x-realtime")
 	b.ReportMetric(s.cpu.Seconds(), "cpu-s")
 	b.ReportMetric(s.cpu.Seconds()/s.wall.Seconds(), "cores")
-	for key, unit := range map[string]string{"GET /api/me/game": "poll-p95-ms", "PUT /api/me/position": "report-p95-ms"} {
+	for key, unit := range map[string]string{"PUT " + reportPath: "report-p95-ms"} {
 		if e := s.requests[key]; e != nil {
 			b.ReportMetric(float64(percentile(e.durations, 0.95))/float64(time.Millisecond), unit)
 		}

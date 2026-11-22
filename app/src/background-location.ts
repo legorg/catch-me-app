@@ -1,9 +1,11 @@
 import { isRunningInExpoGo } from 'expo';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import { AppState } from 'react-native';
 
 import { ApiError, updatePosition } from './api/client';
 import { translate } from './i18n';
+import { offerLocation } from './pending-location';
 import { playerSession } from './player-session';
 import { cancelRevealWarning, notifyGameAlerts } from './game-notifications';
 
@@ -29,14 +31,20 @@ TaskManager.defineTask<TaskData>(TASK_NAME, async ({ data, error }) => {
   }
   const latest = data?.locations?.at(-1);
   if (error || !latest) return;
+  const location = {
+    latitude: latest.coords.latitude,
+    longitude: latest.coords.longitude,
+    accuracyMeters: latest.coords.accuracy ?? UNKNOWN_ACCURACY_METERS,
+  };
+  // While the app is open, its state poll reports the location, so it sends one request per poll.
+  if (AppState.currentState === 'active') {
+    offerLocation(location);
+    return;
+  }
   try {
     // A report response may carry a new zone alert, showRunners use or triggered trap, and the next reveal
     // time; notify and schedule them even with the screen off.
-    await notifyGameAlerts(await updatePosition(token, {
-      latitude: latest.coords.latitude,
-      longitude: latest.coords.longitude,
-      accuracyMeters: latest.coords.accuracy ?? UNKNOWN_ACCURACY_METERS,
-    }));
+    await notifyGameAlerts(await updatePosition(token, location));
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 409)) {
       await stopBackgroundSharing();

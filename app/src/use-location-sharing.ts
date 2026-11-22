@@ -1,9 +1,10 @@
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { isBackgroundSharingAvailable, startBackgroundSharing, stopBackgroundSharing } from './background-location';
 import { translate } from './i18n';
+import { dropLocation, offerLocation, type LocationReport } from './pending-location';
 
 const SEND_INTERVAL_MS = 5000;
 // A fix without accuracy is treated as poor rather than precise.
@@ -11,28 +12,21 @@ const UNKNOWN_ACCURACY_METERS = 1000;
 
 export type LocationSharing = ReturnType<typeof useLocationSharing>;
 
-export type Fix = { latitude: number; longitude: number; accuracyMeters: number };
-
 /**
  * While `active` and permitted, shares the position:
  * - With `background` (game running), background permission, and a build that
  *   supports it, a background task keeps reporting while the screen is off.
- * - Otherwise it watches in the foreground only and sends the latest fix
- *   immediately and then every five seconds.
+ * - Otherwise it watches in the foreground only and leaves the latest location for
+ *   the next state poll to report (see pending-location), at once and then every five seconds.
  * Everything stops when inactive or unmounted. Nothing is stored on the device.
  */
-export function useLocationSharing(active: boolean, background: boolean, send: (fix: Fix) => Promise<void>) {
+export function useLocationSharing(active: boolean, background: boolean) {
   const [permission, requestPermission] = Location.useForegroundPermissions();
   const [backgroundPermission, requestBackgroundPermission, getBackgroundPermission] = Location.useBackgroundPermissions();
   const [backgroundAvailable, setBackgroundAvailable] = useState(false);
   const [error, setError] = useState('');
-  const sendRef = useRef(send);
   const granted = permission?.granted ?? false;
   const inBackground = active && granted && background && backgroundAvailable && (backgroundPermission?.granted ?? false);
-
-  useEffect(() => {
-    sendRef.current = send;
-  });
 
   useEffect(() => {
     let current = true;
@@ -58,11 +52,11 @@ export function useLocationSharing(active: boolean, background: boolean, send: (
 
   useEffect(() => {
     if (!active || !granted || inBackground) return;
-    let latest: Fix | null = null;
+    let latest: LocationReport | null = null;
     let subscription: Location.LocationSubscription | null = null;
     let stopped = false;
     const deliver = () => {
-      if (!stopped && latest) void sendRef.current(latest);
+      if (!stopped && latest) offerLocation(latest);
     };
     Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 0 },
@@ -81,6 +75,7 @@ export function useLocationSharing(active: boolean, background: boolean, send: (
     const timer = setInterval(deliver, SEND_INTERVAL_MS);
     return () => {
       stopped = true;
+      dropLocation();
       subscription?.remove();
       clearInterval(timer);
     };

@@ -1,7 +1,8 @@
 import { router, useFocusEffect, useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
-import { ApiError, getGameState, type GameStateResponse } from '@/api/client';
+import { ApiError, getGameState, updatePosition, type GameStateResponse } from '@/api/client';
+import { takeLocation } from '@/pending-location';
 import { translate } from '@/i18n';
 import { gameDestination, shouldAcceptGameState } from '@/game-state';
 import { gameResultRoute } from '@/game-result';
@@ -26,7 +27,25 @@ export function goToGameResult(sessionId: string) {
 }
 
 /**
- * Polls the game state of the current player while the screen is focused.
+ * One request per poll: a position waiting to be reported is sent, and the
+ * report's response is the state too; otherwise the state is only read.
+ */
+async function pollState(token: string): Promise<GameStateResponse> {
+  const location = takeLocation();
+  if (!location) return getGameState(token);
+  try {
+    return await updatePosition(token, location);
+  } catch (err) {
+    // Refused once the player was caught or finished or the game ended, even if
+    // that response was lost: read the state instead.
+    if (err instanceof ApiError && err.status === 409) return getGameState(token);
+    throw err;
+  }
+}
+
+/**
+ * Polls the game state of the current player while the screen is focused,
+ * reporting the player's position with it (see pollState).
  * `now` ticks every 250 ms so countdowns can be derived from the snapshot.
  */
 export function useGameState() {
@@ -57,7 +76,7 @@ export function useGameState() {
       return;
     }
     let active = true;
-    const poll = () => getGameState(token).then(
+    const poll = () => pollState(token).then(
       (state) => { if (active) show(state); },
       (err: unknown) => { if (active) fail(err); },
     );
