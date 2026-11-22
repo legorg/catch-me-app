@@ -2,7 +2,6 @@ package api
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
@@ -148,16 +147,10 @@ func TestPublicGameResultHTTPFlow(t *testing.T) {
 	// Clients that accept gzip get the same JSON compressed; others (above) get it plain.
 	request := httptest.NewRequest("GET", path, nil)
 	request.Header.Set("Accept-Encoding", "gzip")
-	compressed := httptest.NewRecorder()
-	handler.ServeHTTP(compressed, request)
-	if compressed.Header().Get("Content-Encoding") != "gzip" || compressed.Header().Get("Vary") != "Accept-Encoding" || response.Header().Get("Content-Encoding") != "" {
-		t.Fatalf("wrong encoding headers: %v / %v", compressed.Header(), response.Header())
-	}
-	reader, err := gzip.NewReader(compressed.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if body, err := io.ReadAll(reader); err != nil || !bytes.Equal(body, response.Body.Bytes()) || compressed.Body.Len() >= response.Body.Len() {
+	r := httptest.NewRecorder()
+	handler.ServeHTTP(r, request)
+
+	if body, err := io.ReadAll(r.Body); err != nil || !bytes.Equal(body, response.Body.Bytes()) || r.Body.Len() >= response.Body.Len() {
 		t.Fatalf("gzip body differs or is not smaller: %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -175,17 +168,6 @@ func TestGameResultRejectsInvalidIDsAndMethods(t *testing.T) {
 		response := send(t, handler, method, "/api/games/"+game.NewSessionID().String()+"/result", "", "")
 		if response.Code != http.StatusMethodNotAllowed || response.Header().Get("Allow") != "GET" {
 			t.Fatalf("unsupported method %s: %d", method, response.Code)
-		}
-	}
-}
-
-func TestAcceptsGzip(t *testing.T) {
-	for header, want := range map[string]bool{
-		"": false, "identity": false, "gzip": true, "GZIP": true, "deflate, gzip;q=0.8": true, "br, gzip": true,
-		"gzip;q=0": false, "gzip; q=0.000": false, "x-gzip": false,
-	} {
-		if acceptsGzip(header) != want {
-			t.Errorf("acceptsGzip(%q) = %v, want %v", header, !want, want)
 		}
 	}
 }

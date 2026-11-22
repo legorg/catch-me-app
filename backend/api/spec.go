@@ -130,7 +130,7 @@ func (o operation) register(reflector *openapi31.Reflector) error {
 // The handlers check the method themselves, so each path is mounted once.
 func operations(games *controller.GameController) []operation {
 	return []operation{
-		{method: http.MethodGet, path: "/api/games/{sessionId}/result", id: "getGameResult", handler: gzipped(games.Result), summary: "Get the public result of an ended game, including player tracks, by its full game ID", secured: false,
+		{method: http.MethodGet, path: "/api/games/{sessionId}/result", id: "getGameResult", handler: games.Result, summary: "Get the public result of an ended game, including player tracks, by its full game ID", secured: false,
 			pathParams: new(controller.GameResultRequest),
 			success:    response{status: 200, body: new(controller.GameResultResponse), description: "Game times and duration, playground, route (start and stop), player names, runner outcomes/times, hunter teams, and each runner's and hunter's real track from start to end (thinned to 5 seconds, then evenly sampled to at most 120962 points, preserving first and last reports) in join order, plus the whole event timeline oldest first; no joker results, reveals, sketches, join codes, or tokens; no authentication required"},
 			failures:   []response{{status: 400, description: "Invalid game ID; expected 32 lowercase hexadecimal characters, not a join code"}, {status: 404, description: "Game not found, not ended, or already deleted (7 days after its end)"}, {status: 405, description: "Method not allowed"}, {status: 500, description: "Could not load game result"}}},
