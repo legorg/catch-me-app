@@ -84,11 +84,13 @@ type runnerRow struct {
 
 // positionRow is one reported position. A player's newest row is their current
 // position; all rows together are the history for a replay after the game.
+// position_history serves every query for a player's positions in a time range:
+// reveals, jokers and traps.
 type positionRow struct {
 	ID                                  uint64 `gorm:"primaryKey"`
-	PlayerID                            string `gorm:"index;not null"`
+	PlayerID                            string `gorm:"index:position_history,priority:1;not null"`
 	Latitude, Longitude, AccuracyMeters float64
-	RecordedAt                          time.Time
+	RecordedAt                          time.Time `gorm:"index:position_history,priority:2"`
 }
 
 // jokerRow is one used joker. What it showed is derived from the positions at UsedAt.
