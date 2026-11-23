@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
 
 	"catch-me/backend/game"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -39,11 +41,13 @@ type gameRow struct {
 	// CustomRoute marks a route chosen by the game creator; older rows were generated.
 	CustomRoute bool `gorm:"not null;default:false"`
 	// RouteRegenerations is how often the runners replaced the route.
-	RouteRegenerations int            `gorm:"not null;default:0"`
-	Players            []playerRow    `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
-	Jokers             []jokerRow     `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
-	Sketches           []sketchRow    `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
-	ZoneAlerts         []zoneAlertRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	RouteRegenerations int `gorm:"not null;default:0"`
+	// RevealedUntil is the latest reveal time whose reveals are stored.
+	RevealedUntil *time.Time
+	Players       []playerRow    `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	Jokers        []jokerRow     `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	Sketches      []sketchRow    `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
+	ZoneAlerts    []zoneAlertRow `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE"`
 
 	JokerSettings jokerSettingsRow `gorm:"embedded;embeddedPrefix:joker_"`
 }
@@ -71,8 +75,13 @@ type playerRow struct {
 	TokenHash              string `gorm:"uniqueIndex;not null"`
 	Ready                  bool
 	JoinedAt               time.Time
-	Runner                 *runnerRow    `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
-	Positions              []positionRow `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
+	// The latest position; a nil PositionAt means none yet. Also the newest row
+	// in positions, but read from here so loading a game reads no history.
+	PositionLatitude, PositionLongitude, PositionAccuracyMeters float64
+	PositionAt                                                  *time.Time
+	Runner                                                      *runnerRow    `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
+	Positions                                                   []positionRow `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
+	Reveals                                                     []revealRow   `gorm:"foreignKey:PlayerID;constraint:OnDelete:CASCADE"`
 }
 
 // runnerRow is the one-to-one gameplay state of a runner, never a hunter.
@@ -93,7 +102,16 @@ type positionRow struct {
 	RecordedAt                          time.Time `gorm:"index:position_history,priority:2"`
 }
 
-// jokerRow is one used joker. What it showed is derived from the positions at UsedAt.
+// revealRow is where an active runner was at a reveal time: their last report before it.
+type revealRow struct {
+	ID                                  uint64    `gorm:"primaryKey"`
+	PlayerID                            string    `gorm:"index;not null"`
+	At                                  time.Time `gorm:"not null"`
+	Latitude, Longitude, AccuracyMeters float64
+	RecordedAt                          time.Time
+}
+
+// jokerRow is one used joker with what it showed, stored when it was used.
 // Allowances are enforced by the domain within the serialized lobby transaction.
 // Team is stored lowercase so spelling does not matter.
 // Shared runner jokers have an empty Team and Name. Personal fake position
@@ -112,6 +130,22 @@ type jokerRow struct {
 	Cell                string    `gorm:"not null;default:''"`
 	Latitude, Longitude float64   `gorm:"not null;default:0"`
 	UsedAt              time.Time `gorm:"not null"`
+	// What it showed: whether a runner was in the cell (queryZone), the
+	// directions as a JSON array of whole degrees (compass), and the runners' or
+	// hunters' positions (showRunners, showHunters). TriggeredAt is when a trap triggered.
+	Found       bool   `gorm:"not null;default:false"`
+	Bearings    string `gorm:"not null;default:''"`
+	TriggeredAt *time.Time
+	Positions   []jokerPositionRow `gorm:"foreignKey:JokerID;constraint:OnDelete:CASCADE"`
+}
+
+// jokerPositionRow is a position a showRunners or showHunters joker showed.
+type jokerPositionRow struct {
+	ID                                  uint64 `gorm:"primaryKey"`
+	JokerID                             uint64 `gorm:"index;not null"`
+	PlayerID                            string `gorm:"not null"`
+	Latitude, Longitude, AccuracyMeters float64
+	RecordedAt                          time.Time
 }
 
 // sketchRow is one line a hunter team drew. It belongs to the team, so it has no
@@ -143,6 +177,9 @@ func (runnerRow) TableName() string   { return "runners" }
 func (positionRow) TableName() string { return "positions" }
 func (sketchRow) TableName() string   { return "sketches" }
 
+func (revealRow) TableName() string        { return "reveals" }
+func (jokerPositionRow) TableName() string { return "joker_positions" }
+
 func (zoneAlertRow) TableName() string { return "zone_alerts" }
 
 type Store struct{ db *gorm.DB }
@@ -164,7 +201,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// updates cannot interleave.
 	database.SetMaxOpenConns(1)
 	// AutoMigrate creates missing tables, columns, and indexes; it never drops any.
-	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &runnerRow{}, &positionRow{}, &jokerRow{}, &sketchRow{}, &zoneAlertRow{}); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&gameRow{}, &playerRow{}, &runnerRow{}, &positionRow{}, &revealRow{}, &jokerRow{}, &jokerPositionRow{}, &sketchRow{}, &zoneAlertRow{}); err != nil {
 		_ = database.Close()
 		return nil, fmt.Errorf("initialize schema: %w", err)
 	}
@@ -234,7 +271,7 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 		if err != nil {
 			return fmt.Errorf("select lobby: %w", err)
 		}
-		before, err := loadLobby(tx, row, now)
+		before, jokerIDs, err := loadLobby(tx, row, now)
 		if err != nil {
 			return err
 		}
@@ -248,7 +285,7 @@ func (s *Store) updateLobby(ctx context.Context, now time.Time, change func(*gam
 		if err := change(&lobby); err != nil {
 			return err
 		}
-		return saveLobby(tx, before, lobby)
+		return saveLobby(tx, before, lobby, jokerIDs)
 	})
 	return lobby, err
 }
@@ -275,6 +312,8 @@ func (s *Store) DeleteGamesBefore(ctx context.Context, cutoff time.Time) error {
 			{&zoneAlertRow{}, "game_id NOT IN (SELECT id FROM games)"},
 			{&runnerRow{}, "player_id NOT IN (SELECT id FROM players)"},
 			{&positionRow{}, "player_id NOT IN (SELECT id FROM players)"},
+			{&revealRow{}, "player_id NOT IN (SELECT id FROM players)"},
+			{&jokerPositionRow{}, "joker_id NOT IN (SELECT id FROM jokers)"},
 		}
 		for _, o := range orphans {
 			if err := tx.Where(o.where).Delete(o.row).Error; err != nil {
@@ -285,9 +324,10 @@ func (s *Store) DeleteGamesBefore(ctx context.Context, cutoff time.Time) error {
 	})
 }
 
-// saveLobby writes changed games and players. A changed position is a new row;
-// positions are never updated.
-func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
+// saveLobby writes changed games and players. A changed position is stored as
+// the player's latest and added to their history; history rows are never
+// updated. jokerIDs are the stored IDs of before.Jokers, in order.
+func saveLobby(tx *gorm.DB, before, after game.Lobby, jokerIDs []uint64) error {
 	if !before.Game.EndedAt.Equal(after.Game.EndedAt) {
 		if err := tx.Model(&gameRow{ID: after.Game.SessionID.String()}).Update("ended_at", after.Game.EndedAt).Error; err != nil {
 			return fmt.Errorf("update end time: %w", err)
@@ -316,7 +356,7 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 	for _, p := range after.Players {
 		previous, existed := removed[p.ID]
 		delete(removed, p.ID)
-		if !existed || withoutPositions(previous) != withoutPositions(p) {
+		if !existed || withoutRunner(previous) != withoutRunner(p) {
 			row := toPlayerRow(after.Game.SessionID, p)
 			save := tx.Create
 			if existed {
@@ -342,30 +382,21 @@ func saveLobby(tx *gorm.DB, before, after game.Lobby) error {
 			}
 		}
 	}
-	// Jokers are only ever added.
-	for _, use := range after.Jokers[min(len(before.Jokers), len(after.Jokers)):] {
-		row := jokerRow{GameID: after.Game.SessionID.String(), Kind: string(use.Kind()), UsedAt: use.UsedAt()}
-		switch u := use.(type) {
-		case game.ShowRunnersUse:
-			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
-		case game.QueryZoneUse:
-			row.Team, row.Name, row.Cell = strings.ToLower(u.Team.String()), u.Team.String(), u.Cell.String()
-		case game.CompassUse:
-			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
-			row.Latitude, row.Longitude = u.Origin.Latitude(), u.Origin.Longitude()
-		case game.TrapUse:
-			row.Team, row.Name = strings.ToLower(u.Team.String()), u.Team.String()
-			row.Latitude, row.Longitude = u.Point.Latitude(), u.Point.Longitude()
-		case game.ZoneOnlyUse:
-			row.PlayerID = u.Runner.String()
-		case game.FakePositionUse:
-			row.PlayerID, row.Latitude, row.Longitude = u.Runner.String(), u.Point.Latitude(), u.Point.Longitude()
-			row.Team = row.PlayerID
-		case game.ShowHuntersUse:
-			row.PlayerID = u.Runner.String()
-		default:
-			return fmt.Errorf("save joker: unknown joker %q", use.Kind())
+	// Jokers are only ever added; only a trap changes, once, when it triggers.
+	for i, use := range before.Jokers[:min(len(before.Jokers), len(after.Jokers))] {
+		was, ok := use.(game.TrapUse)
+		if trap, _ := after.Jokers[i].(game.TrapUse); ok && !trap.TriggeredAt.Equal(was.TriggeredAt) {
+			if err := tx.Model(&jokerRow{ID: jokerIDs[i]}).Update("triggered_at", trap.TriggeredAt).Error; err != nil {
+				return fmt.Errorf("update trap: %w", err)
+			}
 		}
+	}
+	for _, use := range after.Jokers[min(len(before.Jokers), len(after.Jokers)):] {
+		row, err := toJokerRow(after.Game.SessionID, use)
+		if err != nil {
+			return err
+		}
+		// Creates the shown positions with it.
 		if err := tx.Create(&row).Error; err != nil {
 			return fmt.Errorf("save joker: %w", err)
 		}
@@ -429,9 +460,8 @@ func saveSketches(tx *gorm.DB, gameID game.SessionID, before, after []game.Sketc
 	return nil
 }
 
-// withoutPositions keeps the fields stored in the players table.
-func withoutPositions(p game.Player) game.Player {
-	p.Position = game.Position{}
+// withoutRunner keeps the fields stored in the players table.
+func withoutRunner(p game.Player) game.Player {
 	p.Runner = game.RunnerState{}
 	return p
 }
@@ -441,7 +471,64 @@ func toPlayerRow(gameID game.SessionID, p game.Player) playerRow {
 		ID: p.ID.String(), GameID: gameID.String(), Team: string(p.Team), Name: p.Name.String(),
 		TokenHash: p.TokenHash.String(), Ready: p.Ready, JoinedAt: p.JoinedAt, HunterTeam: p.HunterTeam.String(),
 	}
+	if !p.Position.IsZero() {
+		at := p.Position.RecordedAt
+		row.PositionLatitude, row.PositionLongitude = p.Position.Coordinates.Latitude(), p.Position.Coordinates.Longitude()
+		row.PositionAccuracyMeters, row.PositionAt = p.Position.AccuracyMeters, &at
+	}
 	return row
+}
+
+// toJokerRow is a used joker with what it showed. Hunter jokers are stored by
+// their team, runner jokers by their runner.
+func toJokerRow(gameID game.SessionID, use game.JokerUse) (jokerRow, error) {
+	row := jokerRow{GameID: gameID.String(), Kind: string(use.Kind()), UsedAt: use.UsedAt()}
+	hunterTeam := func(team game.HunterTeamName) { row.Team, row.Name = strings.ToLower(team.String()), team.String() }
+	switch u := use.(type) {
+	case game.ShowRunnersUse:
+		hunterTeam(u.Team)
+		row.Positions = toJokerPositionRows(u.Positions)
+	case game.QueryZoneUse:
+		hunterTeam(u.Team)
+		row.Cell, row.Found = u.Cell.String(), u.Found
+	case game.CompassUse:
+		hunterTeam(u.Team)
+		row.Latitude, row.Longitude = u.Origin.Latitude(), u.Origin.Longitude()
+		bearings, err := json.Marshal(u.Bearings)
+		if err != nil {
+			return row, fmt.Errorf("encode bearings: %w", err)
+		}
+		row.Bearings = string(bearings)
+	case game.TrapUse:
+		hunterTeam(u.Team)
+		row.Latitude, row.Longitude = u.Point.Latitude(), u.Point.Longitude()
+		if !u.TriggeredAt.IsZero() {
+			at := u.TriggeredAt
+			row.TriggeredAt = &at
+		}
+	case game.ZoneOnlyUse:
+		row.PlayerID = u.Runner.String()
+	case game.FakePositionUse:
+		row.PlayerID, row.Latitude, row.Longitude = u.Runner.String(), u.Point.Latitude(), u.Point.Longitude()
+		row.Team = row.PlayerID
+	case game.ShowHuntersUse:
+		row.PlayerID = u.Runner.String()
+		row.Positions = toJokerPositionRows(u.Positions)
+	default:
+		return row, fmt.Errorf("save joker: unknown joker %q", use.Kind())
+	}
+	return row, nil
+}
+
+func toJokerPositionRows(positions []game.JokerPosition) []jokerPositionRow {
+	rows := make([]jokerPositionRow, 0, len(positions))
+	for _, p := range positions {
+		rows = append(rows, jokerPositionRow{
+			PlayerID: p.PlayerID.String(), Latitude: p.Position.Coordinates.Latitude(), Longitude: p.Position.Coordinates.Longitude(),
+			AccuracyMeters: p.Position.AccuracyMeters, RecordedAt: p.Position.RecordedAt,
+		})
+	}
+	return rows
 }
 
 func toRunnerRow(p game.Player) runnerRow {
@@ -453,102 +540,115 @@ func toRunnerRow(p game.Player) runnerRow {
 }
 
 // loadLobby rebuilds domain values through their parsers, so invalid stored
-// data is a server error. It adds each player's latest position and, for
-// runners, their reveals: at each reveal time the last position before it.
-func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, error) {
+// data is a server error. Positions, reveals and what jokers showed are read as
+// stored; no position history is read. Reveals whose time has passed since the
+// last load are added and stored now, before any newer report. It also returns
+// the stored IDs of the jokers, in order.
+func loadLobby(tx *gorm.DB, row gameRow, now time.Time) (game.Lobby, []uint64, error) {
 	lobby, err := parseLobby(row)
 	if err != nil {
 		// %v, not %w: invalid stored data is a server error, not a client validation error.
-		return game.Lobby{}, fmt.Errorf("parse stored lobby: %v", err)
-	}
-	latest, err := lastPositions(tx, row.Players)
-	if err != nil {
-		return game.Lobby{}, err
-	}
-	times := lobby.Game.RevealTimes(now)
-	var runnerIDs, hunterIDs []string
-	for _, p := range lobby.Players {
-		if p.Team == game.Runners {
-			runnerIDs = append(runnerIDs, p.ID.String())
-		} else if p.Team == game.Hunters {
-			hunterIDs = append(hunterIDs, p.ID.String())
-		}
+		return game.Lobby{}, nil, fmt.Errorf("parse stored lobby: %v", err)
 	}
 	jokerRows, err := selectJokers(tx, row.ID)
 	if err != nil {
-		return game.Lobby{}, err
+		return game.Lobby{}, nil, err
 	}
-	// One query for the runner positions both reveals and jokers are read from.
-	// Hunter positions are only read for a used showHunters joker; traps query
-	// their own reports.
-	until, huntersUntil := time.Time{}, time.Time{}
-	if len(times) > 0 {
-		until = times[len(times)-1]
-	}
+	jokerIDs := make([]uint64, 0, len(jokerRows))
 	for _, j := range jokerRows {
-		switch {
-		case j.Kind == string(game.JokerTrap):
-		case j.Kind == string(game.JokerShowHunters):
-			if j.UsedAt.After(huntersUntil) {
-				huntersUntil = j.UsedAt
-			}
-		case j.UsedAt.After(until):
-			until = j.UsedAt
-		}
-	}
-	history, err := positionHistory(tx, runnerIDs, until)
-	if err != nil {
-		return game.Lobby{}, err
-	}
-	hunterHistory, err := positionHistory(tx, hunterIDs, huntersUntil)
-	if err != nil {
-		return game.Lobby{}, err
-	}
-	reveals, err := runnerReveals(history, times)
-	if err != nil {
-		return game.Lobby{}, err
-	}
-	for _, j := range jokerRows {
-		var use game.JokerUse
-		if j.Kind == string(game.JokerTrap) {
-			use, err = parseTrap(tx, j, runnerIDs)
-		} else {
-			use, err = parseJoker(j, history, hunterHistory, lobby)
-		}
+		use, err := parseJoker(j)
 		if err != nil {
-			return game.Lobby{}, err
+			return game.Lobby{}, nil, fmt.Errorf("parse stored joker: %v", err)
 		}
 		lobby.Jokers = append(lobby.Jokers, use)
+		jokerIDs = append(jokerIDs, j.ID)
 	}
 	var sketchRows []sketchRow
 	if err := tx.Where("game_id = ?", row.ID).Order("created_at, id").Find(&sketchRows).Error; err != nil {
-		return game.Lobby{}, fmt.Errorf("select sketches: %w", err)
+		return game.Lobby{}, nil, fmt.Errorf("select sketches: %w", err)
 	}
 	for _, s := range sketchRows {
 		sketch, err := parseSketch(s)
 		if err != nil {
-			return game.Lobby{}, fmt.Errorf("parse stored sketch: %v", err)
+			return game.Lobby{}, nil, fmt.Errorf("parse stored sketch: %v", err)
 		}
 		lobby.Sketches = append(lobby.Sketches, sketch)
 	}
 	if lobby.ZoneAlerts, err = selectZoneAlerts(tx, row.ID); err != nil {
-		return game.Lobby{}, err
+		return game.Lobby{}, nil, err
 	}
-	lobby.Reveals = map[game.PlayerID][]game.Reveal{}
-	for i := range lobby.Players {
-		p := &lobby.Players[i]
-		p.Position = latest[p.ID.String()]
-		if all := reveals[p.ID.String()]; p.Runner.Status() == game.RunnerActive && len(all) > 0 {
-			lobby.Reveals[p.ID] = all
-		}
+	if lobby.Reveals, err = selectReveals(tx, lobby); err != nil {
+		return game.Lobby{}, nil, err
 	}
-	return lobby, nil
+	if err := addReveals(tx, &lobby, row.RevealedUntil, now); err != nil {
+		return game.Lobby{}, nil, err
+	}
+	return lobby, jokerIDs, nil
 }
 
-// selectJokers returns the game's used jokers in order of use.
+// selectReveals returns the stored reveals of the runners still active, oldest first.
+func selectReveals(tx *gorm.DB, lobby game.Lobby) (map[game.PlayerID][]game.Reveal, error) {
+	active := map[string]game.PlayerID{}
+	for _, p := range lobby.Players {
+		if p.Team == game.Runners && p.Runner.Status() == game.RunnerActive {
+			active[p.ID.String()] = p.ID
+		}
+	}
+	reveals := map[game.PlayerID][]game.Reveal{}
+	if len(active) == 0 {
+		return reveals, nil
+	}
+	var rows []revealRow
+	if err := tx.Where("player_id IN ?", slices.Collect(maps.Keys(active))).Order("at, id").Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("select reveals: %w", err)
+	}
+	for _, row := range rows {
+		position, err := parseStoredPosition(row.Latitude, row.Longitude, row.AccuracyMeters, row.RecordedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse stored reveal: %v", err)
+		}
+		id := active[row.PlayerID]
+		reveals[id] = append(reveals[id], game.Reveal{Position: position, At: row.At.UTC()})
+	}
+	return reveals, nil
+}
+
+// addReveals adds the reveals whose time passed after revealedUntil and stores them.
+func addReveals(tx *gorm.DB, lobby *game.Lobby, revealedUntil *time.Time, now time.Time) error {
+	var since time.Time
+	if revealedUntil != nil {
+		since = revealedUntil.UTC()
+	}
+	stored := map[game.PlayerID]int{}
+	for id, reveals := range lobby.Reveals {
+		stored[id] = len(reveals)
+	}
+	latest := lobby.AddReveals(since, now)
+	if !latest.After(since) {
+		return nil
+	}
+	for id, reveals := range lobby.Reveals {
+		for _, r := range reveals[stored[id]:] {
+			row := revealRow{
+				PlayerID: id.String(), At: r.At, Latitude: r.Position.Coordinates.Latitude(), Longitude: r.Position.Coordinates.Longitude(),
+				AccuracyMeters: r.Position.AccuracyMeters, RecordedAt: r.Position.RecordedAt,
+			}
+			if err := tx.Create(&row).Error; err != nil {
+				return fmt.Errorf("save reveal: %w", err)
+			}
+		}
+	}
+	if err := tx.Model(&gameRow{ID: lobby.Game.SessionID.String()}).Update("revealed_until", latest).Error; err != nil {
+		return fmt.Errorf("update reveal time: %w", err)
+	}
+	return nil
+}
+
+// selectJokers returns the game's used jokers in order of use, with the positions they showed.
 func selectJokers(tx *gorm.DB, gameID string) ([]jokerRow, error) {
 	var rows []jokerRow
-	if err := tx.Where("game_id = ?", gameID).Order("id").Find(&rows).Error; err != nil {
+	err := tx.Preload("Positions", func(q *gorm.DB) *gorm.DB { return q.Order("id") }).Where("game_id = ?", gameID).Order("id").Find(&rows).Error
+	if err != nil {
 		return nil, fmt.Errorf("select jokers: %w", err)
 	}
 	return rows, nil
@@ -573,196 +673,82 @@ func selectZoneAlerts(tx *gorm.DB, gameID string) ([]game.ZoneAlert, error) {
 	return alerts, nil
 }
 
-// positionHistory returns each player's positions recorded up to `until`, oldest first.
-func positionHistory(tx *gorm.DB, playerIDs []string, until time.Time) (map[string][]positionRow, error) {
-	byPlayer := map[string][]positionRow{}
-	if len(playerIDs) == 0 || until.IsZero() {
-		return byPlayer, nil
-	}
-	var rows []positionRow
-	err := tx.Where("player_id IN ? AND recorded_at <= ?", playerIDs, until).Order("player_id, recorded_at, id").Find(&rows).Error
-	if err != nil {
-		return nil, fmt.Errorf("select positions: %w", err)
-	}
-	for _, row := range rows {
-		byPlayer[row.PlayerID] = append(byPlayer[row.PlayerID], row)
-	}
-	return byPlayer, nil
-}
-
-// runnerReveals returns, per runner, their reveal at every given time (oldest
-// first): the last position recorded before it. Times before the runner's first
-// position have no reveal.
-func runnerReveals(history map[string][]positionRow, times []time.Time) (map[string][]game.Reveal, error) {
-	reveals := map[string][]game.Reveal{}
-	for id, positions := range history {
-		next := 0 // positions[:next] were recorded before the current reveal time
-		for _, at := range times {
-			for next < len(positions) && positions[next].RecordedAt.Before(at) {
-				next++
-			}
-			if next == 0 {
-				continue
-			}
-			position, err := parsePosition(positions[next-1])
-			if err != nil {
-				return nil, fmt.Errorf("parse stored position: %v", err)
-			}
-			reveals[id] = append(reveals[id], game.Reveal{Position: position, At: at})
-		}
-	}
-	return reveals, nil
-}
-
-// parseJoker rebuilds a used joker. A showing joker gets what it showed, from
-// each player's last position at or before the use: the runners' positions
-// (showRunners), whether a runner was in the cell (queryZone), the directions
-// to the runners (compass), or the hunters' positions (showHunters). Reveal
-// jokers only record who used them (and the point for fakePosition).
-func parseJoker(row jokerRow, runners, hunters map[string][]positionRow, lobby game.Lobby) (game.JokerUse, error) {
+// parseJoker rebuilds a used joker with what it showed, as stored: the runners'
+// positions (showRunners), whether a runner was in the cell (queryZone), the
+// directions to the runners (compass), the hunters' positions (showHunters),
+// or when a trap triggered. Reveal jokers only record who used them (and the
+// point for fakePosition).
+func parseJoker(row jokerRow) (game.JokerUse, error) {
 	kind, err := game.ParseJokerKind(row.Kind)
 	if err != nil {
-		return nil, fmt.Errorf("parse stored joker: %v", err)
+		return nil, err
 	}
 	at := row.UsedAt.UTC()
 	switch kind {
 	case game.JokerZoneOnly, game.JokerFakePosition, game.JokerShowHunters:
 		runner, err := game.ParsePlayerID(row.PlayerID)
 		if err != nil {
-			return nil, fmt.Errorf("parse stored joker: %v", err)
+			return nil, err
 		}
 		switch kind {
 		case game.JokerZoneOnly:
 			return game.ZoneOnlyUse{Runner: runner, At: at}, nil
 		case game.JokerShowHunters:
-			positions, err := positionsAt(hunters, row.UsedAt)
-			if err != nil {
-				return nil, err
-			}
-			return game.ShowHuntersUse{Runner: runner, At: at, Positions: positions}, nil
+			positions, err := parseJokerPositions(row.Positions)
+			return game.ShowHuntersUse{Runner: runner, At: at, Positions: positions}, err
 		}
 		point, err := game.ParseCoordinates(row.Latitude, row.Longitude)
-		if err != nil {
-			return nil, fmt.Errorf("parse stored joker: %v", err)
-		}
-		return game.FakePositionUse{Runner: runner, At: at, Point: point}, nil
+		return game.FakePositionUse{Runner: runner, At: at, Point: point}, err
 	}
 	team, err := game.ParseHunterTeamName(row.Name)
-	if err != nil {
-		return nil, fmt.Errorf("parse stored joker: %v", err)
-	}
-	positions, err := positionsAt(runners, row.UsedAt)
 	if err != nil {
 		return nil, err
 	}
-	// Rebuild the result using only runners active at the time of this use.
-	// Earlier snapshots stay historical; later jokers exclude caught/finished runners.
-	positions = slices.DeleteFunc(positions, func(position game.JokerPosition) bool {
-		player, ok := lobby.Player(position.PlayerID)
-		return !ok || !player.Runner.ActiveAt(at)
-	})
 	switch kind {
 	case game.JokerShowRunners:
-		return game.ShowRunnersUse{Team: team, At: at, Positions: positions}, nil
+		positions, err := parseJokerPositions(row.Positions)
+		return game.ShowRunnersUse{Team: team, At: at, Positions: positions}, err
 	case game.JokerQueryZone:
 		cell, err := game.ParseCell(row.Cell)
-		if err != nil {
-			return nil, fmt.Errorf("parse stored joker: %v", err)
-		}
-		return game.QueryZoneUse{Team: team, At: at, Cell: cell, Found: lobby.Game.Playground.AnyInCell(positions, cell)}, nil
+		return game.QueryZoneUse{Team: team, At: at, Cell: cell, Found: row.Found}, err
 	case game.JokerCompass:
 		origin, err := game.ParseCoordinates(row.Latitude, row.Longitude)
 		if err != nil {
-			return nil, fmt.Errorf("parse stored joker: %v", err)
+			return nil, err
 		}
-		return game.CompassUse{Team: team, At: at, Origin: origin, Bearings: game.CompassBearings(origin, positions)}, nil
-	}
-	return nil, fmt.Errorf("parse stored joker: unknown joker %q", kind)
-}
-
-// parseTrap rebuilds a placed trap. Whether it triggered is derived from the
-// runners' reports at or after its activation near its point; runners report
-// only while active, so these are reports of active runners.
-func parseTrap(tx *gorm.DB, row jokerRow, runnerIDs []string) (game.JokerUse, error) {
-	team, err := game.ParseHunterTeamName(row.Name)
-	if err != nil {
-		return nil, fmt.Errorf("parse stored joker: %v", err)
-	}
-	point, err := game.ParseCoordinates(row.Latitude, row.Longitude)
-	if err != nil {
-		return nil, fmt.Errorf("parse stored joker: %v", err)
-	}
-	use := game.TrapUse{Team: team, At: row.UsedAt.UTC(), Point: point}
-	if len(runnerIDs) == 0 {
+		bearings := []int{}
+		if row.Bearings != "" {
+			if err := json.Unmarshal([]byte(row.Bearings), &bearings); err != nil {
+				return nil, err
+			}
+		}
+		return game.CompassUse{Team: team, At: at, Origin: origin, Bearings: bearings}, nil
+	case game.JokerTrap:
+		point, err := game.ParseCoordinates(row.Latitude, row.Longitude)
+		if err != nil {
+			return nil, err
+		}
+		use := game.TrapUse{Team: team, At: at, Point: point}
+		if row.TriggeredAt != nil {
+			use.TriggeredAt = row.TriggeredAt.UTC()
+		}
 		return use, nil
 	}
-	b := game.TrapSearchBounds(point)
-	var rows []positionRow
-	err = tx.Where("player_id IN ? AND recorded_at >= ? AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?",
-		runnerIDs, use.ActiveAt(), b.South, b.North, b.West, b.East).Order("recorded_at, id").Find(&rows).Error
-	if err != nil {
-		return nil, fmt.Errorf("select trap positions: %w", err)
-	}
-	reports := make([]game.JokerPosition, 0, len(rows))
-	for _, r := range rows {
-		position, err := parsePosition(r)
-		if err != nil {
-			return nil, fmt.Errorf("parse stored position: %v", err)
-		}
-		reports = append(reports, game.JokerPosition{Position: position})
-	}
-	use.TriggeredAt = game.TrapTriggeredAt(point, use.ActiveAt(), reports)
-	return use, nil
+	return nil, fmt.Errorf("unknown joker %q", kind)
 }
 
-// positionsAt returns each player's last position at or before `at`, sorted by
-// player ID; players without one are left out.
-func positionsAt(history map[string][]positionRow, at time.Time) ([]game.JokerPosition, error) {
+func parseJokerPositions(rows []jokerPositionRow) ([]game.JokerPosition, error) {
 	var positions []game.JokerPosition
-	for id, rows := range history {
-		last := -1
-		for i, p := range rows {
-			if p.RecordedAt.After(at) {
-				break
-			}
-			last = i
-		}
-		if last < 0 {
-			continue
-		}
-		playerID, err := game.ParsePlayerID(id)
-		if err != nil {
-			return nil, fmt.Errorf("parse stored joker: %v", err)
-		}
-		position, err := parsePosition(rows[last])
-		if err != nil {
-			return nil, fmt.Errorf("parse stored position: %v", err)
-		}
-		positions = append(positions, game.JokerPosition{PlayerID: playerID, Position: position})
-	}
-	// Map order is random; keep the response stable.
-	slices.SortFunc(positions, func(a, b game.JokerPosition) int { return strings.Compare(a.PlayerID.String(), b.PlayerID.String()) })
-	return positions, nil
-}
-
-// lastPositions returns each player's newest position.
-func lastPositions(tx *gorm.DB, players []playerRow) (map[string]game.Position, error) {
-	ids := make([]string, len(players))
-	for i, p := range players {
-		ids[i] = p.ID
-	}
-	newest := tx.Model(&positionRow{}).Select("max(id)").Where("player_id IN ?", ids).Group("player_id")
-	var rows []positionRow
-	if err := tx.Where("id IN (?)", newest).Find(&rows).Error; err != nil {
-		return nil, fmt.Errorf("select positions: %w", err)
-	}
-	positions := map[string]game.Position{}
 	for _, row := range rows {
-		position, err := parsePosition(row)
+		id, err := game.ParsePlayerID(row.PlayerID)
 		if err != nil {
-			return nil, fmt.Errorf("parse stored position: %v", err)
+			return nil, err
 		}
-		positions[row.PlayerID] = position
+		position, err := parseStoredPosition(row.Latitude, row.Longitude, row.AccuracyMeters, row.RecordedAt)
+		if err != nil {
+			return nil, err
+		}
+		positions = append(positions, game.JokerPosition{PlayerID: id, Position: position})
 	}
 	return positions, nil
 }
@@ -830,6 +816,13 @@ func parsePlayer(row playerRow) (game.Player, error) {
 	player := game.Player{
 		ID: id, Name: name, Team: team, Ready: row.Ready, TokenHash: hash, JoinedAt: row.JoinedAt.UTC(), HunterTeam: hunterTeam,
 	}
+	if row.PositionAt != nil {
+		position, err := parseStoredPosition(row.PositionLatitude, row.PositionLongitude, row.PositionAccuracyMeters, *row.PositionAt)
+		if err != nil {
+			return game.Player{}, err
+		}
+		player.Position = position
+	}
 	if team == game.Runners {
 		if row.Runner == nil {
 			return game.Player{}, fmt.Errorf("runner state missing")
@@ -873,9 +866,13 @@ func parseSketch(row sketchRow) (game.Sketch, error) {
 }
 
 func parsePosition(row positionRow) (game.Position, error) {
-	coordinates, err := game.ParseCoordinates(row.Latitude, row.Longitude)
+	return parseStoredPosition(row.Latitude, row.Longitude, row.AccuracyMeters, row.RecordedAt)
+}
+
+func parseStoredPosition(latitude, longitude, accuracyMeters float64, recordedAt time.Time) (game.Position, error) {
+	coordinates, err := game.ParseCoordinates(latitude, longitude)
 	if err != nil {
 		return game.Position{}, err
 	}
-	return game.NewPosition(coordinates, row.AccuracyMeters, row.RecordedAt.UTC())
+	return game.NewPosition(coordinates, accuracyMeters, recordedAt.UTC())
 }

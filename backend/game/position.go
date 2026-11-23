@@ -128,6 +128,29 @@ func (g Game) RevealTimes(now time.Time) []time.Time {
 	return times
 }
 
+// AddReveals adds each active runner's reveal at every reveal time after since,
+// up to now: their current position, if they reported it before that time. As
+// it runs before any newer report is applied, the current position is the last
+// one before each such time. It returns the latest reveal time, or since.
+func (l *Lobby) AddReveals(since, now time.Time) time.Time {
+	latest := since
+	for _, at := range l.Game.RevealTimes(now) {
+		if !at.After(since) {
+			continue
+		}
+		latest = at
+		for _, p := range l.Players {
+			if p.Team == Runners && p.Runner.Status() == RunnerActive && !p.Position.IsZero() && p.Position.RecordedAt.Before(at) {
+				if l.Reveals == nil {
+					l.Reveals = map[PlayerID][]Reveal{}
+				}
+				l.Reveals[p.ID] = append(l.Reveals[p.ID], Reveal{Position: p.Position, At: at})
+			}
+		}
+	}
+	return latest
+}
+
 // NextReveal is the next reveal time while running, otherwise zero.
 func (g Game) NextReveal(now time.Time) time.Time {
 	if g.Status(now) != StatusRunning {

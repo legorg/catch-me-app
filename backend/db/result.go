@@ -32,24 +32,12 @@ func (s *Store) Result(ctx context.Context, id game.SessionID) (game.Result, err
 		if err != nil {
 			return err
 		}
-		// Without position histories the uses show nothing; only their kinds,
-		// users and times reach the result, as timeline events. A trap's
-		// trigger time is a timeline event too.
-		var runnerIDs []string
-		for _, p := range lobby.Players {
-			if p.Team == game.Runners {
-				runnerIDs = append(runnerIDs, p.ID.String())
-			}
-		}
+		// Only the uses' kinds, users and times reach the result, as timeline
+		// events. A trap's trigger time is a timeline event too.
 		for _, j := range jokers {
-			var use game.JokerUse
-			if j.Kind == string(game.JokerTrap) {
-				use, err = parseTrap(tx, j, runnerIDs)
-			} else {
-				use, err = parseJoker(j, nil, nil, lobby)
-			}
+			use, err := parseJoker(j)
 			if err != nil {
-				return err
+				return fmt.Errorf("parse stored joker: %v", err)
 			}
 			lobby.Jokers = append(lobby.Jokers, use)
 		}

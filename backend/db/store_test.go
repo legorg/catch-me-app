@@ -190,7 +190,7 @@ func TestInvalidStoredDataIsNotAValidationError(t *testing.T) {
 	store := open(t, ":memory:")
 	saved := create(t, store)
 	_, token := join(t, store, saved.JoinCodes.Runner, "Ada", now)
-	for _, corrupt := range []string{"UPDATE positions SET latitude = 95", "UPDATE games SET cell_size_meters = 1550"} {
+	for _, corrupt := range []string{"UPDATE players SET position_latitude = 95", "UPDATE games SET cell_size_meters = 1550"} {
 		if err := store.db.Exec(corrupt).Error; err != nil {
 			t.Fatal(err)
 		}
@@ -336,8 +336,8 @@ func TestRevealsKeepEveryReveal(t *testing.T) {
 	if len(lobby.Reveals) != 1 {
 		t.Fatalf("only the runner has reveals: %+v", lobby.Reveals)
 	}
-	if first := load(t, store, saved.JoinCodes.Runner, reveal(1).Add(time.Second)); len(first.Reveals[runner.ID]) != 1 {
-		t.Fatal("exactly the first reveal expected")
+	if again := load(t, store, saved.JoinCodes.Runner, reveal(3).Add(time.Minute)); len(again.Reveals[runner.ID]) != 3 {
+		t.Fatalf("stored reveals are loaded once, not added again: %+v", again.Reveals[runner.ID])
 	}
 }
 

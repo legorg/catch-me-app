@@ -74,39 +74,27 @@ func TestSpectatorsSeeEveryHunterTeamsTrapsOnlyWhileRunning(t *testing.T) {
 	}
 }
 
-func TestTrapTriggersOnTheFirstReportNearbyAfterActivation(t *testing.T) {
+func TestTrapIsTriggeredByAReportNearbyAfterActivation(t *testing.T) {
 	point, _ := ParseCoordinates(48, 11)
-	activeAt := time.Date(2026, 11, 8, 12, 20, 0, 0, time.UTC)
-	report := func(northMeters float64, at time.Time) JokerPosition {
+	trap := TrapUse{At: time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC), Point: point}
+	activeAt := trap.ActiveAt()
+	report := func(northMeters float64, at time.Time) Position {
 		// One degree of latitude is about 111,195 m.
 		c, _ := ParseCoordinates(48+northMeters/111195, 11)
-		return JokerPosition{Position: Position{Coordinates: c, RecordedAt: at}}
+		return Position{Coordinates: c, RecordedAt: at}
 	}
 	for _, tc := range []struct {
-		name    string
-		reports []JokerPosition
-		want    time.Time
+		name   string
+		report Position
+		want   bool
 	}{
-		{"no reports", nil, time.Time{}},
-		{"only before activation", []JokerPosition{report(0, activeAt.Add(-time.Second))}, time.Time{}},
-		{"outside the radius", []JokerPosition{report(110, activeAt.Add(time.Minute))}, time.Time{}},
-		{"at activation", []JokerPosition{report(0, activeAt)}, activeAt},
-		{"earliest inside wins, in any order", []JokerPosition{
-			report(50, activeAt.Add(3*time.Minute)),
-			report(200, activeAt.Add(time.Minute)),
-			report(90, activeAt.Add(2*time.Minute)),
-		}, activeAt.Add(2 * time.Minute)},
+		{"before activation", report(0, activeAt.Add(-time.Second)), false},
+		{"outside the radius", report(110, activeAt.Add(time.Minute)), false},
+		{"at activation", report(0, activeAt), true},
+		{"inside the radius", report(90, activeAt.Add(time.Minute)), true},
 	} {
-		if got := TrapTriggeredAt(point, activeAt, tc.reports); !got.Equal(tc.want) {
+		if got := trap.triggeredBy(tc.report); got != tc.want {
 			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
 		}
-	}
-}
-
-func TestTrapSearchBoundsContainTheRadius(t *testing.T) {
-	point, _ := ParseCoordinates(48, 11)
-	b := TrapSearchBounds(point)
-	if !b.Contains(48+99.0/111195, 11) || b.Contains(48+150.0/111195, 11) {
-		t.Fatalf("bounds must contain the 100 m radius and little more: %+v", b)
 	}
 }

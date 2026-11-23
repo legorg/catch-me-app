@@ -247,18 +247,24 @@ func TestMultipleTrapsCanBeActiveAndTriggerIndependently(t *testing.T) {
 	if len(uses) != 2 {
 		t.Fatalf("expected both placed traps: %+v", uses)
 	}
-	reports := make([]JokerPosition, 0, 2)
-	for i, point := range points {
-		p, _ := NewPosition(point, 5, at.Add(time.Duration(i)*time.Second))
-		reports = append(reports, JokerPosition{PlayerID: runner.ID, Position: p})
-	}
 	for i, use := range uses {
-		trap := use.(TrapUse)
-		if at.Before(trap.ActiveAt()) || trap.Point != points[i] {
+		if trap := use.(TrapUse); at.Before(trap.ActiveAt()) || trap.Point != points[i] {
 			t.Fatalf("each trap must remain independently active: %+v", trap)
 		}
-		if got := TrapTriggeredAt(trap.Point, trap.ActiveAt(), reports); !got.Equal(reports[i].Position.RecordedAt) {
-			t.Fatalf("trap %d trigger: got %v, want %v", i, got, reports[i].Position.RecordedAt)
+	}
+	// The runner walks over both traps, then back over the first: each triggers
+	// on its own first report, and later reports do not move the trigger time.
+	var reports []Position
+	for i, point := range append(points, points[0]) {
+		p, _ := NewPosition(point, 5, at.Add(time.Duration(i)*time.Second))
+		if err := l.UpdatePosition(runner.ID, p, p.RecordedAt, true); err != nil {
+			t.Fatal(err)
+		}
+		reports = append(reports, p)
+	}
+	for i, use := range jokerWithKind(t, l, dan, JokerTrap, at).Uses {
+		if got := use.(TrapUse).TriggeredAt; !got.Equal(reports[i].RecordedAt) {
+			t.Fatalf("trap %d trigger: got %v, want %v", i, got, reports[i].RecordedAt)
 		}
 	}
 }

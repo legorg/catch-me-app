@@ -210,6 +210,7 @@ func (l *Lobby) UpdatePosition(id PlayerID, position Position, now time.Time, sk
 		l.reschedule(now)
 	}
 	l.raiseZoneAlerts(*player, now)
+	l.triggerTraps(*player)
 	return nil
 }
 

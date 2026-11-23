@@ -28,9 +28,8 @@ func (c Trap) apply(l Lobby, me Player, now time.Time) (JokerUse, error) {
 	return TrapUse{Team: me.HunterTeam, At: now, Point: c.Point}, nil
 }
 
-// TrapUse is a placed trap. Like reveals, whether it triggered is derived from
-// the runners' reports when loading; it never holds which runner triggered it
-// or where they were.
+// TrapUse is a placed trap. It triggers when a runner's report arrives near it
+// (see triggerTraps); it never holds which runner triggered it or where they were.
 type TrapUse struct {
 	Team  HunterTeamName
 	At    time.Time
@@ -65,26 +64,27 @@ func (l Lobby) TrapsForSpectators(now time.Time) []TrapUse {
 	return traps
 }
 
-// TrapSearchBounds contains every point within TrapRadiusMeters of the trap,
-// so storage can preselect the reports that might trigger it.
-func TrapSearchBounds(point Coordinates) geo.Bounds {
-	return geo.BoundsAround(point.latitude, point.longitude, TrapRadiusMeters)
-}
-
-// TrapTriggeredAt is the time of the earliest report at or after activeAt
-// within TrapRadiusMeters of the point, or zero if there is none. Reports are
-// the runners' reports while they were active; only reports made after the
-// activation count, never an earlier one.
-func TrapTriggeredAt(point Coordinates, activeAt time.Time, reports []JokerPosition) time.Time {
-	var first time.Time
-	for _, r := range reports {
-		at, c := r.Position.RecordedAt, r.Position.Coordinates
-		if at.Before(activeAt) || (!first.IsZero() && !at.Before(first)) {
+// triggerTraps triggers every trap the runner's new report lies near, if the
+// trap is active and has not triggered yet. Reports are checked as they arrive,
+// so the first one near the trap triggers it.
+func (l *Lobby) triggerTraps(reporter Player) {
+	if reporter.Team != Runners {
+		return
+	}
+	for i, use := range l.Jokers {
+		trap, ok := use.(TrapUse)
+		if !ok || !trap.TriggeredAt.IsZero() || !trap.triggeredBy(reporter.Position) {
 			continue
 		}
-		if geo.DistanceMeters(point.latitude, point.longitude, c.latitude, c.longitude) <= TrapRadiusMeters {
-			first = at
-		}
+		trap.TriggeredAt = reporter.Position.RecordedAt
+		l.Jokers[i] = trap
 	}
-	return first
+}
+
+// triggeredBy reports whether a runner's report triggers the trap: made at or
+// after its activation, within TrapRadiusMeters of its point.
+func (u TrapUse) triggeredBy(report Position) bool {
+	c := report.Coordinates
+	return !report.RecordedAt.Before(u.ActiveAt()) &&
+		geo.DistanceMeters(u.Point.latitude, u.Point.longitude, c.latitude, c.longitude) <= TrapRadiusMeters
 }
