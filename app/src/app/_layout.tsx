@@ -8,16 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import '@/background-location';
 import LanguageSwitch from '@/components/language-switch';
 import { isLanguage, setLanguage, useT } from '@/i18n';
-import { colors, dynamicStyles, header } from '@/styles';
+import { stackScreenOptions } from '@/stack-options';
+import { colors, dynamicStyles } from '@/styles';
 
 // Start in the first device language the app supports, otherwise English.
 const deviceLanguage = getLocales().map((locale) => locale.languageCode).find(isLanguage);
 if (deviceLanguage) setLanguage(deviceLanguage);
-
-/** Android's header background: the native header cannot draw a bottom line itself. */
-function HeaderBackground() {
-  return <View style={header.background} />;
-}
 
 export default function RootLayout() {
   const t = useT();
@@ -27,23 +23,10 @@ export default function RootLayout() {
       {/* Light text on the dark screens. Not the Stack's statusBarStyle: on iOS that needs
           UIViewControllerBasedStatusBarAppearance, which Expo (and Expo Go) leave off. */}
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerBlurEffect: 'dark',
-          // The blur is iOS only; Android gets a dark bar with a khaki line instead.
-          headerBackground: Platform.OS === 'android' ? HeaderBackground : undefined,
-          headerTintColor: colors.white,
-          headerBackButtonDisplayMode: 'minimal',
-          headerTitleStyle: { fontWeight: '700' },
-          headerShadowVisible: false,
-          headerLargeTitle: true,
-          headerLargeTitleShadowVisible: false,
-          headerLargeTitleStyle: { color: colors.white },
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
+      <Stack screenOptions={stackScreenOptions}>
         <Stack.Screen name="index" options={{ title: 'Catch me!', headerRight: () => <LanguageSwitch /> }} />
-        <Stack.Screen name="create" options={{ title: t('create.chooseTitle') }} />
+        {/* The create steps are a stack of their own, which shows the headers. */}
+        <Stack.Screen name="create" options={{ headerShown: false }} />
         {/* Joining replaces the previous screen, so there is nothing to go back to. */}
         <Stack.Screen name="lobby" options={{ title: t('lobby.title'), headerBackVisible: false, gestureEnabled: false }} />
         {/* The map fills the screen under its own overlay, so no header; leaving goes through the exit button. */}
