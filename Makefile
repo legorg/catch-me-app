@@ -1,4 +1,6 @@
 
+run::
+	(cd backend && go run ./cmd/server)
 generate::
 	(cd backend && go generate ./cmd/server) && (cd app && npm run api:generate)
 
