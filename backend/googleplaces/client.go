@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,6 +15,9 @@ import (
 
 // DefaultBaseURL is the production Places API (New) endpoint.
 const DefaultBaseURL = "https://places.googleapis.com"
+
+// ErrNoAPIKey means the client has no key, so it cannot look up landmarks.
+var ErrNoAPIKey = errors.New("google places: no API key configured")
 
 const (
 	textQuery = "tourist attraction"
@@ -33,7 +37,7 @@ type Client struct {
 const CallTimeout = 3 * time.Second
 
 // NewClient talks to the Places API at baseURL (use DefaultBaseURL in production).
-// languageCode is optional.
+// languageCode is optional. Without apiKey every lookup fails with ErrNoAPIKey.
 func NewClient(baseURL, apiKey, languageCode string) *Client {
 	return &Client{baseURL: baseURL, apiKey: apiKey, languageCode: languageCode, http: &http.Client{Timeout: CallTimeout}}
 }
@@ -58,6 +62,9 @@ type searchRequest struct {
 // Landmarks returns named places located inside bounds, which is meant to be one grid cell.
 // Results must be shown on a Google Map or with Google Maps attribution.
 func (c *Client) Landmarks(ctx context.Context, bounds game.Bounds) ([]game.Landmark, error) {
+	if c.apiKey == "" {
+		return nil, ErrNoAPIKey
+	}
 	payload := searchRequest{TextQuery: textQuery, PageSize: pageSize, LanguageCode: c.languageCode}
 	payload.LocationRestriction.Rectangle.Low = latLng{bounds.South, bounds.West}
 	payload.LocationRestriction.Rectangle.High = latLng{bounds.North, bounds.East}

@@ -14,9 +14,10 @@ type ButtonProps = {
   /** Why the button is disabled: pressing it then explains this in a system alert instead of doing nothing. */
   disabledReason?: string | null;
   variant?: 'primary' | 'secondary';
+  testID?: string;
 };
 
-export default function Button({ label, onPress, disabled = false, disabledReason, variant = 'primary' }: ButtonProps) {
+export default function Button({ label, onPress, disabled = false, disabledReason, variant = 'primary', testID }: ButtonProps) {
   const primary = variant === 'primary';
   const explains = disabled && !!disabledReason;
   return (
@@ -27,6 +28,7 @@ export default function Button({ label, onPress, disabled = false, disabledReaso
       disabled={disabled && !explains}
       onPress={explains ? () => inform(label, disabledReason) : onPress}
       style={buttonStyle(primary, disabled)}
+      testID={testID}
     >
       <Text style={primary ? styles.buttonText : styles.secondaryButtonText}>{label}</Text>
     </Pressable>

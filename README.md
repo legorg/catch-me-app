@@ -304,6 +304,8 @@ go run ./cmd/server -addr :8080
 
 This plain-HTTP starter is for trusted local development; use HTTPS and add authentication before deploying gameplay or location data.
 
+The Google Places key (`GOOGLE_MAPS_KEY` in the root `.env`, or `-google-places-api-key`) is only needed for generated routes. Without it the server starts with a warning: games whose route is chosen on the map work, while creating a game with a generated route and regenerating a route fail with "could not look up landmarks, try again" (HTTP 503) without calling Google. The E2E tests rely on this.
+
 The local database defaults to `backend/catch-me.sqlite` when run from `backend/` and is Git-ignored. Use `-db PATH` to select a different file; its parent directory must already exist.
 
 ### 2. Configure the app's API address
@@ -395,6 +397,46 @@ Use the appropriate signing SHA-1 for each Android build (development and Play s
 
 See the [SDK 58 maps setup documentation](https://docs.expo.dev/versions/v58.0.0/sdk/map-view/) for provider and signing-key instructions.
 
+## End-to-end tests (Maestro)
+
+Maestro flows live in `app/.maestro/` and drive an installed Android release build through real screens (see `docs/e2e-test-spec.md`). The **E2E** GitHub Actions workflow runs them as well (see below).
+
+1. Install Java 17+ and the [Maestro CLI](https://docs.maestro.dev/getting-started/installing-maestro). On Windows, download `maestro.zip` from the [Maestro releases](https://github.com/mobile-dev-inc/Maestro/releases), compare its SHA-256 with `checksums_sha256.txt`, extract it to `%USERPROFILE%\.maestro` and add `%USERPROFILE%\.maestro\bin` to the user `PATH`. Set `MAESTRO_CLI_NO_ANALYTICS=1` to turn off Maestro's anonymous analytics.
+2. Start an Android emulator (or connect a device) and check it with `adb devices`.
+3. Build and install a release build, which embeds the JavaScript bundle and needs no Metro server. `E2E_BUILD=true` lets this release build use the plain-HTTP backend address (`app/app.config.js` then sets `usesCleartextTraffic`); never set it for builds you distribute. From `app/` (the first Gradle build takes about 20 minutes):
+
+```sh
+export E2E_BUILD=true                              # PowerShell: $env:E2E_BUILD='true'
+export EXPO_PUBLIC_API_URL=http://10.0.2.2:8080    # the emulator's address for this computer
+npx expo prebuild --platform android --no-install
+cd android
+./gradlew assembleRelease -PreactNativeArchitectures=x86_64   # emulator ABI; omit for all ABIs
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+   `npm run android:prod` also works but builds every ABI and does not set `E2E_BUILD`.
+
+4. Start the backend on port 8080 (flows that create games need it). Use a separate, fresh database; without a Places key the server only accepts routes chosen on the map, which is what the flows use:
+
+```sh
+cd backend
+go run ./cmd/server -db "$TMPDIR/catch-me-e2e.sqlite" -google-places-api-key=""
+```
+
+5. Run the flows from `app/`:
+
+```sh
+maestro test .maestro/
+```
+
+Add `--format junit --output maestro-results/report.xml --debug-output maestro-results/debug --flatten-debug-output` for the report, screenshots and logs that CI uploads; `app/maestro-results/` is Git-ignored.
+
+Flows select elements by `testID` (Maestro `id:`), never by translated text; player names are test data and may be matched. `launchApp` clears the app state and grants permissions, so no system dialogs need tapping.
+
+Other players are driven through the API by the scripts in `app/.maestro/scripts/` (Maestro `runScript`, results in `output`): `create-game.js` creates a game with a route chosen on the map and stores the join codes in `output.game`; `join-player.js` joins `NAME` with `CODE` and stores the token in `output.players[NAME]`. The scripts run on the computer running Maestro, so they reach the backend at `http://127.0.0.1:8080` (override with `-e API_URL=...`), while the app uses `10.0.2.2`. Screens with a map need the Android Maps key in the APK.
+
+The CI APK is signed with the Expo template's debug keystore, so the Maps key's Android restriction must also allow package `de.loewenburg.catchme` with SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`; otherwise maps stay blank in E2E runs. That keystore is public (shared by Expo projects), which weakens the restriction slightly; a separate test key is the stricter alternative.
+
 ## GitHub Actions
 
 `.github/workflows/ci.yml` runs a single **Project checks** job on pull requests, pushes to `main`, and manual runs from GitHub's Actions tab.
@@ -404,6 +446,8 @@ It checks Go formatting, backend tests and vet, generated API freshness, fronten
 The workflow uses Node 24 and Go 1.26, caches npm downloads and Go modules/builds, and requires no custom secrets. Actions are pinned to commit hashes, the repository token is read-only, and superseded runs are canceled.
 
 This is validation only: it does not deploy containers, publish images, produce signed native app binaries, or submit to app stores. GitHub-hosted execution starts after the workflow is committed and pushed to GitHub. To block merges on failures, configure a branch protection/ruleset requiring **Project checks** after its first run.
+
+`.github/workflows/e2e.yml` runs the separate **Android E2E (Maestro)** job on pushes to `main` and manual runs (not on pull requests, because it takes roughly 30-40 minutes). It generates the Android project with the Maps key `GOOGLE_MAPS_KEY` pulled from the EAS `production` environment (with the `EXPO_TOKEN` secret, like the release workflow; only the prebuild step sees the key, and `EXPO_TOKEN` is removed before project code runs), builds an x86_64 release APK (`EXPO_PUBLIC_API_URL=http://10.0.2.2:8080`, `E2E_BUILD=true` to allow that plain-HTTP address), installs a pinned, checksum-verified Maestro, boots an API 35 emulator with KVM and runs `app/.maestro/`. Before the emulator starts, it builds the Go server and runs it in the background with a fresh SQLite file in the runner's temp directory and without a Places key (the flows choose routes on the map). On failure it uploads the JUnit report, screenshots, logs and `backend.log` as the `maestro-results` artifact (kept 7 days).
 
 ## Checks
 

@@ -1,0 +1,15 @@
+# Smoke test: the installed app starts and shows the home screen.
+appId: de.loewenburg.catchme
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible:
+      id: home-join-code
+    timeout: 30000
+- assertVisible:
+    id: home-join
+- assertVisible:
+    id: home-create

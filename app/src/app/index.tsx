@@ -37,21 +37,22 @@ export default function HomeScreen() {
             autoCorrect={false}
             maxLength={6}
             style={styles.input}
+            testID="home-join-code"
           />
-          <NameInput value={name} onChange={setName} editable={!busy} />
+          <NameInput value={name} onChange={setName} editable={!busy} testID="home-name" />
           <Text style={styles.hint}>{t('home.codeHint')}</Text>
           {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
           {busy && <ActivityIndicator color={colors.accent} />}
-          <Button label={t('home.join')} onPress={join} disabled={busy || !canJoin} disabledReason={joinBlocker} />
+          <Button label={t('home.join')} onPress={join} disabled={busy || !canJoin} disabledReason={joinBlocker} testID="home-join" />
         </View>
         <View style={styles.card}>
           <Text style={styles.heading}>{t('home.createHeading')}</Text>
           <Text style={styles.text}>{t('home.createText')}</Text>
-          <Button label={t('home.create')} variant="secondary" onPress={() => router.push('/create')} disabled={busy} />
+          <Button label={t('home.create')} variant="secondary" onPress={() => router.push('/create')} disabled={busy} testID="home-create" />
         </View>
         <ResultLookup disabled={busy} />
-        <Text style={styles.hint}>{t('home.devHint')}</Text>
-        <Text style={styles.hint}>{t('home.apiUrl', { url: API_URL })}</Text>
+        {__DEV__ && <Text style={styles.hint}>{t('home.devHint')}</Text>}
+        {__DEV__ && <Text style={styles.hint}>{t('home.apiUrl', { url: API_URL })}</Text>}
       </KeyboardScrollView>
     </>
   );

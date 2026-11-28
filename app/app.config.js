@@ -1,5 +1,5 @@
 // API keys are supplied locally or by the native build environment, never committed.
-const { withAppBuildGradle } = require('expo/config-plugins');
+const { AndroidConfig, withAndroidManifest, withAppBuildGradle } = require('expo/config-plugins');
 
 const palette = require('./src/palette.json');
 
@@ -21,7 +21,20 @@ function withWorkManager(config) {
   });
 }
 
-module.exports = ({ config }) => withWorkManager({
+// End-to-end test builds (E2E_BUILD=true) talk to a local plain-HTTP backend on the emulator's
+// host (10.0.2.2). Android release builds block cleartext HTTP, so only these builds allow it.
+// Never set E2E_BUILD for builds that are distributed.
+function withE2ECleartextTraffic(config) {
+  if (process.env.E2E_BUILD !== 'true') {
+    return config;
+  }
+  return withAndroidManifest(config, (manifest) => {
+    AndroidConfig.Manifest.getMainApplicationOrThrow(manifest.modResults).$['android:usesCleartextTraffic'] = 'true';
+    return manifest;
+  });
+}
+
+module.exports = ({ config }) => withE2ECleartextTraffic(withWorkManager({
   ...config,
   // Android's window background, behind the navigation bar and while the app starts.
   backgroundColor: palette.background,
@@ -31,4 +44,4 @@ module.exports = ({ config }) => withWorkManager({
       androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_KEY,
     }],
   ],
-});
+}));

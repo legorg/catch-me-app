@@ -1,0 +1,41 @@
+# The app joins a game as a runner and sees a hunter who joined through the API.
+appId: de.loewenburg.catchme
+---
+- runScript: scripts/create-game.js
+- runScript:
+    file: scripts/join-player.js
+    env:
+      CODE: ${output.game.hunterCode}
+      NAME: API Hunter
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- tapOn:
+    id: home-join-code
+- inputText: ${output.game.runnerCode}
+- tapOn:
+    id: home-name
+- inputText: E2E Runner
+- hideKeyboard
+- tapOn:
+    id: home-join
+- runFlow:
+    file: subflows/wait-accepting-location-accuracy.yml
+    env:
+      TARGET_ID: lobby-me
+- assertVisible:
+    id: lobby-me
+    text: .*E2E Runner.*
+# Swipe below the map: a swipe on the map pans the map instead of scrolling the page.
+- repeat:
+    while:
+      notVisible:
+        text: .*API Hunter.*
+    times: 6
+    commands:
+      - swipe:
+          start: 50%, 85%
+          end: 50%, 35%
+- assertVisible:
+    text: .*API Hunter.*

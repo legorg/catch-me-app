@@ -81,7 +81,7 @@ export default function LobbyScreen() {
           onRequestBackground={lobby.requestBackground}
         />}
         <View style={styles.card}>
-          <Text style={styles.text}>
+          <Text style={styles.text} testID="lobby-me">
             {translateParts('lobby.youAre', {
               team: <Text key="team" style={styles.heading}>{t(spectator ? 'spectator.title' : state.team === 'runner' ? 'team.runner' : 'team.hunter')}</Text>,
             })}

@@ -3,6 +3,7 @@ package googleplaces
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -65,5 +66,15 @@ func TestLandmarksStatusError(t *testing.T) {
 	defer server.Close()
 	if _, err := NewClient(server.URL, "k", "").Landmarks(context.Background(), game.Bounds{North: 1, South: 0, East: 1, West: 0}); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestLandmarksWithoutAPIKeySendsNoRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("unexpected request without an API key")
+	}))
+	defer server.Close()
+	if _, err := NewClient(server.URL, "", "").Landmarks(context.Background(), game.Bounds{North: 1, South: 0, East: 1, West: 0}); !errors.Is(err, ErrNoAPIKey) {
+		t.Fatalf("err = %v, want ErrNoAPIKey", err)
 	}
 }

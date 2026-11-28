@@ -5,7 +5,12 @@ import { useT } from '@/i18n';
 import { colors, styles } from '@/styles';
 
 /** Text input for the player's name. */
-export default function NameInput({ value, onChange, editable }: { value: string; onChange: (name: string) => void; editable: boolean }) {
+export default function NameInput({ value, onChange, editable, testID }: {
+  value: string;
+  onChange: (name: string) => void;
+  editable: boolean;
+  testID?: string;
+}) {
   const t = useT();
   return (
     <TextInput
@@ -18,6 +23,7 @@ export default function NameInput({ value, onChange, editable }: { value: string
       autoCorrect={false}
       maxLength={MAX_NAME_LENGTH}
       style={styles.input}
+      testID={testID}
     />
   );
 }

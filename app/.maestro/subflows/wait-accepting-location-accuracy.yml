@@ -1,0 +1,20 @@
+# Waits until the element with id TARGET_ID is visible. Meanwhile it accepts Google Play
+# services' "Location Accuracy" dialog, which expo-location's high-accuracy tracking shows
+# once per device while that setting is off; real users see and accept it the same way.
+appId: de.loewenburg.catchme
+---
+- repeat:
+    while:
+      notVisible:
+        id: ${TARGET_ID}
+    times: 30
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: com.google.android.gms:id/message
+          commands:
+            - tapOn:
+                id: android:id/button1
+- assertVisible:
+    id: ${TARGET_ID}

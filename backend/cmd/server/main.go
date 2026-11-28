@@ -29,7 +29,7 @@ func main() {
 	godotenv.Load("../.env")
 	addr := flag.String("addr", ":8080", "HTTP listen address")
 	dbPath := flag.String("db", "catch-me.sqlite", "SQLite database file (parent directory must exist)")
-	googlePlacesAPIKey := flag.String("google-places-api-key", os.Getenv("GOOGLE_MAPS_KEY"), "Google Places API (New) key used to find landmarks for game routes (env GOOGLE_MAPS_KEY); required")
+	googlePlacesAPIKey := flag.String("google-places-api-key", os.Getenv("GOOGLE_MAPS_KEY"), "Google Places API (New) key used to find landmarks for generated game routes (env GOOGLE_MAPS_KEY); without it, only routes chosen on the map work")
 	skipDefault, _ := strconv.ParseBool(os.Getenv("TEST_SKIP_START_POSITION_CHECK"))
 	skipStartPositionCheck := flag.Bool("test-skip-start-position-check", skipDefault, "Development only: bypass runner Ready and finish position checks; keep real location updates (env TEST_SKIP_START_POSITION_CHECK)")
 	healthcheck := flag.Bool("healthcheck", false, "Probe GET /health on -addr and exit 0 if healthy (container HEALTHCHECK; the runtime image has no shell or curl)")
@@ -71,7 +71,7 @@ func probeHealth(addr string) int {
 
 func run(ctx context.Context, addr, dbPath, googlePlacesAPIKey string, skipStartPositionCheck bool) error {
 	if googlePlacesAPIKey == "" {
-		return errors.New("a Google Places API key is required: set -google-places-api-key or GOOGLE_MAPS_KEY")
+		slog.Warn("no Google Places API key: generated routes are unavailable; only routes chosen on the map work")
 	}
 	store, err := db.Open(ctx, dbPath)
 	if err != nil {
