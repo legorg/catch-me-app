@@ -41,7 +41,8 @@ function FullscreenContent({ onClose, fullscreenFooter, ...props }: FullscreenMa
     <View style={styles.full}>
       {/* Dark text over the light map; the layout's light style returns when the modal closes. */}
       <StatusBar style="dark" />
-      <PlaygroundMap {...props} fullscreen />
+      {/* The map reaches the screen edges; below a footer, the footer already keeps clear of the bottom inset. */}
+      <PlaygroundMap {...props} fullscreen controlsInset={{ bottom: fullscreenFooter ? 0 : insets.bottom, right: insets.right }} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('map.close')}

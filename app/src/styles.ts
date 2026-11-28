@@ -1,4 +1,4 @@
-import { StyleSheet, type ViewStyle } from 'react-native';
+import { StyleSheet, type Animated, type ViewStyle } from 'react-native';
 
 import palette from './palette.json';
 
@@ -89,7 +89,8 @@ export const dynamicStyles = {
   }),
   /** Turns the north arrow against the map, so it keeps pointing north. */
   northArrow: (heading: number) => ({ transform: [{ rotate: `${-heading}deg` }] }),
-  replayProgress: (share: number): ViewStyle => ({ width: `${share * 100}%` }),
+  opacity: (opacity: Animated.Value) => ({ opacity }),
+  translateY: (translateY: Animated.AnimatedInterpolation<number>) => ({ transform: [{ translateY }] }),  replayProgress: (share: number): ViewStyle => ({ width: `${share * 100}%` }),
   camouflageTiles: (width: number): ViewStyle => ({ width }),
   navigationBar: (height: number): ViewStyle => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height, backgroundColor: colors.background }),
 };
@@ -143,6 +144,7 @@ export const mapStyles = StyleSheet.create({
   locate: { position: 'absolute', right: 12, bottom: 12, alignItems: 'flex-end', gap: 6 },
   locateButton: { backgroundColor: colors.white, borderRadius: 8, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   locating: { opacity: 0.6 },
+  typeOption: { minHeight: 72, gap: 4 },
   locateError: { color: colors.white, backgroundColor: colors.target, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12 },
   numberedPin: { width: 32, height: 40 },
   pinHead: { position: 'absolute', top: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
@@ -152,6 +154,15 @@ export const mapStyles = StyleSheet.create({
   dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   dotLabel: { fontSize: 9, fontWeight: '800', color: colors.white },
   label: { fontSize: 11, color: colors.background, backgroundColor: colors.white, padding: 2, borderRadius: 3, fontWeight: '700' },
+});
+
+/** Card sliding up from the bottom. */
+export const sheetStyles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { backgroundColor: colors.scrim },
+  sheet: { backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20, gap: 12 },
+  handle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.placeholder },
+  title: { color: colors.white, fontSize: 18, fontWeight: '700' },
 });
 
 /** Fullscreen map wrapper. */

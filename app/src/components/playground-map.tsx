@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Circle, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
@@ -16,7 +17,7 @@ import MapGrid from './map-grid';
 import MapLocateButton from './map-locate-button';
 import MapNorthButton from './map-north-button';
 import MapPin from './map-pin';
-
+import MapTypeSheet, { type MapType } from './map-type-sheet';
 export type CellHighlight = { cell: string; title: string; color: string };
 
 export type MapMarker = {
@@ -80,7 +81,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
   const heading = useMapHeading(map, { rotatable, onRegionChangeComplete, isMuted, onHeadingChange });
   const showNorth = rotatable && !heading.pointsTo(0);
   const showAlign = rotatable && gridRotation !== 0 && !heading.pointsTo(gridRotation);
-  return (
+  const [mapType, setMapType] = useState<MapType>('standard');  return (
     <View style={fullscreen ? styles.fullscreen : styles.map} onLayout={onLayout}>
       <MapView
         ref={map}
@@ -95,6 +96,7 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
         }}
         // The grid colors are made for a light map, so ignore the phone's dark mode.
         userInterfaceStyle="light"
+        mapType={mapType}
         rotateEnabled={rotatable && !drawing}
         // Our own north button looks the same on both platforms.
         showsCompass={false}
@@ -125,13 +127,12 @@ export default function PlaygroundMap({ playground, editable, onSelect, highligh
       </MapView>
       {(editable || onPick) && <MapCrosshair anchor={anchor} />}
       {drawing && <MapDrawingOverlay {...responder} />}
-      {(showAlign || showNorth || locationEnabled) && (
-        <View style={[styles.locate, dynamicStyles.locate(controlsInset)]}>
-          {showAlign && <MapAlignButton onPress={() => heading.turnTo(gridRotation)} />}
-          {showNorth && <MapNorthButton heading={heading.heading} onPress={() => heading.turnTo(0)} />}
-          {locationEnabled && <MapLocateButton locating={locating} error={locateError} onLocate={locate} />}
-        </View>
-      )}
+      <View style={[styles.locate, dynamicStyles.locate(controlsInset)]}>
+        <MapTypeSheet mapType={mapType} onChange={setMapType} />
+        {showAlign && <MapAlignButton onPress={() => heading.turnTo(gridRotation)} />}
+        {showNorth && <MapNorthButton heading={heading.heading} onPress={() => heading.turnTo(0)} />}
+        {locationEnabled && <MapLocateButton locating={locating} error={locateError} onLocate={locate} />}
+      </View>
     </View>
   );
 }
