@@ -8,7 +8,7 @@ import { DEFAULT_JOKER_SETTINGS, withAllowance, withZoneAlert, type JokerKind } 
 import { playerSession } from '@/player-session';
 import {
   DEFAULT_CELL_SIZE_METERS, DEFAULT_CENTER, DEFAULT_GRID_SIZE, DEFAULT_REVEAL_INTERVAL_MINUTES,
-  isValidGridSize, isValidRevealInterval, parseCellSizeKm, parseWholeNumber, previewPlayground, rotationFromHeading, routePointAt,
+  isValidRevealInterval, parseWholeNumber, previewPlayground, rotationFromHeading, routePointAt,
 } from '@/playground';
 import { useCurrentPosition } from '@/use-current-position';
 
@@ -20,14 +20,15 @@ type Status = { message: Message; error: boolean; busy: boolean };
 export type RouteMode = 'generated' | 'chosen';
 export type RoutePoints = { start: Coordinates | null; stop: Coordinates | null };
 
-/** State and actions of the create-game screen: choosing the grid, creating the game, and joining it. */
+/** State and actions of the create-game steps: choosing the grid, creating the game, and joining it. */
 export function useCreateGame() {
   const t = useT();
   // Where the device is, once known; the grid starts there instead of at the default spot.
   const here = useCurrentPosition();
   const [picked, setPicked] = useState<Coordinates | null>(null);
-  const [cellSizeText, setCellSizeText] = useState(String(DEFAULT_CELL_SIZE_METERS / 1000));
-  const [gridSizeText, setGridSizeText] = useState(String(DEFAULT_GRID_SIZE));
+  // Set with sliders, so always within the backend's limits.
+  const [cellSize, setCellSize] = useState(DEFAULT_CELL_SIZE_METERS);
+  const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE);
   const [revealIntervalText, setRevealIntervalText] = useState(String(DEFAULT_REVEAL_INTERVAL_MINUTES));
   // Turning the map turns the grid with it, so the grid always looks straight on screen.
   const [rotation, setRotation] = useState(0);
@@ -40,18 +41,15 @@ export function useCreateGame() {
   const [name, setName] = useState('');
   const [status, setStatus] = useState<Status>({ message: { key: 'create.pickCenter' }, error: false, busy: false });
   const { busy } = status;
-  const cellSize = parseCellSizeKm(cellSizeText);
-  const gridSize = parseWholeNumber(gridSizeText, isValidGridSize);
   const revealInterval = parseWholeNumber(revealIntervalText, isValidRevealInterval);
   // Until the user picks a spot, the grid follows the device position.
   const selected = picked ?? here;
 
   let playground = created?.game.playground ?? null;
-  let sizeError = !created && cellSize === null ? t('create.cellSizeInvalid') : '';
-  const gridSizeError = !created && gridSize === null ? t('create.gridSizeInvalid') : '';
+  let sizeError = '';
   const revealIntervalError = !created && revealInterval === null ? t('create.revealIntervalInvalid') : '';
   // The grid starts at a default spot; the user drags it, and can only create once they have.
-  if (!created && cellSize !== null && gridSize !== null) {
+  if (!created) {
     try {
       playground = previewPlayground(selected ?? DEFAULT_CENTER, cellSize, gridSize, rotation);
     } catch (err) {
@@ -63,9 +61,12 @@ export function useCreateGame() {
   // Points stay where they were tapped, so moving or resizing the grid can leave them outside their edge row.
   const routeValid = !!playground && !!routePoints.start && !!routePoints.stop
     && routePointAt(playground, routePoints.start) === 'start' && routePointAt(playground, routePoints.stop) === 'stop';
+  /** Why the area step cannot go on yet, or null. */
+  const areaBlocker = sizeError || (!selected || !playground ? t('create.pickCenter') : null);
+  /** Why the rules step cannot go on yet, or null. */
+  const rulesBlocker = revealIntervalError || null;
   /** Why the game cannot be created yet, or null. */
-  const createBlocker = sizeError || gridSizeError || revealIntervalError
-    || (!selected || !playground ? t('create.pickCenter') : null)
+  const createBlocker = areaBlocker || rulesBlocker
     || (routeMode === 'chosen' && !routeValid ? t('create.routeTap') : null);
   const cannotCreate = createBlocker !== null;
 
@@ -75,7 +76,6 @@ export function useCreateGame() {
 
   function selectCenter(center: Coordinates) {
     try {
-      if (cellSize === null || gridSize === null) throw new Error(t('create.sizeFirst'));
       previewPlayground(center, cellSize, gridSize, rotation);
       setPicked(center);
       setStatus((s) => ({ ...s, error: false, message: { key: 'create.checkGrid' } }));
@@ -110,11 +110,14 @@ export function useCreateGame() {
 
   const create = () => {
     void run(async () => {
-      if (!selected || cellSize === null || gridSize === null || revealInterval === null || cannotCreate) return;
+      if (!selected || revealInterval === null || cannotCreate) return;
       const { start, stop } = routePoints;
       const route = routeMode === 'chosen' && start && stop ? { start, stop } : undefined;
       setCreated(await createGame(selected, cellSize, gridSize, rotation, revealInterval, jokers, route));
       setStatus((s) => ({ ...s, message: { key: 'create.created' } }));
+      // The steps are done: the created game replaces them, so back leaves the create flow.
+      router.dismissAll();
+      router.replace('/create/created');
     }, routeMode === 'chosen' ? 'create.creatingChosen' : 'create.creating');
   };
 
@@ -128,14 +131,13 @@ export function useCreateGame() {
 
   return {
     created, playground, displayedSize, displayedGridSize, hasPosition: !!here,
-    cellSizeText, setCellSizeText, sizeError,
-    gridSizeText, setGridSizeText, gridSizeError,
+    cellSize, setCellSize, gridSize, setGridSize, sizeError,
     revealIntervalText, setRevealIntervalText, revealIntervalError,
     rotation, turnGrid,
     jokers, setJokerAllowance: (kind: JokerKind, allowance: number) => setJokers((current) => withAllowance(current, kind, allowance)),
     setZoneAlert: (enabled: boolean) => setJokers((current) => withZoneAlert(current, enabled)),
     routeMode, setRouteMode, routePoints, routeTapMissed, tapRoutePoint,
-    name, setName, busy, message: status.message, error: status.error, cannotCreate, createBlocker,
+    name, setName, busy, message: status.message, error: status.error, areaBlocker, rulesBlocker, cannotCreate, createBlocker,
     selectCenter, create, joinAs,
   };
 }

@@ -90,6 +90,11 @@ export const dynamicStyles = {
   /** Turns the north arrow against the map, so it keeps pointing north. */
   northArrow: (heading: number) => ({ transform: [{ rotate: `${-heading}deg` }] }),
   replayProgress: (share: number): ViewStyle => ({ width: `${share * 100}%` }),
+  /** Android: the content's padding plus the navigation bar, so the last element clears it. */
+  scrollBottom: (bottomInset: number): ViewStyle => ({ paddingBottom: (styles.content.padding as number) + bottomInset }),
+  sliderShare: (share: number): ViewStyle => ({ width: `${share * 100}%` }),
+  /** The thumb's center sits on the value; its margin pulls it back by half its width. */
+  sliderThumb: (share: number): ViewStyle => ({ left: `${share * 100}%` }),
   camouflageTiles: (width: number): ViewStyle => ({ width }),
   navigationBar: (height: number): ViewStyle => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height, backgroundColor: colors.background }),
 };
@@ -136,6 +141,7 @@ export const picker = StyleSheet.create({
 export const mapStyles = StyleSheet.create({
   map: { height: 360, width: '100%' },
   fullscreen: { flex: 1, width: '100%' },
+  square: { width: '100%', aspectRatio: 1 },
   // Marks where the grid lands when the map comes to rest.
   crosshair: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   crossH: { position: 'absolute', width: 24, height: 2, backgroundColor: colors.start },
@@ -152,6 +158,15 @@ export const mapStyles = StyleSheet.create({
   dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   dotLabel: { fontSize: 9, fontWeight: '800', color: colors.white },
   label: { fontSize: 11, color: colors.background, backgroundColor: colors.white, padding: 2, borderRadius: 3, fontWeight: '700' },
+});
+
+/** Titled slider: a thin rail filled up to the value, with a round thumb, inside a tall touch area. */
+export const sliderStyles = StyleSheet.create({
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
+  touch: { height: 36, justifyContent: 'center' },
+  rail: { height: 6, borderRadius: 3, backgroundColor: colors.background, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: colors.accent },
+  thumb: { position: 'absolute', width: 22, height: 22, marginLeft: -11, borderRadius: 11, backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.white },
 });
 
 /** Fullscreen map wrapper. */

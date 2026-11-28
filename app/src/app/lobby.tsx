@@ -2,7 +2,6 @@ import { ActivityIndicator, Text, View } from 'react-native';
 
 import { isGameStateRunnerResponse } from '@/api/types';
 import DebugAddPlayer from '@/components/debug-add-player';
-import FullscreenMap from '@/components/fullscreen-map';
 import HunterTeamCard from '@/components/hunter-team-card';
 import JoinCodes from '@/components/join-codes';
 import KeyboardScrollView from '@/components/keyboard-scroll-view';
@@ -11,6 +10,7 @@ import LobbyCountdownModal from '@/components/lobby-countdown-modal';
 import LobbyRouteCard from '@/components/lobby-route-card';
 import LobbyTeamCard from '@/components/lobby-team-card';
 import LocationPermissionCards from '@/components/location-permission-cards';
+import MapScrollView from '@/components/map-scroll-view';
 import { translateParts, useT } from '@/i18n';
 import { lobbyInfo, noop, playerMarkers, playersByTeam, routeMarkers, startCheckMessage, visibleRoute } from '@/lobby';
 import { distanceMeters, START_RADIUS_METERS } from '@/playground';
@@ -55,7 +55,7 @@ export default function LobbyScreen() {
   return (
     <>
       <LobbyCountdownModal countdown={countdown} />
-      <KeyboardScrollView>
+      <MapScrollView map={{ playground: state.playground, editable: false, onSelect: noop, markers, locationEnabled: !spectator, rotatable: true }}>
         {skipStartPositionCheck && <View style={styles.card}>
           <Text style={[styles.heading, styles.error]}>{t('lobby.testMode')}</Text>
           <Text style={styles.text}>{t('lobby.testModeText')}</Text>
@@ -63,9 +63,6 @@ export default function LobbyScreen() {
         <Text accessibilityLiveRegion="polite" style={styles.text}>
           {spectator ? t('spectator.lobbyInfo') : lobbyInfo(countdown !== null, skipStartPositionCheck)}
         </Text>
-        <View style={styles.mapContainer}>
-          <FullscreenMap playground={state.playground} editable={false} onSelect={noop} markers={markers} locationEnabled={!spectator} rotatable />
-        </View>
         {state.team === 'hunter' && <Text style={styles.hint}>
           {t('lobby.legendHunter')}
         </Text>}
@@ -115,7 +112,7 @@ export default function LobbyScreen() {
         <LobbyTeamCard team="spectator" players={teams.spectator} playerId={state.playerId} />
         {!!error && <Text accessibilityLiveRegion="polite" style={[styles.text, styles.error]}>{error}</Text>}
         {me && <LobbyActions ready={me.ready} busy={busy} readyBlocker={readyBlocker} spectator={spectator} onToggleReady={lobby.toggleReady} onLeave={lobby.leave} />}
-      </KeyboardScrollView>
+      </MapScrollView>
     </>
   );
 }

@@ -35,8 +35,13 @@ export function offsetPoint(from: Coordinates, bearingDegrees: number, meters: n
   };
 }
 
+/** Side length of a cell in meters, as the backend allows. */
+export const MIN_CELL_SIZE_METERS = 100;
+export const MAX_CELL_SIZE_METERS = 5000;
+export const CELL_SIZE_STEP_METERS = 100;
+
 export function isValidCellSize(size: unknown): size is number {
-  return typeof size === 'number' && Number.isInteger(size) && size >= 100 && size <= 5000 && size % 100 === 0;
+  return typeof size === 'number' && Number.isInteger(size) && size >= MIN_CELL_SIZE_METERS && size <= MAX_CELL_SIZE_METERS && size % CELL_SIZE_STEP_METERS === 0;
 }
 
 export function parseCellSizeKm(text: string): number | null {
