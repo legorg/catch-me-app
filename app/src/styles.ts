@@ -22,7 +22,7 @@ export const colors = {
 
 /** Android's header: a dark bar with a khaki line, as iOS keeps its native blurred large title. */
 export const header = StyleSheet.create({
-  background: { flex: 1, backgroundColor: colors.card, borderBottomWidth: 2, borderBottomColor: colors.accent },
+  background: { flex: 1, backgroundColor: colors.card, borderBottomWidth: 0, borderBottomColor: colors.accent },
 });
 
 export const styles = StyleSheet.create({

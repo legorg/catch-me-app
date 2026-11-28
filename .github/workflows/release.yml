@@ -64,7 +64,8 @@ jobs:
         run: npm run test:api
 
       # Builds run on EAS with its production environment variables and stored credentials.
-      # Android submits to the Play internal track with the service account key stored on EAS.
+      # Android submits to the Play open testing track ("beta") with the service account key stored on EAS.
+      # iOS uploads to TestFlight; the public beta link is an external group managed in App Store Connect.
       - name: Start EAS production build with auto-submit
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
